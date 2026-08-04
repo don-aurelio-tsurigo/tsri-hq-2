@@ -7,21 +7,19 @@ import {
   updateNewsletterType,
 } from "@/lib/actions";
 import {
-  DEFAULT_WEEKDAYS_BY_FREQUENCY,
   formatWeekdays,
-  NEWSLETTER_FREQUENCY_LABELS,
   WEEKDAY_LABELS,
   WEEKDAYS,
-  type NewsletterFrequencyValue,
   type Weekday,
 } from "@/lib/newsletter-constants";
 
 export type NewsletterTypeRow = {
   id: string;
   name: string;
-  frequency: NewsletterFrequencyValue;
   weekdays: number[];
 };
+
+const DEFAULT_WEEKDAYS: Weekday[] = [2];
 
 export function NewsletterTypeManager({
   types,
@@ -30,11 +28,7 @@ export function NewsletterTypeManager({
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [frequency, setFrequency] =
-    useState<NewsletterFrequencyValue>("weekly");
-  const [weekdays, setWeekdays] = useState<Weekday[]>(
-    DEFAULT_WEEKDAYS_BY_FREQUENCY.weekly,
-  );
+  const [weekdays, setWeekdays] = useState<Weekday[]>(DEFAULT_WEEKDAYS);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editId, setEditId] = useState<string | null>(null);
@@ -50,7 +44,6 @@ export function NewsletterTypeManager({
   function startEdit(type: NewsletterTypeRow) {
     setEditId(type.id);
     setName(type.name);
-    setFrequency(type.frequency);
     setWeekdays(
       type.weekdays.filter((d): d is Weekday =>
         (WEEKDAYS as readonly number[]).includes(d),
@@ -62,8 +55,7 @@ export function NewsletterTypeManager({
   function resetForm() {
     setEditId(null);
     setName("");
-    setFrequency("weekly");
-    setWeekdays(DEFAULT_WEEKDAYS_BY_FREQUENCY.weekly);
+    setWeekdays(DEFAULT_WEEKDAYS);
     setError(null);
   }
 
@@ -72,7 +64,6 @@ export function NewsletterTypeManager({
     const fd = new FormData();
     if (editId) fd.set("id", editId);
     fd.set("name", name);
-    fd.set("frequency", frequency);
     for (const d of weekdays) fd.append("weekdays", String(d));
     startTransition(async () => {
       const result = editId
@@ -94,7 +85,7 @@ export function NewsletterTypeManager({
           Newsletter-Typen
         </h2>
         <p className="text-sm text-[var(--muted)]">
-          Rhythmus = Erscheinungstage im Kalender
+          Erscheinungstage im Kalender
         </p>
       </div>
       <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
@@ -106,7 +97,6 @@ export function NewsletterTypeManager({
             <div>
               <p className="font-semibold">{t.name}</p>
               <p className="text-sm text-[var(--muted)]">
-                {NEWSLETTER_FREQUENCY_LABELS[t.frequency]} ·{" "}
                 {formatWeekdays(t.weekdays)}
               </p>
             </div>
@@ -137,27 +127,6 @@ export function NewsletterTypeManager({
             onChange={(e) => setName(e.target.value)}
             placeholder="z.B. Züri Briefing"
           />
-        </label>
-        <label className="field text-xs font-semibold text-[var(--muted)]">
-          Frequenz
-          <select
-            value={frequency}
-            onChange={(e) => {
-              const f = e.target.value as NewsletterFrequencyValue;
-              setFrequency(f);
-              setWeekdays(DEFAULT_WEEKDAYS_BY_FREQUENCY[f]);
-            }}
-          >
-            {(
-              Object.keys(
-                NEWSLETTER_FREQUENCY_LABELS,
-              ) as NewsletterFrequencyValue[]
-            ).map((key) => (
-              <option key={key} value={key}>
-                {NEWSLETTER_FREQUENCY_LABELS[key]}
-              </option>
-            ))}
-          </select>
         </label>
         <div>
           <p className="mb-1 text-xs font-semibold text-[var(--muted)]">

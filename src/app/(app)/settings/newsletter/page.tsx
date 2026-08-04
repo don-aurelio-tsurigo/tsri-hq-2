@@ -4,7 +4,6 @@ import {
   ensureDefaultNewsletterTypes,
   getNewsletterCalendarSettings,
   listNewsletterTypes,
-  type NewsletterFrequencyValue,
 } from "@/lib/newsletter";
 import { requireAdmin } from "@/lib/session";
 
@@ -36,7 +35,6 @@ export default async function NewsletterSettingsPage() {
         types={types.map((t) => ({
           id: t.id,
           name: t.name,
-          frequency: t.frequency as NewsletterFrequencyValue,
           weekdays: t.weekdays,
         }))}
       />

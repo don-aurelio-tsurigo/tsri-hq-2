@@ -15,6 +15,7 @@ import {
 } from "@/lib/editorial";
 import {
   formatWeekdays,
+  frequencyFromWeekdays,
   isoWeekdayFromDateKey,
   isWeekday,
   scheduledDateKeysForWeeks,
@@ -1463,7 +1464,6 @@ export async function clearCookingSlot(formData: FormData) {
 
 const newsletterTypeSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  frequency: z.enum(["daily", "weekly"]),
   weekdays: z
     .array(z.coerce.number().int().min(1).max(7))
     .min(1, "Mindestens ein Wochentag")
@@ -1473,7 +1473,6 @@ const newsletterTypeSchema = z.object({
 function parseNewsletterTypeForm(formData: FormData) {
   return newsletterTypeSchema.safeParse({
     name: formData.get("name"),
-    frequency: formData.get("frequency"),
     weekdays: formData.getAll("weekdays"),
   });
 }
@@ -1482,8 +1481,10 @@ export async function createNewsletterType(formData: FormData) {
   const { membership } = await requireAdmin();
   const parsed = parseNewsletterTypeForm(formData);
   if (!parsed.success) {
-    return { error: "Name, Frequenz und mind. ein Wochentag nötig." };
+    return { error: "Name und mind. ein Wochentag nötig." };
   }
+
+  const frequency = frequencyFromWeekdays(parsed.data.weekdays);
 
   const existing = await prisma.newsletterType.findUnique({
     where: {
@@ -1499,7 +1500,7 @@ export async function createNewsletterType(formData: FormData) {
         where: { id: existing.id },
         data: {
           active: true,
-          frequency: parsed.data.frequency,
+          frequency,
           weekdays: parsed.data.weekdays,
         },
       });
@@ -1519,7 +1520,7 @@ export async function createNewsletterType(formData: FormData) {
     data: {
       organizationId: membership.organizationId,
       name: parsed.data.name,
-      frequency: parsed.data.frequency,
+      frequency,
       weekdays: parsed.data.weekdays,
       sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
     },
@@ -1537,7 +1538,7 @@ export async function updateNewsletterType(formData: FormData) {
 
   const parsed = parseNewsletterTypeForm(formData);
   if (!parsed.success) {
-    return { error: "Name, Frequenz und mind. ein Wochentag nötig." };
+    return { error: "Name und mind. ein Wochentag nötig." };
   }
 
   const type = await prisma.newsletterType.findFirst({
@@ -1558,7 +1559,7 @@ export async function updateNewsletterType(formData: FormData) {
     where: { id },
     data: {
       name: parsed.data.name,
-      frequency: parsed.data.frequency,
+      frequency: frequencyFromWeekdays(parsed.data.weekdays),
       weekdays: parsed.data.weekdays,
     },
   });

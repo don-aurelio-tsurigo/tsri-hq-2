@@ -75,6 +75,13 @@ export function isNewsletterFrequency(
   return (NEWSLETTER_FREQUENCIES as readonly string[]).includes(value);
 }
 
+/** Infer stored frequency from selected weekdays (UI no longer asks for it). */
+export function frequencyFromWeekdays(
+  weekdays: readonly number[],
+): NewsletterFrequencyValue {
+  return weekdays.length >= 7 ? "daily" : "weekly";
+}
+
 export function isNewsletterCampaignStatus(
   value: string,
 ): value is NewsletterCampaignStatusValue {
