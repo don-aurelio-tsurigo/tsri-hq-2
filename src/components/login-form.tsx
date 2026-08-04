@@ -13,6 +13,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const joined = searchParams.get("joined") === "1";
+  const resetOk = searchParams.get("reset") === "1";
 
   function onPasswordLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -54,6 +55,11 @@ export function LoginForm() {
         {joined && (
           <p className="mb-4 rounded-lg bg-[var(--highlight)] px-3 py-2 text-sm font-semibold text-[var(--fg)]">
             Einladung angenommen. Bitte melde dich an.
+          </p>
+        )}
+        {resetOk && (
+          <p className="mb-4 rounded-lg bg-[var(--highlight)] px-3 py-2 text-sm font-semibold text-[var(--fg)]">
+            Passwort gespeichert. Bitte melde dich an.
           </p>
         )}
         {error && (

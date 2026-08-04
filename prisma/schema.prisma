@@ -33,6 +33,8 @@ model User {
   cookingSlots    CookingSlot[]
   cookingAssignments CookingSlot[] @relation("CookingSlotAssigner")
   invitationsSent Invitation[]   @relation("InvitationInviter")
+  passwordResets  PasswordResetToken[] @relation("PasswordResetTarget")
+  passwordResetsCreated PasswordResetToken[] @relation("PasswordResetCreator")
   authoredNewsletters NewsletterCampaign[] @relation("NewsletterAuthor")
   createdNewsletters  NewsletterCampaign[] @relation("NewsletterCreator")
   vacationRequests    VacationRequest[]    @relation("VacationRequester")
@@ -158,6 +160,23 @@ model Invitation {
   @@index([email])
   @@index([organizationId])
   @@map("invitation")
+}
+
+/// Einmaliger Passwort-Reset-Link (von Admins erzeugt, manuell teilbar)
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  userId      String
+  token       String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  user      User @relation("PasswordResetTarget", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User @relation("PasswordResetCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_token")
 }
 
 // ─── Spaces ────────────────────────────────────────────────────

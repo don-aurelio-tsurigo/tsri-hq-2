@@ -216,7 +216,7 @@ export function AppSidebar({
                     pathname.startsWith("/settings/members/"),
                 )}
               >
-                Mitglieder & Einladen
+                Mitgliederverwaltung
               </Link>
               <Link
                 href="/settings/hours"

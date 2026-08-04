@@ -2551,6 +2551,158 @@ export async function restoreMember(formData: FormData) {
   return { ok: true as const };
 }
 
+async function setCredentialPassword(userId: string, email: string, password: string) {
+  const hashed = await hashPassword(password);
+  const account = await prisma.account.findFirst({
+    where: { userId, providerId: "credential" },
+  });
+  if (account) {
+    await prisma.account.update({
+      where: { id: account.id },
+      data: { password: hashed },
+    });
+  } else {
+    await prisma.account.create({
+      data: {
+        userId,
+        accountId: email,
+        providerId: "credential",
+        password: hashed,
+      },
+    });
+  }
+  // Force re-login with the new password
+  await prisma.session.deleteMany({ where: { userId } });
+}
+
+const adminSetPasswordSchema = z.object({
+  userId: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+export async function adminSetMemberPassword(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = adminSetPasswordSchema.safeParse({
+    userId: formData.get("userId"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: "Passwort mindestens 8 Zeichen." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId: parsed.data.userId,
+      },
+    },
+    include: { user: { select: { id: true, email: true } } },
+  });
+  if (!target || target.archivedAt) {
+    return { error: "Aktives Mitglied nicht gefunden." };
+  }
+
+  await setCredentialPassword(
+    target.user.id,
+    target.user.email,
+    parsed.data.password,
+  );
+
+  // Invalidate unused reset links for this user
+  await prisma.passwordResetToken.updateMany({
+    where: { userId: target.user.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  revalidatePath("/settings/members");
+  return { ok: true as const };
+}
+
+export async function adminCreatePasswordResetLink(formData: FormData) {
+  const { session, membership } = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "Fehlende Person." };
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId,
+      },
+    },
+    include: { user: { select: { id: true, name: true } } },
+  });
+  if (!target || target.archivedAt) {
+    return { error: "Aktives Mitglied nicht gefunden." };
+  }
+
+  // One open link at a time
+  await prisma.passwordResetToken.updateMany({
+    where: { userId: target.user.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+
+  const { randomBytes } = await import("crypto");
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 48); // 48h
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: target.user.id,
+      token,
+      expiresAt,
+      createdById: session.user.id,
+    },
+  });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return {
+    ok: true as const,
+    url: `${appUrl}/reset-password/${token}`,
+    expiresAt: expiresAt.toISOString(),
+  };
+}
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8).max(128),
+});
+
+export async function resetPasswordWithToken(formData: FormData) {
+  const parsed = resetPasswordSchema.safeParse({
+    token: formData.get("token"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: "Passwort mindestens 8 Zeichen." };
+  }
+
+  const reset = await prisma.passwordResetToken.findUnique({
+    where: { token: parsed.data.token },
+    include: { user: { select: { id: true, email: true } } },
+  });
+  if (!reset || reset.usedAt) {
+    return { error: "Link ungültig oder bereits benutzt." };
+  }
+  if (reset.expiresAt < new Date()) {
+    return { error: "Dieser Link ist abgelaufen." };
+  }
+
+  await setCredentialPassword(
+    reset.user.id,
+    reset.user.email,
+    parsed.data.password,
+  );
+
+  await prisma.passwordResetToken.update({
+    where: { id: reset.id },
+    data: { usedAt: new Date() },
+  });
+
+  return { ok: true as const };
+}
+
 // ─── Eigenleistungs-Rubriken ───────────────────────────────────
 
 const rubrikSchema = z.object({

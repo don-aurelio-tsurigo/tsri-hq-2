@@ -8,6 +8,7 @@ import {
   ArchiveMemberButton,
   RestoreMemberButton,
 } from "@/components/member-archive-buttons";
+import { MemberPasswordHelp } from "@/components/member-password-help";
 import { PensumSelect } from "@/components/pensum-select";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
@@ -41,7 +42,7 @@ export default async function MembersSettingsPage() {
           Einstellungen
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Mitglieder & Einladen
+          Mitgliederverwaltung
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
           Jede eingeladene Person bekommt einen vollen Account und automatisch
@@ -72,6 +73,10 @@ export default async function MembersSettingsPage() {
                   pensumPercent={m.pensumPercent}
                 />
                 <span className="badge">{m.role}</span>
+                <MemberPasswordHelp
+                  userId={m.userId}
+                  name={m.user.name}
+                />
                 {m.userId !== session.user.id && (
                   <ArchiveMemberButton
                     userId={m.userId}
