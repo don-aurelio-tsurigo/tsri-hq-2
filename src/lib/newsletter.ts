@@ -2,11 +2,18 @@ import type {
   NewsletterCampaignStatus,
   NewsletterFrequency,
 } from "@/generated/prisma/client";
+import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
+import { de } from "date-fns/locale";
 import { prisma } from "@/lib/db";
 import {
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
+  scheduledDateKeysInMonth,
+  type NewsletterCampaignStatusValue,
   type NewsletterFrequencyValue,
+  WEEKDAY_LABELS,
+  type Weekday,
 } from "@/lib/newsletter-constants";
+import { holidayNameForDate } from "@/lib/time-tracking";
 
 export {
   NEWSLETTER_FREQUENCIES,
@@ -24,7 +31,9 @@ export {
   isoWeekdayFromDateKey,
   formatWeekdays,
   scheduledDateKeysForWeeks,
+  scheduledDateKeysInMonth,
   nextScheduledDateKey,
+  todayDateKey,
   type NewsletterFrequencyValue,
   type NewsletterCampaignStatusValue,
   type Weekday,
@@ -104,4 +113,138 @@ export async function listNewsletterCampaigns(
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: options?.take,
   });
+}
+
+export type NewsletterCalendarSlot = {
+  dateKey: string;
+  typeId: string;
+  typeName: string;
+  holidayName: string | null;
+  campaign: {
+    id: string;
+    authorId: string | null;
+    authorName: string | null;
+    campaignUrl: string | null;
+    status: NewsletterCampaignStatusValue;
+    note: string | null;
+  } | null;
+};
+
+export type NewsletterCalendarDay = {
+  dateKey: string;
+  weekdayLabel: string;
+  holidayName: string | null;
+  slots: NewsletterCalendarSlot[];
+};
+
+export function parseMonthParam(value: string | undefined): Date {
+  if (value && /^\d{4}-\d{2}$/.test(value)) {
+    try {
+      return startOfMonth(parseISO(`${value}-01`));
+    } catch {
+      /* fallthrough */
+    }
+  }
+  return startOfMonth(new Date());
+}
+
+export function monthParamKey(date: Date): string {
+  return format(date, "yyyy-MM");
+}
+
+/** Virtual rhythm slots for a calendar month + existing campaigns. */
+export async function listNewsletterCalendarMonth(
+  organizationId: string,
+  monthAnchor: Date = new Date(),
+): Promise<{
+  monthStart: Date;
+  monthEnd: Date;
+  monthLabel: string;
+  prevMonth: string;
+  nextMonth: string;
+  days: NewsletterCalendarDay[];
+}> {
+  const monthStart = startOfMonth(monthAnchor);
+  const monthEnd = endOfMonth(monthAnchor);
+  const year = monthStart.getFullYear();
+  const monthIndex0 = monthStart.getMonth();
+
+  const types = await listNewsletterTypes(organizationId);
+  const campaigns = await prisma.newsletterCampaign.findMany({
+    where: {
+      type: { organizationId, active: true },
+      date: {
+        gte: new Date(`${format(monthStart, "yyyy-MM-dd")}T12:00:00.000Z`),
+        lte: new Date(`${format(monthEnd, "yyyy-MM-dd")}T12:00:00.000Z`),
+      },
+    },
+    include: {
+      author: { select: { id: true, name: true } },
+    },
+  });
+
+  const campaignByKey = new Map<string, (typeof campaigns)[number]>();
+  for (const c of campaigns) {
+    const dateKey = c.date.toISOString().slice(0, 10);
+    campaignByKey.set(`${c.typeId}:${dateKey}`, c);
+  }
+
+  const byDate = new Map<string, NewsletterCalendarSlot[]>();
+
+  for (const type of types) {
+    const keys = scheduledDateKeysInMonth(type.weekdays, year, monthIndex0);
+    for (const dateKey of keys) {
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const holidayName = holidayNameForDate(
+        new Date(Date.UTC(y!, m! - 1, d!, 12)),
+      );
+      const existing = campaignByKey.get(`${type.id}:${dateKey}`);
+      const slot: NewsletterCalendarSlot = {
+        dateKey,
+        typeId: type.id,
+        typeName: type.name,
+        holidayName,
+        campaign: existing
+          ? {
+              id: existing.id,
+              authorId: existing.authorId,
+              authorName: existing.author?.name ?? null,
+              campaignUrl: existing.campaignUrl,
+              status: existing.status as NewsletterCampaignStatusValue,
+              note: existing.note,
+            }
+          : null,
+      };
+      const list = byDate.get(dateKey) ?? [];
+      list.push(slot);
+      byDate.set(dateKey, list);
+    }
+  }
+
+  const days: NewsletterCalendarDay[] = [...byDate.keys()]
+    .sort()
+    .map((dateKey) => {
+      const [y, m, d] = dateKey.split("-").map(Number);
+      const date = new Date(Date.UTC(y!, m! - 1, d!, 12));
+      const js = date.getUTCDay();
+      const iso = (js === 0 ? 7 : js) as Weekday;
+      return {
+        dateKey,
+        weekdayLabel: WEEKDAY_LABELS[iso],
+        holidayName: holidayNameForDate(date),
+        slots: byDate.get(dateKey) ?? [],
+      };
+    });
+
+  const prev = new Date(year, monthIndex0 - 1, 1);
+  const next = new Date(year, monthIndex0 + 1, 1);
+
+  return {
+    monthStart,
+    monthEnd,
+    monthLabel: format(monthStart, "MMMM yyyy", { locale: de }),
+    prevMonth: monthParamKey(prev),
+    nextMonth: monthParamKey(next),
+    days,
+  };
 }

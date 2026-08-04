@@ -1614,7 +1614,7 @@ async function resolveOptionalAuthor(
       },
     },
   });
-  if (!authorMembership) {
+  if (!authorMembership || authorMembership.archivedAt) {
     return { ok: false as const, error: "Autor:in ist nicht im Team." };
   }
   return { ok: true as const, authorId };
@@ -1908,6 +1908,190 @@ export async function generateNewsletterCampaigns(formData: FormData) {
     created: toCreate.length,
     skippedExisting: dateKeys.length - toCreate.length,
   };
+}
+
+const newsletterSlotSchema = z.object({
+  typeId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  authorId: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v)),
+  campaignUrl: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v))
+    .pipe(z.union([z.null(), z.string().url()])),
+  note: z
+    .string()
+    .trim()
+    .max(500)
+    .transform((v) => (v.length === 0 ? null : v)),
+});
+
+/** Book or update a rhythm slot (author + URL). */
+export async function upsertNewsletterSlot(formData: FormData) {
+  const { session, membership } = await requireMembership();
+  const parsed = newsletterSlotSchema.safeParse({
+    typeId: formData.get("typeId"),
+    date: formData.get("date"),
+    authorId: formData.get("authorId") ?? "",
+    campaignUrl: formData.get("campaignUrl") ?? "",
+    note: formData.get("note") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Bitte Typ, Datum und Link prüfen." };
+  }
+
+  const type = await prisma.newsletterType.findFirst({
+    where: {
+      id: parsed.data.typeId,
+      organizationId: membership.organizationId,
+      active: true,
+    },
+  });
+  if (!type) return { error: "Newsletter-Typ nicht gefunden." };
+
+  const scheduleError = assertCampaignMatchesSchedule(
+    type.weekdays,
+    parsed.data.date,
+  );
+  if (scheduleError) return { error: scheduleError };
+
+  const author = await resolveOptionalAuthor(
+    membership.organizationId,
+    parsed.data.authorId,
+  );
+  if (!author.ok) return { error: author.error };
+
+  const status =
+    parsed.data.campaignUrl || author.authorId ? "published" : "planned";
+
+  const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
+  const existing = await prisma.newsletterCampaign.findFirst({
+    where: { typeId: type.id, date },
+  });
+
+  if (existing) {
+    await prisma.newsletterCampaign.update({
+      where: { id: existing.id },
+      data: {
+        authorId: author.authorId,
+        campaignUrl: parsed.data.campaignUrl,
+        note: parsed.data.note,
+        status,
+      },
+    });
+  } else {
+    await prisma.newsletterCampaign.create({
+      data: {
+        typeId: type.id,
+        authorId: author.authorId,
+        createdById: session.user.id,
+        date,
+        campaignUrl: parsed.data.campaignUrl,
+        note: parsed.data.note,
+        status,
+      },
+    });
+  }
+
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
+/** Mark a rhythm slot as skipped (e.g. holiday / Sommerpause). */
+export async function skipNewsletterSlot(formData: FormData) {
+  const { session, membership } = await requireMembership();
+  const typeId = String(formData.get("typeId") ?? "");
+  const dateKey = String(formData.get("date") ?? "");
+  const noteRaw = String(formData.get("note") ?? "").trim();
+  if (!typeId || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return { error: "Typ und Datum fehlen." };
+  }
+
+  const type = await prisma.newsletterType.findFirst({
+    where: {
+      id: typeId,
+      organizationId: membership.organizationId,
+      active: true,
+    },
+  });
+  if (!type) return { error: "Newsletter-Typ nicht gefunden." };
+
+  const scheduleError = assertCampaignMatchesSchedule(type.weekdays, dateKey);
+  if (scheduleError) return { error: scheduleError };
+
+  const date = new Date(`${dateKey}T12:00:00.000Z`);
+  const existing = await prisma.newsletterCampaign.findFirst({
+    where: { typeId: type.id, date },
+  });
+  const note = noteRaw || null;
+
+  if (existing) {
+    await prisma.newsletterCampaign.update({
+      where: { id: existing.id },
+      data: { status: "skipped", note },
+    });
+  } else {
+    await prisma.newsletterCampaign.create({
+      data: {
+        typeId: type.id,
+        createdById: session.user.id,
+        date,
+        status: "skipped",
+        note,
+      },
+    });
+  }
+
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
+/** Clear a slot back to open (delete campaign row). */
+export async function clearNewsletterSlot(formData: FormData) {
+  const { membership } = await requireMembership();
+  const typeId = String(formData.get("typeId") ?? "");
+  const dateKey = String(formData.get("date") ?? "");
+  const campaignId = String(formData.get("id") ?? "");
+
+  if (campaignId) {
+    const campaign = await prisma.newsletterCampaign.findUnique({
+      where: { id: campaignId },
+      include: { type: true },
+    });
+    if (
+      !campaign ||
+      campaign.type.organizationId !== membership.organizationId
+    ) {
+      return { error: "Eintrag nicht gefunden." };
+    }
+    await prisma.newsletterCampaign.delete({ where: { id: campaign.id } });
+    revalidatePath("/newsletter");
+    return { ok: true as const };
+  }
+
+  if (!typeId || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return { error: "Typ und Datum fehlen." };
+  }
+
+  const type = await prisma.newsletterType.findFirst({
+    where: {
+      id: typeId,
+      organizationId: membership.organizationId,
+    },
+  });
+  if (!type) return { error: "Newsletter-Typ nicht gefunden." };
+
+  await prisma.newsletterCampaign.deleteMany({
+    where: {
+      typeId: type.id,
+      date: new Date(`${dateKey}T12:00:00.000Z`),
+    },
+  });
+  revalidatePath("/newsletter");
+  return { ok: true as const };
 }
 
 // ─── Ferienplan ────────────────────────────────────────────────

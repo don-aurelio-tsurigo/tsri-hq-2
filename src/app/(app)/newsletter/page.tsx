@@ -2,20 +2,31 @@ import { NewsletterDirectory } from "@/components/newsletter-directory";
 import { prisma } from "@/lib/db";
 import {
   ensureDefaultNewsletterTypes,
-  listNewsletterCampaigns,
+  listNewsletterCalendarMonth,
   listNewsletterTypes,
-  type NewsletterCampaignStatusValue,
+  monthParamKey,
+  parseMonthParam,
   type NewsletterFrequencyValue,
 } from "@/lib/newsletter";
 import { requireMembership } from "@/lib/session";
 
-export default async function NewsletterPage() {
+export default async function NewsletterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   const { session, membership } = await requireMembership();
+  const { month: monthParam } = await searchParams;
   await ensureDefaultNewsletterTypes(membership.organizationId);
 
-  const [types, campaigns, members] = await Promise.all([
+  const monthAnchor = parseMonthParam(monthParam);
+
+  const [types, calendar, members] = await Promise.all([
     listNewsletterTypes(membership.organizationId),
-    listNewsletterCampaigns(membership.organizationId),
+    listNewsletterCalendarMonth(
+      membership.organizationId,
+      monthAnchor,
+    ),
     prisma.membership.findMany({
       where: {
         organizationId: membership.organizationId,
@@ -33,11 +44,11 @@ export default async function NewsletterPage() {
           Redaktion
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Newsletterkampagnen
+          Newsletter-Plan
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Typen mit Erscheinungstagen planen, Ausgaben erfassen und ausgefallene
-          Newsletter (z. B. Sommerpause) markieren.
+          Feste Erscheinungstage im Kalender — Slots mit Autor und Link buchen
+          oder bei Feiertag/Sommerpause ausfallen lassen.
         </p>
       </header>
 
@@ -48,22 +59,15 @@ export default async function NewsletterPage() {
           frequency: t.frequency as NewsletterFrequencyValue,
           weekdays: t.weekdays,
         }))}
-        campaigns={campaigns.map((c) => ({
-          id: c.id,
-          date: c.date.toISOString().slice(0, 10),
-          campaignUrl: c.campaignUrl,
-          status: c.status as NewsletterCampaignStatusValue,
-          note: c.note,
-          type: {
-            id: c.type.id,
-            name: c.type.name,
-            frequency: c.type.frequency as NewsletterFrequencyValue,
-            weekdays: c.type.weekdays,
-          },
-          author: c.author,
-        }))}
         members={members.map((m) => m.user)}
         currentUserId={session.user.id}
+        calendar={{
+          monthLabel: calendar.monthLabel,
+          prevMonth: calendar.prevMonth,
+          nextMonth: calendar.nextMonth,
+          currentMonth: monthParamKey(new Date()),
+          days: calendar.days,
+        }}
       />
     </div>
   );

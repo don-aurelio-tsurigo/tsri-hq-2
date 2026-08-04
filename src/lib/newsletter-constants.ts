@@ -143,6 +143,36 @@ export function addDaysToDateKey(dateKey: string, days: number): string | null {
   return date.toISOString().slice(0, 10);
 }
 
+export function dateKeysInCalendarMonth(year: number, monthIndex0: number): string[] {
+  const keys: string[] = [];
+  const start = new Date(Date.UTC(year, monthIndex0, 1));
+  const end = new Date(Date.UTC(year, monthIndex0 + 1, 0));
+  for (
+    let d = start.getUTCDate();
+    d <= end.getUTCDate();
+    d++
+  ) {
+    const m = String(monthIndex0 + 1).padStart(2, "0");
+    const day = String(d).padStart(2, "0");
+    keys.push(`${year}-${m}-${day}`);
+  }
+  return keys;
+}
+
+/** Date keys in a calendar month that match ISO weekdays. */
+export function scheduledDateKeysInMonth(
+  weekdays: number[],
+  year: number,
+  monthIndex0: number,
+): string[] {
+  const allowed = new Set(weekdays.filter(isWeekday));
+  if (allowed.size === 0) return [];
+  return dateKeysInCalendarMonth(year, monthIndex0).filter((key) => {
+    const wd = isoWeekdayFromDateKey(key);
+    return wd !== null && allowed.has(wd);
+  });
+}
+
 /** Inclusive date keys matching ISO weekdays from `fromKey` for `weeksAhead` weeks. */
 export function scheduledDateKeysForWeeks(
   weekdays: number[],
