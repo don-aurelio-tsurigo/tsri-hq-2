@@ -11,7 +11,6 @@ export function LoginForm() {
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [magicSent, setMagicSent] = useState(false);
   const [pending, startTransition] = useTransition();
   const joined = searchParams.get("joined") === "1";
 
@@ -29,23 +28,6 @@ export function LoginForm() {
       }
       router.push("/home");
       router.refresh();
-    });
-  }
-
-  function onMagicLink(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setMagicSent(false);
-    startTransition(async () => {
-      const { error: err } = await authClient.signIn.magicLink({
-        email,
-        callbackURL: "/home",
-      });
-      if (err) {
-        setError(err.message ?? "Magic Link konnte nicht gesendet werden.");
-        return;
-      }
-      setMagicSent(true);
     });
   }
 
@@ -79,11 +61,6 @@ export function LoginForm() {
             {error}
           </p>
         )}
-        {magicSent && (
-          <p className="mb-4 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm font-semibold text-[var(--accent-hover)]">
-            Magic Link wurde geloggt (Dev-Konsole). Prüfe das Terminal vom Dev-Server.
-          </p>
-        )}
 
         <form onSubmit={onPasswordLogin} className="flex flex-col gap-4">
           <div className="field">
@@ -112,21 +89,6 @@ export function LoginForm() {
             {pending ? "…" : "Anmelden"}
           </button>
         </form>
-
-        <div className="my-5 flex items-center gap-3 text-xs font-semibold text-[var(--muted)]">
-          <div className="h-px flex-1 bg-[var(--border)]" />
-          oder
-          <div className="h-px flex-1 bg-[var(--border)]" />
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-ghost w-full"
-          disabled={pending || !email}
-          onClick={onMagicLink}
-        >
-          Magic Link senden
-        </button>
       </div>
 
       <p className="relative mt-6 text-center text-sm text-[var(--muted)]">
