@@ -2435,7 +2435,12 @@ export async function deleteTimeEntry(formData: FormData) {
 
 const pensumSchema = z.object({
   userId: z.string().min(1),
-  pensumPercent: z.coerce.number().int().min(1).max(100),
+  pensumPercent: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(100)
+    .refine((n) => n % 5 === 0, "Pensum in 5%-Schritten"),
 });
 
 export async function updateMemberPensum(formData: FormData) {
@@ -2445,7 +2450,7 @@ export async function updateMemberPensum(formData: FormData) {
     pensumPercent: formData.get("pensumPercent"),
   });
   if (!parsed.success) {
-    return { error: "Pensum muss zwischen 1 und 100 % liegen." };
+    return { error: "Pensum muss zwischen 5 und 100 % in 5%-Schritten liegen." };
   }
 
   const target = await prisma.membership.findUnique({

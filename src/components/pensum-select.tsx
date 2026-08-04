@@ -45,8 +45,12 @@ export function PensumSelect({
       aria-label="Pensum"
     >
       {Array.from(
-        new Set([100, 90, 80, 70, 60, 50, 40, 30, 20, pensumPercent]),
+        new Set([
+          ...Array.from({ length: 20 }, (_, i) => (i + 1) * 5),
+          pensumPercent,
+        ]),
       )
+        .filter((p) => p >= 5 && p <= 100)
         .sort((a, b) => b - a)
         .map((p) => (
           <option key={p} value={p}>
