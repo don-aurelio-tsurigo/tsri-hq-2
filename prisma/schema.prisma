@@ -1,0 +1,514 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Better Auth ───────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  phone         String?
+  birthDate     DateTime? @db.Date
+  /// Freie Notizen fürs private Home-Dashboard
+  privateNotes  String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Membership[]
+  ownedSpaces   Space[]       @relation("SpaceOwner")
+  spaceAccess   SpaceAccess[]
+  createdTasks  Task[]           @relation("TaskCreator")
+  assignedTasks Task[]           @relation("TaskAssignee")
+  taskAssignments TaskAssignment[]
+  cookingSlots    CookingSlot[]
+  invitationsSent Invitation[]   @relation("InvitationInviter")
+  authoredNewsletters NewsletterCampaign[] @relation("NewsletterAuthor")
+  createdNewsletters  NewsletterCampaign[] @relation("NewsletterCreator")
+  vacationRequests    VacationRequest[]    @relation("VacationRequester")
+  vacationReviews     VacationRequest[]    @relation("VacationReviewer")
+  timeEntries         TimeEntry[]
+  createdWikiPages    WikiPage[]           @relation("WikiPageCreator")
+  updatedWikiPages    WikiPage[]           @relation("WikiPageUpdater")
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── Organisation & Membership ─────────────────────────────────
+
+enum MembershipRole {
+  admin
+  member
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  invitations Invitation[]
+  spaces      Space[]
+  newsletterTypes NewsletterType[]
+  vacationRequests VacationRequest[]
+  timeEntries      TimeEntry[]
+  eigenleistungRubriken EigenleistungRubrik[]
+  wikiPages        WikiPage[]
+
+  @@map("organization")
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MembershipRole @default(member)
+  /// Anstellungsgrad in Prozent (100 = Vollzeit, Bezug: 40h/Woche)
+  pensumPercent  Int            @default(100)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("membership")
+}
+
+model Invitation {
+  id             String         @id @default(cuid())
+  email          String
+  organizationId String
+  role           MembershipRole @default(member)
+  token          String         @unique @default(cuid())
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([organizationId])
+  @@map("invitation")
+}
+
+// ─── Spaces ────────────────────────────────────────────────────
+
+enum SpaceType {
+  personal
+  team
+  project
+}
+
+enum SpaceVisibility {
+  private
+  team
+  restricted
+}
+
+enum SpacePermission {
+  view
+  edit
+  admin
+}
+
+model Space {
+  id             String          @id @default(cuid())
+  organizationId String
+  type           SpaceType
+  name           String
+  slug           String
+  description    String?
+  visibility     SpaceVisibility @default(team)
+  ownerUserId    String?
+  /// Soft-archive for projects (hidden from active list)
+  archivedAt     DateTime?
+  /// Template project: used to spawn new projects with fixed todos
+  isTemplate     Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?         @relation("SpaceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  access       SpaceAccess[]
+  tasks        Task[]
+  taskGroups   TaskGroup[]
+  cookingSlots CookingSlot[]
+  wikiPages    WikiPage[]
+
+  @@unique([organizationId, slug])
+  @@index([ownerUserId])
+  @@index([organizationId, type])
+  @@index([organizationId, type, archivedAt])
+  @@index([organizationId, type, isTemplate])
+  @@map("space")
+}
+
+model SpaceAccess {
+  id         String          @id @default(cuid())
+  spaceId    String
+  userId     String
+  permission SpacePermission @default(view)
+  createdAt  DateTime        @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@map("space_access")
+}
+
+// ─── Tasks (generic; article/chore/cooking via kind later) ─────
+
+enum TaskStatus {
+  todo
+  doing
+  done
+  cancelled
+}
+
+enum TaskKind {
+  generic
+  article
+  chore
+  cooking
+}
+
+/// Redaktions-Kategorien (Filter)
+enum ArticleCategory {
+  nuetzliches
+  leicht_und_seicht
+  persoenliche_perspektive
+  groesseres_ganzes
+  aha_perspektive
+}
+
+/// Eigenleistungs-Rubriken (admin-verwaltbar, org-weit)
+model EigenleistungRubrik {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  /// CSS-Farbe z.B. #ede9fe
+  color          String   @default("#e5e7eb")
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, sortOrder])
+  @@map("eigenleistung_rubrik")
+}
+
+model Task {
+  id          String           @id @default(cuid())
+  spaceId     String
+  title       String
+  /// Freitext / Artikelinhalt / Pitch-Notizen
+  description String?          @db.Text
+  status      TaskStatus       @default(todo)
+  kind        TaskKind         @default(generic)
+  /// Editorial Kanban stage (see ARTICLE_STAGES)
+  stage       String?
+  category    ArticleCategory?
+  eigenleistungRubrikId String?
+  assigneeId  String?
+  createdById String
+  groupId     String?
+  dueAt       DateTime?
+  /// Geplanter Publikationstag (Redaktionsprogramm)
+  publishAt   DateTime?        @db.Date
+  /// Soft-archive: ausgeblendet aus aktiven Kanban-/Programm-Ansichten
+  archivedAt  DateTime?
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  space     Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  group     TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  eigenleistungRubrik EigenleistungRubrik? @relation(fields: [eigenleistungRubrikId], references: [id], onDelete: SetNull)
+  assignments TaskAssignment[]
+
+  @@index([spaceId, status])
+  @@index([spaceId, stage])
+  @@index([spaceId, publishAt])
+  @@index([spaceId, archivedAt])
+  @@index([spaceId, groupId])
+  @@index([assigneeId])
+  @@index([createdById])
+  @@index([kind])
+  @@index([category])
+  @@index([eigenleistungRubrikId])
+  @@map("task")
+}
+
+/// User-defined groups/lists for tasks within a space (personal tasks)
+model TaskGroup {
+  id        String   @id @default(cuid())
+  spaceId   String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([spaceId, sortOrder])
+  @@map("task_group")
+}
+
+/// Multi-assignee for chores / shared work
+model TaskAssignment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_assignment")
+}
+
+/// Kochplan: ein Slot pro Tag (Di–Fr)
+model CookingSlot {
+  id        String   @id @default(cuid())
+  spaceId   String
+  date      DateTime @db.Date
+  userId    String
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, date])
+  @@index([userId])
+  @@index([spaceId, date])
+  @@map("cooking_slot")
+}
+
+// ─── Newsletter Kampagnen ──────────────────────────────────────
+
+enum NewsletterFrequency {
+  daily
+  weekly
+}
+
+/// Geplant / erschienen / ausgefallen (z.B. Sommerpause)
+enum NewsletterCampaignStatus {
+  planned
+  published
+  skipped
+}
+
+model NewsletterType {
+  id             String              @id @default(cuid())
+  organizationId String
+  name           String
+  frequency      NewsletterFrequency
+  /// ISO-Wochentage: 1=Montag … 7=Sonntag
+  weekdays       Int[]               @default([])
+  sortOrder      Int                 @default(0)
+  active         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns    NewsletterCampaign[]
+
+  @@index([organizationId])
+  @@unique([organizationId, name])
+  @@map("newsletter_type")
+}
+
+model NewsletterCampaign {
+  id           String                    @id @default(cuid())
+  typeId       String
+  authorId     String?
+  createdById  String
+  date         DateTime                  @db.Date
+  campaignUrl  String?
+  status       NewsletterCampaignStatus  @default(published)
+  note         String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  type      NewsletterType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  author    User?          @relation("NewsletterAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdBy User           @relation("NewsletterCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([typeId, date])
+  @@index([authorId])
+  @@index([date])
+  @@map("newsletter_campaign")
+}
+
+// ─── Ferienplan ────────────────────────────────────────────────
+
+enum VacationStatus {
+  pending
+  approved
+  rejected
+}
+
+model VacationRequest {
+  id             String         @id @default(cuid())
+  organizationId String
+  userId         String
+  startDate      DateTime       @db.Date
+  endDate        DateTime       @db.Date
+  note           String?
+  status         VacationStatus @default(pending)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("VacationRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("VacationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, startDate])
+  @@index([organizationId, status])
+  @@index([userId])
+  @@map("vacation_request")
+}
+
+// ─── Arbeitszeit ───────────────────────────────────────────────
+
+enum TimeEntryType {
+  work
+  sick
+  vacation
+  holiday
+}
+
+/// Ein Tageseintrag: Start/Ende + Pause, oder Abwesenheit (Krank/Ferien/Feiertag)
+model TimeEntry {
+  id             String        @id @default(cuid())
+  organizationId String
+  userId         String
+  date           DateTime      @db.Date
+  type           TimeEntryType @default(work)
+  /// "HH:mm" Lokalzeit
+  startTime      String?
+  /// "HH:mm" Lokalzeit
+  endTime        String?
+  breakMinutes   Int           @default(0)
+  note           String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, date])
+  @@index([userId, date])
+  @@index([organizationId, date])
+  @@map("time_entry")
+}
+
+// ─── Wiki ──────────────────────────────────────────────────────
+
+/// Wissensbasis: hierarchische Markdown-Seiten im Wiki-Space
+model WikiPage {
+  id             String   @id @default(cuid())
+  organizationId String
+  spaceId        String
+  title          String
+  slug           String
+  body           String   @db.Text
+  parentId       String?
+  sortOrder      Int      @default(0)
+  /// Pin — prominent in Sidebar / Wiki-Start
+  pinned         Boolean  @default(false)
+  createdById    String
+  updatedById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  space        Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  parent       WikiPage?    @relation("WikiPageTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     WikiPage[]   @relation("WikiPageTree")
+  createdBy    User         @relation("WikiPageCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy    User         @relation("WikiPageUpdater", fields: [updatedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@index([spaceId, parentId, sortOrder])
+  @@index([organizationId, pinned])
+  @@index([parentId])
+  @@map("wiki_page")
+}
+
