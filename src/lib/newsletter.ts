@@ -152,6 +152,45 @@ export function monthParamKey(date: Date): string {
   return format(date, "yyyy-MM");
 }
 
+export type NewsletterBlockedRangeRow = {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  label: string | null;
+};
+
+export async function getNewsletterCalendarSettings(organizationId: string) {
+  const [org, blockedRanges] = await Promise.all([
+    prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      select: { hideNewsletterHolidays: true },
+    }),
+    listNewsletterBlockedRanges(organizationId),
+  ]);
+  return {
+    hidePublicHolidays: org.hideNewsletterHolidays,
+    blockedRanges,
+  };
+}
+
+export async function listNewsletterBlockedRanges(organizationId: string) {
+  return prisma.newsletterBlockedRange.findMany({
+    where: { organizationId },
+    orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+  });
+}
+
+function dateKeyInBlockedRanges(
+  dateKey: string,
+  ranges: { startDate: Date; endDate: Date }[],
+): boolean {
+  return ranges.some((range) => {
+    const start = range.startDate.toISOString().slice(0, 10);
+    const end = range.endDate.toISOString().slice(0, 10);
+    return dateKey >= start && dateKey <= end;
+  });
+}
+
 /** Virtual rhythm slots for a calendar month + existing campaigns. */
 export async function listNewsletterCalendarMonth(
   organizationId: string,
@@ -169,19 +208,22 @@ export async function listNewsletterCalendarMonth(
   const year = monthStart.getFullYear();
   const monthIndex0 = monthStart.getMonth();
 
-  const types = await listNewsletterTypes(organizationId);
-  const campaigns = await prisma.newsletterCampaign.findMany({
-    where: {
-      type: { organizationId, active: true },
-      date: {
-        gte: new Date(`${format(monthStart, "yyyy-MM-dd")}T12:00:00.000Z`),
-        lte: new Date(`${format(monthEnd, "yyyy-MM-dd")}T12:00:00.000Z`),
+  const [types, campaigns, settings] = await Promise.all([
+    listNewsletterTypes(organizationId),
+    prisma.newsletterCampaign.findMany({
+      where: {
+        type: { organizationId, active: true },
+        date: {
+          gte: new Date(`${format(monthStart, "yyyy-MM-dd")}T12:00:00.000Z`),
+          lte: new Date(`${format(monthEnd, "yyyy-MM-dd")}T12:00:00.000Z`),
+        },
       },
-    },
-    include: {
-      author: { select: { id: true, name: true } },
-    },
-  });
+      include: {
+        author: { select: { id: true, name: true } },
+      },
+    }),
+    getNewsletterCalendarSettings(organizationId),
+  ]);
 
   const campaignByKey = new Map<string, (typeof campaigns)[number]>();
   for (const c of campaigns) {
@@ -198,6 +240,10 @@ export async function listNewsletterCalendarMonth(
       const holidayName = holidayNameForDate(
         new Date(Date.UTC(y!, m! - 1, d!, 12)),
       );
+
+      if (settings.hidePublicHolidays && holidayName) continue;
+      if (dateKeyInBlockedRanges(dateKey, settings.blockedRanges)) continue;
+
       const existing = campaignByKey.get(`${type.id}:${dateKey}`);
       const slot: NewsletterCalendarSlot = {
         dateKey,

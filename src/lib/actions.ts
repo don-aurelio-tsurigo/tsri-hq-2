@@ -1568,6 +1568,76 @@ export async function updateNewsletterType(formData: FormData) {
   return { ok: true as const };
 }
 
+export async function updateNewsletterHideHolidays(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const hide = formData.get("hidePublicHolidays") === "on" ||
+    formData.get("hidePublicHolidays") === "true";
+
+  await prisma.organization.update({
+    where: { id: membership.organizationId },
+    data: { hideNewsletterHolidays: hide },
+  });
+
+  revalidatePath("/settings/newsletter");
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
+const blockedRangeSchema = z.object({
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  label: z
+    .string()
+    .trim()
+    .max(120)
+    .transform((v) => (v.length === 0 ? null : v)),
+});
+
+export async function createNewsletterBlockedRange(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = blockedRangeSchema.safeParse({
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+    label: formData.get("label") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Bitte Start- und Enddatum prüfen." };
+  }
+  if (parsed.data.endDate < parsed.data.startDate) {
+    return { error: "Enddatum muss nach dem Startdatum liegen." };
+  }
+
+  await prisma.newsletterBlockedRange.create({
+    data: {
+      organizationId: membership.organizationId,
+      startDate: new Date(`${parsed.data.startDate}T12:00:00.000Z`),
+      endDate: new Date(`${parsed.data.endDate}T12:00:00.000Z`),
+      label: parsed.data.label,
+    },
+  });
+
+  revalidatePath("/settings/newsletter");
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
+export async function deleteNewsletterBlockedRange(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Fehlende ID." };
+
+  const range = await prisma.newsletterBlockedRange.findFirst({
+    where: { id, organizationId: membership.organizationId },
+  });
+  if (!range) return { error: "Kein Zugriff." };
+
+  await prisma.newsletterBlockedRange.delete({ where: { id } });
+
+  revalidatePath("/settings/newsletter");
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
 function assertCampaignMatchesSchedule(
   weekdays: number[],
   dateKey: string,

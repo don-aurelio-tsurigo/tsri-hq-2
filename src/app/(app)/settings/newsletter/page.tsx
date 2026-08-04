@@ -1,6 +1,8 @@
+import { NewsletterBlockSettings } from "@/components/newsletter-block-settings";
 import { NewsletterTypeManager } from "@/components/newsletter-type-manager";
 import {
   ensureDefaultNewsletterTypes,
+  getNewsletterCalendarSettings,
   listNewsletterTypes,
   type NewsletterFrequencyValue,
 } from "@/lib/newsletter";
@@ -10,7 +12,10 @@ export default async function NewsletterSettingsPage() {
   const { membership } = await requireAdmin();
   await ensureDefaultNewsletterTypes(membership.organizationId);
 
-  const types = await listNewsletterTypes(membership.organizationId);
+  const [types, calendarSettings] = await Promise.all([
+    listNewsletterTypes(membership.organizationId),
+    getNewsletterCalendarSettings(membership.organizationId),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -22,7 +27,7 @@ export default async function NewsletterSettingsPage() {
           Newsletter Einstellungen
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Newsletter-Typen und deren Erscheinungsrhythmus festlegen. Die
+          Typen, Rhythmus sowie Feiertage und Sommerpausen festlegen. Die
           Planung bleibt unter Newsletter-Plan in der Redaktion.
         </p>
       </header>
@@ -33,6 +38,16 @@ export default async function NewsletterSettingsPage() {
           name: t.name,
           frequency: t.frequency as NewsletterFrequencyValue,
           weekdays: t.weekdays,
+        }))}
+      />
+
+      <NewsletterBlockSettings
+        hidePublicHolidays={calendarSettings.hidePublicHolidays}
+        blockedRanges={calendarSettings.blockedRanges.map((r) => ({
+          id: r.id,
+          startKey: r.startDate.toISOString().slice(0, 10),
+          endKey: r.endDate.toISOString().slice(0, 10),
+          label: r.label,
         }))}
       />
     </div>
