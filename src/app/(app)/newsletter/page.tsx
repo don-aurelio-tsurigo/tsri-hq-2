@@ -3,23 +3,37 @@ import { prisma } from "@/lib/db";
 import {
   ensureDefaultNewsletterTypes,
   listNewsletterCalendarMonth,
+  listNewsletterTypes,
   monthParamKey,
   parseMonthParam,
 } from "@/lib/newsletter";
 import { requireMembership } from "@/lib/session";
 
+function parseTypeFilterParam(
+  value: string | string[] | undefined,
+): string[] {
+  if (!value) return [];
+  const raw = Array.isArray(value) ? value : [value];
+  return raw
+    .flatMap((v) => v.split(","))
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export default async function NewsletterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; type?: string | string[] }>;
 }) {
   const { session, membership } = await requireMembership();
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, type: typeParam } = await searchParams;
   await ensureDefaultNewsletterTypes(membership.organizationId);
 
   const monthAnchor = parseMonthParam(monthParam);
+  const typeFilter = parseTypeFilterParam(typeParam);
 
-  const [calendar, members] = await Promise.all([
+  const [types, calendar, members] = await Promise.all([
+    listNewsletterTypes(membership.organizationId),
     listNewsletterCalendarMonth(
       membership.organizationId,
       monthAnchor,
@@ -33,6 +47,11 @@ export default async function NewsletterPage({
       orderBy: { user: { name: "asc" } },
     }),
   ]);
+
+  const typeOptions = types.map((t) => ({ id: t.id, name: t.name }));
+  const validFilter = typeFilter.filter((id) =>
+    typeOptions.some((t) => t.id === id),
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -50,6 +69,8 @@ export default async function NewsletterPage({
       </header>
 
       <NewsletterDirectory
+        types={typeOptions}
+        initialTypeIds={validFilter}
         members={members.map((m) => m.user)}
         currentUserId={session.user.id}
         calendar={{

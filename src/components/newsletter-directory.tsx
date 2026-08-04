@@ -15,6 +15,7 @@ import type {
 } from "@/lib/newsletter";
 
 type Member = { id: string; name: string };
+type NewsletterTypeOption = { id: string; name: string };
 
 type CalendarMonth = {
   monthLabel: string;
@@ -27,6 +28,15 @@ type CalendarMonth = {
 function formatDayLabel(dateKey: string) {
   const [y, m, d] = dateKey.split("-").map(Number);
   return `${d}.${m}.${y}`;
+}
+
+function monthHref(month: string, selectedTypeIds: string[] | null) {
+  const params = new URLSearchParams();
+  params.set("month", month);
+  if (selectedTypeIds && selectedTypeIds.length > 0) {
+    for (const id of selectedTypeIds) params.append("type", id);
+  }
+  return `/newsletter?${params.toString()}`;
 }
 
 function SlotCard({
@@ -270,18 +280,42 @@ function SlotCard({
 }
 
 export function NewsletterDirectory({
+  types,
+  initialTypeIds,
   members,
   currentUserId,
   calendar,
 }: {
+  types: NewsletterTypeOption[];
+  /** Empty = alle Typen anzeigen */
+  initialTypeIds: string[];
   members: Member[];
   currentUserId: string;
   calendar: CalendarMonth;
 }) {
+  const router = useRouter();
   const today = todayDateKey();
+  const allTypeIds = useMemo(() => types.map((t) => t.id), [types]);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    initialTypeIds.length > 0 ? initialTypeIds : allTypeIds,
+  );
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const filterActive =
+    selectedIds.length > 0 && selectedIds.length < types.length;
+
+  const filteredDays = useMemo(() => {
+    return calendar.days
+      .map((day) => ({
+        ...day,
+        slots: day.slots.filter((s) => selectedSet.has(s.typeId)),
+      }))
+      .filter((day) => day.slots.length > 0);
+  }, [calendar.days, selectedSet]);
+
   const openCount = useMemo(
     () =>
-      calendar.days.reduce(
+      filteredDays.reduce(
         (n, day) =>
           n +
           day.slots.filter(
@@ -293,16 +327,92 @@ export function NewsletterDirectory({
           ).length,
         0,
       ),
-    [calendar.days],
+    [filteredDays],
   );
+
+  function syncUrl(nextIds: string[]) {
+    const params = new URLSearchParams(window.location.search);
+    params.delete("type");
+    // Clean URL when all types shown
+    if (nextIds.length > 0 && nextIds.length < types.length) {
+      for (const id of nextIds) params.append("type", id);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/newsletter?${qs}` : "/newsletter", { scroll: false });
+  }
+
+  function toggleType(typeId: string) {
+    setSelectedIds((prev) => {
+      const has = prev.includes(typeId);
+      const next = has
+        ? prev.filter((id) => id !== typeId)
+        : [...prev, typeId];
+      syncUrl(next);
+      return next;
+    });
+  }
+
+  function showAll() {
+    setSelectedIds(allTypeIds);
+    syncUrl(allTypeIds);
+  }
+
+  const typeFilterParam = filterActive ? selectedIds : null;
 
   return (
     <div className="space-y-8">
+      {types.length > 1 && (
+        <section className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[var(--muted)] uppercase">
+              Filter
+            </p>
+            {filterActive && (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[var(--accent)] hover:underline"
+                onClick={showAll}
+              >
+                Alle anzeigen
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {types.map((type) => {
+              const active = selectedSet.has(type.id);
+              return (
+                <button
+                  key={type.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    active
+                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                  ].join(" ")}
+                  onClick={() => toggleType(type.id)}
+                >
+                  {type.name}
+                </button>
+              );
+            })}
+          </div>
+          {filterActive && (
+            <p className="text-xs text-[var(--muted)]">
+              {selectedIds.length === 1
+                ? "1 Newsletter-Typ sichtbar"
+                : `${selectedIds.length} Newsletter-Typen sichtbar`}
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link
-              href={`/newsletter?month=${calendar.prevMonth}`}
+              href={monthHref(calendar.prevMonth, typeFilterParam)}
               className="btn btn-ghost"
             >
               ←
@@ -312,19 +422,19 @@ export function NewsletterDirectory({
                 {calendar.monthLabel}
               </h2>
               <p className="text-sm text-[var(--muted)]">
-                {openCount} offene Slot{openCount === 1 ? "" : "s"} in diesem
-                Monat
+                {openCount} offene Slot{openCount === 1 ? "" : "s"}
+                {filterActive ? " (gefiltert)" : " in diesem Monat"}
               </p>
             </div>
             <Link
-              href={`/newsletter?month=${calendar.nextMonth}`}
+              href={monthHref(calendar.nextMonth, typeFilterParam)}
               className="btn btn-ghost"
             >
               →
             </Link>
           </div>
           <Link
-            href={`/newsletter?month=${calendar.currentMonth}`}
+            href={monthHref(calendar.currentMonth, typeFilterParam)}
             className="text-sm font-semibold text-[var(--accent)] hover:underline"
           >
             Dieser Monat
@@ -336,9 +446,22 @@ export function NewsletterDirectory({
             Keine Erscheinungstage in diesem Monat. Admins legen die Typen und
             Wochentage unter Newsletter Einstellungen fest.
           </div>
+        ) : filteredDays.length === 0 ? (
+          <div className="card px-4 py-8 text-sm text-[var(--muted)]">
+            {selectedIds.length === 0
+              ? "Kein Newsletter-Typ ausgewählt."
+              : "Keine Slots für die gewählten Filter."}{" "}
+            <button
+              type="button"
+              className="font-semibold text-[var(--accent)] hover:underline"
+              onClick={showAll}
+            >
+              Alle anzeigen
+            </button>
+          </div>
         ) : (
           <ul className="space-y-4">
-            {calendar.days.map((day) => {
+            {filteredDays.map((day) => {
               const isToday = day.dateKey === today;
               return (
                 <li
