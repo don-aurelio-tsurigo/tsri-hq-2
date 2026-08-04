@@ -266,6 +266,71 @@ export async function getCurrentWeekProgress(
   return summarizePeriod(weekStart, through, entries, pensumPercent);
 }
 
+export type PastWeekTimeGap = {
+  dateKey: string;
+  dateLabel: string;
+  reason: "missing" | "incomplete";
+};
+
+/** Missing / incomplete entries for the previous Mon–Sun week (after it has ended). */
+export async function getPastWeekTimeGaps(
+  organizationId: string,
+  userId: string,
+  pensumPercent: number,
+  today: Date = new Date(),
+): Promise<{
+  weekStart: Date;
+  weekEnd: Date;
+  weekLabel: string;
+  weekParam: string;
+  gaps: PastWeekTimeGap[];
+}> {
+  const thisMonday = startOfWeek(today, { weekStartsOn: 1 });
+  const lastMonday = addDays(thisMonday, -7);
+  const lastSunday = addDays(thisMonday, -1);
+
+  const summary = await getWeekTimeSummary(
+    organizationId,
+    userId,
+    pensumPercent,
+    lastMonday,
+  );
+
+  const gaps: PastWeekTimeGap[] = [];
+  for (const day of summary.days) {
+    // Only days that normally require tracking (Soll-Tag / Arbeitstag)
+    if (day.baseSollHours <= 0) continue;
+
+    if (!day.entry) {
+      gaps.push({
+        dateKey: day.dateKey,
+        dateLabel: format(day.date, "EEE d.M.", { locale: de }),
+        reason: "missing",
+      });
+      continue;
+    }
+
+    if (
+      day.entry.type === "work" &&
+      (!day.entry.startTime || !day.entry.endTime)
+    ) {
+      gaps.push({
+        dateKey: day.dateKey,
+        dateLabel: format(day.date, "EEE d.M.", { locale: de }),
+        reason: "incomplete",
+      });
+    }
+  }
+
+  return {
+    weekStart: lastMonday,
+    weekEnd: lastSunday,
+    weekLabel: weekLabel(lastMonday, lastSunday),
+    weekParam: toTimeDateKey(lastMonday),
+    gaps,
+  };
+}
+
 /** Calendar year start (local) through today — avoids charging Soll for future days. */
 export async function getYearToDateTimeSummary(
   organizationId: string,

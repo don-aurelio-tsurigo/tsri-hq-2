@@ -16,7 +16,10 @@ import {
 } from "@/lib/vacation";
 import { toVacationDateKey } from "@/lib/vacation-constants";
 import { formatHours } from "@/lib/time-tracking-constants";
-import { getCurrentWeekProgress } from "@/lib/time-tracking";
+import {
+  getCurrentWeekProgress,
+  getPastWeekTimeGaps,
+} from "@/lib/time-tracking";
 
 function formatVacationRange(start: Date, end: Date) {
   const sameDay =
@@ -35,34 +38,47 @@ export default async function HomePage() {
   const { session, membership } = await requireMembership();
   const isAdmin = membership.role === "admin";
 
-  const [items, user, cookingSlots, upcomingVacations, ferienplanId, pendingVacations, weekHours] =
-    await Promise.all([
-      getCurrentDashboardItems(membership.organizationId, session.user.id),
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { privateNotes: true },
-      }),
-      listUpcomingCookingForUser(
-        membership.organizationId,
-        session.user.id,
-        startOfDay(new Date()),
-        4,
-      ),
-      listUpcomingOwnVacations(
-        membership.organizationId,
-        session.user.id,
-        3,
-      ),
-      getFerienplanSpaceId(membership.organizationId),
-      isAdmin
-        ? listPendingVacationApprovals(membership.organizationId)
-        : Promise.resolve([]),
-      getCurrentWeekProgress(
-        membership.organizationId,
-        session.user.id,
-        membership.pensumPercent,
-      ),
-    ]);
+  const [
+    items,
+    user,
+    cookingSlots,
+    upcomingVacations,
+    ferienplanId,
+    pendingVacations,
+    weekHours,
+    pastWeekGaps,
+  ] = await Promise.all([
+    getCurrentDashboardItems(membership.organizationId, session.user.id),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { privateNotes: true },
+    }),
+    listUpcomingCookingForUser(
+      membership.organizationId,
+      session.user.id,
+      startOfDay(new Date()),
+      4,
+    ),
+    listUpcomingOwnVacations(
+      membership.organizationId,
+      session.user.id,
+      3,
+    ),
+    getFerienplanSpaceId(membership.organizationId),
+    isAdmin
+      ? listPendingVacationApprovals(membership.organizationId)
+      : Promise.resolve([]),
+    getCurrentWeekProgress(
+      membership.organizationId,
+      session.user.id,
+      membership.pensumPercent,
+    ),
+    getPastWeekTimeGaps(
+      membership.organizationId,
+      session.user.id,
+      membership.pensumPercent,
+    ),
+  ]);
 
   const tasks = items.filter((i) => i.kind !== "article");
   const articles = items.filter((i) => i.kind === "article");
@@ -131,6 +147,38 @@ export default async function HomePage() {
               ))}
             </ul>
           )}
+        </section>
+      )}
+
+      {pastWeekGaps.gaps.length > 0 && (
+        <section className="rounded-xl border border-[var(--danger)]/25 bg-red-50/80 px-4 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--danger)]">
+                Arbeitszeit fehlt
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Für die vergangene Woche ({pastWeekGaps.weekLabel}) fehlen noch{" "}
+                {pastWeekGaps.gaps.length}{" "}
+                {pastWeekGaps.gaps.length === 1 ? "Tag" : "Tage"}:
+              </p>
+              <p className="mt-2 text-sm font-semibold text-[var(--fg)]">
+                {pastWeekGaps.gaps
+                  .map((g) =>
+                    g.reason === "incomplete"
+                      ? `${g.dateLabel} (unvollständig)`
+                      : g.dateLabel,
+                  )
+                  .join(" · ")}
+              </p>
+            </div>
+            <Link
+              href={`/hours?week=${pastWeekGaps.weekParam}`}
+              className="btn btn-primary shrink-0 text-sm"
+            >
+              Jetzt nachtragen
+            </Link>
+          </div>
         </section>
       )}
 
