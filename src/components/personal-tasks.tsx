@@ -1,7 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition, type DragEvent, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  useTransition,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
+import {
+  endOfWeek,
+  isBefore,
+  isToday,
+  startOfDay,
+} from "date-fns";
 import { CreateTaskForm } from "@/components/task-form";
 import { TaskList, TASK_DRAG_TYPE, type TaskRow } from "@/components/task-list";
 import { ProjectNotes } from "@/components/project-notes";
@@ -14,6 +26,102 @@ import {
 
 type Group = { id: string; name: string };
 type Member = { id: string; name: string };
+type InboxMode = "due" | "project";
+
+type BucketKey = "overdue" | "today" | "week" | "later" | "none";
+
+const DUE_BUCKETS: { key: BucketKey; label: string }[] = [
+  { key: "overdue", label: "Überfällig" },
+  { key: "today", label: "Heute" },
+  { key: "week", label: "Diese Woche" },
+  { key: "later", label: "Später" },
+  { key: "none", label: "Kein Datum" },
+];
+
+function dueBucket(dueAt: Date | string | null): BucketKey {
+  if (!dueAt) return "none";
+  const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
+  if (Number.isNaN(date.getTime())) return "none";
+  if (isToday(date)) return "today";
+  const todayStart = startOfDay(new Date());
+  if (isBefore(date, todayStart)) return "overdue";
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  if (!isBefore(weekEnd, date)) return "week"; // date <= weekEnd
+  return "later";
+}
+
+function sortByDueAsc(a: TaskRow, b: TaskRow) {
+  const aTime = a.dueAt ? new Date(a.dueAt).getTime() : Number.POSITIVE_INFINITY;
+  const bTime = b.dueAt ? new Date(b.dueAt).getTime() : Number.POSITIVE_INFINITY;
+  if (aTime !== bTime) return aTime - bTime;
+  return (a.title ?? "").localeCompare(b.title ?? "", "de");
+}
+
+function CollapsibleSection({
+  sectionKey,
+  label,
+  count,
+  collapsed,
+  onToggle,
+  children,
+  mutedLabel,
+  headerExtra,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  dragOver,
+}: {
+  sectionKey: string;
+  label: string;
+  count: number;
+  collapsed: Set<string>;
+  onToggle: (key: string) => void;
+  children: ReactNode;
+  mutedLabel?: boolean;
+  headerExtra?: ReactNode;
+  onDragOver?: (e: DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: DragEvent) => void;
+  dragOver?: boolean;
+}) {
+  const open = !collapsed.has(sectionKey);
+  return (
+    <section className="space-y-1.5">
+      <div
+        className={[
+          "flex items-center gap-1 rounded-lg px-1 transition-colors",
+          dragOver
+            ? "bg-[color-mix(in_oklab,var(--accent)_12%,white)]"
+            : "",
+        ].join(" ")}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        <button
+          type="button"
+          onClick={() => onToggle(sectionKey)}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
+        >
+          <span className="text-[0.65rem] text-[var(--muted)]" aria-hidden>
+            {open ? "▼" : "▸"}
+          </span>
+          <span
+            className={[
+              "truncate text-sm font-semibold",
+              mutedLabel ? "text-[var(--muted)]" : "",
+            ].join(" ")}
+          >
+            {label}
+          </span>
+          <span className="text-xs text-[var(--muted)]">{count}</span>
+        </button>
+        {headerExtra}
+      </div>
+      {open && children}
+    </section>
+  );
+}
 
 export function GroupedTasksBoard({
   spaceId,
@@ -26,6 +134,7 @@ export function GroupedTasksBoard({
   description,
   headerExtra,
   projectNotes,
+  variant = "space",
 }: {
   spaceId: string;
   groups: Group[];
@@ -38,6 +147,11 @@ export function GroupedTasksBoard({
   headerExtra?: ReactNode;
   /** When set, shows an editable project notes field under the header. */
   projectNotes?: boolean;
+  /**
+   * `space` = TaskGroup sections (project detail / single space).
+   * `inbox` = merged personal + assigned project tasks with due/project modes.
+   */
+  variant?: "space" | "inbox";
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -46,6 +160,9 @@ export function GroupedTasksBoard({
   const [renameId, setRenameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const [inboxMode, setInboxMode] = useState<InboxMode>("due");
+
+  const isInbox = variant === "inbox";
 
   const openTasks = useMemo(
     () => tasks.filter((t) => t.status === "todo" || t.status === "doing"),
@@ -56,7 +173,7 @@ export function GroupedTasksBoard({
     [tasks],
   );
 
-  const openByGroup = useMemo(() => {
+  const openByTaskGroup = useMemo(() => {
     const map = new Map<string | null, TaskRow[]>();
     map.set(null, []);
     for (const g of groups) map.set(g.id, []);
@@ -67,6 +184,38 @@ export function GroupedTasksBoard({
     }
     return map;
   }, [openTasks, groups]);
+
+  const openByDue = useMemo(() => {
+    const map = new Map<BucketKey, TaskRow[]>();
+    for (const b of DUE_BUCKETS) map.set(b.key, []);
+    for (const task of openTasks) {
+      map.get(dueBucket(task.dueAt))!.push(task);
+    }
+    for (const list of map.values()) list.sort(sortByDueAsc);
+    return map;
+  }, [openTasks]);
+
+  const openByProject = useMemo(() => {
+    type ProjBucket = { key: string; label: string; tasks: TaskRow[] };
+    const map = new Map<string, ProjBucket>();
+    for (const task of openTasks) {
+      const space = task.space;
+      const isPersonal =
+        !space || space.type === "personal" || space.id === spaceId;
+      const key = isPersonal ? `__personal__:${spaceId}` : space.id;
+      const label = isPersonal ? "Privat" : space.name;
+      if (!map.has(key)) {
+        map.set(key, { key, label, tasks: [] });
+      }
+      map.get(key)!.tasks.push(task);
+    }
+    for (const b of map.values()) b.tasks.sort(sortByDueAsc);
+    return [...map.values()].sort((a, b) => {
+      if (a.label === "Privat") return -1;
+      if (b.label === "Privat") return 1;
+      return a.label.localeCompare(b.label, "de");
+    });
+  }, [openTasks, spaceId]);
 
   function toggle(key: string) {
     setCollapsed((prev) => {
@@ -92,7 +241,7 @@ export function GroupedTasksBoard({
   }
 
   function moveToGroup(taskId: string, groupId: string | null) {
-    if (!canEdit) return;
+    if (!canEdit || isInbox) return;
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
     const current = task.groupId ?? task.group?.id ?? null;
@@ -107,7 +256,7 @@ export function GroupedTasksBoard({
   }
 
   function onHeaderDragOver(e: DragEvent, key: string) {
-    if (!canEdit) return;
+    if (!canEdit || isInbox) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOverKey(key);
@@ -121,7 +270,7 @@ export function GroupedTasksBoard({
   }
 
   function onHeaderDrop(e: DragEvent, groupId: string | null) {
-    if (!canEdit) return;
+    if (!canEdit || isInbox) return;
     e.preventDefault();
     setDragOverKey(null);
     const id = e.dataTransfer.getData(TASK_DRAG_TYPE);
@@ -130,6 +279,7 @@ export function GroupedTasksBoard({
   }
 
   const editMembers = canEdit ? members : undefined;
+  const listGroups = isInbox ? undefined : groups;
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -149,6 +299,9 @@ export function GroupedTasksBoard({
         <p className="mt-1.5 text-sm text-[var(--muted)]">
           {openTasks.length} offen
           {doneTasks.length > 0 ? ` · ${doneTasks.length} erledigt` : ""}
+          {isInbox
+            ? " · privat & zugewiesene Projekt-Tasks"
+            : ""}
         </p>
       </header>
 
@@ -169,230 +322,292 @@ export function GroupedTasksBoard({
           compact
           showDueDate
           members={editMembers}
-          placeholder="Neue Aufgabe…"
+          placeholder="Neue private Aufgabe…"
         />
       )}
 
-      <div className="space-y-3">
-        <section className="space-y-1.5">
-          <button
-            type="button"
-            onClick={() => toggle("__none__")}
-            onDragOver={(e) => onHeaderDragOver(e, "__none__")}
-            onDragLeave={() =>
-              setDragOverKey((cur) => (cur === "__none__" ? null : cur))
-            }
-            onDrop={(e) => onHeaderDrop(e, null)}
-            className={[
-              "flex w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-left transition-colors",
-              dragOverKey === "__none__"
-                ? "bg-[color-mix(in_oklab,var(--accent)_12%,white)]"
-                : "",
-            ].join(" ")}
-          >
-            <span className="text-[0.65rem] text-[var(--muted)]" aria-hidden>
-              {!collapsed.has("__none__") ? "▼" : "▸"}
-            </span>
-            <span className="text-sm font-semibold">Ohne Gruppe</span>
-            <span className="text-xs text-[var(--muted)]">
-              {(openByGroup.get(null) ?? []).length}
-            </span>
-          </button>
-          {!collapsed.has("__none__") && (
-            <TaskList
-              tasks={openByGroup.get(null) ?? []}
-              enableDrawer
-              compact
-              groups={groups}
-              members={editMembers}
-              enableDrag={canEdit}
-              dropGroupId={null}
-              onMoveToGroup={canEdit ? moveToGroup : undefined}
-            />
-          )}
-        </section>
-
-        {groups.map((group) => {
-          const items = openByGroup.get(group.id) ?? [];
-          const open = !collapsed.has(group.id);
-          const renaming = renameId === group.id;
-          const headerOver = dragOverKey === group.id;
-          return (
-            <section key={group.id} className="space-y-1.5">
-              <div
+      {isInbox && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+            Gruppierung
+          </span>
+          {(
+            [
+              { id: "due", label: "Nach Fälligkeit" },
+              { id: "project", label: "Nach Projekt" },
+            ] as const
+          ).map((mode) => {
+            const active = inboxMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                aria-pressed={active}
                 className={[
-                  "flex items-center gap-1 rounded-lg px-1 transition-colors",
-                  headerOver
-                    ? "bg-[color-mix(in_oklab,var(--accent)_12%,white)]"
-                    : "",
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  active
+                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
                 ].join(" ")}
-                onDragOver={(e) => onHeaderDragOver(e, group.id)}
-                onDragLeave={() =>
-                  setDragOverKey((cur) => (cur === group.id ? null : cur))
-                }
-                onDrop={(e) => onHeaderDrop(e, group.id)}
+                onClick={() => setInboxMode(mode.id)}
               >
-                <button
-                  type="button"
-                  onClick={() => toggle(group.id)}
-                  className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
-                >
-                  <span className="text-[0.65rem] text-[var(--muted)]" aria-hidden>
-                    {open ? "▼" : "▸"}
-                  </span>
-                  {renaming ? null : (
-                    <>
-                      <span className="truncate text-sm font-semibold">
-                        {group.name}
-                      </span>
-                      <span className="text-xs text-[var(--muted)]">
-                        {items.length}
-                      </span>
-                    </>
-                  )}
-                </button>
-                {canEdit && !renaming && (
-                  <div className="flex shrink-0 gap-0.5">
-                    <button
-                      type="button"
-                      className="rounded px-1.5 py-0.5 text-[0.65rem] text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
-                      disabled={pending}
-                      onClick={() => setRenameId(group.id)}
-                    >
-                      Umbenennen
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded px-1.5 py-0.5 text-[0.65rem] text-[var(--muted)] hover:bg-black/5 hover:text-red-700"
-                      disabled={pending}
-                      onClick={() => {
-                        if (
-                          !confirm(
-                            `Gruppe «${group.name}» löschen? Tasks bleiben ohne Gruppe.`,
-                          )
-                        ) {
-                          return;
-                        }
-                        run(async () => {
-                          const fd = new FormData();
-                          fd.set("id", group.id);
-                          return deleteTaskGroup(fd);
-                        });
-                      }}
-                    >
-                      Löschen
-                    </button>
-                  </div>
-                )}
-              </div>
+                {mode.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-              {renaming && (
-                <form
-                  className="flex gap-2"
-                  action={(fd) => {
-                    run(async () => updateTaskGroup(fd));
-                  }}
-                >
-                  <input type="hidden" name="id" value={group.id} />
-                  <input
-                    name="name"
-                    required
-                    defaultValue={group.name}
-                    className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm"
-                    autoFocus
-                  />
-                  <button type="submit" className="btn btn-primary text-sm" disabled={pending}>
-                    OK
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost text-sm"
-                    onClick={() => setRenameId(null)}
-                  >
-                    Abbrechen
-                  </button>
-                </form>
-              )}
-
-              {open && (
+      {isInbox && inboxMode === "due" && (
+        <div className="space-y-3">
+          {DUE_BUCKETS.map((bucket) => {
+            const items = openByDue.get(bucket.key) ?? [];
+            if (items.length === 0) return null;
+            return (
+              <CollapsibleSection
+                key={bucket.key}
+                sectionKey={`due:${bucket.key}`}
+                label={bucket.label}
+                count={items.length}
+                collapsed={collapsed}
+                onToggle={toggle}
+              >
                 <TaskList
                   tasks={items}
                   enableDrawer
                   compact
-                  groups={groups}
+                  showSpace
                   members={editMembers}
-                  enableDrag={canEdit}
-                  dropGroupId={group.id}
-                  onMoveToGroup={canEdit ? moveToGroup : undefined}
                 />
-              )}
-            </section>
-          );
-        })}
-      </div>
+              </CollapsibleSection>
+            );
+          })}
+          {openTasks.length === 0 && (
+            <div className="card px-4 py-8 text-center text-sm text-[var(--muted)]">
+              Keine offenen Tasks.
+            </div>
+          )}
+        </div>
+      )}
 
-      {canEdit &&
-        (addingGroup ? (
-          <form
-            className="flex gap-2"
-            action={(fd) => {
-              run(async () => createTaskGroup(fd));
-            }}
-          >
-            <input type="hidden" name="spaceId" value={spaceId} />
-            <input
-              name="name"
-              required
-              placeholder="Name der Gruppe…"
-              className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
-              autoFocus
-            />
-            <button type="submit" className="btn btn-primary text-sm" disabled={pending}>
-              Anlegen
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost text-sm"
-              onClick={() => setAddingGroup(false)}
+      {isInbox && inboxMode === "project" && (
+        <div className="space-y-3">
+          {openByProject.map((bucket) => (
+            <CollapsibleSection
+              key={bucket.key}
+              sectionKey={`proj:${bucket.key}`}
+              label={bucket.label}
+              count={bucket.tasks.length}
+              collapsed={collapsed}
+              onToggle={toggle}
             >
-              Abbrechen
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            className="text-sm font-medium text-[var(--accent)] hover:underline"
-            onClick={() => setAddingGroup(true)}
-          >
-            + Neue Gruppe
-          </button>
-        ))}
+              <TaskList
+                tasks={bucket.tasks}
+                enableDrawer
+                compact
+                showSpace={bucket.label !== "Privat"}
+                members={editMembers}
+              />
+            </CollapsibleSection>
+          ))}
+          {openTasks.length === 0 && (
+            <div className="card px-4 py-8 text-center text-sm text-[var(--muted)]">
+              Keine offenen Tasks.
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isInbox && (
+        <>
+          <div className="space-y-3">
+            <CollapsibleSection
+              sectionKey="__none__"
+              label="Ohne Gruppe"
+              count={(openByTaskGroup.get(null) ?? []).length}
+              collapsed={collapsed}
+              onToggle={toggle}
+              dragOver={dragOverKey === "__none__"}
+              onDragOver={(e) => onHeaderDragOver(e, "__none__")}
+              onDragLeave={() =>
+                setDragOverKey((cur) => (cur === "__none__" ? null : cur))
+              }
+              onDrop={(e) => onHeaderDrop(e, null)}
+            >
+              <TaskList
+                tasks={openByTaskGroup.get(null) ?? []}
+                enableDrawer
+                compact
+                groups={listGroups}
+                members={editMembers}
+                enableDrag={canEdit}
+                dropGroupId={null}
+                onMoveToGroup={canEdit ? moveToGroup : undefined}
+              />
+            </CollapsibleSection>
+
+            {groups.map((group) => {
+              const items = openByTaskGroup.get(group.id) ?? [];
+              const renaming = renameId === group.id;
+              return (
+                <CollapsibleSection
+                  key={group.id}
+                  sectionKey={group.id}
+                  label={renaming ? "" : group.name}
+                  count={items.length}
+                  collapsed={collapsed}
+                  onToggle={toggle}
+                  dragOver={dragOverKey === group.id}
+                  onDragOver={(e) => onHeaderDragOver(e, group.id)}
+                  onDragLeave={() =>
+                    setDragOverKey((cur) => (cur === group.id ? null : cur))
+                  }
+                  onDrop={(e) => onHeaderDrop(e, group.id)}
+                  headerExtra={
+                    canEdit && !renaming ? (
+                      <div className="flex shrink-0 gap-0.5">
+                        <button
+                          type="button"
+                          className="rounded px-1.5 py-0.5 text-[0.65rem] text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
+                          disabled={pending}
+                          onClick={() => setRenameId(group.id)}
+                        >
+                          Umbenennen
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded px-1.5 py-0.5 text-[0.65rem] text-[var(--muted)] hover:bg-black/5 hover:text-red-700"
+                          disabled={pending}
+                          onClick={() => {
+                            if (
+                              !confirm(
+                                `Gruppe «${group.name}» löschen? Tasks bleiben ohne Gruppe.`,
+                              )
+                            ) {
+                              return;
+                            }
+                            run(async () => {
+                              const fd = new FormData();
+                              fd.set("id", group.id);
+                              return deleteTaskGroup(fd);
+                            });
+                          }}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    ) : undefined
+                  }
+                >
+                  {renaming && (
+                    <form
+                      className="flex gap-2"
+                      action={(fd) => {
+                        run(async () => updateTaskGroup(fd));
+                      }}
+                    >
+                      <input type="hidden" name="id" value={group.id} />
+                      <input
+                        name="name"
+                        required
+                        defaultValue={group.name}
+                        className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm"
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        className="btn btn-primary text-sm"
+                        disabled={pending}
+                      >
+                        OK
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost text-sm"
+                        onClick={() => setRenameId(null)}
+                      >
+                        Abbrechen
+                      </button>
+                    </form>
+                  )}
+                  {!renaming && (
+                    <TaskList
+                      tasks={items}
+                      enableDrawer
+                      compact
+                      groups={listGroups}
+                      members={editMembers}
+                      enableDrag={canEdit}
+                      dropGroupId={group.id}
+                      onMoveToGroup={canEdit ? moveToGroup : undefined}
+                    />
+                  )}
+                </CollapsibleSection>
+              );
+            })}
+          </div>
+
+          {canEdit &&
+            (addingGroup ? (
+              <form
+                className="flex gap-2"
+                action={(fd) => {
+                  run(async () => createTaskGroup(fd));
+                }}
+              >
+                <input type="hidden" name="spaceId" value={spaceId} />
+                <input
+                  name="name"
+                  required
+                  placeholder="Name der Gruppe…"
+                  className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary text-sm"
+                  disabled={pending}
+                >
+                  Anlegen
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost text-sm"
+                  onClick={() => setAddingGroup(false)}
+                >
+                  Abbrechen
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                className="text-sm font-medium text-[var(--accent)] hover:underline"
+                onClick={() => setAddingGroup(true)}
+              >
+                + Neue Gruppe
+              </button>
+            ))}
+        </>
+      )}
 
       {doneTasks.length > 0 && (
-        <section className="space-y-1.5 border-t border-[var(--border)] pt-3">
-          <button
-            type="button"
-            onClick={() => toggle("__done__")}
-            className="flex w-full items-center gap-1.5 py-0.5 text-left"
-          >
-            <span className="text-[0.65rem] text-[var(--muted)]" aria-hidden>
-              {!collapsed.has("__done__") ? "▼" : "▸"}
-            </span>
-            <span className="text-sm font-semibold text-[var(--muted)]">
-              Erledigt
-            </span>
-            <span className="text-xs text-[var(--muted)]">{doneTasks.length}</span>
-          </button>
-          {!collapsed.has("__done__") && (
-            <TaskList
-              tasks={doneTasks}
-              enableDrawer
-              compact
-              groups={groups}
-              members={editMembers}
-            />
-          )}
-        </section>
+        <CollapsibleSection
+          sectionKey="__done__"
+          label="Erledigt"
+          count={doneTasks.length}
+          collapsed={collapsed}
+          onToggle={toggle}
+          mutedLabel
+        >
+          <TaskList
+            tasks={doneTasks}
+            enableDrawer
+            compact
+            showSpace={isInbox}
+            groups={listGroups}
+            members={editMembers}
+          />
+        </CollapsibleSection>
       )}
     </div>
   );

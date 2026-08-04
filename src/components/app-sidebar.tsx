@@ -138,7 +138,7 @@ export function AppSidebar({
                 pathname === "/tasks" || pathname.startsWith("/tasks/"),
               )}
             >
-              Persönliche Tasks
+              Meine Tasks
             </Link>
             <Link
               href="/projects"
