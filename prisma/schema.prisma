@@ -31,6 +31,7 @@ model User {
   assignedTasks Task[]           @relation("TaskAssignee")
   taskAssignments TaskAssignment[]
   cookingSlots    CookingSlot[]
+  cookingAssignments CookingSlot[] @relation("CookingSlotAssigner")
   invitationsSent Invitation[]   @relation("InvitationInviter")
   authoredNewsletters NewsletterCampaign[] @relation("NewsletterAuthor")
   createdNewsletters  NewsletterCampaign[] @relation("NewsletterCreator")
@@ -347,19 +348,23 @@ model TaskAssignment {
 
 /// Kochplan: ein Slot pro Tag (Di–Fr)
 model CookingSlot {
-  id        String   @id @default(cuid())
-  spaceId   String
-  date      DateTime @db.Date
-  userId    String
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  spaceId      String
+  date         DateTime @db.Date
+  userId       String
+  /// Wer die Person eingetragen hat (für „von … eingetragen“)
+  assignedById String?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space      Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("CookingSlotAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
 
   @@unique([spaceId, date])
   @@index([userId])
+  @@index([assignedById])
   @@index([spaceId, date])
   @@map("cooking_slot")
 }

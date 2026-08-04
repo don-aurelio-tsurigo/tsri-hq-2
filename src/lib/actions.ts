@@ -1421,9 +1421,11 @@ export async function setCookingSlot(formData: FormData) {
       spaceId: space.id,
       date,
       userId: parsed.data.userId,
+      assignedById: session.user.id,
     },
     update: {
       userId: parsed.data.userId,
+      assignedById: session.user.id,
     },
   });
 

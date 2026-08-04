@@ -72,6 +72,7 @@ export async function listCookingSlots(
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
+      assignedBy: { select: { id: true, name: true } },
     },
     orderBy: { date: "asc" },
   });

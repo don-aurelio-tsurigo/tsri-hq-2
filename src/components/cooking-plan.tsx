@@ -6,6 +6,7 @@ import {
   Fragment,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -21,6 +22,7 @@ type DaySlot = {
   isPast: boolean;
   canCook: boolean;
   user: { id: string; name: string } | null;
+  assignedBy: { id: string; name: string } | null;
 };
 
 type WeekBlock = {
@@ -30,6 +32,47 @@ type WeekBlock = {
   monthLabel: string | null;
   days: DaySlot[];
 };
+
+function personInitials(name: string) {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
+
+function PersonAvatar({ name }: { name: string }) {
+  return (
+    <span
+      className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--accent)_25%,white)] text-[0.65rem] font-semibold text-[var(--fg)]"
+      aria-hidden
+    >
+      {personInitials(name)}
+    </span>
+  );
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+      className={className ?? "size-3.5 shrink-0"}
+    >
+      <path
+        d="M4 6l4 4 4-4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function CookingPlan({
   spaceId,
@@ -85,7 +128,10 @@ export function CookingPlan({
           >
             ←
           </Link>
-          <Link href={`?week=${currentWeek}`} className="btn btn-ghost px-2 py-1 text-sm">
+          <Link
+            href={`?week=${currentWeek}`}
+            className="btn btn-ghost px-2 py-1 text-sm"
+          >
             Heute
           </Link>
           <Link
@@ -99,7 +145,9 @@ export function CookingPlan({
             {periodLabel}
           </p>
         </div>
-        <p className="text-xs text-[var(--muted)]">Eintragen nur Di–Fr · Navigation ±4 Wochen</p>
+        <p className="text-xs text-[var(--muted)]">
+          Eintragen nur Di–Fr · Navigation ±4 Wochen
+        </p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-white/70">
@@ -146,12 +194,12 @@ export function CookingPlan({
                     <td
                       key={day.dateKey}
                       className={[
-                        "align-top px-1.5 py-1.5",
+                        "min-h-[5.5rem] align-top px-1.5 py-1.5",
                         day.isToday
                           ? "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]"
                           : "",
-                        day.isPast ? "opacity-70" : "",
-                        !day.canCook ? "bg-black/[0.02]" : "",
+                        day.isPast && day.canCook ? "opacity-70" : "",
+                        !day.canCook ? "bg-black/[0.035]" : "",
                       ].join(" ")}
                     >
                       <CookDayCell
@@ -189,98 +237,155 @@ function CookDayCell({
   onAssign: (userId: string) => void;
   onClear: () => void;
 }) {
-  const isMe = day.user?.id === currentUserId;
+  const dateLabel = (
+    <span
+      className={[
+        "text-[0.65rem] font-medium",
+        day.isToday ? "text-[var(--accent)]" : "text-[var(--muted)]",
+      ].join(" ")}
+    >
+      {day.dayMonth}
+      {day.isToday ? " · heute" : ""}
+    </span>
+  );
 
   if (!day.canCook) {
     return (
-      <div className="flex flex-col gap-0.5">
-        <span
-          className={[
-            "text-[0.65rem] font-medium",
-            day.isToday ? "text-[var(--accent)]" : "text-[var(--muted)]",
-          ].join(" ")}
-        >
-          {day.dayMonth}
-          {day.isToday ? " · heute" : ""}
-        </span>
-        <p className="text-xs text-[var(--muted)]">—</p>
+      <div
+        className="min-h-[4.5rem]"
+        aria-label={`${day.weekdayShort} ${day.dayMonth}${day.isToday ? ", heute" : ""}: kein Kochtag`}
+      />
+    );
+  }
+
+  const isMe = day.user?.id === currentUserId;
+  const isOpen = !day.user;
+
+  if (isOpen) {
+    return (
+      <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+        {dateLabel}
+        <div className="mt-auto flex flex-col gap-1">
+          <button
+            type="button"
+            className="btn btn-primary w-full px-2 py-1.5 text-xs"
+            disabled={pending}
+            onClick={() => onAssign(currentUserId)}
+          >
+            Ich koche
+          </button>
+          <PersonPicker
+            label="Jemand anderen eintragen"
+            members={members}
+            currentUserId={currentUserId}
+            selectedId={null}
+            disabled={pending}
+            onSelect={onAssign}
+          />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span
-        className={[
-          "text-[0.65rem] font-medium",
-          day.isToday ? "text-[var(--accent)]" : "text-[var(--muted)]",
-        ].join(" ")}
-      >
-        {day.dayMonth}
-        {day.isToday ? " · heute" : ""}
-      </span>
-
-      <p
-        className={[
-          "truncate text-sm leading-snug font-semibold",
-          day.user ? "text-[var(--fg)]" : "font-medium text-[var(--muted)]",
-        ].join(" ")}
-        title={day.user?.name}
-      >
-        {day.user ? day.user.name : "Offen"}
-      </p>
-
-      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+  if (isMe) {
+    return (
+      <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+        {dateLabel}
+        <div className="flex items-start gap-2">
+          <PersonAvatar name={day.user!.name} />
+          <div className="min-w-0">
+            <p className="truncate text-sm leading-snug font-semibold">
+              {day.user!.name}
+            </p>
+            <p className="text-[0.7rem] text-[var(--muted)]">Du kochst</p>
+          </div>
+        </div>
         <button
           type="button"
-          className={[
-            "text-[0.7rem] underline-offset-2 hover:underline disabled:opacity-50",
-            isMe
-              ? "font-medium text-[var(--accent)]"
-              : "text-[var(--accent)]",
-          ].join(" ")}
+          className="btn btn-ghost mt-auto w-full px-2 py-1.5 text-xs"
           disabled={pending}
-          onClick={() => {
-            if (isMe) onClear();
-            else onAssign(currentUserId);
-          }}
+          onClick={onClear}
         >
-          {isMe ? "Zurückziehen" : "Kochen übernehmen"}
+          Zurückziehen
         </button>
-        <PersonPicker
-          members={members}
-          selectedId={day.user?.id ?? null}
-          currentUserId={currentUserId}
-          disabled={pending}
-          onToggle={(userId) => {
-            if (day.user?.id === userId) onClear();
-            else onAssign(userId);
-          }}
-        />
       </div>
+    );
+  }
+
+  const assignerLabel =
+    day.assignedBy && day.assignedBy.id !== day.user!.id
+      ? day.assignedBy.id === currentUserId
+        ? "von dir eingetragen"
+        : `von ${day.assignedBy.name} eingetragen`
+      : null;
+
+  return (
+    <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+      {dateLabel}
+      <div className="flex items-start gap-2">
+        <PersonAvatar name={day.user!.name} />
+        <div className="min-w-0">
+          <p
+            className="truncate text-sm leading-snug font-semibold"
+            title={day.user!.name}
+          >
+            {day.user!.name}
+          </p>
+          {assignerLabel && (
+            <p className="text-[0.65rem] leading-snug text-[var(--muted)]">
+              {assignerLabel}
+            </p>
+          )}
+        </div>
+      </div>
+      <PersonPicker
+        label="Tauschen"
+        members={members}
+        currentUserId={currentUserId}
+        selectedId={day.user!.id}
+        disabled={pending}
+        onSelect={onAssign}
+        triggerClassName="btn btn-ghost mt-auto w-full px-2 py-1.5 text-xs"
+      />
     </div>
   );
 }
 
 function PersonPicker({
+  label,
   members,
-  selectedId,
   currentUserId,
+  selectedId,
   disabled,
-  onToggle,
+  onSelect,
+  triggerClassName,
 }: {
+  label: string;
   members: Member[];
-  selectedId: string | null;
   currentUserId: string;
+  selectedId: string | null;
   disabled: boolean;
-  onToggle: (userId: string) => void;
+  onSelect: (userId: string) => void;
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const showSearch = members.length >= 5;
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => m.name.toLowerCase().includes(q));
+  }, [members, query]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setQuery("");
+      return;
+    }
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -291,60 +396,84 @@ function PersonPicker({
     }
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKey);
+    if (showSearch) {
+      queueMicrotask(() => searchRef.current?.focus());
+    }
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, showSearch]);
 
   return (
     <div className="relative" ref={rootRef}>
       <button
         type="button"
-        className="text-[0.7rem] text-[var(--muted)] underline-offset-2 hover:text-[var(--fg)] hover:underline disabled:opacity-50"
+        className={
+          triggerClassName ??
+          "btn btn-ghost w-full px-2 py-1.5 text-xs font-semibold text-[var(--muted)]"
+        }
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
       >
-        Team ▾
+        <span className="truncate">{label}</span>
+        <ChevronDownIcon />
       </button>
       {open && (
         <div
           id={listId}
           role="listbox"
-          className="absolute top-full left-0 z-20 mt-0.5 max-h-40 w-40 overflow-auto rounded-md border border-[var(--border)] bg-white py-0.5 shadow-md"
+          className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-lg sm:left-0 sm:w-52"
         >
-          {members.map((member) => {
-            const checked = selectedId === member.id;
-            return (
-              <label
-                key={member.id}
-                className={[
-                  "flex cursor-pointer items-center gap-1.5 px-2 py-1 text-xs hover:bg-black/5",
-                  checked
-                    ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)]"
-                    : "",
-                ].join(" ")}
-              >
-                <input
-                  type="checkbox"
-                  className="size-3 accent-[var(--accent)]"
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={() => {
-                    onToggle(member.id);
-                    setOpen(false);
-                  }}
-                />
-                <span className="truncate">
-                  {member.name}
-                  {member.id === currentUserId ? " (ich)" : ""}
-                </span>
-              </label>
-            );
-          })}
+          {showSearch && (
+            <div className="border-b border-[var(--border)] p-1.5">
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Suchen…"
+                className="w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-xs outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+          )}
+          <ul className="max-h-48 overflow-auto py-0.5">
+            {filtered.map((member) => {
+              const checked = selectedId === member.id;
+              return (
+                <li key={member.id} role="option" aria-selected={checked}>
+                  <button
+                    type="button"
+                    className={[
+                      "flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs hover:bg-black/5",
+                      checked
+                        ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] font-semibold"
+                        : "",
+                    ].join(" ")}
+                    disabled={disabled}
+                    onClick={() => {
+                      onSelect(member.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <PersonAvatar name={member.name} />
+                    <span className="min-w-0 truncate">
+                      {member.name}
+                      {member.id === currentUserId ? " (ich)" : ""}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {filtered.length === 0 && (
+              <li className="px-2.5 py-3 text-xs text-[var(--muted)]">
+                Niemand gefunden.
+              </li>
+            )}
+          </ul>
         </div>
       )}
     </div>

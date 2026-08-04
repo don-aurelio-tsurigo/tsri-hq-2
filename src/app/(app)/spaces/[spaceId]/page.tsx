@@ -356,7 +356,13 @@ export default async function SpacePage({
     ]);
 
     const byDate = new Map(
-      slots.map((s) => [toDateKey(s.date), s.user] as const),
+      slots.map((s) => [
+        toDateKey(s.date),
+        {
+          user: s.user,
+          assignedBy: s.assignedBy,
+        },
+      ] as const),
     );
 
     const weeks = weekMondays.map((weekMonday, index) => {
@@ -379,7 +385,7 @@ export default async function SpacePage({
         days: dates.map((date) => {
           const dateKey = toDateKey(date);
           const day = startOfDay(date);
-          const user = byDate.get(dateKey) ?? null;
+          const slot = byDate.get(dateKey) ?? null;
           const canCook = isCookingWeekday(date);
           return {
             dateKey,
@@ -388,7 +394,12 @@ export default async function SpacePage({
             isToday: day.getTime() === today.getTime(),
             isPast: isBefore(day, today),
             canCook,
-            user: user ? { id: user.id, name: user.name } : null,
+            user: slot?.user
+              ? { id: slot.user.id, name: slot.user.name }
+              : null,
+            assignedBy: slot?.assignedBy
+              ? { id: slot.assignedBy.id, name: slot.assignedBy.name }
+              : null,
           };
         }),
       };
