@@ -4,12 +4,16 @@ import {
   InviteMemberForm,
   RevokeInviteButton,
 } from "@/components/invite-form";
+import {
+  ArchiveMemberButton,
+  RestoreMemberButton,
+} from "@/components/member-archive-buttons";
 import { PensumSelect } from "@/components/pensum-select";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 
 export default async function MembersSettingsPage() {
-  const { membership } = await requireAdmin();
+  const { session, membership } = await requireAdmin();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const [members, invitations] = await Promise.all([
@@ -27,6 +31,9 @@ export default async function MembersSettingsPage() {
     }),
   ]);
 
+  const active = members.filter((m) => !m.archivedAt);
+  const archived = members.filter((m) => m.archivedAt);
+
   return (
     <div className="space-y-8">
       <header>
@@ -38,7 +45,8 @@ export default async function MembersSettingsPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
           Jede eingeladene Person bekommt einen vollen Account und automatisch
-          einen privaten Space.
+          einen privaten Space. Archivierte verlieren den Zugang — Historie
+          (Artikel, Stunden) bleibt erhalten.
         </p>
       </header>
 
@@ -46,10 +54,10 @@ export default async function MembersSettingsPage() {
 
       <section className="space-y-3">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-          Team ({members.length})
+          Team ({active.length})
         </h2>
         <ul className="card divide-y divide-[var(--border)]">
-          {members.map((m) => (
+          {active.map((m) => (
             <li
               key={m.id}
               className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
@@ -64,11 +72,50 @@ export default async function MembersSettingsPage() {
                   pensumPercent={m.pensumPercent}
                 />
                 <span className="badge">{m.role}</span>
+                {m.userId !== session.user.id && (
+                  <ArchiveMemberButton
+                    userId={m.userId}
+                    name={m.user.name}
+                  />
+                )}
               </div>
             </li>
           ))}
         </ul>
       </section>
+
+      {archived.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+            Archiviert ({archived.length})
+          </h2>
+          <ul className="card divide-y divide-[var(--border)]">
+            {archived.map((m) => (
+              <li
+                key={m.id}
+                className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium text-[var(--muted)]">
+                    {m.user.name}
+                  </p>
+                  <p className="text-sm text-[var(--muted)]">{m.user.email}</p>
+                  {m.archivedAt && (
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">
+                      Archiviert am{" "}
+                      {format(m.archivedAt, "d. MMM yyyy", { locale: de })}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="badge">{m.role}</span>
+                  <RestoreMemberButton userId={m.userId} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">

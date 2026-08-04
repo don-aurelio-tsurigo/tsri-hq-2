@@ -23,7 +23,10 @@ export default async function PersonalTasksPage() {
     listSpaceTasks(personal.id),
     listTaskGroups(personal.id),
     prisma.membership.findMany({
-      where: { organizationId: membership.organizationId },
+      where: {
+        organizationId: membership.organizationId,
+        archivedAt: null,
+      },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { user: { name: "asc" } },
     }),

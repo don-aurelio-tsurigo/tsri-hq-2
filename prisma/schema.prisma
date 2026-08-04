@@ -123,6 +123,8 @@ model Membership {
   role           MembershipRole @default(member)
   /// Anstellungsgrad in Prozent (100 = Vollzeit, Bezug: 40h/Woche)
   pensumPercent  Int            @default(100)
+  /// Soft-archive: kein App-Zugang, Historie bleibt
+  archivedAt     DateTime?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -131,6 +133,7 @@ model Membership {
 
   @@unique([organizationId, userId])
   @@index([userId])
+  @@index([organizationId, archivedAt])
   @@map("membership")
 }
 

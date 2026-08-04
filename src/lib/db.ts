@@ -10,7 +10,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 11; // v11: WikiPage
+const PRISMA_CLIENT_SCHEMA_VERSION = 12; // v12: Membership.archivedAt
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -25,7 +25,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   ],
   Space: ["archivedAt", "isTemplate"],
   NewsletterType: ["weekdays"],
-  Membership: ["pensumPercent"],
+  Membership: ["pensumPercent", "archivedAt"],
 };
 
 const REQUIRED_MODELS = [

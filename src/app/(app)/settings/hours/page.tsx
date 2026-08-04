@@ -52,9 +52,23 @@ export default async function AdminHoursPage() {
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {rows.map((row) => (
-              <tr key={row.userId} className="hover:bg-black/[0.02]">
+              <tr
+                key={row.userId}
+                className={
+                  row.archived
+                    ? "bg-[var(--bg)]/40 hover:bg-black/[0.02]"
+                    : "hover:bg-black/[0.02]"
+                }
+              >
                 <td className="px-4 py-3">
-                  <p className="font-semibold">{row.name}</p>
+                  <p className="font-semibold">
+                    {row.name}
+                    {row.archived && (
+                      <span className="ml-2 rounded-full border border-[var(--border)] px-2 py-0.5 text-[0.65rem] font-extrabold tracking-wide text-[var(--muted)] uppercase">
+                        Archiviert
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-[var(--muted)]">{row.email}</p>
                 </td>
                 <td className="px-3 py-3 tabular-nums text-[var(--muted)]">

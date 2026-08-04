@@ -146,7 +146,10 @@ export default async function SpacePage({
         listArticles(space.id),
         listProgramArticles(space.id),
         prisma.membership.findMany({
-          where: { organizationId: membership.organizationId },
+          where: {
+            organizationId: membership.organizationId,
+            archivedAt: null,
+          },
           include: { user: { select: { id: true, name: true } } },
           orderBy: { user: { name: "asc" } },
         }),
@@ -235,7 +238,10 @@ export default async function SpacePage({
 
   if (space.slug === "team-infos") {
     const members = await prisma.membership.findMany({
-      where: { organizationId: membership.organizationId },
+      where: {
+            organizationId: membership.organizationId,
+            archivedAt: null,
+          },
       include: {
         user: {
           select: {
@@ -289,7 +295,10 @@ export default async function SpacePage({
     const [chores, members] = await Promise.all([
       listChores(space.id),
       prisma.membership.findMany({
-        where: { organizationId: membership.organizationId },
+        where: {
+            organizationId: membership.organizationId,
+            archivedAt: null,
+          },
         include: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" } },
       }),
@@ -337,7 +346,10 @@ export default async function SpacePage({
     const [slots, members] = await Promise.all([
       listCookingSlots(space.id, from, to),
       prisma.membership.findMany({
-        where: { organizationId: membership.organizationId },
+        where: {
+            organizationId: membership.organizationId,
+            archivedAt: null,
+          },
         include: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" } },
       }),

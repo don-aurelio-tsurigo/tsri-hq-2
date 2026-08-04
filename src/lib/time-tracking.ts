@@ -294,6 +294,7 @@ export type TeamHoursOverviewRow = {
   email: string;
   pensumPercent: number;
   role: string;
+  archived: boolean;
   week: PeriodSummary;
   month: PeriodSummary;
   year: PeriodSummary;
@@ -314,7 +315,7 @@ export async function listTeamHoursOverview(
     include: {
       user: { select: { id: true, name: true, email: true } },
     },
-    orderBy: { user: { name: "asc" } },
+    orderBy: [{ archivedAt: "asc" }, { user: { name: "asc" } }],
   });
 
   const rangeEnd =
@@ -351,6 +352,7 @@ export async function listTeamHoursOverview(
       email: m.user.email,
       pensumPercent: m.pensumPercent,
       role: m.role,
+      archived: !!m.archivedAt,
       week: summarizePeriod(
         weekStart,
         today,

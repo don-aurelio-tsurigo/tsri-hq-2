@@ -51,7 +51,7 @@ export async function createInvitation(formData: FormData) {
         },
       },
     });
-    if (alreadyMember) {
+    if (alreadyMember && !alreadyMember.archivedAt) {
       return { error: "Diese Person ist bereits im Team." };
     }
   }
@@ -171,7 +171,7 @@ export async function acceptInvitation(formData: FormData) {
       userId: user.id,
       role: invitation.role,
     },
-    update: { role: invitation.role },
+    update: { role: invitation.role, archivedAt: null },
   });
 
   await ensurePersonalSpace(
@@ -1343,6 +1343,7 @@ export async function setChoreAssignees(formData: FormData) {
   const members = await prisma.membership.findMany({
     where: {
       organizationId: membership.organizationId,
+      archivedAt: null,
       userId: { in: assigneeIds },
     },
     select: { userId: true },
@@ -2196,6 +2197,9 @@ export async function updateMemberPensum(formData: FormData) {
     },
   });
   if (!target) return { error: "Person ist nicht im Team." };
+  if (target.archivedAt) {
+    return { error: "Archivierte Mitglieder können kein Pensum ändern." };
+  }
 
   await prisma.membership.update({
     where: { id: target.id },
@@ -2210,6 +2214,80 @@ export async function updateMemberPensum(formData: FormData) {
     select: { id: true },
   });
   if (teamInfos) revalidatePath(`/spaces/${teamInfos.id}`);
+  return { ok: true as const };
+}
+
+export async function archiveMember(formData: FormData) {
+  const { session, membership } = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "Fehlende Person." };
+
+  if (userId === session.user.id) {
+    return { error: "Du kannst dich nicht selbst archivieren." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId,
+      },
+    },
+  });
+  if (!target || target.archivedAt) {
+    return { error: "Aktives Mitglied nicht gefunden." };
+  }
+
+  if (target.role === "admin") {
+    const otherAdmins = await prisma.membership.count({
+      where: {
+        organizationId: membership.organizationId,
+        role: "admin",
+        archivedAt: null,
+        userId: { not: userId },
+      },
+    });
+    if (otherAdmins === 0) {
+      return { error: "Der letzte Admin kann nicht archiviert werden." };
+    }
+  }
+
+  await prisma.membership.update({
+    where: { id: target.id },
+    data: { archivedAt: new Date() },
+  });
+
+  revalidatePath("/settings/members");
+  revalidatePath("/settings/hours");
+  revalidatePath("/home");
+  return { ok: true as const };
+}
+
+export async function restoreMember(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId) return { error: "Fehlende Person." };
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId,
+      },
+    },
+  });
+  if (!target || !target.archivedAt) {
+    return { error: "Archiviertes Mitglied nicht gefunden." };
+  }
+
+  await prisma.membership.update({
+    where: { id: target.id },
+    data: { archivedAt: null },
+  });
+
+  revalidatePath("/settings/members");
+  revalidatePath("/settings/hours");
+  revalidatePath("/home");
   return { ok: true as const };
 }
 

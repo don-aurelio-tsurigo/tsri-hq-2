@@ -25,7 +25,10 @@ export default async function ProjectDetailPage({
     listSpaceTasks(project.id),
     listTaskGroups(project.id),
     prisma.membership.findMany({
-      where: { organizationId: membership.organizationId },
+      where: {
+        organizationId: membership.organizationId,
+        archivedAt: null,
+      },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
     }),

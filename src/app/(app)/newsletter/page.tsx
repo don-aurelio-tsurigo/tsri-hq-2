@@ -17,7 +17,10 @@ export default async function NewsletterPage() {
     listNewsletterTypes(membership.organizationId),
     listNewsletterCampaigns(membership.organizationId),
     prisma.membership.findMany({
-      where: { organizationId: membership.organizationId },
+      where: {
+        organizationId: membership.organizationId,
+        archivedAt: null,
+      },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { user: { name: "asc" } },
     }),

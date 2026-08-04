@@ -17,9 +17,21 @@ export async function requireSession() {
   return session;
 }
 
+/** Active (non-archived) membership for the user. */
 export async function getMembership(userId: string) {
   return prisma.membership.findFirst({
-    where: { userId },
+    where: { userId, archivedAt: null },
+    include: {
+      organization: true,
+      user: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+export async function getArchivedMembership(userId: string) {
+  return prisma.membership.findFirst({
+    where: { userId, archivedAt: { not: null } },
     include: {
       organization: true,
       user: true,
@@ -32,6 +44,10 @@ export async function requireMembership() {
   const session = await requireSession();
   const membership = await getMembership(session.user.id);
   if (!membership) {
+    const archived = await getArchivedMembership(session.user.id);
+    if (archived) {
+      redirect("/access-revoked");
+    }
     redirect("/onboarding");
   }
   return { session, membership };
