@@ -1479,7 +1479,7 @@ function parseNewsletterTypeForm(formData: FormData) {
 }
 
 export async function createNewsletterType(formData: FormData) {
-  const { membership } = await requireMembership();
+  const { membership } = await requireAdmin();
   const parsed = parseNewsletterTypeForm(formData);
   if (!parsed.success) {
     return { error: "Name, Frequenz und mind. ein Wochentag nötig." };
@@ -1503,6 +1503,7 @@ export async function createNewsletterType(formData: FormData) {
           weekdays: parsed.data.weekdays,
         },
       });
+      revalidatePath("/settings/newsletter");
       revalidatePath("/newsletter");
       return { ok: true as const, id: existing.id };
     }
@@ -1524,12 +1525,13 @@ export async function createNewsletterType(formData: FormData) {
     },
   });
 
+  revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");
   return { ok: true as const, id: created.id };
 }
 
 export async function updateNewsletterType(formData: FormData) {
-  const { membership } = await requireMembership();
+  const { membership } = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -1561,6 +1563,7 @@ export async function updateNewsletterType(formData: FormData) {
     },
   });
 
+  revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");
   return { ok: true as const };
 }

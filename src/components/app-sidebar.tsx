@@ -227,6 +227,15 @@ export function AppSidebar({
               >
                 Arbeitszeit Team
               </Link>
+              <Link
+                href="/settings/newsletter"
+                className={itemClass(
+                  pathname === "/settings/newsletter" ||
+                    pathname.startsWith("/settings/newsletter/"),
+                )}
+              >
+                Newsletter Einstellungen
+              </Link>
             </div>
           </div>
         )}

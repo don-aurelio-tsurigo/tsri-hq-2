@@ -3,10 +3,8 @@ import { prisma } from "@/lib/db";
 import {
   ensureDefaultNewsletterTypes,
   listNewsletterCalendarMonth,
-  listNewsletterTypes,
   monthParamKey,
   parseMonthParam,
-  type NewsletterFrequencyValue,
 } from "@/lib/newsletter";
 import { requireMembership } from "@/lib/session";
 
@@ -21,8 +19,7 @@ export default async function NewsletterPage({
 
   const monthAnchor = parseMonthParam(monthParam);
 
-  const [types, calendar, members] = await Promise.all([
-    listNewsletterTypes(membership.organizationId),
+  const [calendar, members] = await Promise.all([
     listNewsletterCalendarMonth(
       membership.organizationId,
       monthAnchor,
@@ -53,12 +50,6 @@ export default async function NewsletterPage({
       </header>
 
       <NewsletterDirectory
-        types={types.map((t) => ({
-          id: t.id,
-          name: t.name,
-          frequency: t.frequency as NewsletterFrequencyValue,
-          weekdays: t.weekdays,
-        }))}
         members={members.map((m) => m.user)}
         currentUserId={session.user.id}
         calendar={{
