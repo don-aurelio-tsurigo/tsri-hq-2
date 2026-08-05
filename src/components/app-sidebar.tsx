@@ -113,9 +113,9 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)]">
+    <aside className="sticky top-0 flex h-svh w-64 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)]">
       <div
-        className="border-b border-black/10 px-4 py-5 text-[var(--fg)]"
+        className="shrink-0 border-b border-black/10 px-4 py-5 text-[var(--fg)]"
         style={{ background: "var(--gradient-blue)" }}
       >
         <p className="brand-mark text-xl leading-none tracking-tight">
@@ -127,7 +127,7 @@ export function AppSidebar({
         </p>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
         <div>
           <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
             Privat
@@ -298,7 +298,7 @@ export function AppSidebar({
         )}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      <div className="shrink-0 border-t border-white/10 p-3">
         <button
           type="button"
           onClick={signOut}

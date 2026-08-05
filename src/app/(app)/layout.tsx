@@ -39,7 +39,7 @@ export default async function AppLayout({
     <div className="flex min-h-screen">
       <Suspense
         fallback={
-          <aside className="w-64 shrink-0 bg-[var(--sidebar)]" aria-hidden />
+          <aside className="sticky top-0 h-svh w-64 shrink-0 bg-[var(--sidebar)]" aria-hidden />
         }
       >
         <AppSidebar
