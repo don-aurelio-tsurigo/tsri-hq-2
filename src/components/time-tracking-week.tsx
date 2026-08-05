@@ -100,12 +100,19 @@ function formatSignedHours(hours: number) {
 
 function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
   if (!entry?.segments.length) {
+    // Arbeit + Pause sichtbar; Zeiten ohne Overlap, Nachmittag via "+ Segment"
     return [
       {
         key: crypto.randomUUID(),
         type: "work",
         startTime: "09:00",
-        endTime: "17:00",
+        endTime: "12:00",
+      },
+      {
+        key: crypto.randomUUID(),
+        type: "break",
+        startTime: "12:00",
+        endTime: "13:00",
       },
     ];
   }
