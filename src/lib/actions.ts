@@ -2404,7 +2404,7 @@ export async function upsertTimeEntry(formData: FormData) {
       return { error: "Mindestens ein Arbeitssegment nötig." };
     }
     if (segmentsOverlap(segments)) {
-      return { error: "Segmente überschneiden sich." };
+      return { error: "Segmente desselben Typs überschneiden sich." };
     }
   }
 

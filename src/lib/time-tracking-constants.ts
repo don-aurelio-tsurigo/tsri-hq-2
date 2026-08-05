@@ -85,13 +85,27 @@ function hoursFromSegmentsOfType(
 }
 
 /**
- * Summe der Dauer aller Segmente vom Typ work, in Stunden (2 Dezimalen).
- * Pause-Segmente zählen nicht. Leere Liste → 0.
+ * Netto-Arbeitszeit: Summe work − Summe break, in Stunden (2 Dezimalen).
+ * Pause darf innerhalb von Arbeit liegen; wird pauschal abgezogen.
+ * Leere Liste / nur Pause → 0.
  */
 export function computeWorkedHours(
   segments: readonly TimeSegmentInput[],
 ): number {
-  return hoursFromSegmentsOfType(segments, "work");
+  const workMinutes = segments
+    .filter((s) => s.type === "work")
+    .reduce(
+      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
+      0,
+    );
+  const breakMinutes = segments
+    .filter((s) => s.type === "break")
+    .reduce(
+      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
+      0,
+    );
+  const minutes = Math.max(0, workMinutes - breakMinutes);
+  return Math.round((minutes / 60) * 100) / 100;
 }
 
 /** Summe der Pause-Segmente in Stunden (2 Dezimalen). */
@@ -102,11 +116,13 @@ export function computeBreakHours(
 }
 
 /** Half-open [start, end) ranges in minutes-from-midnight (end may be +24h). */
-function segmentRanges(
+function segmentRangesOfType(
   segments: readonly TimeSegmentInput[],
+  kind: TimeSegmentKind,
 ): { start: number; end: number }[] {
   const ranges: { start: number; end: number }[] = [];
   for (const s of segments) {
+    if (s.type !== kind) continue;
     const start = parseTimeToMinutes(s.startTime);
     const endRaw = parseTimeToMinutes(s.endTime);
     if (start === null || endRaw === null) continue;
@@ -116,11 +132,9 @@ function segmentRanges(
   return ranges;
 }
 
-/** True if any two closed segments overlap (work and break alike). */
-export function segmentsOverlap(
-  segments: readonly TimeSegmentInput[],
+function rangesOverlap(
+  ranges: readonly { start: number; end: number }[],
 ): boolean {
-  const ranges = segmentRanges(segments);
   for (let i = 0; i < ranges.length; i++) {
     for (let j = i + 1; j < ranges.length; j++) {
       const a = ranges[i]!;
@@ -129,6 +143,19 @@ export function segmentsOverlap(
     }
   }
   return false;
+}
+
+/**
+ * True if two segments of the same type overlap.
+ * Work↔break overlaps are allowed (pause inside a work block).
+ */
+export function segmentsOverlap(
+  segments: readonly TimeSegmentInput[],
+): boolean {
+  return (
+    rangesOverlap(segmentRangesOfType(segments, "work")) ||
+    rangesOverlap(segmentRangesOfType(segments, "break"))
+  );
 }
 
 export function dailyTargetHours(pensumPercent: number): number {

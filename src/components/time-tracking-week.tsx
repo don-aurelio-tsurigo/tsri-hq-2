@@ -100,13 +100,13 @@ function formatSignedHours(hours: number) {
 
 function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
   if (!entry?.segments.length) {
-    // Arbeit + Pause sichtbar; Zeiten ohne Overlap, Nachmittag via "+ Segment"
+    // Arbeit über den Tag + Pause mittendrin (Overlap work↔break ist erlaubt)
     return [
       {
         key: crypto.randomUUID(),
         type: "work",
         startTime: "09:00",
-        endTime: "12:00",
+        endTime: "17:00",
       },
       {
         key: crypto.randomUUID(),
@@ -178,7 +178,7 @@ function DayEditor({
         return;
       }
       if (segmentsOverlap(payload)) {
-        setError("Segmente überschneiden sich.");
+        setError("Segmente desselben Typs überschneiden sich.");
         return;
       }
     }
