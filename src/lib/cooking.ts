@@ -1,7 +1,9 @@
 import {
   addDays,
+  endOfMonth,
   format,
   parseISO,
+  startOfMonth,
   startOfWeek,
   isTuesday,
   isWednesday,
@@ -13,6 +15,9 @@ import { prisma } from "@/lib/db";
 
 /** Cooking weekdays: Tue=2 .. Fri=5 (date-fns: Sunday=0) */
 export const COOKING_WEEKDAYS = [2, 3, 4, 5] as const;
+
+/** Durchschnittliche Self-Koch-Einträge pro Kalendermonat. */
+export const MONTHLY_COOKING_TARGET = 1.5;
 
 export function getWeekMonday(reference: Date = new Date()) {
   return startOfWeek(reference, { weekStartsOn: 1 });
@@ -95,5 +100,28 @@ export async function listUpcomingCookingForUser(
     },
     orderBy: { date: "asc" },
     take: limit,
+  });
+}
+
+/**
+ * Anzahl Slots im laufenden Kalendermonat, an denen `userId` kocht
+ * (self als Koch — nicht: für jemand anderen eingetragen).
+ */
+export async function countUserCookingSlotsInMonth(
+  spaceId: string,
+  userId: string,
+  monthAnchor: Date = new Date(),
+) {
+  const from = startOfMonth(monthAnchor);
+  const to = endOfMonth(monthAnchor);
+  return prisma.cookingSlot.count({
+    where: {
+      spaceId,
+      userId,
+      date: {
+        gte: new Date(`${toDateKey(from)}T12:00:00.000Z`),
+        lte: new Date(`${toDateKey(to)}T12:00:00.000Z`),
+      },
+    },
   });
 }

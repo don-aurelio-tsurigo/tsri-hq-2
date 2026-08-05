@@ -31,6 +31,8 @@ import {
   getWeekMonday,
   isCookingWeekday,
   listCookingSlots,
+  countUserCookingSlotsInMonth,
+  MONTHLY_COOKING_TARGET,
   parseWeekParam,
   toDateKey,
   weekDatesForWeek,
@@ -343,7 +345,7 @@ export default async function SpacePage({
     const to = allDates[allDates.length - 1]!;
     const today = startOfDay(new Date());
 
-    const [slots, members] = await Promise.all([
+    const [slots, members, monthSelfCookCount] = await Promise.all([
       listCookingSlots(space.id, from, to),
       prisma.membership.findMany({
         where: {
@@ -353,6 +355,7 @@ export default async function SpacePage({
         include: { user: { select: { id: true, name: true } } },
         orderBy: { user: { name: "asc" } },
       }),
+      countUserCookingSlotsInMonth(space.id, session.user.id),
     ]);
 
     const byDate = new Map(
@@ -436,6 +439,8 @@ export default async function SpacePage({
           currentWeek={toDateKey(getWeekMonday())}
           members={members.map((m) => m.user)}
           currentUserId={session.user.id}
+          monthSelfCookCount={monthSelfCookCount}
+          monthCookTarget={MONTHLY_COOKING_TARGET}
         />
       </div>
     );
