@@ -47,7 +47,7 @@ function personInitials(name: string) {
 function PersonAvatar({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--accent)_25%,white)] text-[0.65rem] font-semibold text-[var(--fg)]"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[0.65rem] font-semibold text-[var(--fg)]"
       aria-hidden
     >
       {personInitials(name)}
@@ -182,7 +182,7 @@ export function CookingPlan({
                   </tr>
                 )}
                 <tr className="border-b border-[var(--border)] last:border-b-0">
-                  <th className="align-top px-2 py-2 text-xs font-semibold whitespace-nowrap">
+                  <th className="align-top px-2 py-1.5 text-xs font-semibold whitespace-nowrap">
                     <span className="font-[family-name:var(--font-display)]">
                       KW {week.isoWeek}
                     </span>
@@ -194,10 +194,12 @@ export function CookingPlan({
                     <td
                       key={day.dateKey}
                       className={[
-                        "min-h-[5.5rem] align-top px-1.5 py-1.5",
-                        day.isToday
-                          ? "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]"
-                          : "",
+                        "align-top px-1.5 py-1",
+                        day.user
+                          ? "bg-[var(--accent-soft)]/50"
+                          : day.isToday
+                            ? "bg-[color-mix(in_oklab,var(--accent)_8%,transparent)]"
+                            : "",
                         day.isPast && day.canCook ? "opacity-70" : "",
                         !day.canCook ? "bg-black/[0.035]" : "",
                       ].join(" ")}
@@ -252,7 +254,7 @@ function CookDayCell({
   if (!day.canCook) {
     return (
       <div
-        className="min-h-[4.5rem]"
+        className="min-h-[2.75rem]"
         aria-label={`${day.weekdayShort} ${day.dayMonth}${day.isToday ? ", heute" : ""}: kein Kochtag`}
       />
     );
@@ -263,24 +265,25 @@ function CookDayCell({
 
   if (isOpen) {
     return (
-      <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+      <div className="flex min-h-[2.75rem] flex-col gap-1">
         {dateLabel}
-        <div className="mt-auto flex flex-col gap-1">
+        <div className="mt-auto flex flex-col gap-0.5">
           <button
             type="button"
-            className="btn btn-primary w-full px-2 py-1.5 text-xs"
+            className="btn btn-ghost w-full px-2 py-1 text-xs"
             disabled={pending}
             onClick={() => onAssign(currentUserId)}
           >
             Ich koche
           </button>
           <PersonPicker
-            label="Jemand anderen eintragen"
+            label="Jemand anderen"
             members={members}
             currentUserId={currentUserId}
             selectedId={null}
             disabled={pending}
             onSelect={onAssign}
+            variant="link"
           />
         </div>
       </div>
@@ -289,20 +292,20 @@ function CookDayCell({
 
   if (isMe) {
     return (
-      <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+      <div className="flex min-h-[2.75rem] flex-col gap-1">
         {dateLabel}
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-1.5">
           <PersonAvatar name={day.user!.name} />
           <div className="min-w-0">
-            <p className="truncate text-sm leading-snug font-semibold">
+            <p className="truncate text-xs leading-snug font-semibold">
               {day.user!.name}
             </p>
-            <p className="text-[0.7rem] text-[var(--muted)]">Du kochst</p>
+            <p className="text-[0.65rem] text-[var(--muted)]">Du kochst</p>
           </div>
         </div>
         <button
           type="button"
-          className="btn btn-ghost mt-auto w-full px-2 py-1.5 text-xs"
+          className="btn btn-ghost mt-auto w-full px-2 py-1 text-xs"
           disabled={pending}
           onClick={onClear}
         >
@@ -320,13 +323,13 @@ function CookDayCell({
       : null;
 
   return (
-    <div className="flex min-h-[4.5rem] flex-col gap-1.5">
+    <div className="flex min-h-[2.75rem] flex-col gap-1">
       {dateLabel}
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-1.5">
         <PersonAvatar name={day.user!.name} />
         <div className="min-w-0">
           <p
-            className="truncate text-sm leading-snug font-semibold"
+            className="truncate text-xs leading-snug font-semibold"
             title={day.user!.name}
           >
             {day.user!.name}
@@ -345,7 +348,7 @@ function CookDayCell({
         selectedId={day.user!.id}
         disabled={pending}
         onSelect={onAssign}
-        triggerClassName="btn btn-ghost mt-auto w-full px-2 py-1.5 text-xs"
+        triggerClassName="btn btn-ghost mt-auto w-full px-2 py-1 text-xs"
       />
     </div>
   );
@@ -359,6 +362,7 @@ function PersonPicker({
   disabled,
   onSelect,
   triggerClassName,
+  variant = "button",
 }: {
   label: string;
   members: Member[];
@@ -367,6 +371,7 @@ function PersonPicker({
   disabled: boolean;
   onSelect: (userId: string) => void;
   triggerClassName?: string;
+  variant?: "button" | "link";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -405,13 +410,18 @@ function PersonPicker({
     };
   }, [open, showSearch]);
 
+  const linkTrigger =
+    "inline-flex w-full items-center justify-start gap-0.5 py-0.5 text-left text-[0.75rem] font-medium text-[var(--muted)] hover:underline disabled:opacity-55";
+
   return (
     <div className="relative" ref={rootRef}>
       <button
         type="button"
         className={
           triggerClassName ??
-          "btn btn-ghost w-full px-2 py-1.5 text-xs font-semibold text-[var(--muted)]"
+          (variant === "link"
+            ? linkTrigger
+            : "btn btn-ghost w-full px-2 py-1 text-xs font-semibold text-[var(--muted)]")
         }
         disabled={disabled}
         aria-haspopup="listbox"
@@ -420,7 +430,7 @@ function PersonPicker({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="truncate">{label}</span>
-        <ChevronDownIcon />
+        {variant !== "link" && <ChevronDownIcon />}
       </button>
       {open && (
         <div
@@ -450,7 +460,7 @@ function PersonPicker({
                     className={[
                       "flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs hover:bg-black/5",
                       checked
-                        ? "bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] font-semibold"
+                        ? "bg-[var(--accent-soft)] font-semibold"
                         : "",
                     ].join(" ")}
                     disabled={disabled}
