@@ -500,13 +500,15 @@ enum TimeEntryType {
   holiday
 }
 
-/// Ein Tageseintrag: Arbeit mit 1:n Zeitsegmenten, oder Abwesenheit (Krank/Ferien/Feiertag)
+/// Ein Tageseintrag: Arbeit mit 1:n Zeitsegmenten + Pause, oder Abwesenheit
 model TimeEntry {
   id             String        @id @default(cuid())
   organizationId String
   userId         String
   date           DateTime      @db.Date
   type           TimeEntryType @default(work)
+  /// Explizite Pause in Minuten (nicht aus Segment-Lücken berechnet)
+  breakMinutes   Int           @default(0)
   note           String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -521,15 +523,15 @@ model TimeEntry {
   @@map("time_entry")
 }
 
-/// Arbeitsintervall innerhalb eines Tageseintrags (open = endTime null)
+/// Geschlossenes Arbeitsintervall innerhalb eines Tageseintrags
 model TimeSegment {
-  id          String  @id @default(cuid())
+  id          String @id @default(cuid())
   timeEntryId String
   /// "HH:mm" Lokalzeit
   startTime   String
-  /// "HH:mm" Lokalzeit; null = laufendes Segment
-  endTime     String?
-  sortOrder   Int     @default(0)
+  /// "HH:mm" Lokalzeit (Pflicht — keine offenen Segmente)
+  endTime     String
+  sortOrder   Int    @default(0)
 
   timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 

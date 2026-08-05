@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { deleteTimeEntry, upsertTimeEntry } from "@/lib/actions";
 import {
-  breakMinutesFromGaps,
   computeWorkedHours,
   formatHours,
   formatSegmentsSummary,
@@ -19,6 +18,7 @@ type DayEntry = {
   id: string;
   type: TimeEntryTypeValue;
   note: string | null;
+  breakMinutes: number;
   segments: TimeSegmentInput[];
 };
 
@@ -59,7 +59,6 @@ type EditorSegment = {
   key: string;
   startTime: string;
   endTime: string;
-  open: boolean;
 };
 
 function SummaryStat({
@@ -96,13 +95,6 @@ function formatSignedHours(hours: number) {
   return `${sign}${formatHours(hours)} h`;
 }
 
-function nowHhmm() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(
-    now.getMinutes(),
-  ).padStart(2, "0")}`;
-}
-
 function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
   if (!entry?.segments.length) {
     return [
@@ -110,22 +102,20 @@ function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
         key: crypto.randomUUID(),
         startTime: "09:00",
         endTime: "17:00",
-        open: false,
       },
     ];
   }
   return entry.segments.map((s) => ({
     key: crypto.randomUUID(),
     startTime: s.startTime,
-    endTime: s.endTime ?? "",
-    open: !s.endTime,
+    endTime: s.endTime,
   }));
 }
 
 function toPayload(segments: EditorSegment[]): TimeSegmentInput[] {
   return segments.map((s) => ({
     startTime: s.startTime,
-    endTime: s.open || !s.endTime ? null : s.endTime,
+    endTime: s.endTime,
   }));
 }
 
@@ -144,6 +134,9 @@ function DayEditor({
   const [segments, setSegments] = useState<EditorSegment[]>(() =>
     segmentsFromEntry(day.entry),
   );
+  const [breakMinutes, setBreakMinutes] = useState(
+    String(day.entry?.breakMinutes ?? 0),
+  );
   const [note, setNote] = useState(
     day.entry?.note ?? day.holidayName ?? "",
   );
@@ -151,26 +144,22 @@ function DayEditor({
   const [pending, startTransition] = useTransition();
 
   const payload = useMemo(() => toPayload(segments), [segments]);
+  const breakValue = Math.max(0, Math.floor(Number(breakMinutes)) || 0);
 
   const preview = useMemo(() => {
     if (type !== "work") return null;
-    return computeWorkedHours(payload);
-  }, [type, payload]);
-
-  const gapBreak = useMemo(() => {
-    if (type !== "work") return 0;
-    return breakMinutesFromGaps(payload);
-  }, [type, payload]);
+    return computeWorkedHours(payload, breakValue);
+  }, [type, payload, breakValue]);
 
   function save() {
     setError(null);
     if (type === "work") {
-      if (payload.some((s) => !s.startTime)) {
-        setError("Jedes Segment braucht einen Beginn.");
+      if (payload.length === 0) {
+        setError("Mindestens ein Arbeitssegment nötig.");
         return;
       }
-      if (payload.filter((s) => !s.endTime).length > 1) {
-        setError("Nur ein offenes Segment erlaubt.");
+      if (payload.some((s) => !s.startTime || !s.endTime)) {
+        setError("Jedes Segment braucht Beginn und Schluss.");
         return;
       }
       if (segmentsOverlap(payload)) {
@@ -183,10 +172,8 @@ function DayEditor({
     fd.set("date", day.dateKey);
     fd.set("type", type);
     if (note.trim()) fd.set("note", note.trim());
-    fd.set(
-      "segments",
-      JSON.stringify(type === "work" ? payload : []),
-    );
+    fd.set("segments", JSON.stringify(type === "work" ? payload : []));
+    fd.set("breakMinutes", String(type === "work" ? breakValue : 0));
     startTransition(async () => {
       const result = await upsertTimeEntry(fd);
       if (result?.error) {
@@ -211,40 +198,6 @@ function DayEditor({
     });
   }
 
-  function quickStamp(kind: "in" | "out") {
-    const hhmm = nowHhmm();
-    setType("work");
-    setError(null);
-    if (kind === "in") {
-      setSegments((prev) => {
-        if (prev.some((s) => s.open || !s.endTime)) {
-          setError("Es läuft bereits ein offenes Segment.");
-          return prev;
-        }
-        return [
-          ...prev.filter((s) => s.startTime),
-          {
-            key: crypto.randomUUID(),
-            startTime: hhmm,
-            endTime: "",
-            open: true,
-          },
-        ];
-      });
-      return;
-    }
-    setSegments((prev) => {
-      const openIdx = prev.findIndex((s) => s.open || !s.endTime);
-      if (openIdx < 0) {
-        setError("Kein offenes Segment zum Beenden.");
-        return prev;
-      }
-      return prev.map((s, i) =>
-        i === openIdx ? { ...s, endTime: hhmm, open: false } : s,
-      );
-    });
-  }
-
   function addSegment() {
     setSegments((prev) => [
       ...prev,
@@ -252,7 +205,6 @@ function DayEditor({
         key: crypto.randomUUID(),
         startTime: "13:00",
         endTime: "17:00",
-        open: false,
       },
     ]);
   }
@@ -265,20 +217,10 @@ function DayEditor({
 
   function updateSegment(
     key: string,
-    patch: Partial<Pick<EditorSegment, "startTime" | "endTime" | "open">>,
+    patch: Partial<Pick<EditorSegment, "startTime" | "endTime">>,
   ) {
     setSegments((prev) =>
-      prev.map((s) => {
-        if (s.key !== key) return s;
-        const next = { ...s, ...patch };
-        if (patch.open === true) {
-          next.endTime = "";
-        }
-        if (patch.endTime !== undefined && patch.endTime !== "") {
-          next.open = false;
-        }
-        return next;
-      }),
+      prev.map((s) => (s.key === key ? { ...s, ...patch } : s)),
     );
   }
 
@@ -306,23 +248,6 @@ function DayEditor({
 
       {type === "work" ? (
         <>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost text-xs"
-              onClick={() => quickStamp("in")}
-            >
-              Jetzt starten
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost text-xs"
-              onClick={() => quickStamp("out")}
-            >
-              Jetzt beenden
-            </button>
-          </div>
-
           <ul className="space-y-2">
             {segments.map((seg, index) => (
               <li
@@ -346,24 +271,15 @@ function DayEditor({
                   Schluss
                   <input
                     type="time"
-                    value={seg.open ? "" : seg.endTime}
-                    disabled={seg.open}
+                    value={seg.endTime}
                     onChange={(e) =>
-                      updateSegment(seg.key, {
-                        endTime: e.target.value,
-                        open: false,
-                      })
+                      updateSegment(seg.key, { endTime: e.target.value })
                     }
                   />
-                  {seg.open && (
-                    <span className="mt-0.5 block text-[0.65rem] font-medium text-[var(--accent)]">
-                      läuft…
-                    </span>
-                  )}
                 </label>
                 <button
                   type="button"
-                  className="self-end btn btn-ghost px-2 py-1 text-xs"
+                  className="self-end btn btn-ghost px-2 py-1 text-xs disabled:opacity-40"
                   disabled={segments.length <= 1}
                   onClick={() => removeSegment(seg.key)}
                 >
@@ -381,7 +297,19 @@ function DayEditor({
             + Segment
           </button>
 
-          <div className="flex flex-wrap gap-4 text-sm">
+          <label className="field max-w-[10rem] text-xs font-semibold text-[var(--muted)]">
+            Pause (Min.)
+            <input
+              type="number"
+              min={0}
+              max={24 * 60}
+              step={5}
+              value={breakMinutes}
+              onChange={(e) => setBreakMinutes(e.target.value)}
+            />
+          </label>
+
+          <div className="flex flex-wrap gap-6 text-sm">
             <div>
               <p className="text-xs font-semibold text-[var(--muted)]">Arbeit</p>
               <p className="font-bold tabular-nums">
@@ -391,14 +319,10 @@ function DayEditor({
                 Soll {formatHours(dailyTarget)} h
               </p>
             </div>
-            {gapBreak > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-[var(--muted)]">
-                  Pause (Lücken)
-                </p>
-                <p className="font-bold tabular-nums">{gapBreak} Min.</p>
-              </div>
-            )}
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted)]">Pause</p>
+              <p className="font-bold tabular-nums">{breakValue} Min.</p>
+            </div>
           </div>
         </>
       ) : (
@@ -625,13 +549,18 @@ export function TimeTrackingWeek({
                               ? ` · ${segmentLabel}`
                               : ""}
                           </p>
-                          {day.entry.type === "work" &&
-                            breakMinutesFromGaps(day.entry.segments) > 0 && (
-                              <p className="mt-1">
-                                Pause (Lücken):{" "}
-                                {breakMinutesFromGaps(day.entry.segments)} Min.
-                              </p>
-                            )}
+                          {day.entry.type === "work" && (
+                            <p className="mt-1">
+                              Arbeit:{" "}
+                              {formatHours(
+                                computeWorkedHours(
+                                  day.entry.segments,
+                                  day.entry.breakMinutes,
+                                ),
+                              )}{" "}
+                              h · Pause: {day.entry.breakMinutes} Min.
+                            </p>
+                          )}
                           {day.entry.note && (
                             <p className="mt-1">{day.entry.note}</p>
                           )}

@@ -26,7 +26,7 @@ export function isTimeEntryType(value: string): value is TimeEntryTypeValue {
 
 export type TimeSegmentInput = {
   startTime: string;
-  endTime: string | null;
+  endTime: string;
 };
 
 /** Parse "HH:mm" → minutes from midnight, or null. */
@@ -44,7 +44,7 @@ export function formatMinutesAsTime(totalMinutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-/** Minutes between start and end; supports overnight. Open segments → 0. */
+/** Minutes between start and end; supports overnight. */
 export function segmentDurationMinutes(
   startTime: string | null | undefined,
   endTime: string | null | undefined,
@@ -58,36 +58,38 @@ export function segmentDurationMinutes(
 }
 
 /**
- * Sum worked hours across segments. Open segments (endTime null) count as 0.
- * Absence entries should pass an empty list → 0.
+ * Sum of segment durations minus breakMinutes, in hours (2 decimals).
+ * Absence entries: empty segments + break 0 → 0.
  */
 export function computeWorkedHours(
   segments: readonly TimeSegmentInput[],
+  breakMinutes = 0,
 ): number {
-  const minutes = segments.reduce(
+  const segmentMinutes = segments.reduce(
     (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
     0,
   );
+  const breakSafe = Math.max(0, Math.floor(breakMinutes) || 0);
+  const minutes = Math.max(0, segmentMinutes - breakSafe);
   return Math.round((minutes / 60) * 100) / 100;
 }
 
 /** Half-open [start, end) ranges in minutes-from-midnight (end may be +24h). */
 function segmentRanges(
   segments: readonly TimeSegmentInput[],
-): { start: number; end: number; index: number }[] {
-  const ranges: { start: number; end: number; index: number }[] = [];
-  segments.forEach((s, index) => {
+): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = [];
+  for (const s of segments) {
     const start = parseTimeToMinutes(s.startTime);
-    if (start === null) return;
     const endRaw = parseTimeToMinutes(s.endTime);
-    // Open: treat as a point for overlap with closed ranges that contain start
-    const end = endRaw === null ? start : endRaw < start ? endRaw + 24 * 60 : endRaw;
-    ranges.push({ start, end, index });
-  });
+    if (start === null || endRaw === null) continue;
+    const end = endRaw < start ? endRaw + 24 * 60 : endRaw;
+    ranges.push({ start, end });
+  }
   return ranges;
 }
 
-/** True if any two segments overlap (open segments conflict if start falls inside another). */
+/** True if any two closed segments overlap. */
 export function segmentsOverlap(
   segments: readonly TimeSegmentInput[],
 ): boolean {
@@ -96,54 +98,10 @@ export function segmentsOverlap(
     for (let j = i + 1; j < ranges.length; j++) {
       const a = ranges[i]!;
       const b = ranges[j]!;
-      // Overlap if intervals intersect with positive length, or either open
-      // point lies strictly inside the other closed interval.
-      const aOpen = a.end === a.start;
-      const bOpen = b.end === b.start;
-      if (aOpen && bOpen) {
-        if (a.start === b.start) return true;
-        continue;
-      }
-      if (aOpen) {
-        if (a.start > b.start && a.start < b.end) return true;
-        continue;
-      }
-      if (bOpen) {
-        if (b.start > a.start && b.start < a.end) return true;
-        continue;
-      }
       if (a.start < b.end && b.start < a.end) return true;
     }
   }
   return false;
-}
-
-/**
- * Display-only: gap minutes between consecutive sorted closed segments
- * (same calendar day ordering by start). Overnight segments included.
- */
-export function breakMinutesFromGaps(
-  segments: readonly TimeSegmentInput[],
-): number {
-  const closed = segments
-    .map((s) => {
-      const start = parseTimeToMinutes(s.startTime);
-      const end = parseTimeToMinutes(s.endTime);
-      if (start === null || end === null) return null;
-      const endAdj = end < start ? end + 24 * 60 : end;
-      return { start, end: endAdj };
-    })
-    .filter((x): x is { start: number; end: number } => x !== null)
-    .sort((a, b) => a.start - b.start);
-
-  let gaps = 0;
-  for (let i = 1; i < closed.length; i++) {
-    const prev = closed[i - 1]!;
-    const cur = closed[i]!;
-    const gap = cur.start - prev.end;
-    if (gap > 0) gaps += gap;
-  }
-  return gaps;
 }
 
 export function dailyTargetHours(pensumPercent: number): number {
@@ -167,8 +125,5 @@ export function formatSegmentsSummary(
   segments: readonly TimeSegmentInput[],
 ): string | null {
   if (segments.length === 0) return null;
-  const parts = segments.map((s) =>
-    s.endTime ? `${s.startTime}–${s.endTime}` : `seit ${s.startTime}`,
-  );
-  return parts.join(", ");
+  return segments.map((s) => `${s.startTime}–${s.endTime}`).join(", ");
 }

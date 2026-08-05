@@ -15,7 +15,7 @@ CREATE INDEX "time_segment_timeEntryId_sortOrder_idx" ON "time_segment"("timeEnt
 -- AddForeignKey
 ALTER TABLE "time_segment" ADD CONSTRAINT "time_segment_timeEntryId_fkey" FOREIGN KEY ("timeEntryId") REFERENCES "time_entry"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AlterTable
+-- AlterTable: drop legacy single-interval fields (breakMinutes restored in follow-up)
 ALTER TABLE "time_entry" DROP COLUMN IF EXISTS "startTime",
 DROP COLUMN IF EXISTS "endTime",
 DROP COLUMN IF EXISTS "breakMinutes";

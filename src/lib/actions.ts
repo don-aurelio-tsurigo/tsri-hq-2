@@ -2326,8 +2326,9 @@ const upsertTimeEntrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   type: z.string(),
   note: z.string().max(500).optional(),
-  /** JSON array of { startTime, endTime | null } */
+  /** JSON array of { startTime, endTime } */
   segments: z.string().optional(),
+  breakMinutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
 });
 
 function normalizeTimeInput(value: string | null | undefined): string | null {
@@ -2339,7 +2340,7 @@ function normalizeTimeInput(value: string | null | undefined): string | null {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-type ParsedSegment = { startTime: string; endTime: string | null };
+type ParsedSegment = { startTime: string; endTime: string };
 
 function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: string } {
   if (!raw?.trim()) return [];
@@ -2359,15 +2360,11 @@ function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: 
     const startNorm = normalizeTimeInput(
       String((item as { startTime?: unknown }).startTime ?? ""),
     );
-    const endRaw = (item as { endTime?: unknown }).endTime;
-    const endNorm =
-      endRaw === null || endRaw === undefined || endRaw === ""
-        ? null
-        : normalizeTimeInput(String(endRaw));
+    const endNorm = normalizeTimeInput(
+      String((item as { endTime?: unknown }).endTime ?? ""),
+    );
     if (!startNorm) return { error: "Beginn ungültig (HH:MM)." };
-    if (endRaw !== null && endRaw !== undefined && endRaw !== "" && !endNorm) {
-      return { error: "Schluss ungültig (HH:MM)." };
-    }
+    if (!endNorm) return { error: "Schluss ungültig (HH:MM)." };
     segments.push({ startTime: startNorm, endTime: endNorm });
   }
   return segments;
@@ -2380,6 +2377,7 @@ export async function upsertTimeEntry(formData: FormData) {
     type: formData.get("type") || "work",
     note: formData.get("note") || undefined,
     segments: formData.get("segments")?.toString() || undefined,
+    breakMinutes: formData.get("breakMinutes") ?? 0,
   });
   if (!parsed.success || !isTimeEntryType(parsed.data.type)) {
     return { error: "Bitte Eintrag prüfen." };
@@ -2389,18 +2387,20 @@ export async function upsertTimeEntry(formData: FormData) {
   const isAbsent = type === "sick" || type === "vacation" || type === "holiday";
 
   let segments: ParsedSegment[] = [];
+  let breakMinutes = 0;
+
   if (!isAbsent) {
     const parsedSegs = parseSegmentsJson(parsed.data.segments);
     if ("error" in parsedSegs) return parsedSegs;
     segments = parsedSegs;
 
-    if (segments.filter((s) => !s.endTime).length > 1) {
-      return { error: "Nur ein offenes Segment (ohne Schluss) erlaubt." };
+    if (segments.length === 0) {
+      return { error: "Mindestens ein Arbeitssegment nötig." };
     }
-
     if (segmentsOverlap(segments)) {
       return { error: "Segmente überschneiden sich." };
     }
+    breakMinutes = parsed.data.breakMinutes ?? 0;
   }
 
   const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
@@ -2418,10 +2418,12 @@ export async function upsertTimeEntry(formData: FormData) {
       userId: session.user.id,
       date,
       type,
+      breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
     update: {
       type,
+      breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
   });
