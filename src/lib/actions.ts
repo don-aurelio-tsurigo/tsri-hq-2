@@ -1067,7 +1067,7 @@ export async function createBootstrapOrganization(formData: FormData): Promise<v
     redirect("/onboarding");
   }
 
-  const name = String(formData.get("name") ?? "").trim() || "Unser Team";
+  const name = String(formData.get("name") ?? "").trim() || "Tsüri-Team";
   const slug =
     String(formData.get("slug") ?? "")
       .trim()
@@ -1481,12 +1481,17 @@ const newsletterTypeSchema = z.object({
     .array(z.coerce.number().int().min(1).max(7))
     .min(1, "Mindestens ein Wochentag")
     .transform((days) => [...new Set(days)].sort((a, b) => a - b)),
+  requiresWordle: z
+    .union([z.literal("true"), z.literal("on"), z.literal("false"), z.null()])
+    .optional()
+    .transform((v) => v === "true" || v === "on"),
 });
 
 function parseNewsletterTypeForm(formData: FormData) {
   return newsletterTypeSchema.safeParse({
     name: formData.get("name"),
     weekdays: formData.getAll("weekdays"),
+    requiresWordle: formData.get("requiresWordle") ?? null,
   });
 }
 
@@ -1515,6 +1520,7 @@ export async function createNewsletterType(formData: FormData) {
           active: true,
           frequency,
           weekdays: parsed.data.weekdays,
+          requiresWordle: parsed.data.requiresWordle,
         },
       });
       revalidatePath("/settings/newsletter");
@@ -1535,6 +1541,7 @@ export async function createNewsletterType(formData: FormData) {
       name: parsed.data.name,
       frequency,
       weekdays: parsed.data.weekdays,
+      requiresWordle: parsed.data.requiresWordle,
       sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
     },
   });
@@ -1574,6 +1581,7 @@ export async function updateNewsletterType(formData: FormData) {
       name: parsed.data.name,
       frequency: frequencyFromWeekdays(parsed.data.weekdays),
       weekdays: parsed.data.weekdays,
+      requiresWordle: parsed.data.requiresWordle,
     },
   });
 
@@ -2098,6 +2106,9 @@ export async function upsertNewsletterSlot(formData: FormData) {
   );
   if (!author.ok) return { error: author.error };
 
+  // Ignore wordle when type does not use it
+  const wordleWord = type.requiresWordle ? parsed.data.wordleWord : null;
+
   const status =
     parsed.data.campaignUrl || author.authorId ? "published" : "planned";
 
@@ -2113,7 +2124,7 @@ export async function upsertNewsletterSlot(formData: FormData) {
         authorId: author.authorId,
         campaignUrl: parsed.data.campaignUrl,
         note: parsed.data.note,
-        wordleWord: parsed.data.wordleWord,
+        wordleWord,
         status,
       },
     });
@@ -2126,7 +2137,7 @@ export async function upsertNewsletterSlot(formData: FormData) {
         date,
         campaignUrl: parsed.data.campaignUrl,
         note: parsed.data.note,
-        wordleWord: parsed.data.wordleWord,
+        wordleWord,
         status,
       },
     });

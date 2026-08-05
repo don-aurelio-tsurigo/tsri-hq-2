@@ -17,6 +17,7 @@ export type NewsletterTypeRow = {
   id: string;
   name: string;
   weekdays: number[];
+  requiresWordle: boolean;
 };
 
 const DEFAULT_WEEKDAYS: Weekday[] = [2];
@@ -29,6 +30,7 @@ export function NewsletterTypeManager({
   const router = useRouter();
   const [name, setName] = useState("");
   const [weekdays, setWeekdays] = useState<Weekday[]>(DEFAULT_WEEKDAYS);
+  const [requiresWordle, setRequiresWordle] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editId, setEditId] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export function NewsletterTypeManager({
         (WEEKDAYS as readonly number[]).includes(d),
       ),
     );
+    setRequiresWordle(type.requiresWordle);
     setError(null);
   }
 
@@ -56,6 +59,7 @@ export function NewsletterTypeManager({
     setEditId(null);
     setName("");
     setWeekdays(DEFAULT_WEEKDAYS);
+    setRequiresWordle(false);
     setError(null);
   }
 
@@ -65,6 +69,7 @@ export function NewsletterTypeManager({
     if (editId) fd.set("id", editId);
     fd.set("name", name);
     for (const d of weekdays) fd.append("weekdays", String(d));
+    if (requiresWordle) fd.set("requiresWordle", "true");
     startTransition(async () => {
       const result = editId
         ? await updateNewsletterType(fd)
@@ -98,6 +103,7 @@ export function NewsletterTypeManager({
               <p className="font-semibold">{t.name}</p>
               <p className="text-sm text-[var(--muted)]">
                 {formatWeekdays(t.weekdays)}
+                {t.requiresWordle ? " · Wordle aktiv" : ""}
               </p>
             </div>
             <button
@@ -150,6 +156,21 @@ export function NewsletterTypeManager({
             ))}
           </div>
         </div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={requiresWordle}
+            onChange={(e) => setRequiresWordle(e.target.checked)}
+          />
+          <span>
+            <span className="text-sm font-semibold">Wordle verlangen</span>
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Zeigt das Wordle-Feld in der Planung; die Card wird erst
+              «vollständig», wenn Autor, Link und Wordle gesetzt sind
+            </span>
+          </span>
+        </label>
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         <div className="flex gap-2">
           <button

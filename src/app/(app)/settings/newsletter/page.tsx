@@ -36,6 +36,7 @@ export default async function NewsletterSettingsPage() {
           id: t.id,
           name: t.name,
           weekdays: t.weekdays,
+          requiresWordle: t.requiresWordle,
         }))}
       />
 

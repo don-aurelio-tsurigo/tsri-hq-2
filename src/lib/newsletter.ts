@@ -119,6 +119,7 @@ export type NewsletterCalendarSlot = {
   dateKey: string;
   typeId: string;
   typeName: string;
+  requiresWordle: boolean;
   holidayName: string | null;
   campaign: {
     id: string;
@@ -265,6 +266,7 @@ export async function listNewsletterCalendarMonth(
         dateKey,
         typeId: type.id,
         typeName: type.name,
+        requiresWordle: type.requiresWordle,
         holidayName,
         campaign: existing
           ? {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { Pin } from "lucide-react";
 import {
   createWikiPage,
   deleteWikiPage,
@@ -130,14 +131,20 @@ function TreeList({
             <Link
               href={wikiPagePath(spaceId, page.slug)}
               className={[
-                "block rounded-lg px-2 py-1.5 text-sm transition-colors",
+                "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors",
                 active
                   ? "bg-[var(--highlight)] font-semibold text-[#0a0a0a]"
                   : "text-[var(--fg)] hover:bg-black/5",
               ].join(" ")}
             >
-              {page.pinned ? "★ " : ""}
-              {page.title}
+              {page.pinned && (
+                <Pin
+                  aria-label="Angepinnt"
+                  className="size-3.5 shrink-0 opacity-70"
+                  strokeWidth={1.75}
+                />
+              )}
+              <span className="min-w-0 truncate">{page.title}</span>
             </Link>
             <TreeList
               byParent={byParent}
@@ -363,9 +370,14 @@ export function WikiSpace({
                     <Link
                       key={p.id}
                       href={`/spaces/${spaceId}?page=${encodeURIComponent(p.slug)}`}
-                      className="rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:border-[var(--accent)]"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:border-[var(--accent)]"
                     >
-                      ★ {p.title}
+                      <Pin
+                        aria-hidden
+                        className="size-3.5 shrink-0 opacity-70"
+                        strokeWidth={1.75}
+                      />
+                      {p.title}
                     </Link>
                   ))}
                 </div>

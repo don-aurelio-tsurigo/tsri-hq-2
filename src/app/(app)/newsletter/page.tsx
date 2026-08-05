@@ -63,8 +63,8 @@ export default async function NewsletterPage({
           Newsletter-Plan
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Feste Erscheinungstage im Kalender — Slots mit Autor, Link und
-          Wordle-Wort buchen oder bei Feiertag/Sommerpause ausfallen lassen.
+          Feste Erscheinungstage im Kalender — Ausgaben vorbereiten (Autor, Link,
+          Wordle) oder über Pausen/Feiertage in den Einstellungen ausfallen lassen.
         </p>
       </header>
 

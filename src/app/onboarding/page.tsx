@@ -43,7 +43,7 @@ export default async function OnboardingPage() {
       <form action={createBootstrapOrganization} className="card mt-6 flex flex-col gap-4 p-6">
         <div className="field">
           <label htmlFor="name">Team-Name</label>
-          <input id="name" name="name" defaultValue="Unser Team" required />
+          <input id="name" name="name" defaultValue="Tsüri-Team" required />
         </div>
         <div className="field">
           <label htmlFor="slug">Slug</label>

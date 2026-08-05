@@ -118,9 +118,12 @@ export function AppSidebar({
         className="shrink-0 border-b border-black/10 px-4 py-5 text-[var(--fg)]"
         style={{ background: "var(--gradient-blue)" }}
       >
-        <p className="brand-mark text-xl leading-none tracking-tight">
-          Tsüri HQ 2.0
-        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/tsuri-logo.png"
+          alt="Tsüri HQ"
+          className="h-9 w-auto max-w-[13rem] object-contain object-left"
+        />
         <p className="mt-3 truncate text-sm font-bold">{orgName}</p>
         <p className="mt-0.5 truncate text-xs font-medium opacity-80">
           {userName}

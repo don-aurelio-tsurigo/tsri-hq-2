@@ -15,7 +15,7 @@ async function main() {
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@team.local").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin1234";
   const name = process.env.SEED_ADMIN_NAME ?? "Admin";
-  const orgName = process.env.SEED_ORG_NAME ?? "Unser Team";
+  const orgName = process.env.SEED_ORG_NAME ?? "Tsüri-Team";
   const orgSlug = process.env.SEED_ORG_SLUG ?? "team";
 
   let user = await prisma.user.findUnique({ where: { email } });

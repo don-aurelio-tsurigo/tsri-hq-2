@@ -410,6 +410,8 @@ model NewsletterType {
   frequency      NewsletterFrequency
   /// ISO-Wochentage: 1=Montag … 7=Sonntag
   weekdays       Int[]               @default([])
+  /// Wordle-Feld in der Planung anzeigen und beim Speichern verlangen
+  requiresWordle Boolean             @default(false)
   sortOrder      Int                 @default(0)
   active         Boolean             @default(true)
   createdAt      DateTime            @default(now())
