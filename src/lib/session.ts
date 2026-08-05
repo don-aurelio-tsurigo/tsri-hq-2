@@ -1,13 +1,14 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function getSession() {
+export const getSession = cache(async () => {
   return auth.api.getSession({
     headers: await headers(),
   });
-}
+});
 
 export async function requireSession() {
   const session = await getSession();
@@ -18,7 +19,7 @@ export async function requireSession() {
 }
 
 /** Active (non-archived) membership for the user. */
-export async function getMembership(userId: string) {
+export const getMembership = cache(async (userId: string) => {
   return prisma.membership.findFirst({
     where: { userId, archivedAt: null },
     include: {
@@ -27,9 +28,9 @@ export async function getMembership(userId: string) {
     },
     orderBy: { createdAt: "asc" },
   });
-}
+});
 
-export async function getArchivedMembership(userId: string) {
+export const getArchivedMembership = cache(async (userId: string) => {
   return prisma.membership.findFirst({
     where: { userId, archivedAt: { not: null } },
     include: {
@@ -38,9 +39,9 @@ export async function getArchivedMembership(userId: string) {
     },
     orderBy: { createdAt: "asc" },
   });
-}
+});
 
-export async function requireMembership() {
+export const requireMembership = cache(async () => {
   const session = await requireSession();
   const membership = await getMembership(session.user.id);
   if (!membership) {
@@ -51,7 +52,7 @@ export async function requireMembership() {
     redirect("/onboarding");
   }
   return { session, membership };
-}
+});
 
 export async function requireAdmin() {
   const ctx = await requireMembership();

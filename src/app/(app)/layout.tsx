@@ -1,10 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { requireMembership } from "@/lib/session";
-import {
-  ensureDefaultTeamSpaces,
-  listVisibleSpaces,
-} from "@/lib/spaces";
-import { ensureWikiStarterPages, listPinnedWikiPages } from "@/lib/wiki";
+import { listVisibleSpaces } from "@/lib/spaces";
+import { listPinnedWikiPages } from "@/lib/wiki";
 import { Suspense } from "react";
 
 export default async function AppLayout({
@@ -13,11 +10,6 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { session, membership } = await requireMembership();
-  await ensureDefaultTeamSpaces(membership.organizationId);
-  await ensureWikiStarterPages(
-    membership.organizationId,
-    session.user.id,
-  );
   const [spaces, wikiPins] = await Promise.all([
     listVisibleSpaces(membership.organizationId, session.user.id),
     listPinnedWikiPages(membership.organizationId, 8).catch(() => []),

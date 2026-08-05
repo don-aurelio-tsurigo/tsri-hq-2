@@ -1091,6 +1091,9 @@ export async function createBootstrapOrganization(formData: FormData): Promise<v
   await ensureDefaultTeamSpaces(org.id);
   await ensurePersonalSpace(org.id, session.user.id, session.user.name);
 
+  const { ensureWikiStarterPages } = await import("@/lib/wiki");
+  await ensureWikiStarterPages(org.id, session.user.id);
+
   redirect("/home");
 }
 
