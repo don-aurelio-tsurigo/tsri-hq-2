@@ -103,6 +103,27 @@ export async function runNewsFeedFetch(organizationId: string) {
   return { results, fetched: items.length, inserted };
 }
 
+/** Fetch once and upsert for every organization (background scheduler). */
+export async function runNewsFeedFetchForAllOrgs() {
+  const orgs = await prisma.organization.findMany({
+    select: { id: true },
+  });
+
+  // Collect feeds once — same sources for all orgs — then upsert per org.
+  const { items, results } = await collectFeedItems();
+  let inserted = 0;
+  for (const org of orgs) {
+    inserted += await upsertNewsItems(org.id, items);
+  }
+
+  return {
+    orgs: orgs.length,
+    fetched: items.length,
+    inserted,
+    results,
+  };
+}
+
 export async function updateNewsItemStatus(
   organizationId: string,
   id: string,

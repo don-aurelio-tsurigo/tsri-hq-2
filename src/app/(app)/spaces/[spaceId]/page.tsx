@@ -489,11 +489,11 @@ export default async function SpacePage({
             Redaktion
           </p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            Quellen
+            Newsfeed
           </h1>
           <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Lokale Zürich-Quellen einlesen und reviewen — getrennt vom
-            Redaktions-Kanban.
+            Lokale Zürich-Quellen alle paar Minuten einlesen und reviewen —
+            getrennt vom Redaktions-Kanban.
           </p>
         </header>
 

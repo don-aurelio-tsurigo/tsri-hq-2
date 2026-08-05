@@ -44,7 +44,7 @@ const DEFAULT_TEAM_SPACES: {
     description: "Wissensbasis des Teams",
   },
   {
-    name: "Quellen",
+    name: "Newsfeed",
     slug: "quellen",
     type: "team",
     description: "Lokaler Newsfeed: RSS und Quellen reviewen",
@@ -113,7 +113,21 @@ export async function ensureDefaultTeamSpaces(organizationId: string) {
       },
     });
     if (existing) {
-      created.push(existing);
+      if (
+        existing.name !== space.name ||
+        existing.description !== space.description
+      ) {
+        const updated = await prisma.space.update({
+          where: { id: existing.id },
+          data: {
+            name: space.name,
+            description: space.description,
+          },
+        });
+        created.push(updated);
+      } else {
+        created.push(existing);
+      }
       continue;
     }
     const row = await prisma.space.create({

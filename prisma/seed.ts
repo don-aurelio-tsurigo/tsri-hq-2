@@ -95,7 +95,7 @@ async function main() {
       description: "Wissensbasis des Teams",
     },
     {
-      name: "Quellen",
+      name: "Newsfeed",
       slug: "quellen",
       description: "Lokaler Newsfeed: RSS und Quellen reviewen",
     },

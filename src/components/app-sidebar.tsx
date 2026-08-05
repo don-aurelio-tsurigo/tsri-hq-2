@@ -119,7 +119,7 @@ export function AppSidebar({
               href={spaceHref("quellen")}
               className={itemClass(spaceActive("quellen"))}
             >
-              Quellen
+              Newsfeed
             </Link>
             <Link
               href="/newsletter"
