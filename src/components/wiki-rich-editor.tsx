@@ -7,6 +7,7 @@ import TiptapLink from "@tiptap/extension-link";
 import { marked } from "marked";
 import TurndownService from "turndown";
 import { normalizeWikiHref } from "@/lib/wiki-links";
+import { resolveVideoEmbed } from "@/lib/wiki-embeds";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -130,6 +131,29 @@ export function WikiRichEditor({
     ed.chain().focus().extendMarkRange("link").setLink({ href }).run();
   }
 
+  function insertVideo() {
+    const url = window.prompt("YouTube- oder Vimeo-Link einfügen:");
+    if (url === null) return;
+    const href = normalizeWikiHref(url.trim());
+    if (!href || !resolveVideoEmbed(href)) {
+      window.alert("Bitte einen gültigen YouTube- oder Vimeo-Link einfügen.");
+      return;
+    }
+    ed.chain()
+      .focus()
+      .insertContent({
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: href,
+            marks: [{ type: "link", attrs: { href } }],
+          },
+        ],
+      })
+      .run();
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white">
       <div className="flex flex-wrap items-center gap-0.5 border-b border-[var(--border)] bg-[var(--bg)]/60 px-2 py-1.5">
@@ -194,10 +218,16 @@ export function WikiRichEditor({
           disabled={!ed.isActive("link")}
           onClick={() => ed.chain().focus().unsetLink().run()}
         />
+        <ToolbarButton
+          label="Video"
+          title="YouTube- oder Vimeo-Video einbetten"
+          onClick={insertVideo}
+        />
       </div>
       <EditorContent editor={ed} />
       <p className="border-t border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)]">
-        Text markieren → Format wählen. Für Links: Text markieren, dann «Link».
+        Text markieren → Format wählen. YouTube/Vimeo: «Video» oder Link allein in
+        einer Zeile — wird nach dem Speichern eingebettet.
       </p>
     </div>
   );

@@ -91,7 +91,7 @@ export function ChoreMidweekReminder({
   chores,
 }: {
   weekKey: string;
-  chores: { id: string; title: string; spaceId: string }[];
+  chores: { id: string; title: string; description: string | null }[];
 }) {
   const choreKey = chores
     .map((c) => c.id)
@@ -103,24 +103,17 @@ export function ChoreMidweekReminder({
 
   if (!ready || hidden || chores.length === 0) return null;
 
-  const spaceId = chores[0]!.spaceId;
-  const titles = chores.map((c) => c.title);
-  const titleList =
-    titles.length === 1
-      ? `«${titles[0]}»`
-      : titles.length === 2
-        ? `«${titles[0]}» und «${titles[1]}»`
-        : `«${titles.slice(0, -1).join("», «")}» und «${titles.at(-1)}»`;
+  const taskLabel = chores
+    .map((c) => c.description?.trim() || c.title)
+    .join(" · ");
 
   return (
-    <section className="relative rounded-xl border border-[var(--border)] bg-[var(--highlight)]/35 px-4 py-4 pr-4">
+    <section className="relative rounded-xl border border-[var(--border)] bg-[var(--highlight)]/35 px-4 py-4">
       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-        Ämtli-Check, mittwochs bis freitags
+        Ämtli-Check
       </h2>
       <p className="mt-2 max-w-xl text-sm text-[var(--fg)]">
-        Hey — {titleList} gehört dir. Das Büro schaut nicht weg, und der Karton /
-        die Pflanze / der Kompost auch nicht. Schon erledigt, oder übst du noch
-        «Hoffnungsmethodik»?
+        Schon erledigt? Deine Aufgabe: {taskLabel}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -137,12 +130,6 @@ export function ChoreMidweekReminder({
         >
           Ignorieren
         </button>
-        <Link
-          href={`/spaces/${spaceId}`}
-          className="btn btn-ghost text-sm"
-        >
-          Zum Ämtliplan
-        </Link>
       </div>
     </section>
   );

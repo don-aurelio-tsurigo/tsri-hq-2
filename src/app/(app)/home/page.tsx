@@ -185,7 +185,7 @@ export default async function HomePage() {
           chores={assignedChores.map((c) => ({
             id: c.id,
             title: c.title,
-            spaceId: c.spaceId,
+            description: c.description,
           }))}
         />
       )}

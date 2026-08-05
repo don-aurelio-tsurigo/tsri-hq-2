@@ -31,6 +31,80 @@ function formatEditedAt(iso: string) {
   }
 }
 
+function wikiPagePath(spaceId: string, slug: string) {
+  return `/spaces/${spaceId}?page=${encodeURIComponent(slug)}`;
+}
+
+function wikiPageUrl(spaceId: string, slug: string) {
+  if (typeof window === "undefined") return wikiPagePath(spaceId, slug);
+  return `${window.location.origin}${wikiPagePath(spaceId, slug)}`;
+}
+
+function LinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+function CopyWikiLinkButton({
+  spaceId,
+  slug,
+}: {
+  spaceId: string;
+  slug: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(wikiPageUrl(spaceId, slug));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? "Kopiert" : "Link kopieren"}
+      aria-label={copied ? "Link kopiert" : "Link zur Seite kopieren"}
+      className="btn btn-secondary inline-flex items-center justify-center !px-2.5 text-sm"
+    >
+      {copied ? (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="size-4"
+          aria-hidden
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      ) : (
+        <LinkIcon className="size-4" />
+      )}
+    </button>
+  );
+}
+
 function TreeList({
   byParent,
   parentId,
@@ -54,7 +128,7 @@ function TreeList({
         return (
           <li key={page.id}>
             <Link
-              href={`/spaces/${spaceId}?page=${encodeURIComponent(page.slug)}`}
+              href={wikiPagePath(spaceId, page.slug)}
               className={[
                 "block rounded-lg px-2 py-1.5 text-sm transition-colors",
                 active
@@ -239,7 +313,7 @@ export function WikiSpace({
             {filtered.map((page) => (
               <li key={page.id}>
                 <Link
-                  href={`/spaces/${spaceId}?page=${encodeURIComponent(page.slug)}`}
+                  href={wikiPagePath(spaceId, page.slug)}
                   className="block rounded-lg px-2 py-1.5 text-sm hover:bg-black/5"
                 >
                   {page.title}
@@ -339,6 +413,10 @@ export function WikiSpace({
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <CopyWikiLinkButton
+                  spaceId={spaceId}
+                  slug={currentPage.slug}
+                />
                 <button
                   type="button"
                   className="btn btn-secondary text-sm"
