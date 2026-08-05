@@ -23,6 +23,7 @@ import {
 } from "@/lib/newsletter-constants";
 import {
   isTimeEntryType,
+  isTimeSegmentKind,
   parseTimeToMinutes,
   segmentsOverlap,
 } from "@/lib/time-tracking-constants";
@@ -2326,9 +2327,8 @@ const upsertTimeEntrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   type: z.string(),
   note: z.string().max(500).optional(),
-  /** JSON array of { startTime, endTime } */
+  /** JSON array of { type: work|break, startTime, endTime } */
   segments: z.string().optional(),
-  breakMinutes: z.coerce.number().int().min(0).max(24 * 60).optional(),
 });
 
 function normalizeTimeInput(value: string | null | undefined): string | null {
@@ -2340,7 +2340,11 @@ function normalizeTimeInput(value: string | null | undefined): string | null {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-type ParsedSegment = { startTime: string; endTime: string };
+type ParsedSegment = {
+  type: "work" | "break";
+  startTime: string;
+  endTime: string;
+};
 
 function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: string } {
   if (!raw?.trim()) return [];
@@ -2357,6 +2361,10 @@ function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: 
     if (!item || typeof item !== "object") {
       return { error: "Segment ungültig." };
     }
+    const kindRaw = String((item as { type?: unknown }).type ?? "work");
+    if (!isTimeSegmentKind(kindRaw)) {
+      return { error: "Segment-Typ ungültig." };
+    }
     const startNorm = normalizeTimeInput(
       String((item as { startTime?: unknown }).startTime ?? ""),
     );
@@ -2365,7 +2373,7 @@ function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: 
     );
     if (!startNorm) return { error: "Beginn ungültig (HH:MM)." };
     if (!endNorm) return { error: "Schluss ungültig (HH:MM)." };
-    segments.push({ startTime: startNorm, endTime: endNorm });
+    segments.push({ type: kindRaw, startTime: startNorm, endTime: endNorm });
   }
   return segments;
 }
@@ -2377,7 +2385,6 @@ export async function upsertTimeEntry(formData: FormData) {
     type: formData.get("type") || "work",
     note: formData.get("note") || undefined,
     segments: formData.get("segments")?.toString() || undefined,
-    breakMinutes: formData.get("breakMinutes") ?? 0,
   });
   if (!parsed.success || !isTimeEntryType(parsed.data.type)) {
     return { error: "Bitte Eintrag prüfen." };
@@ -2387,20 +2394,18 @@ export async function upsertTimeEntry(formData: FormData) {
   const isAbsent = type === "sick" || type === "vacation" || type === "holiday";
 
   let segments: ParsedSegment[] = [];
-  let breakMinutes = 0;
 
   if (!isAbsent) {
     const parsedSegs = parseSegmentsJson(parsed.data.segments);
     if ("error" in parsedSegs) return parsedSegs;
     segments = parsedSegs;
 
-    if (segments.length === 0) {
+    if (!segments.some((s) => s.type === "work")) {
       return { error: "Mindestens ein Arbeitssegment nötig." };
     }
     if (segmentsOverlap(segments)) {
       return { error: "Segmente überschneiden sich." };
     }
-    breakMinutes = parsed.data.breakMinutes ?? 0;
   }
 
   const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
@@ -2418,12 +2423,10 @@ export async function upsertTimeEntry(formData: FormData) {
       userId: session.user.id,
       date,
       type,
-      breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
     update: {
       type,
-      breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
   });
@@ -2437,6 +2440,7 @@ export async function upsertTimeEntry(formData: FormData) {
     await prisma.timeSegment.createMany({
       data: ordered.map((s, index) => ({
         timeEntryId: entry.id,
+        type: s.type,
         startTime: s.startTime,
         endTime: s.endTime,
         sortOrder: index,

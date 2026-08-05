@@ -5,20 +5,22 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { deleteTimeEntry, upsertTimeEntry } from "@/lib/actions";
 import {
+  computeBreakHours,
   computeWorkedHours,
   formatHours,
   formatSegmentsSummary,
   segmentsOverlap,
   TIME_ENTRY_TYPE_LABELS,
+  TIME_SEGMENT_TYPE_LABELS,
   type TimeEntryTypeValue,
   type TimeSegmentInput,
+  type TimeSegmentKind,
 } from "@/lib/time-tracking-constants";
 
 type DayEntry = {
   id: string;
   type: TimeEntryTypeValue;
   note: string | null;
-  breakMinutes: number;
   segments: TimeSegmentInput[];
 };
 
@@ -57,6 +59,7 @@ type WeekData = {
 
 type EditorSegment = {
   key: string;
+  type: TimeSegmentKind;
   startTime: string;
   endTime: string;
 };
@@ -100,6 +103,7 @@ function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
     return [
       {
         key: crypto.randomUUID(),
+        type: "work",
         startTime: "09:00",
         endTime: "17:00",
       },
@@ -107,6 +111,7 @@ function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
   }
   return entry.segments.map((s) => ({
     key: crypto.randomUUID(),
+    type: s.type,
     startTime: s.startTime,
     endTime: s.endTime,
   }));
@@ -114,6 +119,7 @@ function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
 
 function toPayload(segments: EditorSegment[]): TimeSegmentInput[] {
   return segments.map((s) => ({
+    type: s.type,
     startTime: s.startTime,
     endTime: s.endTime,
   }));
@@ -134,9 +140,6 @@ function DayEditor({
   const [segments, setSegments] = useState<EditorSegment[]>(() =>
     segmentsFromEntry(day.entry),
   );
-  const [breakMinutes, setBreakMinutes] = useState(
-    String(day.entry?.breakMinutes ?? 0),
-  );
   const [note, setNote] = useState(
     day.entry?.note ?? day.holidayName ?? "",
   );
@@ -144,17 +147,22 @@ function DayEditor({
   const [pending, startTransition] = useTransition();
 
   const payload = useMemo(() => toPayload(segments), [segments]);
-  const breakValue = Math.max(0, Math.floor(Number(breakMinutes)) || 0);
+  const workCount = segments.filter((s) => s.type === "work").length;
 
-  const preview = useMemo(() => {
+  const workPreview = useMemo(() => {
     if (type !== "work") return null;
-    return computeWorkedHours(payload, breakValue);
-  }, [type, payload, breakValue]);
+    return computeWorkedHours(payload);
+  }, [type, payload]);
+
+  const breakPreview = useMemo(() => {
+    if (type !== "work") return null;
+    return computeBreakHours(payload);
+  }, [type, payload]);
 
   function save() {
     setError(null);
     if (type === "work") {
-      if (payload.length === 0) {
+      if (!payload.some((s) => s.type === "work")) {
         setError("Mindestens ein Arbeitssegment nötig.");
         return;
       }
@@ -173,7 +181,6 @@ function DayEditor({
     fd.set("type", type);
     if (note.trim()) fd.set("note", note.trim());
     fd.set("segments", JSON.stringify(type === "work" ? payload : []));
-    fd.set("breakMinutes", String(type === "work" ? breakValue : 0));
     startTransition(async () => {
       const result = await upsertTimeEntry(fd);
       if (result?.error) {
@@ -203,6 +210,7 @@ function DayEditor({
       ...prev,
       {
         key: crypto.randomUUID(),
+        type: "work",
         startTime: "13:00",
         endTime: "17:00",
       },
@@ -210,14 +218,25 @@ function DayEditor({
   }
 
   function removeSegment(key: string) {
-    setSegments((prev) =>
-      prev.length <= 1 ? prev : prev.filter((s) => s.key !== key),
-    );
+    setSegments((prev) => {
+      const target = prev.find((s) => s.key === key);
+      if (!target) return prev;
+      if (target.type === "work") {
+        const workLeft = prev.filter((s) => s.type === "work").length;
+        if (workLeft <= 1) return prev;
+      }
+      return prev.filter((s) => s.key !== key);
+    });
+  }
+
+  function canRemoveSegment(seg: EditorSegment) {
+    if (seg.type === "break") return true;
+    return workCount > 1;
   }
 
   function updateSegment(
     key: string,
-    patch: Partial<Pick<EditorSegment, "startTime" | "endTime">>,
+    patch: Partial<Pick<EditorSegment, "type" | "startTime" | "endTime">>,
   ) {
     setSegments((prev) =>
       prev.map((s) => (s.key === key ? { ...s, ...patch } : s)),
@@ -249,44 +268,84 @@ function DayEditor({
       {type === "work" ? (
         <>
           <ul className="space-y-2">
-            {segments.map((seg, index) => (
-              <li
-                key={seg.key}
-                className="grid grid-cols-[1fr_1fr_auto] gap-2 rounded-lg border border-[var(--border)] bg-white p-2 sm:grid-cols-[auto_1fr_1fr_auto]"
-              >
-                <span className="hidden self-center text-xs font-semibold text-[var(--muted)] sm:inline">
-                  #{index + 1}
-                </span>
-                <label className="field text-xs font-semibold text-[var(--muted)]">
-                  Beginn
-                  <input
-                    type="time"
-                    value={seg.startTime}
-                    onChange={(e) =>
-                      updateSegment(seg.key, { startTime: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="field text-xs font-semibold text-[var(--muted)]">
-                  Schluss
-                  <input
-                    type="time"
-                    value={seg.endTime}
-                    onChange={(e) =>
-                      updateSegment(seg.key, { endTime: e.target.value })
-                    }
-                  />
-                </label>
-                <button
-                  type="button"
-                  className="self-end btn btn-ghost px-2 py-1 text-xs disabled:opacity-40"
-                  disabled={segments.length <= 1}
-                  onClick={() => removeSegment(seg.key)}
+            {segments.map((seg) => {
+              const isBreak = seg.type === "break";
+              return (
+                <li
+                  key={seg.key}
+                  className={[
+                    "grid gap-2 rounded-lg border p-2 sm:grid-cols-[auto_1fr_1fr_auto]",
+                    isBreak
+                      ? "border-[var(--border)] bg-black/[0.03]"
+                      : "border-[var(--border)] bg-white",
+                  ].join(" ")}
                 >
-                  Entfernen
-                </button>
-              </li>
-            ))}
+                  <div className="flex flex-wrap items-center gap-1 sm:self-end">
+                    {(
+                      Object.keys(
+                        TIME_SEGMENT_TYPE_LABELS,
+                      ) as TimeSegmentKind[]
+                    ).map((kind) => {
+                      const lockWork =
+                        kind === "break" &&
+                        seg.type === "work" &&
+                        workCount <= 1;
+                      return (
+                      <button
+                        key={kind}
+                        type="button"
+                        disabled={lockWork}
+                        className={[
+                          "rounded-full border px-2 py-0.5 text-[0.65rem] font-bold transition-colors disabled:opacity-40",
+                          seg.type === kind
+                            ? kind === "break"
+                              ? "border-[var(--muted)] bg-[var(--muted)]/15 text-[var(--muted)]"
+                              : "border-[var(--fg)] bg-[var(--highlight)] text-[var(--fg)]"
+                            : "border-transparent text-[var(--muted)] hover:border-[var(--border)]",
+                        ].join(" ")}
+                        onClick={() => updateSegment(seg.key, { type: kind })}
+                      >
+                        {TIME_SEGMENT_TYPE_LABELS[kind]}
+                      </button>
+                      );
+                    })}
+                  </div>
+                  <label
+                    className={[
+                      "field text-xs font-semibold",
+                      isBreak ? "text-[var(--muted)]" : "text-[var(--muted)]",
+                    ].join(" ")}
+                  >
+                    Beginn
+                    <input
+                      type="time"
+                      value={seg.startTime}
+                      onChange={(e) =>
+                        updateSegment(seg.key, { startTime: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field text-xs font-semibold text-[var(--muted)]">
+                    Schluss
+                    <input
+                      type="time"
+                      value={seg.endTime}
+                      onChange={(e) =>
+                        updateSegment(seg.key, { endTime: e.target.value })
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="self-end btn btn-ghost px-2 py-1 text-xs disabled:opacity-40"
+                    disabled={!canRemoveSegment(seg)}
+                    onClick={() => removeSegment(seg.key)}
+                  >
+                    Entfernen
+                  </button>
+                </li>
+              );
+            })}
           </ul>
 
           <button
@@ -297,23 +356,11 @@ function DayEditor({
             + Segment
           </button>
 
-          <label className="field max-w-[10rem] text-xs font-semibold text-[var(--muted)]">
-            Pause (Min.)
-            <input
-              type="number"
-              min={0}
-              max={24 * 60}
-              step={5}
-              value={breakMinutes}
-              onChange={(e) => setBreakMinutes(e.target.value)}
-            />
-          </label>
-
           <div className="flex flex-wrap gap-6 text-sm">
             <div>
               <p className="text-xs font-semibold text-[var(--muted)]">Arbeit</p>
               <p className="font-bold tabular-nums">
-                {preview != null ? `${formatHours(preview)} h` : "—"}
+                {workPreview != null ? `${formatHours(workPreview)} h` : "—"}
               </p>
               <p className="text-[0.7rem] text-[var(--muted)]">
                 Soll {formatHours(dailyTarget)} h
@@ -321,7 +368,9 @@ function DayEditor({
             </div>
             <div>
               <p className="text-xs font-semibold text-[var(--muted)]">Pause</p>
-              <p className="font-bold tabular-nums">{breakValue} Min.</p>
+              <p className="font-bold tabular-nums">
+                {breakPreview != null ? `${formatHours(breakPreview)} h` : "—"}
+              </p>
             </div>
           </div>
         </>
@@ -553,12 +602,13 @@ export function TimeTrackingWeek({
                             <p className="mt-1">
                               Arbeit:{" "}
                               {formatHours(
-                                computeWorkedHours(
-                                  day.entry.segments,
-                                  day.entry.breakMinutes,
-                                ),
+                                computeWorkedHours(day.entry.segments),
                               )}{" "}
-                              h · Pause: {day.entry.breakMinutes} Min.
+                              h · Pause:{" "}
+                              {formatHours(
+                                computeBreakHours(day.entry.segments),
+                              )}{" "}
+                              h
                             </p>
                           )}
                           {day.entry.note && (

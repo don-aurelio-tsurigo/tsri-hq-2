@@ -24,7 +24,21 @@ export function isTimeEntryType(value: string): value is TimeEntryTypeValue {
   return (TIME_ENTRY_TYPES as readonly string[]).includes(value);
 }
 
+export const TIME_SEGMENT_TYPES = ["work", "break"] as const;
+
+export type TimeSegmentKind = (typeof TIME_SEGMENT_TYPES)[number];
+
+export const TIME_SEGMENT_TYPE_LABELS: Record<TimeSegmentKind, string> = {
+  work: "Arbeit",
+  break: "Pause",
+};
+
+export function isTimeSegmentKind(value: string): value is TimeSegmentKind {
+  return (TIME_SEGMENT_TYPES as readonly string[]).includes(value);
+}
+
 export type TimeSegmentInput = {
+  type: TimeSegmentKind;
   startTime: string;
   endTime: string;
 };
@@ -57,21 +71,34 @@ export function segmentDurationMinutes(
   return duration;
 }
 
+function hoursFromSegmentsOfType(
+  segments: readonly TimeSegmentInput[],
+  kind: TimeSegmentKind,
+): number {
+  const minutes = segments
+    .filter((s) => s.type === kind)
+    .reduce(
+      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
+      0,
+    );
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
 /**
- * Sum of segment durations minus breakMinutes, in hours (2 decimals).
- * Absence entries: empty segments + break 0 → 0.
+ * Summe der Dauer aller Segmente vom Typ work, in Stunden (2 Dezimalen).
+ * Pause-Segmente zählen nicht. Leere Liste → 0.
  */
 export function computeWorkedHours(
   segments: readonly TimeSegmentInput[],
-  breakMinutes = 0,
 ): number {
-  const segmentMinutes = segments.reduce(
-    (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
-    0,
-  );
-  const breakSafe = Math.max(0, Math.floor(breakMinutes) || 0);
-  const minutes = Math.max(0, segmentMinutes - breakSafe);
-  return Math.round((minutes / 60) * 100) / 100;
+  return hoursFromSegmentsOfType(segments, "work");
+}
+
+/** Summe der Pause-Segmente in Stunden (2 Dezimalen). */
+export function computeBreakHours(
+  segments: readonly TimeSegmentInput[],
+): number {
+  return hoursFromSegmentsOfType(segments, "break");
 }
 
 /** Half-open [start, end) ranges in minutes-from-midnight (end may be +24h). */
@@ -89,7 +116,7 @@ function segmentRanges(
   return ranges;
 }
 
-/** True if any two closed segments overlap. */
+/** True if any two closed segments overlap (work and break alike). */
 export function segmentsOverlap(
   segments: readonly TimeSegmentInput[],
 ): boolean {
@@ -125,5 +152,10 @@ export function formatSegmentsSummary(
   segments: readonly TimeSegmentInput[],
 ): string | null {
   if (segments.length === 0) return null;
-  return segments.map((s) => `${s.startTime}–${s.endTime}`).join(", ");
+  return segments
+    .map((s) => {
+      const range = `${s.startTime}–${s.endTime}`;
+      return s.type === "break" ? `Pause ${range}` : range;
+    })
+    .join(", ");
 }

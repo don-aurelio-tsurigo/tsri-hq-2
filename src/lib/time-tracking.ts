@@ -32,7 +32,6 @@ export type TimeEntryRow = {
   date: Date;
   type: TimeEntryTypeValue;
   note: string | null;
-  breakMinutes: number;
   segments: TimeSegmentRow[];
 };
 
@@ -87,10 +86,10 @@ function isWeekday(date: Date): boolean {
   return !isWeekend(date);
 }
 
-/** Worked hours for a day entry. Absences / empty segments → 0. */
+/** Worked hours for a day entry. Absences / empty work segments → 0. */
 export function entryWorkedHours(entry: TimeEntryRow | null): number {
   if (!entry || entry.type !== "work") return 0;
-  return computeWorkedHours(entry.segments, entry.breakMinutes);
+  return computeWorkedHours(entry.segments);
 }
 
 export function entrySegmentsLabel(entry: TimeEntryRow | null): string | null {
@@ -134,9 +133,9 @@ function toEntryRow(row: {
   date: Date;
   type: string;
   note: string | null;
-  breakMinutes: number;
   segments: {
     id: string;
+    type: string;
     startTime: string;
     endTime: string;
     sortOrder: number;
@@ -147,12 +146,12 @@ function toEntryRow(row: {
     date: row.date,
     type: row.type as TimeEntryTypeValue,
     note: row.note,
-    breakMinutes: row.breakMinutes ?? 0,
     segments: row.segments
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder || a.startTime.localeCompare(b.startTime))
       .map((s) => ({
         id: s.id,
+        type: (s.type === "break" ? "break" : "work") as TimeSegmentInput["type"],
         startTime: s.startTime,
         endTime: s.endTime,
         sortOrder: s.sortOrder,
@@ -330,7 +329,10 @@ export async function getPastWeekTimeGaps(
       continue;
     }
 
-    if (day.entry.type === "work" && day.entry.segments.length === 0) {
+    if (
+      day.entry.type === "work" &&
+      !day.entry.segments.some((s) => s.type === "work")
+    ) {
       gaps.push({
         dateKey: day.dateKey,
         dateLabel: format(day.date, "EEE d.M.", { locale: de }),
