@@ -1,7 +1,27 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  CheckSquare,
+  ChefHat,
+  ClipboardList,
+  Clock,
+  FolderKanban,
+  Home,
+  Info,
+  LogOut,
+  Mail,
+  Newspaper,
+  Pin,
+  Rss,
+  Settings2,
+  Users,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
 type NavSpace = {
@@ -15,6 +35,43 @@ type WikiPin = {
   slug: string;
   spaceId: string;
 };
+
+function NavLink({
+  href,
+  active,
+  icon: Icon,
+  children,
+  className,
+}: {
+  href: string;
+  active: boolean;
+  icon: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={[
+        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+        active
+          ? "bg-[var(--highlight)] !text-[#0a0a0a]"
+          : "text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white",
+        className ?? "",
+      ].join(" ")}
+    >
+      <Icon
+        aria-hidden
+        className={[
+          "size-4 shrink-0",
+          active ? "opacity-90" : "opacity-70",
+        ].join(" ")}
+        strokeWidth={1.75}
+      />
+      <span className="min-w-0 truncate">{children}</span>
+    </Link>
+  );
+}
 
 export function AppSidebar({
   userName,
@@ -32,15 +89,6 @@ export function AppSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  function itemClass(active: boolean) {
-    return [
-      "block rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-      active
-        ? "bg-[var(--highlight)] !text-[#0a0a0a]"
-        : "text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white",
-    ].join(" ");
-  }
 
   function spaceHref(slug: string) {
     const space = spacesBySlug[slug];
@@ -85,22 +133,31 @@ export function AppSidebar({
             Privat
           </p>
           <div className="flex flex-col gap-0.5">
-            <Link
+            <NavLink
               href="/home"
-              className={itemClass(
-                pathname === "/home" || pathname === "/inbox",
-              )}
+              active={pathname === "/home" || pathname === "/inbox"}
+              icon={Home}
             >
               Home
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href="/hours"
-              className={itemClass(
-                pathname === "/hours" || pathname.startsWith("/hours/"),
-              )}
+              active={
+                pathname === "/hours" || pathname.startsWith("/hours/")
+              }
+              icon={Clock}
             >
               Arbeitszeit
-            </Link>
+            </NavLink>
+            <NavLink
+              href="/tasks"
+              active={
+                pathname === "/tasks" || pathname.startsWith("/tasks/")
+              }
+              icon={CheckSquare}
+            >
+              Meine Tasks
+            </NavLink>
           </div>
         </div>
 
@@ -109,51 +166,40 @@ export function AppSidebar({
             Redaktion
           </p>
           <div className="flex flex-col gap-0.5">
-            <Link
+            <NavLink
               href={spaceHref("redaktion")}
-              className={itemClass(spaceActive("redaktion"))}
+              active={spaceActive("redaktion")}
+              icon={Newspaper}
             >
-              Redaktion
-            </Link>
-            <Link
+              Artikel
+            </NavLink>
+            <NavLink
               href={spaceHref("quellen")}
-              className={itemClass(spaceActive("quellen"))}
+              active={spaceActive("quellen")}
+              icon={Rss}
             >
               Newsfeed
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href="/newsletter"
-              className={itemClass(
+              active={
                 pathname === "/newsletter" ||
-                  pathname.startsWith("/newsletter/"),
-              )}
+                pathname.startsWith("/newsletter/")
+              }
+              icon={Mail}
             >
               Newsletter
-            </Link>
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Tasks
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <Link
-              href="/tasks"
-              className={itemClass(
-                pathname === "/tasks" || pathname.startsWith("/tasks/"),
-              )}
-            >
-              Meine Tasks
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href="/projects"
-              className={itemClass(
-                pathname === "/projects" || pathname.startsWith("/projects/"),
-              )}
+              active={
+                pathname === "/projects" ||
+                pathname.startsWith("/projects/")
+              }
+              icon={FolderKanban}
             >
               Projekte
-            </Link>
+            </NavLink>
           </div>
         </div>
 
@@ -162,49 +208,51 @@ export function AppSidebar({
             Team
           </p>
           <div className="flex flex-col gap-0.5">
-            <Link
+            <NavLink
               href={spaceHref("kochplan")}
-              className={itemClass(spaceActive("kochplan"))}
+              active={spaceActive("kochplan")}
+              icon={ChefHat}
             >
               Kochplan
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href={spaceHref("ferienplan")}
-              className={itemClass(spaceActive("ferienplan"))}
+              active={spaceActive("ferienplan")}
+              icon={CalendarDays}
             >
               Ferienplan
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href={spaceHref("aemliplan")}
-              className={itemClass(spaceActive("aemliplan"))}
+              active={spaceActive("aemliplan")}
+              icon={ClipboardList}
             >
               Ämtliplan
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               href={spaceHref("team-infos")}
-              className={itemClass(spaceActive("team-infos"))}
+              active={spaceActive("team-infos")}
+              icon={Info}
             >
-              Team Infos
-            </Link>
-            <Link
+              Teaminfos
+            </NavLink>
+            <NavLink
               href={spaceHref("wiki")}
-              className={itemClass(
-                spaceActive("wiki") && !searchParams.get("page"),
-              )}
+              active={spaceActive("wiki") && !searchParams.get("page")}
+              icon={BookOpen}
             >
               Wiki
-            </Link>
+            </NavLink>
             {wikiPins.map((pin) => (
-              <Link
+              <NavLink
                 key={`${pin.spaceId}-${pin.slug}`}
                 href={`/spaces/${pin.spaceId}?page=${encodeURIComponent(pin.slug)}`}
-                className={[
-                  itemClass(wikiPageActive(pin.slug)),
-                  "ml-3 !py-1.5 text-xs",
-                ].join(" ")}
+                active={wikiPageActive(pin.slug)}
+                icon={Pin}
+                className="ml-3 !py-1.5 text-xs"
               >
-                ★ {pin.title}
-              </Link>
+                {pin.title}
+              </NavLink>
             ))}
           </div>
         </div>
@@ -215,33 +263,36 @@ export function AppSidebar({
               Admin
             </p>
             <div className="flex flex-col gap-0.5">
-              <Link
+              <NavLink
                 href="/settings/members"
-                className={itemClass(
+                active={
                   pathname === "/settings/members" ||
-                    pathname.startsWith("/settings/members/"),
-                )}
+                  pathname.startsWith("/settings/members/")
+                }
+                icon={Users}
               >
                 Teamverwaltung
-              </Link>
-              <Link
+              </NavLink>
+              <NavLink
                 href="/settings/hours"
-                className={itemClass(
+                active={
                   pathname === "/settings/hours" ||
-                    pathname.startsWith("/settings/hours/"),
-                )}
+                  pathname.startsWith("/settings/hours/")
+                }
+                icon={Clock}
               >
-                Arbeitszeit Team
-              </Link>
-              <Link
+                Teamarbeitszeit
+              </NavLink>
+              <NavLink
                 href="/settings/newsletter"
-                className={itemClass(
+                active={
                   pathname === "/settings/newsletter" ||
-                    pathname.startsWith("/settings/newsletter/"),
-                )}
+                  pathname.startsWith("/settings/newsletter/")
+                }
+                icon={Settings2}
               >
-                Newsletter Einstellungen
-              </Link>
+                Newslettereinstellungen
+              </NavLink>
             </div>
           </div>
         )}
@@ -251,8 +302,13 @@ export function AppSidebar({
         <button
           type="button"
           onClick={signOut}
-          className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white"
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-semibold text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white"
         >
+          <LogOut
+            aria-hidden
+            className="size-4 shrink-0 opacity-70"
+            strokeWidth={1.75}
+          />
           Abmelden
         </button>
       </div>
