@@ -94,6 +94,11 @@ async function main() {
       slug: "wiki",
       description: "Wissensbasis des Teams",
     },
+    {
+      name: "Quellen",
+      slug: "quellen",
+      description: "Lokaler Newsfeed: RSS und Quellen reviewen",
+    },
   ];
 
   for (const space of teamSpaces) {

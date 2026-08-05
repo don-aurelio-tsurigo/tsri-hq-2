@@ -118,6 +118,7 @@ model Organization {
   timeEntries      TimeEntry[]
   eigenleistungRubriken EigenleistungRubrik[]
   wikiPages        WikiPage[]
+  newsItems        NewsItem[]
 
   @@map("organization")
 }
@@ -574,5 +575,40 @@ model WikiPage {
   @@index([organizationId, pinned])
   @@index([parentId])
   @@map("wiki_page")
+}
+
+// ─── Newsfeed / Quellen ────────────────────────────────────────
+
+enum NewsItemStatus {
+  neu
+  interessant
+  beobachten
+  verworfen
+}
+
+/// Eintrag aus lokalen Zürich-Quellen (RSS / Scrape / Amtsblatt)
+model NewsItem {
+  id             String         @id @default(cuid())
+  organizationId String
+  /// Stabiler Schlüssel: sourceKey::guid (unique pro Org)
+  externalId     String
+  source         String
+  sourceLabel    String
+  title          String
+  link           String
+  summary        String?        @db.Text
+  publishedAt    DateTime?
+  fetchedAt      DateTime
+  status         NewsItemStatus @default(neu)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, externalId])
+  @@index([organizationId, status])
+  @@index([organizationId, source])
+  @@index([organizationId, publishedAt])
+  @@map("news_item")
 }
 

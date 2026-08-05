@@ -10,6 +10,7 @@ import { ChorePlan } from "@/components/chore-plan";
 import { CookingPlan } from "@/components/cooking-plan";
 import { VacationPlan } from "@/components/vacation-plan";
 import { WikiSpace } from "@/components/wiki-space";
+import { NewsFeed } from "@/components/news-feed";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { listArticles, listSpaceTasks } from "@/lib/tasks";
@@ -43,6 +44,12 @@ import {
   getWikiPageBySlug,
   listWikiPages,
 } from "@/lib/wiki";
+import {
+  countNewsItemsByStatus,
+  listConfiguredSources,
+  listNewsItems,
+} from "@/lib/news-feed";
+import { isNewsItemStatus } from "@/lib/news-feed-constants";
 import { prisma } from "@/lib/db";
 
 export default async function SpacePage({
@@ -50,10 +57,20 @@ export default async function SpacePage({
   searchParams,
 }: {
   params: Promise<{ spaceId: string }>;
-  searchParams: Promise<{ week?: string; page?: string }>;
+  searchParams: Promise<{
+    week?: string;
+    page?: string;
+    status?: string;
+    source?: string;
+  }>;
 }) {
   const { spaceId } = await params;
-  const { week: weekParam, page: pageSlug } = await searchParams;
+  const {
+    week: weekParam,
+    page: pageSlug,
+    status: statusParam,
+    source: sourceParam,
+  } = await searchParams;
   const { session, membership } = await requireMembership();
 
   const space = await prisma.space.findUnique({
@@ -441,6 +458,51 @@ export default async function SpacePage({
           currentUserId={session.user.id}
           monthSelfCookCount={monthSelfCookCount}
           monthCookTarget={MONTHLY_COOKING_TARGET}
+        />
+      </div>
+    );
+  }
+
+  if (space.slug === "quellen") {
+    const resolvedStatus =
+      statusParam === "all"
+        ? null
+        : statusParam && isNewsItemStatus(statusParam)
+          ? statusParam
+          : "neu";
+    const sourceFilter =
+      sourceParam && sourceParam.length > 0 ? sourceParam : "";
+
+    const [items, statusCounts] = await Promise.all([
+      listNewsItems(membership.organizationId, {
+        status: resolvedStatus,
+        source: sourceFilter || null,
+      }),
+      countNewsItemsByStatus(membership.organizationId),
+    ]);
+    const sources = listConfiguredSources();
+
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <header>
+          <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
+            Redaktion
+          </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+            Quellen
+          </h1>
+          <p className="mt-2 max-w-2xl text-[var(--muted)]">
+            Lokale Zürich-Quellen einlesen und reviewen — getrennt vom
+            Redaktions-Kanban.
+          </p>
+        </header>
+
+        <NewsFeed
+          items={items}
+          sources={sources.map((s) => ({ key: s.key, label: s.label }))}
+          statusCounts={statusCounts}
+          initialStatus={resolvedStatus ?? ""}
+          initialSource={sourceFilter}
         />
       </div>
     );

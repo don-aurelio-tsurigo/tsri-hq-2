@@ -43,6 +43,12 @@ const DEFAULT_TEAM_SPACES: {
     type: "team",
     description: "Wissensbasis des Teams",
   },
+  {
+    name: "Quellen",
+    slug: "quellen",
+    type: "team",
+    description: "Lokaler Newsfeed: RSS und Quellen reviewen",
+  },
 ];
 
 export async function ensurePersonalSpace(

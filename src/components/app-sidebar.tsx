@@ -116,6 +116,12 @@ export function AppSidebar({
               Redaktion
             </Link>
             <Link
+              href={spaceHref("quellen")}
+              className={itemClass(spaceActive("quellen"))}
+            >
+              Quellen
+            </Link>
+            <Link
               href="/newsletter"
               className={itemClass(
                 pathname === "/newsletter" ||
