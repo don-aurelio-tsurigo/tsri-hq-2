@@ -383,7 +383,7 @@ function CookDayCell({
             Ich koche
           </button>
           <PersonPicker
-            label="Jemand anderen"
+            label="Person eintragen"
             members={members}
             currentUserId={currentUserId}
             selectedId={null}
@@ -415,7 +415,7 @@ function CookDayCell({
           disabled={pending}
           onClick={onClear}
         >
-          Zurückziehen
+          Abmelden
         </button>
       </div>
     );
@@ -448,7 +448,7 @@ function CookDayCell({
         </div>
       </div>
       <PersonPicker
-        label="Tauschen"
+        label="Person ändern"
         members={members}
         currentUserId={currentUserId}
         selectedId={day.user!.id}
