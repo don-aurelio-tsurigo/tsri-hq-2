@@ -10,10 +10,14 @@ import {
 
 export type BlockedRangeRow = {
   id: string;
+  newsletterTypeId: string;
+  typeName: string;
   startKey: string;
   endKey: string;
   label: string | null;
 };
+
+type NewsletterTypeOption = { id: string; name: string };
 
 function formatRangeLabel(startKey: string, endKey: string) {
   const fmt = (key: string) => {
@@ -27,9 +31,11 @@ function formatRangeLabel(startKey: string, endKey: string) {
 export function NewsletterBlockSettings({
   hidePublicHolidays,
   blockedRanges,
+  types,
 }: {
   hidePublicHolidays: boolean;
   blockedRanges: BlockedRangeRow[];
+  types: NewsletterTypeOption[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -37,6 +43,7 @@ export function NewsletterBlockSettings({
   const [label, setLabel] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [typeId, setTypeId] = useState(types[0]?.id ?? "");
 
   function toggleHolidays(next: boolean) {
     setError(null);
@@ -51,6 +58,7 @@ export function NewsletterBlockSettings({
   function addRange() {
     setError(null);
     const fd = new FormData();
+    fd.set("newsletterTypeId", typeId);
     fd.set("startDate", startDate);
     fd.set("endDate", endDate || startDate);
     fd.set("label", label);
@@ -85,10 +93,11 @@ export function NewsletterBlockSettings({
     <section className="card space-y-5 p-4">
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-          Feiertage & Sommerpausen
+          Feiertage & Pausen
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Geblockte Tage erscheinen nicht im Newsletter-Kalender.
+          Sommerpausen und andere Blöcke gelten pro Newsletter-Typ. Geblockte
+          Tage erscheinen nicht im Plan.
         </p>
       </div>
 
@@ -103,13 +112,13 @@ export function NewsletterBlockSettings({
         <span>
           <span className="font-semibold">Feiertage ausblenden</span>
           <span className="mt-0.5 block text-sm text-[var(--muted)]">
-            Keine Slots an öffentlichen Feiertagen (ZH/CH)
+            Keine Slots an öffentlichen Feiertagen (ZH/CH) — für alle Typen
           </span>
         </span>
       </label>
 
       <div className="space-y-3">
-        <p className="text-sm font-semibold">Geblockte Zeiträume</p>
+        <p className="text-sm font-semibold">Geblockte Zeiträume pro Typ</p>
         <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
           {blockedRanges.map((range) => (
             <li
@@ -121,6 +130,7 @@ export function NewsletterBlockSettings({
                   {range.label?.trim() || "Sommerpause / Block"}
                 </p>
                 <p className="text-sm text-[var(--muted)]">
+                  {range.typeName} ·{" "}
                   {formatRangeLabel(range.startKey, range.endKey)}
                 </p>
               </div>
@@ -136,13 +146,31 @@ export function NewsletterBlockSettings({
           ))}
           {blockedRanges.length === 0 && (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              Noch keine Sommerpause oder andere Pause hinterlegt.
+              Noch keine Pause hinterlegt.
             </li>
           )}
         </ul>
 
         <div className="space-y-3 rounded-xl border border-dashed border-[var(--border)] p-3">
           <p className="text-sm font-semibold">Zeitraum hinzufügen</p>
+          <label className="field text-xs font-semibold text-[var(--muted)]">
+            Newsletter-Typ
+            <select
+              value={typeId}
+              onChange={(e) => setTypeId(e.target.value)}
+              disabled={types.length === 0}
+            >
+              {types.length === 0 ? (
+                <option value="">Kein Typ vorhanden</option>
+              ) : (
+                types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
           <label className="field text-xs font-semibold text-[var(--muted)]">
             Bezeichnung (optional)
             <input
@@ -176,7 +204,7 @@ export function NewsletterBlockSettings({
           <button
             type="button"
             className="btn btn-primary text-sm"
-            disabled={pending || !startDate}
+            disabled={pending || !startDate || !typeId}
             onClick={addRange}
           >
             {pending ? "…" : "Blockieren"}

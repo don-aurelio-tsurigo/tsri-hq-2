@@ -1595,6 +1595,7 @@ export async function updateNewsletterHideHolidays(formData: FormData) {
 }
 
 const blockedRangeSchema = z.object({
+  newsletterTypeId: z.string().min(1),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   label: z
@@ -1607,20 +1608,31 @@ const blockedRangeSchema = z.object({
 export async function createNewsletterBlockedRange(formData: FormData) {
   const { membership } = await requireAdmin();
   const parsed = blockedRangeSchema.safeParse({
+    newsletterTypeId: formData.get("newsletterTypeId"),
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
     label: formData.get("label") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Bitte Start- und Enddatum prüfen." };
+    return { error: "Bitte Newsletter-Typ sowie Start- und Enddatum prüfen." };
   }
   if (parsed.data.endDate < parsed.data.startDate) {
     return { error: "Enddatum muss nach dem Startdatum liegen." };
   }
 
+  const type = await prisma.newsletterType.findFirst({
+    where: {
+      id: parsed.data.newsletterTypeId,
+      organizationId: membership.organizationId,
+      active: true,
+    },
+  });
+  if (!type) return { error: "Newsletter-Typ nicht gefunden." };
+
   await prisma.newsletterBlockedRange.create({
     data: {
       organizationId: membership.organizationId,
+      newsletterTypeId: type.id,
       startDate: new Date(`${parsed.data.startDate}T12:00:00.000Z`),
       endDate: new Date(`${parsed.data.endDate}T12:00:00.000Z`),
       label: parsed.data.label,
@@ -1683,6 +1695,21 @@ const newsletterCampaignSchema = z.object({
     .trim()
     .max(500)
     .transform((v) => (v.length === 0 ? null : v)),
+  wordleWord: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v.toLocaleUpperCase("de-CH")))
+    .pipe(
+      z.union([
+        z.null(),
+        z
+          .string()
+          .regex(
+            /^[A-ZÄÖÜ]{5}$/,
+            "Wordle-Wort muss genau 5 Buchstaben sein",
+          ),
+      ]),
+    ),
 });
 
 async function resolveOptionalAuthor(
@@ -1713,9 +1740,10 @@ export async function createNewsletterCampaign(formData: FormData) {
     campaignUrl: formData.get("campaignUrl") ?? "",
     status: formData.get("status") || "published",
     note: formData.get("note") ?? "",
+    wordleWord: formData.get("wordleWord") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Bitte Typ und Datum prüfen." };
+    return { error: "Bitte Typ, Datum und Wordle-Wort prüfen." };
   }
 
   const type = await prisma.newsletterType.findFirst({
@@ -1748,6 +1776,7 @@ export async function createNewsletterCampaign(formData: FormData) {
       campaignUrl: parsed.data.campaignUrl,
       status: parsed.data.status,
       note: parsed.data.note,
+      wordleWord: parsed.data.wordleWord,
     },
   });
 
@@ -1767,9 +1796,10 @@ export async function updateNewsletterCampaign(formData: FormData) {
     campaignUrl: formData.get("campaignUrl") ?? "",
     status: formData.get("status") || "published",
     note: formData.get("note") ?? "",
+    wordleWord: formData.get("wordleWord") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Bitte Typ und Datum prüfen." };
+    return { error: "Bitte Typ, Datum und Wordle-Wort prüfen." };
   }
 
   const campaign = await prisma.newsletterCampaign.findUnique({
@@ -1813,6 +1843,7 @@ export async function updateNewsletterCampaign(formData: FormData) {
       campaignUrl: parsed.data.campaignUrl,
       status: parsed.data.status,
       note: parsed.data.note,
+      wordleWord: parsed.data.wordleWord,
     },
   });
 
@@ -2011,6 +2042,21 @@ const newsletterSlotSchema = z.object({
     .trim()
     .max(500)
     .transform((v) => (v.length === 0 ? null : v)),
+  wordleWord: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? null : v.toLocaleUpperCase("de-CH")))
+    .pipe(
+      z.union([
+        z.null(),
+        z
+          .string()
+          .regex(
+            /^[A-ZÄÖÜ]{5}$/,
+            "Wordle-Wort muss genau 5 Buchstaben sein",
+          ),
+      ]),
+    ),
 });
 
 /** Book or update a rhythm slot (author + URL). */
@@ -2022,9 +2068,10 @@ export async function upsertNewsletterSlot(formData: FormData) {
     authorId: formData.get("authorId") ?? "",
     campaignUrl: formData.get("campaignUrl") ?? "",
     note: formData.get("note") ?? "",
+    wordleWord: formData.get("wordleWord") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Bitte Typ, Datum und Link prüfen." };
+    return { error: "Bitte Typ, Datum, Link und Wordle-Wort prüfen." };
   }
 
   const type = await prisma.newsletterType.findFirst({
@@ -2063,6 +2110,7 @@ export async function upsertNewsletterSlot(formData: FormData) {
         authorId: author.authorId,
         campaignUrl: parsed.data.campaignUrl,
         note: parsed.data.note,
+        wordleWord: parsed.data.wordleWord,
         status,
       },
     });
@@ -2075,6 +2123,7 @@ export async function upsertNewsletterSlot(formData: FormData) {
         date,
         campaignUrl: parsed.data.campaignUrl,
         note: parsed.data.note,
+        wordleWord: parsed.data.wordleWord,
         status,
       },
     });

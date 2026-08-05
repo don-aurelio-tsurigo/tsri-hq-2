@@ -42,7 +42,7 @@ export default async function MembersSettingsPage() {
           Einstellungen
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Mitgliederverwaltung
+          Teamverwaltung
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
           Jede eingeladene Person bekommt einen vollen Account und automatisch

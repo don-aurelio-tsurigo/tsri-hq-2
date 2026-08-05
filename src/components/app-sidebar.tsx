@@ -222,7 +222,7 @@ export function AppSidebar({
                     pathname.startsWith("/settings/members/"),
                 )}
               >
-                Mitgliederverwaltung
+                Teamverwaltung
               </Link>
               <Link
                 href="/settings/hours"

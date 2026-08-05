@@ -26,7 +26,7 @@ export default async function NewsletterSettingsPage() {
           Newsletter Einstellungen
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Typen, Rhythmus sowie Feiertage und Sommerpausen festlegen. Die
+          Typen, Rhythmus sowie Feiertage und typbezogene Pausen festlegen. Die
           Planung bleibt unter Newsletter-Plan in der Redaktion.
         </p>
       </header>
@@ -41,8 +41,11 @@ export default async function NewsletterSettingsPage() {
 
       <NewsletterBlockSettings
         hidePublicHolidays={calendarSettings.hidePublicHolidays}
+        types={types.map((t) => ({ id: t.id, name: t.name }))}
         blockedRanges={calendarSettings.blockedRanges.map((r) => ({
           id: r.id,
+          newsletterTypeId: r.newsletterTypeId,
+          typeName: r.newsletterType.name,
           startKey: r.startDate.toISOString().slice(0, 10),
           endKey: r.endDate.toISOString().slice(0, 10),
           label: r.label,

@@ -127,6 +127,7 @@ export type NewsletterCalendarSlot = {
     campaignUrl: string | null;
     status: NewsletterCampaignStatusValue;
     note: string | null;
+    wordleWord: string | null;
   } | null;
 };
 
@@ -154,9 +155,11 @@ export function monthParamKey(date: Date): string {
 
 export type NewsletterBlockedRangeRow = {
   id: string;
+  newsletterTypeId: string;
   startDate: Date;
   endDate: Date;
   label: string | null;
+  newsletterType: { id: string; name: string };
 };
 
 export async function getNewsletterCalendarSettings(organizationId: string) {
@@ -176,15 +179,24 @@ export async function getNewsletterCalendarSettings(organizationId: string) {
 export async function listNewsletterBlockedRanges(organizationId: string) {
   return prisma.newsletterBlockedRange.findMany({
     where: { organizationId },
-    orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+    include: {
+      newsletterType: { select: { id: true, name: true } },
+    },
+    orderBy: [
+      { newsletterType: { sortOrder: "asc" } },
+      { startDate: "asc" },
+      { endDate: "asc" },
+    ],
   });
 }
 
 function dateKeyInBlockedRanges(
   dateKey: string,
-  ranges: { startDate: Date; endDate: Date }[],
+  ranges: { startDate: Date; endDate: Date; newsletterTypeId: string }[],
+  typeId: string,
 ): boolean {
   return ranges.some((range) => {
+    if (range.newsletterTypeId !== typeId) return false;
     const start = range.startDate.toISOString().slice(0, 10);
     const end = range.endDate.toISOString().slice(0, 10);
     return dateKey >= start && dateKey <= end;
@@ -242,7 +254,11 @@ export async function listNewsletterCalendarMonth(
       );
 
       if (settings.hidePublicHolidays && holidayName) continue;
-      if (dateKeyInBlockedRanges(dateKey, settings.blockedRanges)) continue;
+      if (
+        dateKeyInBlockedRanges(dateKey, settings.blockedRanges, type.id)
+      ) {
+        continue;
+      }
 
       const existing = campaignByKey.get(`${type.id}:${dateKey}`);
       const slot: NewsletterCalendarSlot = {
@@ -258,6 +274,7 @@ export async function listNewsletterCalendarMonth(
               campaignUrl: existing.campaignUrl,
               status: existing.status as NewsletterCampaignStatusValue,
               note: existing.note,
+              wordleWord: existing.wordleWord,
             }
           : null,
       };

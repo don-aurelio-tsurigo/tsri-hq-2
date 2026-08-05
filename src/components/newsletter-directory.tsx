@@ -55,6 +55,9 @@ function SlotCard({
   );
   const [url, setUrl] = useState(slot.campaign?.campaignUrl ?? "");
   const [note, setNote] = useState(slot.campaign?.note ?? "");
+  const [wordleWord, setWordleWord] = useState(
+    slot.campaign?.wordleWord ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -72,6 +75,7 @@ function SlotCard({
     fd.set("authorId", authorId);
     fd.set("campaignUrl", url);
     fd.set("note", note);
+    fd.set("wordleWord", wordleWord);
     startTransition(async () => {
       const result = await upsertNewsletterSlot(fd);
       if (result?.error) {
@@ -120,6 +124,7 @@ function SlotCard({
       setAuthorId(currentUserId);
       setUrl("");
       setNote("");
+      setWordleWord("");
       setOpen(false);
       router.refresh();
     });
@@ -167,6 +172,14 @@ function SlotCard({
                   </a>
                 </>
               ) : null}
+              {slot.campaign?.wordleWord ? (
+                <>
+                  {" · "}
+                  <span className="font-semibold tracking-wide">
+                    Wordle {slot.campaign.wordleWord}
+                  </span>
+                </>
+              ) : null}
             </p>
           ) : (
             <p className="text-sm font-medium text-[var(--accent-hover)]">
@@ -181,6 +194,7 @@ function SlotCard({
             setAuthorId(slot.campaign?.authorId ?? currentUserId);
             setUrl(slot.campaign?.campaignUrl ?? "");
             setNote(slot.campaign?.note ?? "");
+            setWordleWord(slot.campaign?.wordleWord ?? "");
             setOpen((v) => !v);
           }}
         >
@@ -213,6 +227,18 @@ function SlotCard({
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://…"
+                />
+              </label>
+              <label className="field text-xs font-semibold text-[var(--muted)]">
+                Wordle-Wort
+                <input
+                  type="text"
+                  value={wordleWord}
+                  onChange={(e) => setWordleWord(e.target.value)}
+                  placeholder="5 Buchstaben"
+                  maxLength={5}
+                  autoCapitalize="characters"
+                  spellCheck={false}
                 />
               </label>
             </>
