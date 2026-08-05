@@ -10,7 +10,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 13; // v13: PasswordResetToken + CookingSlot.assignedById
+const PRISMA_CLIENT_SCHEMA_VERSION = 14; // v14: TimeSegment
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -39,6 +39,7 @@ const REQUIRED_MODELS = [
   "NewsletterBlockedRange",
   "VacationRequest",
   "TimeEntry",
+  "TimeSegment",
   "EigenleistungRubrik",
   "WikiPage",
   "PasswordResetToken",

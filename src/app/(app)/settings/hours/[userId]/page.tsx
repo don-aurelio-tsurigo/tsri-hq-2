@@ -113,10 +113,11 @@ export default async function AdminMemberHoursPage({
         ? {
             id: d.entry.id,
             type: d.entry.type,
-            startTime: d.entry.startTime,
-            endTime: d.entry.endTime,
-            breakMinutes: d.entry.breakMinutes,
             note: d.entry.note,
+            segments: d.entry.segments.map((s) => ({
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
           }
         : null,
       isToday: d.dateKey === todayKey,

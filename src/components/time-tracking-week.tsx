@@ -5,19 +5,21 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { deleteTimeEntry, upsertTimeEntry } from "@/lib/actions";
 import {
+  breakMinutesFromGaps,
   computeWorkedHours,
   formatHours,
+  formatSegmentsSummary,
+  segmentsOverlap,
   TIME_ENTRY_TYPE_LABELS,
   type TimeEntryTypeValue,
+  type TimeSegmentInput,
 } from "@/lib/time-tracking-constants";
 
 type DayEntry = {
   id: string;
   type: TimeEntryTypeValue;
-  startTime: string | null;
-  endTime: string | null;
-  breakMinutes: number;
   note: string | null;
+  segments: TimeSegmentInput[];
 };
 
 type WeekDay = {
@@ -51,6 +53,13 @@ type WeekData = {
   sickDays: number;
   vacationDays: number;
   days: WeekDay[];
+};
+
+type EditorSegment = {
+  key: string;
+  startTime: string;
+  endTime: string;
+  open: boolean;
 };
 
 function SummaryStat({
@@ -87,6 +96,39 @@ function formatSignedHours(hours: number) {
   return `${sign}${formatHours(hours)} h`;
 }
 
+function nowHhmm() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(
+    now.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function segmentsFromEntry(entry: DayEntry | null): EditorSegment[] {
+  if (!entry?.segments.length) {
+    return [
+      {
+        key: crypto.randomUUID(),
+        startTime: "09:00",
+        endTime: "17:00",
+        open: false,
+      },
+    ];
+  }
+  return entry.segments.map((s) => ({
+    key: crypto.randomUUID(),
+    startTime: s.startTime,
+    endTime: s.endTime ?? "",
+    open: !s.endTime,
+  }));
+}
+
+function toPayload(segments: EditorSegment[]): TimeSegmentInput[] {
+  return segments.map((s) => ({
+    startTime: s.startTime,
+    endTime: s.open || !s.endTime ? null : s.endTime,
+  }));
+}
+
 function DayEditor({
   day,
   dailyTarget,
@@ -99,10 +141,8 @@ function DayEditor({
   const [type, setType] = useState<TimeEntryTypeValue>(
     day.entry?.type ?? (day.holidayName ? "holiday" : "work"),
   );
-  const [startTime, setStartTime] = useState(day.entry?.startTime ?? "09:00");
-  const [endTime, setEndTime] = useState(day.entry?.endTime ?? "18:00");
-  const [breakMinutes, setBreakMinutes] = useState(
-    String(day.entry?.breakMinutes ?? 60),
+  const [segments, setSegments] = useState<EditorSegment[]>(() =>
+    segmentsFromEntry(day.entry),
   );
   const [note, setNote] = useState(
     day.entry?.note ?? day.holidayName ?? "",
@@ -110,20 +150,43 @@ function DayEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const payload = useMemo(() => toPayload(segments), [segments]);
+
   const preview = useMemo(() => {
     if (type !== "work") return null;
-    return computeWorkedHours(startTime, endTime, Number(breakMinutes) || 0);
-  }, [type, startTime, endTime, breakMinutes]);
+    return computeWorkedHours(payload);
+  }, [type, payload]);
+
+  const gapBreak = useMemo(() => {
+    if (type !== "work") return 0;
+    return breakMinutesFromGaps(payload);
+  }, [type, payload]);
 
   function save() {
     setError(null);
+    if (type === "work") {
+      if (payload.some((s) => !s.startTime)) {
+        setError("Jedes Segment braucht einen Beginn.");
+        return;
+      }
+      if (payload.filter((s) => !s.endTime).length > 1) {
+        setError("Nur ein offenes Segment erlaubt.");
+        return;
+      }
+      if (segmentsOverlap(payload)) {
+        setError("Segmente überschneiden sich.");
+        return;
+      }
+    }
+
     const fd = new FormData();
     fd.set("date", day.dateKey);
     fd.set("type", type);
-    fd.set("startTime", startTime);
-    fd.set("endTime", endTime);
-    fd.set("breakMinutes", breakMinutes || "0");
     if (note.trim()) fd.set("note", note.trim());
+    fd.set(
+      "segments",
+      JSON.stringify(type === "work" ? payload : []),
+    );
     startTransition(async () => {
       const result = await upsertTimeEntry(fd);
       if (result?.error) {
@@ -149,11 +212,74 @@ function DayEditor({
   }
 
   function quickStamp(kind: "in" | "out") {
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const hhmm = nowHhmm();
     setType("work");
-    if (kind === "in") setStartTime(hhmm);
-    else setEndTime(hhmm);
+    setError(null);
+    if (kind === "in") {
+      setSegments((prev) => {
+        if (prev.some((s) => s.open || !s.endTime)) {
+          setError("Es läuft bereits ein offenes Segment.");
+          return prev;
+        }
+        return [
+          ...prev.filter((s) => s.startTime),
+          {
+            key: crypto.randomUUID(),
+            startTime: hhmm,
+            endTime: "",
+            open: true,
+          },
+        ];
+      });
+      return;
+    }
+    setSegments((prev) => {
+      const openIdx = prev.findIndex((s) => s.open || !s.endTime);
+      if (openIdx < 0) {
+        setError("Kein offenes Segment zum Beenden.");
+        return prev;
+      }
+      return prev.map((s, i) =>
+        i === openIdx ? { ...s, endTime: hhmm, open: false } : s,
+      );
+    });
+  }
+
+  function addSegment() {
+    setSegments((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        startTime: "13:00",
+        endTime: "17:00",
+        open: false,
+      },
+    ]);
+  }
+
+  function removeSegment(key: string) {
+    setSegments((prev) =>
+      prev.length <= 1 ? prev : prev.filter((s) => s.key !== key),
+    );
+  }
+
+  function updateSegment(
+    key: string,
+    patch: Partial<Pick<EditorSegment, "startTime" | "endTime" | "open">>,
+  ) {
+    setSegments((prev) =>
+      prev.map((s) => {
+        if (s.key !== key) return s;
+        const next = { ...s, ...patch };
+        if (patch.open === true) {
+          next.endTime = "";
+        }
+        if (patch.endTime !== undefined && patch.endTime !== "") {
+          next.open = false;
+        }
+        return next;
+      }),
+    );
   }
 
   return (
@@ -196,53 +322,93 @@ function DayEditor({
               Jetzt beenden
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <label className="field text-xs font-semibold text-[var(--muted)]">
-              Beginn
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
-            </label>
-            <label className="field text-xs font-semibold text-[var(--muted)]">
-              Schluss
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
-            </label>
-            <label className="field text-xs font-semibold text-[var(--muted)]">
-              Pause (Min.)
-              <input
-                type="number"
-                min={0}
-                max={720}
-                step={5}
-                value={breakMinutes}
-                onChange={(e) => setBreakMinutes(e.target.value)}
-              />
-            </label>
-            <div className="flex flex-col justify-end">
+
+          <ul className="space-y-2">
+            {segments.map((seg, index) => (
+              <li
+                key={seg.key}
+                className="grid grid-cols-[1fr_1fr_auto] gap-2 rounded-lg border border-[var(--border)] bg-white p-2 sm:grid-cols-[auto_1fr_1fr_auto]"
+              >
+                <span className="hidden self-center text-xs font-semibold text-[var(--muted)] sm:inline">
+                  #{index + 1}
+                </span>
+                <label className="field text-xs font-semibold text-[var(--muted)]">
+                  Beginn
+                  <input
+                    type="time"
+                    value={seg.startTime}
+                    onChange={(e) =>
+                      updateSegment(seg.key, { startTime: e.target.value })
+                    }
+                  />
+                </label>
+                <label className="field text-xs font-semibold text-[var(--muted)]">
+                  Schluss
+                  <input
+                    type="time"
+                    value={seg.open ? "" : seg.endTime}
+                    disabled={seg.open}
+                    onChange={(e) =>
+                      updateSegment(seg.key, {
+                        endTime: e.target.value,
+                        open: false,
+                      })
+                    }
+                  />
+                  {seg.open && (
+                    <span className="mt-0.5 block text-[0.65rem] font-medium text-[var(--accent)]">
+                      läuft…
+                    </span>
+                  )}
+                </label>
+                <button
+                  type="button"
+                  className="self-end btn btn-ghost px-2 py-1 text-xs"
+                  disabled={segments.length <= 1}
+                  onClick={() => removeSegment(seg.key)}
+                >
+                  Entfernen
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <button
+            type="button"
+            className="text-sm font-semibold text-[var(--accent)] hover:underline"
+            onClick={addSegment}
+          >
+            + Segment
+          </button>
+
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
               <p className="text-xs font-semibold text-[var(--muted)]">Arbeit</p>
-              <p className="mt-1 text-lg font-bold tabular-nums">
+              <p className="font-bold tabular-nums">
                 {preview != null ? `${formatHours(preview)} h` : "—"}
               </p>
               <p className="text-[0.7rem] text-[var(--muted)]">
                 Soll {formatHours(dailyTarget)} h
               </p>
             </div>
+            {gapBreak > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-[var(--muted)]">
+                  Pause (Lücken)
+                </p>
+                <p className="font-bold tabular-nums">{gapBreak} Min.</p>
+              </div>
+            )}
           </div>
         </>
       ) : (
         <p className="text-sm text-[var(--muted)]">
           {type === "sick" &&
-            "Krankheitstag — zählt nicht zum Soll (wie in der Stundenliste)."}
+            "Krankheitstag — zählt nicht zum Soll (keine Zeitsegmente)."}
           {type === "vacation" &&
-            "Ferientag — zählt nicht zum Soll."}
+            "Ferientag — zählt nicht zum Soll (keine Zeitsegmente)."}
           {type === "holiday" &&
-            "Feiertag — kein Soll an diesem Tag."}
+            "Feiertag — kein Soll an diesem Tag (keine Zeitsegmente)."}
         </p>
       )}
 
@@ -383,15 +549,16 @@ export function TimeTrackingWeek({
       <ul className="card divide-y divide-[var(--border)] overflow-hidden">
         {week.days.map((day) => {
           const open = openKey === day.dateKey;
+          const segmentLabel = formatSegmentsSummary(
+            day.entry?.segments ?? [],
+          );
           const status =
             day.entry?.type && day.entry.type !== "work"
               ? TIME_ENTRY_TYPE_LABELS[day.entry.type]
               : day.holidayName && !day.entry
                 ? day.holidayName
-                : day.entry?.startTime
-                  ? day.entry.endTime
-                    ? `${day.entry.startTime}–${day.entry.endTime}`
-                    : `seit ${day.entry.startTime}`
+                : segmentLabel
+                  ? segmentLabel
                   : day.isWeekend
                     ? "Wochenende"
                     : "Offen";
@@ -454,12 +621,17 @@ export function TimeTrackingWeek({
                         <>
                           <p>
                             {TIME_ENTRY_TYPE_LABELS[day.entry.type]}
-                            {day.entry.type === "work" &&
-                              day.entry.startTime &&
-                              ` · ${day.entry.startTime}–${day.entry.endTime ?? "…"}`}
-                            {day.entry.type === "work" &&
-                              ` · Pause ${day.entry.breakMinutes} Min.`}
+                            {day.entry.type === "work" && segmentLabel
+                              ? ` · ${segmentLabel}`
+                              : ""}
                           </p>
+                          {day.entry.type === "work" &&
+                            breakMinutesFromGaps(day.entry.segments) > 0 && (
+                              <p className="mt-1">
+                                Pause (Lücken):{" "}
+                                {breakMinutesFromGaps(day.entry.segments)} Min.
+                              </p>
+                            )}
                           {day.entry.note && (
                             <p className="mt-1">{day.entry.note}</p>
                           )}

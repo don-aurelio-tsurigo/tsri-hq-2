@@ -80,10 +80,11 @@ export default async function HoursPage({
         ? {
             id: d.entry.id,
             type: d.entry.type,
-            startTime: d.entry.startTime,
-            endTime: d.entry.endTime,
-            breakMinutes: d.entry.breakMinutes,
             note: d.entry.note,
+            segments: d.entry.segments.map((s) => ({
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
           }
         : null,
       isToday: d.dateKey === todayKey,
@@ -100,7 +101,7 @@ export default async function HoursPage({
           Arbeitszeit
         </h1>
         <p className="mt-2 text-[var(--muted)]">
-          Beginn, Pause und Schluss erfassen — Ist vs. Soll bei{" "}
+          Beginn und Schluss pro Segment erfassen — Ist vs. Soll bei{" "}
           {pensum}% Pensum ({formatHours(dailyTargetHours(pensum))} h/Tag,
           40-h-Vollzeit).
         </p>

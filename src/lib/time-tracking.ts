@@ -13,21 +13,26 @@ import { prisma } from "@/lib/db";
 import {
   computeWorkedHours,
   dailyTargetHours,
+  formatSegmentsSummary,
   TIME_ENTRY_TYPE_LABELS,
   toTimeDateKey,
   type TimeEntryTypeValue,
+  type TimeSegmentInput,
 } from "@/lib/time-tracking-constants";
 
 export { TIME_ENTRY_TYPE_LABELS };
+
+export type TimeSegmentRow = TimeSegmentInput & {
+  id?: string;
+  sortOrder: number;
+};
 
 export type TimeEntryRow = {
   id: string;
   date: Date;
   type: TimeEntryTypeValue;
-  startTime: string | null;
-  endTime: string | null;
-  breakMinutes: number;
   note: string | null;
+  segments: TimeSegmentRow[];
 };
 
 /** Western Easter Sunday (Anonymous Gregorian algorithm). */
@@ -81,14 +86,20 @@ function isWeekday(date: Date): boolean {
   return !isWeekend(date);
 }
 
-export function entryWorkedHours(
-  entry: Pick<
-    TimeEntryRow,
-    "type" | "startTime" | "endTime" | "breakMinutes"
-  > | null,
-): number {
+/** Worked hours for a day entry. Absences / empty segments → 0. */
+export function entryWorkedHours(entry: TimeEntryRow | null): number {
   if (!entry || entry.type !== "work") return 0;
-  return computeWorkedHours(entry.startTime, entry.endTime, entry.breakMinutes);
+  return computeWorkedHours(entry.segments);
+}
+
+export function entryHasOpenSegment(entry: TimeEntryRow | null): boolean {
+  if (!entry || entry.type !== "work") return false;
+  return entry.segments.some((s) => !s.endTime);
+}
+
+export function entrySegmentsLabel(entry: TimeEntryRow | null): string | null {
+  if (!entry || entry.type !== "work") return null;
+  return formatSegmentsSummary(entry.segments);
 }
 
 /** Soll for a calendar day (Mo–Fr, not public holiday). */
@@ -108,7 +119,7 @@ export type DaySummary = {
   baseSollHours: number;
   /** Zählt nach Abwesenheit: Krank/Ferien senken das Soll (wie Excel). */
   sollHours: number;
-  /** Nur effektiv gearbeitete Stunden (Typ Arbeit). */
+  /** Nur effektiv gearbeitete Stunden (Typ Arbeit, Summe der Segmente). */
   workedHours: number;
   entry: TimeEntryRow | null;
 };
@@ -126,19 +137,28 @@ function toEntryRow(row: {
   id: string;
   date: Date;
   type: string;
-  startTime: string | null;
-  endTime: string | null;
-  breakMinutes: number;
   note: string | null;
+  segments: {
+    id: string;
+    startTime: string;
+    endTime: string | null;
+    sortOrder: number;
+  }[];
 }): TimeEntryRow {
   return {
     id: row.id,
     date: row.date,
     type: row.type as TimeEntryTypeValue,
-    startTime: row.startTime,
-    endTime: row.endTime,
-    breakMinutes: row.breakMinutes,
     note: row.note,
+    segments: row.segments
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.startTime.localeCompare(b.startTime))
+      .map((s) => ({
+        id: s.id,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        sortOrder: s.sortOrder,
+      })),
   };
 }
 
@@ -200,6 +220,9 @@ export async function listTimeEntriesInRange(
         gte: new Date(`${toTimeDateKey(start)}T12:00:00.000Z`),
         lte: new Date(`${toTimeDateKey(end)}T12:00:00.000Z`),
       },
+    },
+    include: {
+      segments: { orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }] },
     },
     orderBy: { date: "asc" },
   });
@@ -298,7 +321,6 @@ export async function getPastWeekTimeGaps(
 
   const gaps: PastWeekTimeGap[] = [];
   for (const day of summary.days) {
-    // Only days that normally require tracking (Soll-Tag / Arbeitstag)
     if (day.baseSollHours <= 0) continue;
 
     if (!day.entry) {
@@ -312,7 +334,8 @@ export async function getPastWeekTimeGaps(
 
     if (
       day.entry.type === "work" &&
-      (!day.entry.startTime || !day.entry.endTime)
+      (day.entry.segments.length === 0 ||
+        day.entry.segments.some((s) => !s.endTime))
     ) {
       gaps.push({
         dateKey: day.dateKey,
@@ -353,7 +376,7 @@ export async function getYearToDateTimeSummary(
   };
 }
 
-export type TeamHoursOverviewRow = {
+export type TeamMemberHoursRow = {
   userId: string;
   name: string;
   email: string;
@@ -365,10 +388,9 @@ export type TeamHoursOverviewRow = {
   year: PeriodSummary;
 };
 
-/** Admin: Ist/Soll/Diff for all org members (Woche bisher, Monat, Jahr bisher). */
 export async function listTeamHoursOverview(
   organizationId: string,
-): Promise<TeamHoursOverviewRow[]> {
+): Promise<TeamMemberHoursRow[]> {
   const today = new Date();
   const yearStart = new Date(today.getFullYear(), 0, 1, 12, 0, 0, 0);
   const monthStart = startOfMonth(today);
@@ -383,8 +405,7 @@ export async function listTeamHoursOverview(
     orderBy: [{ archivedAt: "asc" }, { user: { name: "asc" } }],
   });
 
-  const rangeEnd =
-    monthEnd > today ? monthEnd : today;
+  const rangeEnd = monthEnd > today ? monthEnd : today;
   const entries = await prisma.timeEntry.findMany({
     where: {
       organizationId,
@@ -392,6 +413,9 @@ export async function listTeamHoursOverview(
         gte: new Date(`${toTimeDateKey(yearStart)}T12:00:00.000Z`),
         lte: new Date(`${toTimeDateKey(rangeEnd)}T12:00:00.000Z`),
       },
+    },
+    include: {
+      segments: { orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }] },
     },
     orderBy: { date: "asc" },
   });

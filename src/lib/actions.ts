@@ -24,6 +24,7 @@ import {
 import {
   isTimeEntryType,
   parseTimeToMinutes,
+  segmentsOverlap,
 } from "@/lib/time-tracking-constants";
 
 const inviteSchema = z.object({
@@ -2324,10 +2325,9 @@ async function revalidateVacationPaths(organizationId: string) {
 const upsertTimeEntrySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   type: z.string(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
-  breakMinutes: z.coerce.number().int().min(0).max(12 * 60),
   note: z.string().max(500).optional(),
+  /** JSON array of { startTime, endTime | null } */
+  segments: z.string().optional(),
 });
 
 function normalizeTimeInput(value: string | null | undefined): string | null {
@@ -2339,49 +2339,73 @@ function normalizeTimeInput(value: string | null | undefined): string | null {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+type ParsedSegment = { startTime: string; endTime: string | null };
+
+function parseSegmentsJson(raw: string | undefined): ParsedSegment[] | { error: string } {
+  if (!raw?.trim()) return [];
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return { error: "Segmente ungültig." };
+  }
+  if (!Array.isArray(data)) return { error: "Segmente ungültig." };
+
+  const segments: ParsedSegment[] = [];
+  for (const item of data) {
+    if (!item || typeof item !== "object") {
+      return { error: "Segment ungültig." };
+    }
+    const startNorm = normalizeTimeInput(
+      String((item as { startTime?: unknown }).startTime ?? ""),
+    );
+    const endRaw = (item as { endTime?: unknown }).endTime;
+    const endNorm =
+      endRaw === null || endRaw === undefined || endRaw === ""
+        ? null
+        : normalizeTimeInput(String(endRaw));
+    if (!startNorm) return { error: "Beginn ungültig (HH:MM)." };
+    if (endRaw !== null && endRaw !== undefined && endRaw !== "" && !endNorm) {
+      return { error: "Schluss ungültig (HH:MM)." };
+    }
+    segments.push({ startTime: startNorm, endTime: endNorm });
+  }
+  return segments;
+}
+
 export async function upsertTimeEntry(formData: FormData) {
   const { session, membership } = await requireMembership();
   const parsed = upsertTimeEntrySchema.safeParse({
     date: formData.get("date"),
     type: formData.get("type") || "work",
-    startTime: formData.get("startTime") || undefined,
-    endTime: formData.get("endTime") || undefined,
-    breakMinutes: formData.get("breakMinutes") || 0,
     note: formData.get("note") || undefined,
+    segments: formData.get("segments")?.toString() || undefined,
   });
   if (!parsed.success || !isTimeEntryType(parsed.data.type)) {
     return { error: "Bitte Eintrag prüfen." };
   }
 
   const type = parsed.data.type;
-  const startNorm = normalizeTimeInput(parsed.data.startTime);
-  const endNorm = normalizeTimeInput(parsed.data.endTime);
-  if (parsed.data.startTime?.trim() && !startNorm) {
-    return { error: "Beginn ungültig (HH:MM)." };
-  }
-  if (parsed.data.endTime?.trim() && !endNorm) {
-    return { error: "Schluss ungültig (HH:MM)." };
-  }
+  const isAbsent = type === "sick" || type === "vacation" || type === "holiday";
 
-  if (type === "work") {
-    if (!startNorm && endNorm) {
-      return { error: "Beginn fehlt." };
+  let segments: ParsedSegment[] = [];
+  if (!isAbsent) {
+    const parsedSegs = parseSegmentsJson(parsed.data.segments);
+    if ("error" in parsedSegs) return parsedSegs;
+    segments = parsedSegs;
+
+    if (segments.filter((s) => !s.endTime).length > 1) {
+      return { error: "Nur ein offenes Segment (ohne Schluss) erlaubt." };
     }
-    if (startNorm && endNorm) {
-      const startM = parseTimeToMinutes(startNorm)!;
-      const endM = parseTimeToMinutes(endNorm)!;
-      let duration = endM - startM;
-      if (duration < 0) duration += 24 * 60;
-      if (parsed.data.breakMinutes >= duration) {
-        return { error: "Pause ist länger als die Arbeitszeit." };
-      }
+
+    if (segmentsOverlap(segments)) {
+      return { error: "Segmente überschneiden sich." };
     }
   }
 
   const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
-  const isAbsent = type === "sick" || type === "vacation" || type === "holiday";
 
-  await prisma.timeEntry.upsert({
+  const entry = await prisma.timeEntry.upsert({
     where: {
       organizationId_userId_date: {
         organizationId: membership.organizationId,
@@ -2394,22 +2418,33 @@ export async function upsertTimeEntry(formData: FormData) {
       userId: session.user.id,
       date,
       type,
-      startTime: isAbsent ? null : startNorm,
-      endTime: isAbsent ? null : endNorm,
-      breakMinutes: isAbsent ? 0 : parsed.data.breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
     update: {
       type,
-      startTime: isAbsent ? null : startNorm,
-      endTime: isAbsent ? null : endNorm,
-      breakMinutes: isAbsent ? 0 : parsed.data.breakMinutes,
       note: parsed.data.note?.trim() || null,
     },
   });
 
+  await prisma.timeSegment.deleteMany({ where: { timeEntryId: entry.id } });
+
+  if (!isAbsent && segments.length > 0) {
+    const ordered = segments
+      .slice()
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    await prisma.timeSegment.createMany({
+      data: ordered.map((s, index) => ({
+        timeEntryId: entry.id,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        sortOrder: index,
+      })),
+    });
+  }
+
   revalidatePath("/hours");
   revalidatePath("/home");
+  revalidatePath("/settings/hours");
   return { ok: true as const };
 }
 

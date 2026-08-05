@@ -500,29 +500,41 @@ enum TimeEntryType {
   holiday
 }
 
-/// Ein Tageseintrag: Start/Ende + Pause, oder Abwesenheit (Krank/Ferien/Feiertag)
+/// Ein Tageseintrag: Arbeit mit 1:n Zeitsegmenten, oder Abwesenheit (Krank/Ferien/Feiertag)
 model TimeEntry {
   id             String        @id @default(cuid())
   organizationId String
   userId         String
   date           DateTime      @db.Date
   type           TimeEntryType @default(work)
-  /// "HH:mm" Lokalzeit
-  startTime      String?
-  /// "HH:mm" Lokalzeit
-  endTime        String?
-  breakMinutes   Int           @default(0)
   note           String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  segments     TimeSegment[]
 
   @@unique([organizationId, userId, date])
   @@index([userId, date])
   @@index([organizationId, date])
   @@map("time_entry")
+}
+
+/// Arbeitsintervall innerhalb eines Tageseintrags (open = endTime null)
+model TimeSegment {
+  id          String  @id @default(cuid())
+  timeEntryId String
+  /// "HH:mm" Lokalzeit
+  startTime   String
+  /// "HH:mm" Lokalzeit; null = laufendes Segment
+  endTime     String?
+  sortOrder   Int     @default(0)
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@index([timeEntryId, sortOrder])
+  @@map("time_segment")
 }
 
 // ─── Wiki ──────────────────────────────────────────────────────
