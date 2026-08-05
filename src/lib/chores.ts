@@ -72,6 +72,28 @@ export async function listChores(spaceId: string) {
   });
 }
 
+/** Ämtlis, die der User aktuell zugewiesen hat (Büro-Ämtliplan). */
+export async function listAssignedChoresForUser(
+  organizationId: string,
+  userId: string,
+) {
+  return prisma.task.findMany({
+    where: {
+      kind: "chore",
+      status: { not: "cancelled" },
+      space: { organizationId, slug: "aemliplan" },
+      assignments: { some: { userId } },
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      spaceId: true,
+    },
+    orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+  });
+}
+
 export async function ensureDefaultChores(
   spaceId: string,
   createdById: string,

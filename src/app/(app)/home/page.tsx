@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { format, startOfDay } from "date-fns";
+import { format, getISOWeek, getISOWeekYear, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
 import { TaskList } from "@/components/task-list";
 import { PrivateNotes } from "@/components/private-notes";
+import {
+  ChoreMidweekReminder,
+  TimeGapsReminder,
+} from "@/components/home-reminders";
+import { listAssignedChoresForUser } from "@/lib/chores";
 import { listUpcomingCookingForUser } from "@/lib/cooking";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
@@ -21,6 +26,11 @@ import {
   getPastWeekTimeGaps,
 } from "@/lib/time-tracking";
 
+function isMidweekChoreReminderDay(date: Date = new Date()) {
+  const day = date.getDay(); // 0=So … 3=Mi … 5=Fr
+  return day >= 3 && day <= 5;
+}
+
 function formatVacationRange(start: Date, end: Date) {
   const sameDay =
     toVacationDateKey(start) === toVacationDateKey(end);
@@ -38,6 +48,9 @@ export default async function HomePage() {
   const { session, membership } = await requireMembership();
   const isAdmin = membership.role === "admin";
 
+  const today = new Date();
+  const showChoreReminder = isMidweekChoreReminderDay(today);
+
   const [
     items,
     user,
@@ -47,6 +60,7 @@ export default async function HomePage() {
     pendingVacations,
     weekHours,
     pastWeekGaps,
+    assignedChores,
   ] = await Promise.all([
     getCurrentDashboardItems(membership.organizationId, session.user.id),
     prisma.user.findUnique({
@@ -56,7 +70,7 @@ export default async function HomePage() {
     listUpcomingCookingForUser(
       membership.organizationId,
       session.user.id,
-      startOfDay(new Date()),
+      startOfDay(today),
       4,
     ),
     listUpcomingOwnVacations(
@@ -78,10 +92,17 @@ export default async function HomePage() {
       session.user.id,
       membership.pensumPercent,
     ),
+    showChoreReminder
+      ? listAssignedChoresForUser(
+          membership.organizationId,
+          session.user.id,
+        )
+      : Promise.resolve([]),
   ]);
 
   const tasks = items.filter((i) => i.kind !== "article");
   const articles = items.filter((i) => i.kind === "article");
+  const choreWeekKey = `${getISOWeekYear(today)}-W${String(getISOWeek(today)).padStart(2, "0")}`;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -151,35 +172,22 @@ export default async function HomePage() {
       )}
 
       {pastWeekGaps.gaps.length > 0 && (
-        <section className="rounded-xl border border-[var(--danger)]/25 bg-red-50/80 px-4 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--danger)]">
-                Arbeitszeit fehlt
-              </h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                Für die vergangene Woche ({pastWeekGaps.weekLabel}) fehlen noch{" "}
-                {pastWeekGaps.gaps.length}{" "}
-                {pastWeekGaps.gaps.length === 1 ? "Tag" : "Tage"}:
-              </p>
-              <p className="mt-2 text-sm font-semibold text-[var(--fg)]">
-                {pastWeekGaps.gaps
-                  .map((g) =>
-                    g.reason === "incomplete"
-                      ? `${g.dateLabel} (unvollständig)`
-                      : g.dateLabel,
-                  )
-                  .join(" · ")}
-              </p>
-            </div>
-            <Link
-              href={`/hours?week=${pastWeekGaps.weekParam}`}
-              className="btn btn-primary shrink-0 text-sm"
-            >
-              Jetzt nachtragen
-            </Link>
-          </div>
-        </section>
+        <TimeGapsReminder
+          weekLabel={pastWeekGaps.weekLabel}
+          weekParam={pastWeekGaps.weekParam}
+          gaps={pastWeekGaps.gaps}
+        />
+      )}
+
+      {showChoreReminder && assignedChores.length > 0 && (
+        <ChoreMidweekReminder
+          weekKey={choreWeekKey}
+          chores={assignedChores.map((c) => ({
+            id: c.id,
+            title: c.title,
+            spaceId: c.spaceId,
+          }))}
+        />
       )}
 
       <section className="space-y-3">
