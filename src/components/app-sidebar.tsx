@@ -21,6 +21,7 @@ import {
   Rss,
   Settings2,
   Users,
+  X,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
@@ -42,16 +43,19 @@ function NavLink({
   icon: Icon,
   children,
   className,
+  onNavigate,
 }: {
   href: string;
   active: boolean;
   icon: LucideIcon;
   children: ReactNode;
   className?: string;
+  onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={[
         "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
         active
@@ -79,12 +83,16 @@ export function AppSidebar({
   isAdmin,
   spacesBySlug,
   wikiPins = [],
+  mobileOpen = false,
+  onMobileClose,
 }: {
   userName: string;
   orgName: string;
   isAdmin: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins?: WikiPin[];
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -113,17 +121,37 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="sticky top-0 flex h-svh w-64 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)]">
+    <aside
+      id="app-sidebar"
+      className={[
+        "flex h-svh w-64 shrink-0 flex-col bg-[var(--sidebar)] text-[var(--sidebar-fg)]",
+        "fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out",
+        "md:sticky md:top-0 md:z-auto md:translate-x-0 md:transition-none",
+        mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0",
+      ].join(" ")}
+    >
       <div
         className="shrink-0 border-b border-black/10 px-4 py-5 text-[var(--fg)]"
         style={{ background: "var(--gradient-blue)" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/tsuri-logo.png"
-          alt="Tsüri HQ"
-          className="h-9 w-auto max-w-[13rem] object-contain object-left"
-        />
+        <div className="flex items-start justify-between gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/tsuri-logo.png"
+            alt="Tsüri HQ"
+            className="h-9 w-auto max-w-[11rem] object-contain object-left"
+          />
+          {onMobileClose && (
+            <button
+              type="button"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-black/10 hover:bg-black/15 md:hidden"
+              aria-label="Menü schliessen"
+              onClick={onMobileClose}
+            >
+              <X className="size-5" strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
         <p className="mt-3 truncate text-sm font-bold">{orgName}</p>
         <p className="mt-0.5 truncate text-xs font-medium opacity-80">
           {userName}
@@ -140,6 +168,7 @@ export function AppSidebar({
               href="/home"
               active={pathname === "/home" || pathname === "/inbox"}
               icon={Home}
+              onNavigate={onMobileClose}
             >
               Home
             </NavLink>
@@ -149,6 +178,7 @@ export function AppSidebar({
                 pathname === "/hours" || pathname.startsWith("/hours/")
               }
               icon={Clock}
+              onNavigate={onMobileClose}
             >
               Arbeitszeit
             </NavLink>
@@ -158,6 +188,7 @@ export function AppSidebar({
                 pathname === "/tasks" || pathname.startsWith("/tasks/")
               }
               icon={CheckSquare}
+              onNavigate={onMobileClose}
             >
               Meine Tasks
             </NavLink>
@@ -173,6 +204,7 @@ export function AppSidebar({
               href={spaceHref("redaktion")}
               active={spaceActive("redaktion")}
               icon={Newspaper}
+              onNavigate={onMobileClose}
             >
               Artikel
             </NavLink>
@@ -180,6 +212,7 @@ export function AppSidebar({
               href={spaceHref("quellen")}
               active={spaceActive("quellen")}
               icon={Rss}
+              onNavigate={onMobileClose}
             >
               Newsfeed
             </NavLink>
@@ -190,6 +223,7 @@ export function AppSidebar({
                 pathname.startsWith("/newsletter/")
               }
               icon={Mail}
+              onNavigate={onMobileClose}
             >
               Newsletter
             </NavLink>
@@ -200,6 +234,7 @@ export function AppSidebar({
                 pathname.startsWith("/projects/")
               }
               icon={FolderKanban}
+              onNavigate={onMobileClose}
             >
               Projekte
             </NavLink>
@@ -215,6 +250,7 @@ export function AppSidebar({
               href={spaceHref("kochplan")}
               active={spaceActive("kochplan")}
               icon={ChefHat}
+              onNavigate={onMobileClose}
             >
               Kochplan
             </NavLink>
@@ -222,6 +258,7 @@ export function AppSidebar({
               href={spaceHref("ferienplan")}
               active={spaceActive("ferienplan")}
               icon={CalendarDays}
+              onNavigate={onMobileClose}
             >
               Ferienplan
             </NavLink>
@@ -229,6 +266,7 @@ export function AppSidebar({
               href={spaceHref("aemliplan")}
               active={spaceActive("aemliplan")}
               icon={ClipboardList}
+              onNavigate={onMobileClose}
             >
               Ämtliplan
             </NavLink>
@@ -236,6 +274,7 @@ export function AppSidebar({
               href={spaceHref("team-infos")}
               active={spaceActive("team-infos")}
               icon={Info}
+              onNavigate={onMobileClose}
             >
               Teaminfos
             </NavLink>
@@ -243,6 +282,7 @@ export function AppSidebar({
               href={spaceHref("wiki")}
               active={spaceActive("wiki") && !searchParams.get("page")}
               icon={BookOpen}
+              onNavigate={onMobileClose}
             >
               Wiki
             </NavLink>
@@ -253,6 +293,7 @@ export function AppSidebar({
                 active={wikiPageActive(pin.slug)}
                 icon={Pin}
                 className="ml-3 !py-1.5 text-xs"
+                onNavigate={onMobileClose}
               >
                 {pin.title}
               </NavLink>
@@ -273,6 +314,7 @@ export function AppSidebar({
                   pathname.startsWith("/settings/members/")
                 }
                 icon={Users}
+                onNavigate={onMobileClose}
               >
                 Teamverwaltung
               </NavLink>
@@ -283,6 +325,7 @@ export function AppSidebar({
                   pathname.startsWith("/settings/hours/")
                 }
                 icon={Clock}
+                onNavigate={onMobileClose}
               >
                 Teamarbeitszeit
               </NavLink>
@@ -293,6 +336,7 @@ export function AppSidebar({
                   pathname.startsWith("/settings/newsletter/")
                 }
                 icon={Settings2}
+                onNavigate={onMobileClose}
               >
                 Newslettereinstellungen
               </NavLink>

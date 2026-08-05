@@ -1,4 +1,4 @@
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppShell } from "@/components/app-shell";
 import { requireMembership } from "@/lib/session";
 import { listVisibleSpaces } from "@/lib/spaces";
 import { listPinnedWikiPages } from "@/lib/wiki";
@@ -36,30 +36,28 @@ export default async function AppLayout({
   }));
 
   return (
-    <div className="flex min-h-screen">
-      <Suspense
-        fallback={
-          <aside className="sticky top-0 h-svh w-64 shrink-0 bg-[var(--sidebar)]" aria-hidden />
-        }
-      >
-        <AppSidebar
-          userName={session.user.name}
-          orgName={membership.organization.name}
-          isAdmin={membership.role === "admin"}
-          spacesBySlug={spacesBySlug}
-          wikiPins={pins}
-        />
-      </Suspense>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div
-          className="h-1.5 w-full shrink-0"
-          style={{ background: "var(--gradient-blue)" }}
-          aria-hidden
-        />
-        <div className="mx-auto w-full max-w-[1600px] flex-1 px-6 py-8">
-          {children}
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen">
+          <aside
+            className="hidden h-svh w-64 shrink-0 bg-[var(--sidebar)] md:block"
+            aria-hidden
+          />
+          <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
+            {children}
+          </main>
         </div>
-      </main>
-    </div>
+      }
+    >
+      <AppShell
+        userName={session.user.name}
+        orgName={membership.organization.name}
+        isAdmin={membership.role === "admin"}
+        spacesBySlug={spacesBySlug}
+        wikiPins={pins}
+      >
+        {children}
+      </AppShell>
+    </Suspense>
   );
 }
