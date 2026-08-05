@@ -369,84 +369,65 @@ function CookDayCell({
   const isMe = day.user?.id === currentUserId;
   const isOpen = !day.user;
 
-  if (isOpen) {
-    return (
-      <div className="flex min-h-[2.75rem] flex-col gap-1">
-        {dateLabel}
-        <div className="mt-auto flex flex-col gap-0.5">
-          <button
-            type="button"
-            className="btn btn-ghost w-full px-2 py-1 text-xs"
-            disabled={pending}
-            onClick={() => onAssign(currentUserId)}
-          >
-            Ich koche
-          </button>
-          <PersonPicker
-            label="Person eintragen"
-            members={members}
-            currentUserId={currentUserId}
-            selectedId={null}
-            disabled={pending}
-            onSelect={onAssign}
-            variant="link"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (isMe) {
-    return (
-      <div className="flex min-h-[2.75rem] flex-col gap-1">
-        {dateLabel}
-        <div className="flex items-start gap-1.5">
-          <PersonAvatar name={day.user!.name} />
-          <div className="min-w-0">
-            <p className="truncate text-xs leading-snug font-semibold">
-              {day.user!.name}
-            </p>
-            <p className="text-[0.65rem] text-[var(--muted)]">Du kochst</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="btn btn-ghost mt-auto w-full px-2 py-1 text-xs"
-          disabled={pending}
-          onClick={onClear}
-        >
-          Abmelden
-        </button>
-      </div>
-    );
-  }
-
   const assignerLabel =
-    day.assignedBy && day.assignedBy.id !== day.user!.id
+    day.user && day.assignedBy && day.assignedBy.id !== day.user.id
       ? day.assignedBy.id === currentUserId
         ? "von dir eingetragen"
         : `von ${day.assignedBy.name} eingetragen`
       : null;
 
-  return (
-    <div className="flex min-h-[2.75rem] flex-col gap-1">
-      {dateLabel}
-      <div className="flex items-start gap-1.5">
-        <PersonAvatar name={day.user!.name} />
-        <div className="min-w-0">
-          <p
-            className="truncate text-xs leading-snug font-semibold"
-            title={day.user!.name}
-          >
-            {day.user!.name}
-          </p>
-          {assignerLabel && (
-            <p className="text-[0.65rem] leading-snug text-[var(--muted)]">
-              {assignerLabel}
-            </p>
-          )}
-        </div>
+  const infoBlock = isOpen ? (
+    <PersonPicker
+      label="Person eintragen"
+      members={members}
+      currentUserId={currentUserId}
+      selectedId={null}
+      disabled={pending}
+      onSelect={onAssign}
+      variant="select"
+    />
+  ) : (
+    <div className="flex h-full min-w-0 items-center gap-1.5">
+      <PersonAvatar name={day.user!.name} />
+      <div className="min-w-0">
+        <p
+          className="truncate text-xs leading-snug font-semibold"
+          title={day.user!.name}
+        >
+          {day.user!.name}
+        </p>
+        <p className="truncate text-[0.65rem] leading-snug text-[var(--muted)]">
+          {isMe ? "Du kochst" : (assignerLabel ?? "\u00a0")}
+        </p>
       </div>
+    </div>
+  );
+
+  let action: ReactNode;
+  if (isOpen) {
+    action = (
+      <button
+        type="button"
+        className="btn btn-ghost w-full px-2 py-1 text-xs"
+        disabled={pending}
+        onClick={() => onAssign(currentUserId)}
+      >
+        Ich koche
+      </button>
+    );
+  } else if (isMe) {
+    action = (
+      <button
+        type="button"
+        className="btn btn-ghost w-full px-2 py-1 text-xs"
+        disabled={pending}
+        onClick={onClear}
+      >
+        Abmelden
+      </button>
+    );
+  } else {
+    action = (
       <PersonPicker
         label="Person ändern"
         members={members}
@@ -454,8 +435,16 @@ function CookDayCell({
         selectedId={day.user!.id}
         disabled={pending}
         onSelect={onAssign}
-        triggerClassName="btn btn-ghost mt-auto w-full px-2 py-1 text-xs"
+        variant="button"
       />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {dateLabel}
+      <div className="h-11 shrink-0">{infoBlock}</div>
+      <div className="mt-auto">{action}</div>
     </div>
   );
 }
@@ -467,7 +456,6 @@ function PersonPicker({
   selectedId,
   disabled,
   onSelect,
-  triggerClassName,
   variant = "button",
 }: {
   label: string;
@@ -476,8 +464,7 @@ function PersonPicker({
   selectedId: string | null;
   disabled: boolean;
   onSelect: (userId: string) => void;
-  triggerClassName?: string;
-  variant?: "button" | "link";
+  variant?: "button" | "select";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -516,27 +503,30 @@ function PersonPicker({
     };
   }, [open, showSearch]);
 
-  const linkTrigger =
-    "inline-flex w-full items-center justify-start gap-0.5 py-0.5 text-left text-[0.75rem] font-medium text-[var(--muted)] hover:underline disabled:opacity-55";
+  const triggerClass =
+    variant === "select"
+      ? "flex h-full w-full items-center justify-between gap-1 rounded-lg border border-[var(--border)] bg-white px-2 text-left text-xs font-medium text-[var(--muted)] hover:border-[var(--fg)]/35 disabled:opacity-55"
+      : "btn btn-ghost flex w-full items-center justify-center gap-1 px-2 py-1 text-xs";
 
   return (
-    <div className="relative" ref={rootRef}>
+    <div className="relative h-full" ref={rootRef}>
       <button
         type="button"
-        className={
-          triggerClassName ??
-          (variant === "link"
-            ? linkTrigger
-            : "btn btn-ghost w-full px-2 py-1 text-xs font-semibold text-[var(--muted)]")
-        }
+        className={triggerClass}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="truncate">{label}</span>
-        {variant !== "link" && <ChevronDownIcon />}
+        <span className="min-w-0 truncate">{label}</span>
+        <ChevronDownIcon
+          className={
+            variant === "select"
+              ? "size-3.5 shrink-0 text-[var(--muted)]"
+              : "size-3.5 shrink-0"
+          }
+        />
       </button>
       {open && (
         <div
@@ -565,9 +555,7 @@ function PersonPicker({
                     type="button"
                     className={[
                       "flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs hover:bg-black/5",
-                      checked
-                        ? "bg-[var(--accent-soft)] font-semibold"
-                        : "",
+                      checked ? "bg-[var(--accent-soft)] font-semibold" : "",
                     ].join(" ")}
                     disabled={disabled}
                     onClick={() => {
