@@ -103,6 +103,14 @@ export async function listUpcomingCookingForUser(
   });
 }
 
+export async function getKochplanSpaceId(organizationId: string) {
+  const space = await prisma.space.findFirst({
+    where: { organizationId, slug: "kochplan" },
+    select: { id: true },
+  });
+  return space?.id ?? null;
+}
+
 /**
  * Anzahl Slots im laufenden Kalendermonat, an denen `userId` kocht
  * (self als Koch — nicht: für jemand anderen eingetragen).

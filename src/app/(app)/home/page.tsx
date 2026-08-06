@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format, getISOWeek, getISOWeekYear, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
+import { Check, TriangleAlert } from "lucide-react";
 import { TaskList } from "@/components/task-list";
 import { PrivateNotes } from "@/components/private-notes";
 import {
@@ -8,7 +9,12 @@ import {
   TimeGapsReminder,
 } from "@/components/home-reminders";
 import { listAssignedChoresForUser } from "@/lib/chores";
-import { listUpcomingCookingForUser } from "@/lib/cooking";
+import {
+  countUserCookingSlotsInMonth,
+  getKochplanSpaceId,
+  listUpcomingCookingForUser,
+  MONTHLY_COOKING_TARGET,
+} from "@/lib/cooking";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
 import { getCurrentDashboardItems } from "@/lib/tasks";
@@ -55,6 +61,7 @@ export default async function HomePage() {
     items,
     user,
     cookingSlots,
+    cookingMonth,
     upcomingVacations,
     ferienplanId,
     pendingVacations,
@@ -73,6 +80,14 @@ export default async function HomePage() {
       startOfDay(today),
       4,
     ),
+    getKochplanSpaceId(membership.organizationId).then(async (spaceId) => {
+      if (!spaceId) return { spaceId: null, count: 0 };
+      const count = await countUserCookingSlotsInMonth(
+        spaceId,
+        session.user.id,
+      );
+      return { spaceId, count };
+    }),
     listUpcomingOwnVacations(
       membership.organizationId,
       session.user.id,
@@ -100,6 +115,9 @@ export default async function HomePage() {
       : Promise.resolve([]),
   ]);
 
+  const kochplanId = cookingMonth.spaceId;
+  const cookingMonthCount = cookingMonth.count;
+
   const tasks = items.filter((i) => i.kind !== "article");
   const articles = items.filter((i) => i.kind === "article");
   const choreWeekKey = `${getISOWeekYear(today)}-W${String(getISOWeek(today)).padStart(2, "0")}`;
@@ -119,16 +137,13 @@ export default async function HomePage() {
         </p>
       </header>
 
-      {isAdmin && (
+      {isAdmin && pendingVacations.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-              Admin To-Dos
-              {pendingVacations.length > 0
-                ? ` (${pendingVacations.length})`
-                : ""}
+              Admin To-Dos ({pendingVacations.length})
             </h2>
-            {ferienplanId && pendingVacations.length > 0 && (
+            {ferienplanId && (
               <Link
                 href={`/spaces/${ferienplanId}`}
                 className="text-sm font-medium text-[var(--accent)] hover:underline"
@@ -137,37 +152,31 @@ export default async function HomePage() {
               </Link>
             )}
           </div>
-          {pendingVacations.length === 0 ? (
-            <div className="card px-5 py-6 text-center text-sm text-[var(--muted)]">
-              Keine offenen Admin-To-Dos.
-            </div>
-          ) : (
-            <ul className="card divide-y divide-[var(--border)] overflow-hidden">
-              {pendingVacations.map((request) => (
-                <li
-                  key={request.id}
-                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="font-medium">Ferien genehmigen</p>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                      {request.user.name} ·{" "}
-                      {formatVacationRange(request.startDate, request.endDate)}
-                      {request.note ? ` · ${request.note}` : ""}
-                    </p>
-                  </div>
-                  {ferienplanId && (
-                    <Link
-                      href={`/spaces/${ferienplanId}`}
-                      className="shrink-0 text-sm font-medium text-[var(--accent)] hover:underline"
-                    >
-                      Prüfen
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
+            {pendingVacations.map((request) => (
+              <li
+                key={request.id}
+                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium">Ferien genehmigen</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    {request.user.name} ·{" "}
+                    {formatVacationRange(request.startDate, request.endDate)}
+                    {request.note ? ` · ${request.note}` : ""}
+                  </p>
+                </div>
+                {ferienplanId && (
+                  <Link
+                    href={`/spaces/${ferienplanId}`}
+                    className="shrink-0 text-sm font-medium text-[var(--accent)] hover:underline"
+                  >
+                    Prüfen
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -354,26 +363,53 @@ export default async function HomePage() {
         )}
       </section>
 
-      {cookingSlots.length > 0 && (
+      {kochplanId && (
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
+            <h2 className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--muted)] uppercase">
               Deine Kochtage
+              <span
+                className="inline-flex items-center gap-1 font-normal normal-case tabular-nums"
+                title="Self-Koch-Einträge im laufenden Monat"
+              >
+                ({cookingMonthCount} · Ø{" "}
+                {Number.isInteger(MONTHLY_COOKING_TARGET)
+                  ? MONTHLY_COOKING_TARGET
+                  : String(MONTHLY_COOKING_TARGET).replace(".", ",")}
+                /Monat)
+                {cookingMonthCount >= MONTHLY_COOKING_TARGET ? (
+                  <Check
+                    className="size-3.5 text-emerald-700"
+                    aria-label="Monatsquote erreicht"
+                  />
+                ) : (
+                  <TriangleAlert
+                    className="size-3.5 text-amber-600"
+                    aria-label="Monatsquote noch nicht erreicht"
+                  />
+                )}
+              </span>
             </h2>
             <Link
-              href={`/spaces/${cookingSlots[0]!.space.id}`}
+              href={`/spaces/${kochplanId}`}
               className="text-sm font-medium text-[var(--accent)] hover:underline"
             >
               Zum Kochplan
             </Link>
           </div>
-          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
-            {cookingSlots.map((slot) => (
-              <li key={slot.id} className="px-4 py-3 text-sm">
-                {format(slot.date, "EEEE, d. MMMM", { locale: de })}
-              </li>
-            ))}
-          </ul>
+          {cookingSlots.length === 0 ? (
+            <div className="card px-5 py-6 text-center text-sm text-[var(--muted)]">
+              Keine kommenden Kochtage eingetragen.
+            </div>
+          ) : (
+            <ul className="card divide-y divide-[var(--border)] overflow-hidden">
+              {cookingSlots.map((slot) => (
+                <li key={slot.id} className="px-4 py-3 text-sm">
+                  {format(slot.date, "EEEE, d. MMMM", { locale: de })}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
