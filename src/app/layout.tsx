@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Syne } from "next/font/google";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import "./globals.css";
 
 const display = Syne({
@@ -18,12 +19,29 @@ export const metadata: Metadata = {
   title: "Tsüri HQ 2.0",
   description:
     "Internes Team-HQ für Tsüri — Redaktion, Projekte, Tasks und Büro.",
+  applicationName: "Tsüri HQ",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Tsüri HQ",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#2b9fe0",
 };
 
 export default function RootLayout({
@@ -33,7 +51,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className={`${display.variable} ${body.variable} h-full`}>
-      <body className="min-h-full antialiased">{children}</body>
+      <body className="min-h-full antialiased">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }
