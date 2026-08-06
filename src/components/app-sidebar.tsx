@@ -135,12 +135,19 @@ export function AppSidebar({
         style={{ background: "var(--gradient-blue)" }}
       >
         <div className="flex items-start justify-between gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/tsuri-logo.png"
-            alt="Tsüri HQ"
-            className="h-9 w-auto max-w-[11rem] object-contain object-left"
-          />
+          <Link
+            href="/home"
+            className="min-w-0"
+            onClick={onMobileClose}
+            aria-label="Zur Startseite"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/tsuri-logo.png"
+              alt="Tsüri HQ"
+              className="h-9 w-auto max-w-[11rem] object-contain object-left"
+            />
+          </Link>
           {onMobileClose && (
             <button
               type="button"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -73,12 +74,14 @@ export function AppShell({
         >
           <Menu className="size-5" strokeWidth={1.75} />
         </button>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/brand/tsuri-logo.png"
-          alt="Tsüri HQ"
-          className="h-7 w-auto max-w-[9rem] object-contain object-left"
-        />
+        <Link href="/home" className="min-w-0" aria-label="Zur Startseite">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/tsuri-logo.png"
+            alt="Tsüri HQ"
+            className="h-7 w-auto max-w-[9rem] object-contain object-left"
+          />
+        </Link>
         <p className="ml-auto truncate text-xs font-bold opacity-90">{orgName}</p>
       </header>
 
