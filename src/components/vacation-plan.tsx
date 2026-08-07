@@ -219,6 +219,7 @@ export function VacationPlan({
   const [message, setMessage] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<VacationRow | null>(null);
+  const [mineOnly, setMineOnly] = useState(false);
 
   const now = new Date();
   const [cursor, setCursor] = useState(() => ({
@@ -229,6 +230,15 @@ export function VacationPlan({
   const mine = requests.filter((r) => r.user.id === currentUserId);
   const pendingReview = requests.filter((r) => r.status === "pending");
   const approved = requests.filter((r) => r.status === "approved");
+  const calendarApproved = useMemo(
+    () =>
+      requests.filter(
+        (r) =>
+          r.status === "approved" &&
+          (!mineOnly || r.user.id === currentUserId),
+      ),
+    [requests, mineOnly, currentUserId],
+  );
 
   const weeks = useMemo(
     () => buildMonthWeeks(cursor.y, cursor.m0),
@@ -296,10 +306,25 @@ export function VacationPlan({
               {monthLabel(cursor.y, cursor.m0)}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Genehmigte Ferien des gesamten Teams.
+              {mineOnly
+                ? "Nur deine genehmigten Ferien."
+                : "Genehmigte Ferien des gesamten Teams."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              aria-pressed={mineOnly}
+              className={[
+                "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                mineOnly
+                  ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                  : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+              ].join(" ")}
+              onClick={() => setMineOnly((v) => !v)}
+            >
+              Meine Ferien
+            </button>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -447,7 +472,7 @@ export function VacationPlan({
             </div>
 
             {weeks.map((week) => {
-              const bars = barsForWeek(week, approved);
+              const bars = barsForWeek(week, calendarApproved);
               const laneCount =
                 bars.reduce((max, b) => Math.max(max, b.lane + 1), 0) || 0;
               const barsHeight = Math.max(laneCount, 1) * 46 + 8;
