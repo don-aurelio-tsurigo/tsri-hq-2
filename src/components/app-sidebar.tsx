@@ -166,40 +166,15 @@ export function AppSidebar({
       </div>
 
       <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Privat
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink
-              href="/home"
-              active={pathname === "/home" || pathname === "/inbox"}
-              icon={Home}
-              onNavigate={onMobileClose}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              href="/hours"
-              active={
-                pathname === "/hours" || pathname.startsWith("/hours/")
-              }
-              icon={Clock}
-              onNavigate={onMobileClose}
-            >
-              Arbeitszeit
-            </NavLink>
-            <NavLink
-              href="/tasks"
-              active={
-                pathname === "/tasks" || pathname.startsWith("/tasks/")
-              }
-              icon={CheckSquare}
-              onNavigate={onMobileClose}
-            >
-              Meine Tasks
-            </NavLink>
-          </div>
+        <div className="flex flex-col gap-0.5">
+          <NavLink
+            href="/home"
+            active={pathname === "/home" || pathname === "/inbox"}
+            icon={Home}
+            onNavigate={onMobileClose}
+          >
+            Home
+          </NavLink>
         </div>
 
         <div>
@@ -234,6 +209,14 @@ export function AppSidebar({
             >
               Newsletter
             </NavLink>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
+            Civic Media
+          </p>
+          <div className="flex flex-col gap-0.5">
             <NavLink
               href="/projects"
               active={
@@ -244,6 +227,34 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Projekte
+            </NavLink>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
+            Privat
+          </p>
+          <div className="flex flex-col gap-0.5">
+            <NavLink
+              href="/tasks"
+              active={
+                pathname === "/tasks" || pathname.startsWith("/tasks/")
+              }
+              icon={CheckSquare}
+              onNavigate={onMobileClose}
+            >
+              Meine Tasks
+            </NavLink>
+            <NavLink
+              href="/hours"
+              active={
+                pathname === "/hours" || pathname.startsWith("/hours/")
+              }
+              icon={Clock}
+              onNavigate={onMobileClose}
+            >
+              Arbeitszeit
             </NavLink>
           </div>
         </div>
