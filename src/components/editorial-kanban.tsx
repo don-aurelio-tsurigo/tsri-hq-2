@@ -288,7 +288,7 @@ export function EditorialKanban({
             {isAdmin && (
               <button
                 type="button"
-                className="text-xs font-medium text-[var(--accent)] hover:underline"
+                className="text-xs font-normal text-[var(--muted)] hover:text-[var(--fg)] hover:underline"
                 onClick={() => {
                   setManageRubriken(false);
                   setManageCategories(true);
@@ -317,7 +317,7 @@ export function EditorialKanban({
             {isAdmin && (
               <button
                 type="button"
-                className="text-xs font-medium text-[var(--accent)] hover:underline"
+                className="text-xs font-normal text-[var(--muted)] hover:text-[var(--fg)] hover:underline"
                 onClick={() => {
                   setManageCategories(false);
                   setManageRubriken(true);
