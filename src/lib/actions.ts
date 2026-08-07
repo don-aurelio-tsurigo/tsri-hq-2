@@ -934,21 +934,16 @@ const projectCreateSchema = z.object({
     .trim()
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
-  projectStatus: z
-    .enum(["idea", "planning", "live", "done"])
-    .optional(),
 });
 
 export async function createProject(formData: FormData) {
   const { session, membership } = await requireMembership();
-  const statusRaw = String(formData.get("projectStatus") ?? "").trim();
   const parsed = projectCreateSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description") || undefined,
     templateId: formData.get("templateId") || undefined,
     eventAt: formData.get("eventAt") || undefined,
     venue: formData.get("venue") || undefined,
-    projectStatus: statusRaw || undefined,
   });
   if (!parsed.success) {
     return { error: "Projektname fehlt oder ist ungültig (min. 2 Zeichen)." };
@@ -1005,7 +1000,6 @@ export async function createProject(formData: FormData) {
       isTemplate: false,
       eventAt,
       venue: parsed.data.venue?.trim() || null,
-      projectStatus: parsed.data.projectStatus ?? (eventAt ? "planning" : "idea"),
     },
   });
 
@@ -1132,7 +1126,6 @@ export async function saveProjectAsTemplate(formData: FormData) {
       // Templates keep no concrete event date; offsets live on tasks
       eventAt: null,
       venue: null,
-      projectStatus: null,
     },
   });
 
@@ -1148,12 +1141,10 @@ const projectEventMetaSchema = z.object({
   spaceId: z.string().min(1),
   eventAt: z.string().optional(),
   venue: z.string().max(200).optional(),
-  projectStatus: z.enum(["idea", "planning", "live", "done"]).optional(),
 });
 
 export async function updateProjectEventMeta(formData: FormData) {
   const { session, membership } = await requireMembership();
-  const statusRaw = String(formData.get("projectStatus") ?? "").trim();
   const parsed = projectEventMetaSchema.safeParse({
     spaceId: formData.get("spaceId"),
     eventAt: formData.has("eventAt")
@@ -1162,7 +1153,6 @@ export async function updateProjectEventMeta(formData: FormData) {
     venue: formData.has("venue")
       ? String(formData.get("venue") ?? "")
       : undefined,
-    projectStatus: statusRaw || undefined,
   });
   if (!parsed.success) {
     return { error: "Ungültige Event-Daten." };
@@ -1195,15 +1185,11 @@ export async function updateProjectEventMeta(formData: FormData) {
   const data: {
     eventAt?: Date | null;
     venue?: string | null;
-    projectStatus?: "idea" | "planning" | "live" | "done" | null;
   } = {};
 
   if (eventAt !== undefined) data.eventAt = eventAt;
   if (parsed.data.venue !== undefined) {
     data.venue = parsed.data.venue.trim() || null;
-  }
-  if (parsed.data.projectStatus !== undefined) {
-    data.projectStatus = parsed.data.projectStatus;
   }
 
   await prisma.space.update({

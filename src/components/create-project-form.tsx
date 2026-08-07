@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { createProject } from "@/lib/actions";
-import { PROJECT_STATUSES, PROJECT_STATUS_LABELS } from "@/lib/project-meta";
 
 type TemplateOption = { id: string; name: string; taskCount: number };
 
@@ -73,7 +72,7 @@ export function CreateProjectForm({
           placeholder="Kurz: Ziel, Kontext…"
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="field">
           <label htmlFor="project-event">Event-Datum</label>
           <input id="project-event" name="eventAt" type="date" />
@@ -85,16 +84,6 @@ export function CreateProjectForm({
             name="venue"
             placeholder="optional"
           />
-        </div>
-        <div className="field">
-          <label htmlFor="project-status">Status</label>
-          <select id="project-status" name="projectStatus" defaultValue="idea">
-            {PROJECT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {PROJECT_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
       {templates.length > 0 && (

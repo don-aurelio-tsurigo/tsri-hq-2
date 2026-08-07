@@ -80,7 +80,6 @@ export default async function ProjectDetailPage({
             spaceId={project.id}
             eventAt={project.eventAt}
             venue={project.venue}
-            projectStatus={project.projectStatus}
             phases={phases}
             canEdit={canEdit && !archived}
             isTemplate={project.isTemplate}

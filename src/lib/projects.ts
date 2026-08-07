@@ -6,8 +6,6 @@ import {
 } from "@/lib/project-meta";
 
 export {
-  PROJECT_STATUS_LABELS,
-  PROJECT_STATUSES,
   dueAtFromEvent,
   offsetFromEvent,
   toDateInputValue,

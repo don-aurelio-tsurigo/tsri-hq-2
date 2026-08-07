@@ -5,13 +5,7 @@ import { useState, useTransition } from "react";
 import { differenceInCalendarDays, format, parseISO, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
 import { updateProjectEventMeta } from "@/lib/actions";
-import {
-  PROJECT_STATUSES,
-  PROJECT_STATUS_LABELS,
-  toDateInputValue,
-  type PhaseProgress,
-} from "@/lib/project-meta";
-import type { ProjectStatus } from "@/generated/prisma/client";
+import { toDateInputValue, type PhaseProgress } from "@/lib/project-meta";
 
 function countdownLabel(eventAt: Date | string | null) {
   if (!eventAt) return null;
@@ -32,7 +26,6 @@ export function ProjectEventMeta({
   spaceId,
   eventAt,
   venue,
-  projectStatus,
   phases,
   canEdit = true,
   isTemplate = false,
@@ -40,7 +33,6 @@ export function ProjectEventMeta({
   spaceId: string;
   eventAt: Date | string | null;
   venue: string | null;
-  projectStatus: ProjectStatus | null;
   phases: PhaseProgress[];
   canEdit?: boolean;
   isTemplate?: boolean;
@@ -114,7 +106,7 @@ export function ProjectEventMeta({
             {error}
           </p>
         )}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="field">
             <label htmlFor="event-at">Event-Datum</label>
             <input
@@ -135,21 +127,6 @@ export function ProjectEventMeta({
               disabled={pending}
             />
           </div>
-          <div className="field">
-            <label htmlFor="event-status">Status</label>
-            <select
-              id="event-status"
-              name="projectStatus"
-              defaultValue={projectStatus ?? "idea"}
-              disabled={pending}
-            >
-              {PROJECT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {PROJECT_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
         <p className="text-xs text-[var(--muted)]">
           Ändern des Event-Datums aktualisiert alle Tasks mit relativem Offset.
@@ -165,24 +142,19 @@ export function ProjectEventMeta({
     <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {projectStatus && (
-              <span className="badge">{PROJECT_STATUS_LABELS[projectStatus]}</span>
-            )}
-            {eventLabel ? (
-              <p className="text-sm font-semibold">
-                {eventLabel}
-                {countdown ? (
-                  <span className="font-normal text-[var(--muted)]">
-                    {" "}
-                    · {countdown}
-                  </span>
-                ) : null}
-              </p>
-            ) : (
-              <p className="text-sm text-[var(--muted)]">Kein Event-Datum gesetzt</p>
-            )}
-          </div>
+          {eventLabel ? (
+            <p className="text-sm font-semibold">
+              {eventLabel}
+              {countdown ? (
+                <span className="font-normal text-[var(--muted)]">
+                  {" "}
+                  · {countdown}
+                </span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Kein Event-Datum gesetzt</p>
+          )}
           {venue && (
             <p className="text-sm text-[var(--muted)]">{venue}</p>
           )}

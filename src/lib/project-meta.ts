@@ -1,19 +1,4 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
-import type { ProjectStatus } from "@/generated/prisma/client";
-
-export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
-  idea: "Idee",
-  planning: "Planung",
-  live: "Live",
-  done: "Abgeschlossen",
-};
-
-export const PROJECT_STATUSES = [
-  "idea",
-  "planning",
-  "live",
-  "done",
-] as const satisfies readonly ProjectStatus[];
 
 /** Calendar-day offset: negative = before event. */
 export function dueAtFromEvent(
