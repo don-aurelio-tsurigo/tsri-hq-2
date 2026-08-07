@@ -127,6 +127,9 @@ export async function listArticles(spaceId: string) {
       eigenleistungRubrik: {
         select: { id: true, name: true, color: true },
       },
+      category: {
+        select: { id: true, name: true, color: true, active: true },
+      },
     },
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });

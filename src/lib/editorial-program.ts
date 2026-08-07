@@ -36,6 +36,9 @@ export async function listProgramArticles(spaceId: string) {
     include: {
       assignee: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
+      category: {
+        select: { id: true, name: true, color: true, active: true },
+      },
     },
     orderBy: [
       { publishAt: "asc" },

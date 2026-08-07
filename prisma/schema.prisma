@@ -129,6 +129,7 @@ model Organization {
   vacationRequests VacationRequest[]
   timeEntries      TimeEntry[]
   eigenleistungRubriken EigenleistungRubrik[]
+  articleCategories   ArticleCategory[]
   wikiPages        WikiPage[]
   newsItems        NewsItem[]
 
@@ -274,13 +275,24 @@ enum TaskKind {
   cooking
 }
 
-/// Redaktions-Kategorien (Filter)
-enum ArticleCategory {
-  nuetzliches
-  leicht_und_seicht
-  persoenliche_perspektive
-  groesseres_ganzes
-  aha_perspektive
+/// Redaktions-Kategorien (admin-verwaltbar, org-weit)
+model ArticleCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  /// CSS-Farbe z.B. #d4edc0
+  color          String   @default("#e5e7eb")
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, sortOrder])
+  @@map("article_category")
 }
 
 /// Eigenleistungs-Rubriken (admin-verwaltbar, org-weit)
@@ -313,7 +325,7 @@ model Task {
   kind        TaskKind         @default(generic)
   /// Editorial Kanban stage (see ARTICLE_STAGES)
   stage       String?
-  category    ArticleCategory?
+  categoryId  String?
   eigenleistungRubrikId String?
   assigneeId  String?
   createdById String
@@ -331,6 +343,7 @@ model Task {
   group     TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  category            ArticleCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   eigenleistungRubrik EigenleistungRubrik? @relation(fields: [eigenleistungRubrikId], references: [id], onDelete: SetNull)
   assignments TaskAssignment[]
 
@@ -342,7 +355,7 @@ model Task {
   @@index([assigneeId])
   @@index([createdById])
   @@index([kind])
-  @@index([category])
+  @@index([categoryId])
   @@index([eigenleistungRubrikId])
   @@map("task")
 }

@@ -12,22 +12,25 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { setArticlePublishAt, updateTask } from "@/lib/actions";
 import {
-  ARTICLE_CATEGORIES,
-  ARTICLE_CATEGORY_LABELS,
   ARTICLE_STAGES,
   ARTICLE_STAGE_LABELS,
   DEFAULT_ARTICLE_STAGE,
-  isArticleCategory,
   isArticleStage,
-  type ArticleCategory,
 } from "@/lib/editorial";
+
+type ProgramCategory = {
+  id: string;
+  name: string;
+  color: string;
+};
 
 type ProgramArticle = {
   id: string;
   title: string;
   description: string | null;
   stage: string | null;
-  category: string | null;
+  categoryId: string | null;
+  category: ProgramCategory | null;
   publishAt: string | null;
   assigneeId: string | null;
   assignee: { id: string; name: string } | null;
@@ -48,32 +51,28 @@ type ViewMode = "woche" | "liste";
 
 const DRAWER_MS = 280;
 
-const CATEGORY_ROW_TINT: Record<ArticleCategory, string> = {
-  nuetzliches: "bg-[color-mix(in_oklab,#b8d99a_28%,white)]",
-  leicht_und_seicht: "bg-[color-mix(in_oklab,#f0c89a_32%,white)]",
-  persoenliche_perspektive: "bg-[color-mix(in_oklab,#c9b8e8_28%,white)]",
-  groesseres_ganzes: "bg-[color-mix(in_oklab,#9ec9e8_28%,white)]",
-  aha_perspektive: "bg-[color-mix(in_oklab,#e8c99e_28%,white)]",
-};
+function categoryCardStyle(color: string | null | undefined) {
+  if (!color) return undefined;
+  return {
+    borderColor: color,
+    background: `color-mix(in oklab, ${color} 22%, white)`,
+  } as const;
+}
 
-const CATEGORY_PILL: Record<ArticleCategory, string> = {
-  nuetzliches: "bg-[#d4edc0] text-[#2f4a1f]",
-  leicht_und_seicht: "bg-[#f5d9b8] text-[#5c3d18]",
-  persoenliche_perspektive: "bg-[#ddd0f5] text-[#3d2a5c]",
-  groesseres_ganzes: "bg-[#c5dff5] text-[#1e3a52]",
-  aha_perspektive: "bg-[#f0d9b8] text-[#5c3d18]",
-};
+function categoryRowStyle(color: string | null | undefined) {
+  if (!color) return undefined;
+  return {
+    background: `color-mix(in oklab, ${color} 28%, white)`,
+  } as const;
+}
 
-const CATEGORY_CARD: Record<ArticleCategory, string> = {
-  nuetzliches: "border-[#b8d99a] bg-[color-mix(in_oklab,#b8d99a_22%,white)]",
-  leicht_und_seicht:
-    "border-[#f0c89a] bg-[color-mix(in_oklab,#f0c89a_26%,white)]",
-  persoenliche_perspektive:
-    "border-[#c9b8e8] bg-[color-mix(in_oklab,#c9b8e8_22%,white)]",
-  groesseres_ganzes:
-    "border-[#9ec9e8] bg-[color-mix(in_oklab,#9ec9e8_22%,white)]",
-  aha_perspektive: "border-[#e8c99e] bg-[color-mix(in_oklab,#e8c99e_26%,white)]",
-};
+function categoryPillStyle(color: string | null | undefined) {
+  if (!color) return undefined;
+  return {
+    background: color,
+    color: "#1a1a1a",
+  } as const;
+}
 
 export function EditorialProgram({
   weekLabel,
@@ -83,6 +82,7 @@ export function EditorialProgram({
   days,
   articles,
   members,
+  categories,
 }: {
   weekLabel: string;
   prevWeek: string;
@@ -91,6 +91,7 @@ export function EditorialProgram({
   days: DayColumn[];
   articles: ProgramArticle[];
   members: Member[];
+  categories: ProgramCategory[];
 }) {
   const router = useRouter();
   const [view, setView] = useState<ViewMode>("woche");
@@ -169,11 +170,11 @@ export function EditorialProgram({
     });
   }
 
-  function setCategory(articleId: string, category: string) {
+  function setCategory(articleId: string, categoryId: string) {
     run(async () => {
       const fd = new FormData();
       fd.set("id", articleId);
-      fd.set("category", category);
+      fd.set("categoryId", categoryId);
       return updateTask(fd);
     });
   }
@@ -337,6 +338,7 @@ export function EditorialProgram({
                   <ProgramTable
                     articles={group.items}
                     members={members}
+                    categories={categories}
                     pending={pending}
                     selectedId={selectedId}
                     onOpen={(id) => setSelectedId(id)}
@@ -354,6 +356,7 @@ export function EditorialProgram({
       <ArticleDrawer
         article={selectedArticle}
         members={members}
+        categories={categories}
         pending={pending}
         onClose={() => setSelectedId(null)}
         onSave={saveArticle}
@@ -373,15 +376,16 @@ function ArticleChip({
   active?: boolean;
   onOpen: () => void;
 }) {
-  const cat = isArticleCategory(article.category) ? article.category : null;
+  const cat = article.category;
   return (
     <div
       className={[
         "rounded-lg border px-2.5 py-2 shadow-sm",
         disabled ? "cursor-default opacity-70" : "",
         active ? "ring-2 ring-[var(--accent)]" : "",
-        cat ? CATEGORY_CARD[cat] : "border-[var(--border)] bg-white",
+        cat ? "" : "border-[var(--border)] bg-white",
       ].join(" ")}
+      style={categoryCardStyle(cat?.color)}
     >
       <button
         type="button"
@@ -400,12 +404,10 @@ function ArticleChip({
       </button>
       {cat && (
         <span
-          className={[
-            "mt-1.5 inline-block rounded-full px-2 py-0.5 text-[0.65rem] font-medium",
-            CATEGORY_PILL[cat],
-          ].join(" ")}
+          className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[0.65rem] font-medium"
+          style={categoryPillStyle(cat.color)}
         >
-          {ARTICLE_CATEGORY_LABELS[cat]}
+          {cat.name}
         </span>
       )}
     </div>
@@ -415,12 +417,14 @@ function ArticleChip({
 function ArticleDrawer({
   article,
   members,
+  categories,
   pending,
   onClose,
   onSave,
 }: {
   article: ProgramArticle | null;
   members: Member[];
+  categories: ProgramCategory[];
   pending: boolean;
   onClose: () => void;
   onSave: (fd: FormData) => void;
@@ -504,6 +508,7 @@ function ArticleDrawer({
             key={panelArticle.id}
             article={panelArticle}
             members={members}
+            categories={categories}
             pending={pending}
             onSave={onSave}
             onCancel={onClose}
@@ -517,12 +522,14 @@ function ArticleDrawer({
 function ArticleEditForm({
   article,
   members,
+  categories,
   pending,
   onSave,
   onCancel,
 }: {
   article: ProgramArticle;
   members: Member[];
+  categories: ProgramCategory[];
   pending: boolean;
   onSave: (fd: FormData) => void;
   onCancel: () => void;
@@ -584,14 +591,14 @@ function ArticleEditForm({
         <label htmlFor={`prog-category-${article.id}`}>Kategorie</label>
         <select
           id={`prog-category-${article.id}`}
-          name="category"
-          defaultValue={article.category ?? ""}
+          name="categoryId"
+          defaultValue={article.categoryId ?? ""}
           disabled={pending}
         >
           <option value="">— keine —</option>
-          {ARTICLE_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {ARTICLE_CATEGORY_LABELS[cat]}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -627,6 +634,7 @@ function ArticleEditForm({
 function ProgramTable({
   articles,
   members,
+  categories,
   pending,
   selectedId,
   onOpen,
@@ -636,12 +644,13 @@ function ProgramTable({
 }: {
   articles: ProgramArticle[];
   members: Member[];
+  categories: ProgramCategory[];
   pending: boolean;
   selectedId: string | null;
   onOpen: (id: string) => void;
   onAssign: (id: string, date: string | null) => void;
   onAssignee: (id: string, assigneeId: string) => void;
-  onCategory: (id: string, category: string) => void;
+  onCategory: (id: string, categoryId: string) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow)]">
@@ -657,17 +666,15 @@ function ProgramTable({
         </thead>
         <tbody>
           {articles.map((article) => {
-            const cat = isArticleCategory(article.category)
-              ? article.category
-              : null;
-            const rowTint = cat ? CATEGORY_ROW_TINT[cat] : "bg-white";
+            const cat = article.category;
             const active = selectedId === article.id;
             return (
               <tr
                 key={article.id}
-                className={`group border-b border-[var(--border)] last:border-b-0 ${rowTint} ${
-                  active ? "ring-inset ring-2 ring-[var(--accent)]" : ""
-                }`}
+                className={`group border-b border-[var(--border)] last:border-b-0 ${
+                  cat ? "" : "bg-white"
+                } ${active ? "ring-inset ring-2 ring-[var(--accent)]" : ""}`}
+                style={categoryRowStyle(cat?.color)}
               >
                 <td className="px-3 py-2.5 align-middle text-[var(--muted)] capitalize">
                   {article.publishAt
@@ -723,18 +730,17 @@ function ProgramTable({
                   <select
                     className={[
                       "rounded-full border-0 px-2.5 py-1 text-xs font-medium",
-                      cat
-                        ? CATEGORY_PILL[cat]
-                        : "bg-black/5 text-[var(--muted)]",
+                      cat ? "" : "bg-black/5 text-[var(--muted)]",
                     ].join(" ")}
+                    style={categoryPillStyle(cat?.color)}
                     disabled={pending}
-                    value={article.category ?? ""}
+                    value={article.categoryId ?? ""}
                     onChange={(e) => onCategory(article.id, e.target.value)}
                   >
                     <option value="">—</option>
-                    {ARTICLE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {ARTICLE_CATEGORY_LABELS[c]}
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
                       </option>
                     ))}
                   </select>

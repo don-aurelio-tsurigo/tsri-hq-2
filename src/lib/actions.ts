@@ -10,7 +10,6 @@ import { ensurePersonalSpace } from "@/lib/spaces";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import {
   DEFAULT_ARTICLE_STAGE,
-  isArticleCategory,
   isArticleStage,
 } from "@/lib/editorial";
 import {
@@ -216,7 +215,7 @@ const taskCreateSchema = z.object({
   assigneeId: z.string().optional(),
   groupId: z.string().optional(),
   kind: z.enum(["generic", "article", "chore", "cooking"]).optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
   stage: z.string().optional(),
   eigenleistungRubrikId: z.string().optional(),
   publishAt: z.string().optional(),
@@ -234,7 +233,9 @@ export async function createTask(formData: FormData) {
       ? String(formData.get("groupId") ?? "")
       : undefined,
     kind: formData.get("kind") || "generic",
-    category: formData.get("category") || undefined,
+    categoryId: formData.has("categoryId")
+      ? String(formData.get("categoryId") ?? "")
+      : undefined,
     stage: formData.get("stage") || undefined,
     eigenleistungRubrikId: formData.has("eigenleistungRubrikId")
       ? String(formData.get("eigenleistungRubrikId") ?? "")
@@ -302,10 +303,22 @@ export async function createTask(formData: FormData) {
     assigneeId = parsed.data.assigneeId;
   }
 
-  const category =
-    kind === "article" && isArticleCategory(parsed.data.category)
-      ? parsed.data.category
-      : undefined;
+  let categoryId: string | null | undefined;
+  if (kind === "article" && parsed.data.categoryId !== undefined) {
+    if (parsed.data.categoryId === "") {
+      categoryId = null;
+    } else {
+      const cat = await prisma.articleCategory.findFirst({
+        where: {
+          id: parsed.data.categoryId,
+          organizationId: membership.organizationId,
+          active: true,
+        },
+      });
+      if (!cat) return { error: "Ungültige Kategorie." };
+      categoryId = cat.id;
+    }
+  }
 
   let eigenleistungRubrikId: string | null | undefined;
   if (kind === "article" && parsed.data.eigenleistungRubrikId !== undefined) {
@@ -352,12 +365,7 @@ export async function createTask(formData: FormData) {
     description: string | null;
     kind: "generic" | "article" | "chore" | "cooking";
     stage?: string;
-    category?:
-      | "nuetzliches"
-      | "leicht_und_seicht"
-      | "persoenliche_perspektive"
-      | "groesseres_ganzes"
-      | "aha_perspektive";
+    categoryId?: string | null;
     eigenleistungRubrikId?: string | null;
     publishAt?: Date | null;
     assigneeId: string | null;
@@ -386,7 +394,7 @@ export async function createTask(formData: FormData) {
   // Only send editorial fields for articles — avoids invalid args on generic creates
   if (kind === "article") {
     createData.stage = stage;
-    if (category) createData.category = category;
+    if (categoryId !== undefined) createData.categoryId = categoryId;
     if (eigenleistungRubrikId !== undefined) {
       createData.eigenleistungRubrikId = eigenleistungRubrikId;
     }
@@ -422,7 +430,7 @@ const taskUpdateSchema = z.object({
   dueAt: z.string().optional(),
   publishAt: z.string().optional(),
   stage: z.string().optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
   eigenleistungRubrikId: z.string().optional(),
   assigneeId: z.string().optional(),
   groupId: z.string().optional(),
@@ -448,8 +456,8 @@ export async function updateTask(formData: FormData) {
       ? String(formData.get("publishAt") ?? "")
       : undefined,
     stage: formData.get("stage") || undefined,
-    category: formData.has("category")
-      ? String(formData.get("category") ?? "")
+    categoryId: formData.has("categoryId")
+      ? String(formData.get("categoryId") ?? "")
       : undefined,
     eigenleistungRubrikId: formData.has("eigenleistungRubrikId")
       ? String(formData.get("eigenleistungRubrikId") ?? "")
@@ -486,13 +494,7 @@ export async function updateTask(formData: FormData) {
     dueAt?: Date | null;
     publishAt?: Date | null;
     stage?: string;
-    category?:
-      | "nuetzliches"
-      | "leicht_und_seicht"
-      | "persoenliche_perspektive"
-      | "groesseres_ganzes"
-      | "aha_perspektive"
-      | null;
+    categoryId?: string | null;
     eigenleistungRubrikId?: string | null;
     assigneeId?: string | null;
     groupId?: string | null;
@@ -524,14 +526,20 @@ export async function updateTask(formData: FormData) {
           : "todo";
   }
   if (parsed.data.clearCategory === "1") {
-    data.category = null;
-  } else if (parsed.data.category !== undefined) {
-    data.category =
-      parsed.data.category === ""
-        ? null
-        : isArticleCategory(parsed.data.category)
-          ? parsed.data.category
-          : null;
+    data.categoryId = null;
+  } else if (parsed.data.categoryId !== undefined) {
+    if (parsed.data.categoryId === "") {
+      data.categoryId = null;
+    } else {
+      const cat = await prisma.articleCategory.findFirst({
+        where: {
+          id: parsed.data.categoryId,
+          organizationId: membership.organizationId,
+        },
+      });
+      if (!cat) return { error: "Ungültige Kategorie." };
+      data.categoryId = cat.id;
+    }
   }
   if (parsed.data.eigenleistungRubrikId !== undefined) {
     if (parsed.data.eigenleistungRubrikId === "") {
@@ -2923,6 +2931,101 @@ export async function deleteEigenleistungRubrik(formData: FormData) {
   if (!existing) return { error: "Rubrik nicht gefunden." };
 
   await prisma.eigenleistungRubrik.delete({ where: { id } });
+  await revalidateRedaktion(membership.organizationId);
+  return { ok: true as const };
+}
+
+// ─── Artikel-Kategorien ────────────────────────────────────────
+
+export async function createArticleCategory(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = rubrikSchema.safeParse({
+    name: formData.get("name"),
+    color: formData.get("color") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: "Name (und ggf. Farbe #RRGGBB) prüfen." };
+  }
+
+  const maxSort = await prisma.articleCategory.aggregate({
+    where: { organizationId: membership.organizationId },
+    _max: { sortOrder: true },
+  });
+
+  try {
+    await prisma.articleCategory.create({
+      data: {
+        organizationId: membership.organizationId,
+        name: parsed.data.name.trim(),
+        color: parsed.data.color ?? "#e5e7eb",
+        sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+      },
+    });
+  } catch {
+    return {
+      error: "Kategorie existiert bereits oder konnte nicht erstellt werden.",
+    };
+  }
+
+  await revalidateRedaktion(membership.organizationId);
+  return { ok: true as const };
+}
+
+export async function updateArticleCategory(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Fehlende ID." };
+
+  const parsed = rubrikSchema
+    .extend({
+      active: z.enum(["true", "false"]).optional(),
+    })
+    .safeParse({
+      name: formData.get("name"),
+      color: formData.get("color") || undefined,
+      active: formData.has("active")
+        ? String(formData.get("active"))
+        : undefined,
+    });
+  if (!parsed.success) {
+    return { error: "Name (und ggf. Farbe #RRGGBB) prüfen." };
+  }
+
+  const existing = await prisma.articleCategory.findFirst({
+    where: { id, organizationId: membership.organizationId },
+  });
+  if (!existing) return { error: "Kategorie nicht gefunden." };
+
+  try {
+    await prisma.articleCategory.update({
+      where: { id },
+      data: {
+        name: parsed.data.name.trim(),
+        ...(parsed.data.color ? { color: parsed.data.color } : {}),
+        ...(parsed.data.active !== undefined
+          ? { active: parsed.data.active === "true" }
+          : {}),
+      },
+    });
+  } catch {
+    return { error: "Speichern fehlgeschlagen (Name evtl. doppelt)." };
+  }
+
+  await revalidateRedaktion(membership.organizationId);
+  return { ok: true as const };
+}
+
+export async function deleteArticleCategory(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Fehlende ID." };
+
+  const existing = await prisma.articleCategory.findFirst({
+    where: { id, organizationId: membership.organizationId },
+  });
+  if (!existing) return { error: "Kategorie nicht gefunden." };
+
+  await prisma.articleCategory.delete({ where: { id } });
   await revalidateRedaktion(membership.organizationId);
   return { ok: true as const };
 }

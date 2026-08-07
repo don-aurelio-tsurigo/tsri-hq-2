@@ -19,6 +19,10 @@ import {
   listEigenleistungRubriken,
 } from "@/lib/eigenleistung";
 import {
+  ensureDefaultArticleCategories,
+  listArticleCategories,
+} from "@/lib/article-categories";
+import {
   formatProgramDay,
   formatWeekRange,
   getWeekMonday as getProgramWeekMonday,
@@ -154,13 +158,16 @@ export default async function SpacePage({
   }
 
   if (space.slug === "redaktion") {
-    await ensureDefaultEigenleistungRubriken(membership.organizationId);
+    await Promise.all([
+      ensureDefaultEigenleistungRubriken(membership.organizationId),
+      ensureDefaultArticleCategories(membership.organizationId),
+    ]);
 
     const monday = parseProgramWeekParam(weekParam);
     const days = weekDays(monday);
     const today = startOfDay(new Date());
 
-    const [allArticles, programArticles, members, rubriken] =
+    const [allArticles, programArticles, members, rubriken, categories] =
       await Promise.all([
         listArticles(space.id),
         listProgramArticles(space.id),
@@ -173,6 +180,7 @@ export default async function SpacePage({
           orderBy: { user: { name: "asc" } },
         }),
         listEigenleistungRubriken(membership.organizationId),
+        listArticleCategories(membership.organizationId),
       ]);
 
     const memberUsers = members.map((m) => m.user);
@@ -208,6 +216,7 @@ export default async function SpacePage({
             articles={serialized}
             members={memberUsers}
             rubriken={rubriken}
+            categories={categories}
             canEdit={canEdit}
             isAdmin={membership.role === "admin"}
           />
@@ -241,6 +250,7 @@ export default async function SpacePage({
               title: a.title,
               description: a.description,
               stage: a.stage,
+              categoryId: a.categoryId,
               category: a.category,
               publishAt: a.publishAt ? programDateKey(a.publishAt) : null,
               assigneeId: a.assigneeId,
@@ -249,6 +259,7 @@ export default async function SpacePage({
               createdBy: a.createdBy,
             }))}
             members={memberUsers}
+            categories={categories.filter((c) => c.active)}
           />
         </section>
       </div>

@@ -10,14 +10,15 @@ import {
   type RubrikOption,
 } from "@/components/eigenleistung-rubrik-manager";
 import {
-  ARTICLE_CATEGORIES,
-  ARTICLE_CATEGORY_LABELS,
+  ArticleCategoryManager,
+  type CategoryOption,
+} from "@/components/article-category-manager";
+import {
   ARTICLE_STAGES,
   ARTICLE_STAGE_COLORS,
   ARTICLE_STAGE_LABELS,
   DEFAULT_ARTICLE_STAGE,
   DEFAULT_KANBAN_VIEW,
-  isArticleCategory,
   isArticleStage,
   KANBAN_VIEW_DESCRIPTIONS,
   KANBAN_VIEW_LABELS,
@@ -36,10 +37,16 @@ export type KanbanArticle = {
   title: string;
   description: string | null;
   stage: string | null;
-  category: string | null;
+  categoryId: string | null;
   publishAt?: string | null;
   archivedAt?: string | null;
   eigenleistungRubrikId?: string | null;
+  category?: {
+    id: string;
+    name: string;
+    color: string;
+    active?: boolean;
+  } | null;
   eigenleistungRubrik?: {
     id: string;
     name: string;
@@ -58,6 +65,7 @@ export function EditorialKanban({
   articles,
   members,
   rubriken,
+  categories,
   canEdit,
   isAdmin = false,
 }: {
@@ -65,18 +73,21 @@ export function EditorialKanban({
   articles: KanbanArticle[];
   members: Member[];
   rubriken: RubrikOption[];
+  categories: CategoryOption[];
   canEdit: boolean;
   isAdmin?: boolean;
 }) {
   const [view, setView] = useState<KanbanViewId>(DEFAULT_KANBAN_VIEW);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [rubrikId, setRubrikId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [manageCategories, setManageCategories] = useState(false);
+  const [manageRubriken, setManageRubriken] = useState(false);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -84,11 +95,15 @@ export function EditorialKanban({
     () => rubriken.filter((r) => r.active),
     [rubriken],
   );
+  const activeCategories = useMemo(
+    () => categories.filter((c) => c.active),
+    [categories],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return articles.filter((article) => {
-      if (category && article.category !== category) return false;
+      if (categoryId && article.categoryId !== categoryId) return false;
       if (rubrikId && article.eigenleistungRubrikId !== rubrikId) return false;
       if (assigneeId && article.assigneeId !== assigneeId) return false;
       if (createdFrom) {
@@ -106,7 +121,7 @@ export function EditorialKanban({
       }
       return true;
     });
-  }, [articles, query, category, rubrikId, assigneeId, createdFrom, createdTo]);
+  }, [articles, query, categoryId, rubrikId, assigneeId, createdFrom, createdTo]);
 
   const viewArticles = useMemo(() => {
     if (view === "archiv") {
@@ -240,7 +255,18 @@ export function EditorialKanban({
         )}
       </div>
 
-      {isAdmin && <EigenleistungRubrikManager rubriken={rubriken} />}
+      {isAdmin && manageCategories && (
+        <ArticleCategoryManager
+          categories={categories}
+          onClose={() => setManageCategories(false)}
+        />
+      )}
+      {isAdmin && manageRubriken && (
+        <EigenleistungRubrikManager
+          rubriken={rubriken}
+          onClose={() => setManageRubriken(false)}
+        />
+      )}
 
       <p className="text-sm text-[var(--muted)]">
         {KANBAN_VIEW_DESCRIPTIONS[view]}
@@ -257,22 +283,50 @@ export function EditorialKanban({
           />
         </div>
         <div className="field w-44">
-          <label htmlFor="filter-cat">Kategorie</label>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="filter-cat">Kategorie</label>
+            {isAdmin && (
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--accent)] hover:underline"
+                onClick={() => {
+                  setManageRubriken(false);
+                  setManageCategories(true);
+                }}
+              >
+                Bearbeiten
+              </button>
+            )}
+          </div>
           <select
             id="filter-cat"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
           >
             <option value="">Alle</option>
-            {ARTICLE_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {ARTICLE_CATEGORY_LABELS[cat]}
+            {activeCategories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
               </option>
             ))}
           </select>
         </div>
         <div className="field w-44">
-          <label htmlFor="filter-rubrik">Eigenleistung</label>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="filter-rubrik">Eigenleistung</label>
+            {isAdmin && (
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--accent)] hover:underline"
+                onClick={() => {
+                  setManageCategories(false);
+                  setManageRubriken(true);
+                }}
+              >
+                Bearbeiten
+              </button>
+            )}
+          </div>
           <select
             id="filter-rubrik"
             value={rubrikId}
@@ -451,6 +505,7 @@ export function EditorialKanban({
           spaceId={spaceId}
           members={members}
           rubriken={activeRubriken}
+          categories={activeCategories}
           onClose={() => setShowCreate(false)}
         />
       )}
@@ -459,6 +514,7 @@ export function EditorialKanban({
         article={selected}
         members={members}
         rubriken={rubriken}
+        categories={categories}
         canEdit={canEdit}
         onClose={() => setSelectedId(null)}
       />
@@ -564,10 +620,7 @@ function ArticleCard({
   showStage?: boolean;
   showPublishAt?: boolean;
 }) {
-  const categoryLabel =
-    article.category && isArticleCategory(article.category)
-      ? ARTICLE_CATEGORY_LABELS[article.category]
-      : null;
+  const categoryLabel = article.category?.name ?? null;
   const stage = isArticleStage(article.stage)
     ? article.stage
     : DEFAULT_ARTICLE_STAGE;
@@ -616,7 +669,12 @@ function ArticleCard({
             color={article.eigenleistungRubrik.color}
           />
         )}
-        {categoryLabel && <span className="badge">{categoryLabel}</span>}
+        {categoryLabel && article.category && (
+          <RubrikBadge
+            name={article.category.name}
+            color={article.category.color}
+          />
+        )}
         {showAssignee && article.assignee && (
           <span className="badge badge-muted">{article.assignee.name}</span>
         )}
@@ -634,11 +692,13 @@ function CreateArticleDialog({
   spaceId,
   members,
   rubriken,
+  categories,
   onClose,
 }: {
   spaceId: string;
   members: Member[];
   rubriken: RubrikOption[];
+  categories: CategoryOption[];
   onClose: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -693,11 +753,11 @@ function CreateArticleDialog({
           </div>
           <div className="field">
             <label htmlFor="new-category">Kategorie</label>
-            <select id="new-category" name="category" defaultValue="">
+            <select id="new-category" name="categoryId" defaultValue="">
               <option value="">— keine —</option>
-              {ARTICLE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {ARTICLE_CATEGORY_LABELS[cat]}
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>
@@ -755,12 +815,14 @@ function ArticleDetailDrawer({
   article,
   members,
   rubriken,
+  categories,
   canEdit,
   onClose,
 }: {
   article: KanbanArticle | null;
   members: Member[];
   rubriken: RubrikOption[];
+  categories: CategoryOption[];
   canEdit: boolean;
   onClose: () => void;
 }) {
@@ -912,16 +974,22 @@ function ArticleDetailDrawer({
               <label htmlFor="edit-category">Kategorie</label>
               <select
                 id="edit-category"
-                name="category"
-                defaultValue={panelArticle.category ?? ""}
+                name="categoryId"
+                defaultValue={panelArticle.categoryId ?? ""}
                 disabled={!fieldsEditable}
               >
                 <option value="">— keine —</option>
-                {ARTICLE_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {ARTICLE_CATEGORY_LABELS[cat]}
-                  </option>
-                ))}
+                {categories
+                  .filter(
+                    (c) =>
+                      c.active || c.id === panelArticle.categoryId,
+                  )
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                      {!cat.active ? " (inaktiv)" : ""}
+                    </option>
+                  ))}
               </select>
             </div>
             <div className="field">

@@ -69,34 +69,10 @@ export const KANBAN_WER_STAGES: readonly ArticleStage[] = [
 
 export const DEFAULT_KANBAN_VIEW: KanbanViewId = "inputs";
 
-export const ARTICLE_CATEGORIES = [
-  "nuetzliches",
-  "leicht_und_seicht",
-  "persoenliche_perspektive",
-  "groesseres_ganzes",
-  "aha_perspektive",
-] as const;
-
-export type ArticleCategory = (typeof ARTICLE_CATEGORIES)[number];
-
-export const ARTICLE_CATEGORY_LABELS: Record<ArticleCategory, string> = {
-  nuetzliches: "Nützliches",
-  leicht_und_seicht: "Leicht und seicht",
-  persoenliche_perspektive: "Persönl. Perspektive",
-  groesseres_ganzes: "Grösseres Ganzes",
-  aha_perspektive: "Aha Perspektive",
-};
-
 export function isArticleStage(value: string | null | undefined): value is ArticleStage {
   return !!value && (ARTICLE_STAGES as readonly string[]).includes(value);
 }
 
 export function isKanbanViewId(value: string | null | undefined): value is KanbanViewId {
   return !!value && (KANBAN_VIEWS as readonly string[]).includes(value);
-}
-
-export function isArticleCategory(
-  value: string | null | undefined,
-): value is ArticleCategory {
-  return !!value && (ARTICLE_CATEGORIES as readonly string[]).includes(value);
 }
