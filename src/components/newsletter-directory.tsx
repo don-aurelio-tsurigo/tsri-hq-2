@@ -26,6 +26,8 @@ type NewsletterTypeOption = { id: string; name: string };
 
 type CalendarMonth = {
   monthLabel: string;
+  /** Currently viewed month `yyyy-MM` */
+  monthKey: string;
   prevMonth: string;
   nextMonth: string;
   currentMonth: string;
@@ -612,14 +614,25 @@ export function NewsletterDirectory({
     selectedIds.length > 0 && selectedIds.length < types.length;
 
   const filteredDays = useMemo(() => {
+    const viewingCurrent = calendar.monthKey === calendar.currentMonth;
     return calendar.days
       .map((day) => ({
         ...day,
         slots: day.slots.filter((s) => selectedSet.has(s.typeId)),
       }))
       .filter((day) => day.slots.length > 0)
-      .filter((day) => !fromTodayOnly || day.dateKey >= today);
-  }, [calendar.days, selectedSet, fromTodayOnly, today]);
+      .filter(
+        (day) =>
+          !fromTodayOnly || !viewingCurrent || day.dateKey >= today,
+      );
+  }, [
+    calendar.days,
+    calendar.monthKey,
+    calendar.currentMonth,
+    selectedSet,
+    fromTodayOnly,
+    today,
+  ]);
 
   const openCount = useMemo(
     () =>
@@ -665,6 +678,7 @@ export function NewsletterDirectory({
   }
 
   const typeFilterParam = filterActive ? selectedIds : null;
+  const viewingCurrentMonth = calendar.monthKey === calendar.currentMonth;
 
   return (
     <div className="space-y-8">
@@ -730,7 +744,7 @@ export function NewsletterDirectory({
               </h2>
               <p className="text-sm text-[var(--muted)]">
                 {openCount} noch offen
-                {filterActive || fromTodayOnly
+                {filterActive || (fromTodayOnly && viewingCurrentMonth)
                   ? " (gefiltert)"
                   : " in diesem Monat"}
               </p>
@@ -743,24 +757,34 @@ export function NewsletterDirectory({
             </Link>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              aria-pressed={fromTodayOnly}
-              title={
-                fromTodayOnly
-                  ? "Nur Ausgaben ab heute — klicken für alle im Monat"
-                  : "Alle Ausgaben im Monat — klicken für nur ab heute"
-              }
-              className={[
-                "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                fromTodayOnly
-                  ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-              ].join(" ")}
-              onClick={() => setFromTodayOnly((v) => !v)}
-            >
-              Ab heute
-            </button>
+            {viewingCurrentMonth ? (
+              <button
+                type="button"
+                aria-pressed={fromTodayOnly}
+                title={
+                  fromTodayOnly
+                    ? "Nur Ausgaben ab heute — klicken für alle im Monat"
+                    : "Alle Ausgaben im Monat — klicken für nur ab heute"
+                }
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  fromTodayOnly
+                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => setFromTodayOnly((v) => !v)}
+              >
+                Ab heute
+              </button>
+            ) : (
+              <Link
+                href={monthHref(calendar.currentMonth, typeFilterParam)}
+                className="text-sm font-semibold text-[var(--accent)] hover:underline"
+                onClick={() => setFromTodayOnly(true)}
+              >
+                Ab heute
+              </Link>
+            )}
             <Link
               href={monthHref(calendar.currentMonth, typeFilterParam)}
               className="text-sm font-semibold text-[var(--accent)] hover:underline"

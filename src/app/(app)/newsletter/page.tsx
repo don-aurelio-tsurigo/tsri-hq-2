@@ -75,6 +75,7 @@ export default async function NewsletterPage({
         currentUserId={session.user.id}
         calendar={{
           monthLabel: calendar.monthLabel,
+          monthKey: monthParamKey(monthAnchor),
           prevMonth: calendar.prevMonth,
           nextMonth: calendar.nextMonth,
           currentMonth: monthParamKey(new Date()),
