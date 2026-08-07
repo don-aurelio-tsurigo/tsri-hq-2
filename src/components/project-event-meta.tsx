@@ -22,18 +22,44 @@ function countdownLabel(eventAt: Date | string | null) {
   return `vor ${Math.abs(days)} Tagen`;
 }
 
+export function ProjectPhaseProgress({ phases }: { phases: PhaseProgress[] }) {
+  if (phases.length === 0) return null;
+
+  return (
+    <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+      {phases.map((p) => {
+        const pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
+        return (
+          <li key={p.groupId ?? "__none"} className="min-w-0">
+            <div className="mb-0.5 flex items-baseline justify-between gap-2 text-xs">
+              <span className="truncate font-medium">{p.name}</span>
+              <span className="shrink-0 text-[var(--muted)]">
+                {p.done}/{p.total}
+              </span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-[var(--border)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)]"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ProjectEventMeta({
   spaceId,
   eventAt,
   venue,
-  phases,
   canEdit = true,
   isTemplate = false,
 }: {
   spaceId: string;
   eventAt: Date | string | null;
   venue: string | null;
-  phases: PhaseProgress[];
   canEdit?: boolean;
   isTemplate?: boolean;
 }) {
@@ -53,29 +79,17 @@ export function ProjectEventMeta({
 
   if (isTemplate) {
     return (
-      <section className="rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-[var(--muted)]">
-        <p className="font-medium text-[var(--fg)]">Event-Vorlage</p>
-        <p className="mt-1">
-          Phasen und relative Fristen (−Tage vor dem Event) werden beim Anlegen
-          eines Projekts übernommen. Setze am neuen Projekt das Event-Datum.
-        </p>
-        {phases.length > 0 && (
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {phases.map((p) => (
-              <li key={p.groupId ?? "__none"} className="badge badge-muted">
-                {p.name} · {p.total} Tasks
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <p className="text-xs text-[var(--muted)]">
+        Phasen und relative Fristen (−Tage vor dem Event) werden beim Anlegen
+        übernommen.
+      </p>
     );
   }
 
   if (editing && canEdit) {
     return (
       <form
-        className="card flex flex-col gap-3 p-4"
+        className="flex flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2"
         action={(fd) => {
           setError(null);
           startTransition(async () => {
@@ -106,7 +120,7 @@ export function ProjectEventMeta({
             {error}
           </p>
         )}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           <div className="field">
             <label htmlFor="event-at">Event-Datum</label>
             <input
@@ -138,61 +152,57 @@ export function ProjectEventMeta({
     );
   }
 
+  if (!eventLabel && !venue) {
+    if (!canEdit) return null;
+    return (
+      <button
+        type="button"
+        className="text-sm text-[var(--muted)] hover:text-[var(--accent)] hover:underline"
+        onClick={() => setEditing(true)}
+      >
+        Event-Datum setzen
+      </button>
+    );
+  }
+
   return (
-    <section className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          {eventLabel ? (
-            <p className="text-sm font-semibold">
-              {eventLabel}
-              {countdown ? (
-                <span className="font-normal text-[var(--muted)]">
-                  {" "}
-                  · {countdown}
-                </span>
-              ) : null}
-            </p>
-          ) : (
-            <p className="text-sm text-[var(--muted)]">Kein Event-Datum gesetzt</p>
-          )}
-          {venue && (
-            <p className="text-sm text-[var(--muted)]">{venue}</p>
-          )}
-        </div>
-        {canEdit && (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="min-w-0 text-sm">
+        {eventLabel ? (
+          <span className="font-semibold">
+            {eventLabel}
+            {countdown ? (
+              <span className="font-normal text-[var(--muted)]">
+                {" "}
+                · {countdown}
+              </span>
+            ) : null}
+          </span>
+        ) : canEdit ? (
           <button
             type="button"
-            className="btn btn-ghost px-2 py-1 text-sm"
+            className="text-[var(--muted)] hover:text-[var(--accent)] hover:underline"
             onClick={() => setEditing(true)}
           >
-            Bearbeiten
+            Event-Datum setzen
           </button>
-        )}
+        ) : null}
+        {venue ? (
+          <span className="text-[var(--muted)]">
+            {eventLabel ? " · " : ""}
+            {venue}
+          </span>
+        ) : null}
       </div>
-
-      {phases.length > 0 && (
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {phases.map((p) => {
-            const pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
-            return (
-              <li key={p.groupId ?? "__none"} className="min-w-0">
-                <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-                  <span className="truncate font-medium">{p.name}</span>
-                  <span className="shrink-0 text-[var(--muted)]">
-                    {p.done}/{p.total}
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
-                  <div
-                    className="h-full rounded-full bg-[var(--accent)]"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+      {canEdit && (
+        <button
+          type="button"
+          className="shrink-0 text-xs font-medium text-[var(--muted)] hover:text-[var(--fg)]"
+          onClick={() => setEditing(true)}
+        >
+          Bearbeiten
+        </button>
       )}
-    </section>
+    </div>
   );
 }

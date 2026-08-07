@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { ProjectActions } from "@/components/project-actions";
-import { ProjectEventMeta } from "@/components/project-event-meta";
+import {
+  ProjectEventMeta,
+  ProjectPhaseProgress,
+} from "@/components/project-event-meta";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import {
   getProject,
@@ -60,7 +63,7 @@ export default async function ProjectDetailPage({
       members={members.map((m) => m.user)}
       groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       headerExtra={
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               href="/projects"
@@ -80,12 +83,12 @@ export default async function ProjectDetailPage({
             spaceId={project.id}
             eventAt={project.eventAt}
             venue={project.venue}
-            phases={phases}
             canEdit={canEdit && !archived}
             isTemplate={project.isTemplate}
           />
         </div>
       }
+      belowTitle={<ProjectPhaseProgress phases={phases} />}
       tasks={tasks.map((t) => ({
         id: t.id,
         title: t.title,

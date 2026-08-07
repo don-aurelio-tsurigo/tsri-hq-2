@@ -133,6 +133,7 @@ export function GroupedTasksBoard({
   title,
   description,
   headerExtra,
+  belowTitle,
   projectNotes,
   isTemplate = false,
   variant = "space",
@@ -146,6 +147,8 @@ export function GroupedTasksBoard({
   title: string;
   description?: string | null;
   headerExtra?: ReactNode;
+  /** Rendered directly under the page title (e.g. phase progress). */
+  belowTitle?: ReactNode;
   /** When set, shows an editable project notes field under the header. */
   projectNotes?: boolean;
   /** Template projects edit relative offsets instead of absolute due dates. */
@@ -294,6 +297,7 @@ export function GroupedTasksBoard({
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
           {title}
         </h1>
+        {belowTitle}
         {!projectNotes && description ? (
           <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
             {description}
