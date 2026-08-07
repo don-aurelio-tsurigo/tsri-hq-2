@@ -134,6 +134,7 @@ export function GroupedTasksBoard({
   description,
   headerExtra,
   projectNotes,
+  isTemplate = false,
   variant = "space",
 }: {
   spaceId: string;
@@ -147,6 +148,8 @@ export function GroupedTasksBoard({
   headerExtra?: ReactNode;
   /** When set, shows an editable project notes field under the header. */
   projectNotes?: boolean;
+  /** Template projects edit relative offsets instead of absolute due dates. */
+  isTemplate?: boolean;
   /**
    * `space` = TaskGroup sections (project detail / single space).
    * `inbox` = merged personal + assigned project tasks with due/project modes.
@@ -320,9 +323,12 @@ export function GroupedTasksBoard({
         <CreateTaskForm
           spaceId={spaceId}
           compact
-          showDueDate
+          showDueDate={!isTemplate}
+          showDueOffset={isTemplate}
           members={editMembers}
-          placeholder="Neue private Aufgabe…"
+          placeholder={
+            isTemplate ? "Neuer Vorlagen-Task…" : "Neue Aufgabe…"
+          }
         />
       )}
 
@@ -443,6 +449,7 @@ export function GroupedTasksBoard({
                 enableDrag={canEdit}
                 dropGroupId={null}
                 onMoveToGroup={canEdit ? moveToGroup : undefined}
+                showDueOffset={isTemplate}
               />
             </CollapsibleSection>
 
@@ -540,6 +547,7 @@ export function GroupedTasksBoard({
                       enableDrag={canEdit}
                       dropGroupId={group.id}
                       onMoveToGroup={canEdit ? moveToGroup : undefined}
+                      showDueOffset={isTemplate}
                     />
                   )}
                 </CollapsibleSection>
@@ -606,6 +614,7 @@ export function GroupedTasksBoard({
             showSpace={isInbox}
             groups={listGroups}
             members={editMembers}
+            showDueOffset={isTemplate}
           />
         </CollapsibleSection>
       )}

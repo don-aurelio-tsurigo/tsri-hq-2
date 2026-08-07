@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createProject } from "@/lib/actions";
+import { PROJECT_STATUSES, PROJECT_STATUS_LABELS } from "@/lib/project-meta";
 
 type TemplateOption = { id: string; name: string; taskCount: number };
 
@@ -13,6 +14,7 @@ export function CreateProjectForm({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [hasTemplate, setHasTemplate] = useState(false);
 
   if (!open) {
     return (
@@ -68,13 +70,42 @@ export function CreateProjectForm({
           id="project-desc"
           name="description"
           rows={3}
-          placeholder="Kurz: Ziel, Kontext, Termine…"
+          placeholder="Kurz: Ziel, Kontext…"
         />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="field">
+          <label htmlFor="project-event">Event-Datum</label>
+          <input id="project-event" name="eventAt" type="date" />
+        </div>
+        <div className="field">
+          <label htmlFor="project-venue">Ort</label>
+          <input
+            id="project-venue"
+            name="venue"
+            placeholder="optional"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="project-status">Status</label>
+          <select id="project-status" name="projectStatus" defaultValue="idea">
+            {PROJECT_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {PROJECT_STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       {templates.length > 0 && (
         <div className="field">
           <label htmlFor="project-template">Aus Vorlage (optional)</label>
-          <select id="project-template" name="templateId" defaultValue="">
+          <select
+            id="project-template"
+            name="templateId"
+            defaultValue=""
+            onChange={(e) => setHasTemplate(e.target.value.length > 0)}
+          >
             <option value="">— leeres Projekt —</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
@@ -83,7 +114,10 @@ export function CreateProjectForm({
             ))}
           </select>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Übernimmt die To-Do-Titel der Vorlage als offene Tasks.
+            Übernimmt Phasen und Tasks
+            {hasTemplate
+              ? "; mit Event-Datum werden relative Fristen gesetzt."
+              : "."}
           </p>
         </div>
       )}

@@ -213,6 +213,14 @@ enum SpacePermission {
   admin
 }
 
+/// Lifecycle for Civic-Media / Event projects
+enum ProjectStatus {
+  idea
+  planning
+  live
+  done
+}
+
 model Space {
   id             String          @id @default(cuid())
   organizationId String
@@ -226,6 +234,12 @@ model Space {
   archivedAt     DateTime?
   /// Template project: used to spawn new projects with fixed todos
   isTemplate     Boolean         @default(false)
+  /// Event / Durchführungstag (projects only)
+  eventAt        DateTime?       @db.Date
+  /// Ort / Venue (projects only)
+  venue          String?
+  /// Grober Projektstatus (projects only)
+  projectStatus  ProjectStatus?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -331,6 +345,8 @@ model Task {
   createdById String
   groupId     String?
   dueAt       DateTime?
+  /// Tage relativ zu Space.eventAt (negativ = vorher). Vorlagen + Spawn.
+  dueOffsetDays Int?
   /// Geplanter Publikationstag (Redaktionsprogramm)
   publishAt   DateTime?        @db.Date
   /// Soft-archive: ausgeblendet aus aktiven Kanban-/Programm-Ansichten

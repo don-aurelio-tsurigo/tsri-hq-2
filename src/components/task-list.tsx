@@ -18,6 +18,7 @@ export type TaskRow = {
   description?: string | null;
   status: TaskStatus;
   dueAt: Date | string | null;
+  dueOffsetDays?: number | null;
   kind: string;
   stage: string | null;
   assigneeId?: string | null;
@@ -41,6 +42,13 @@ function dueLabel(dueAt: Date | string | null) {
   return { label, tone: "ok" as const };
 }
 
+function offsetLabel(dueOffsetDays: number | null | undefined) {
+  if (dueOffsetDays == null) return null;
+  if (dueOffsetDays === 0) return "Event-Tag";
+  if (dueOffsetDays < 0) return `${Math.abs(dueOffsetDays)}d vorher`;
+  return `${dueOffsetDays}d nachher`;
+}
+
 function toDateInputValue(dueAt: Date | string | null) {
   if (!dueAt) return "";
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
@@ -59,6 +67,8 @@ export function TaskList({
   enableDrag = false,
   dropGroupId,
   onMoveToGroup,
+  /** Template mode: show/edit relative day offsets instead of absolute dates */
+  showDueOffset = false,
 }: {
   tasks: TaskRow[];
   showSpace?: boolean;
@@ -71,6 +81,7 @@ export function TaskList({
   /** Target group for drops (`null` = ohne Gruppe). Requires onMoveToGroup. */
   dropGroupId?: string | null;
   onMoveToGroup?: (taskId: string, groupId: string | null) => void;
+  showDueOffset?: boolean;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -136,6 +147,7 @@ export function TaskList({
             groups={groups}
             pending={pending}
             error={error}
+            showDueOffset={showDueOffset}
             onClose={() => {
               setError(null);
               setSelectedId(null);
@@ -160,7 +172,12 @@ export function TaskList({
         ].join(" ")}
       >
         {tasks.map((task) => {
-          const due = dueLabel(task.dueAt);
+          const due = showDueOffset
+            ? null
+            : dueLabel(task.dueAt);
+          const offset = showDueOffset
+            ? offsetLabel(task.dueOffsetDays)
+            : null;
           const active = selectedId === task.id;
           return (
             <li
@@ -243,6 +260,11 @@ export function TaskList({
                       {due.label}
                     </span>
                   )}
+                  {compact && offset && (
+                    <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
+                      {offset}
+                    </span>
+                  )}
                   {compact && showSpace && task.space && (
                     task.space.type === "project" ? (
                       <Link
@@ -293,6 +315,7 @@ export function TaskList({
                         Fällig {due.label}
                       </span>
                     )}
+                    {offset && <span>Relativ: {offset}</span>}
                   </div>
                 )}
               </div>
@@ -329,6 +352,7 @@ export function TaskList({
           groups={groups}
           pending={pending}
           error={error}
+          showDueOffset={showDueOffset}
           onClose={() => {
             setError(null);
             setSelectedId(null);
@@ -346,6 +370,7 @@ function TaskDrawer({
   groups,
   pending,
   error,
+  showDueOffset = false,
   onClose,
   onSave,
 }: {
@@ -354,6 +379,7 @@ function TaskDrawer({
   groups?: TaskGroupOption[];
   pending: boolean;
   error: string | null;
+  showDueOffset?: boolean;
   onClose: () => void;
   onSave: (fd: FormData) => void;
 }) {
@@ -476,14 +502,36 @@ function TaskDrawer({
               />
             </div>
             <div className="field">
-              <label htmlFor={`task-due-${panelTask.id}`}>Fällig am</label>
-              <input
-                id={`task-due-${panelTask.id}`}
-                type="date"
-                name="dueAt"
-                defaultValue={toDateInputValue(panelTask.dueAt)}
-                disabled={pending}
-              />
+              <label htmlFor={`task-due-${panelTask.id}`}>
+                {showDueOffset ? "Tage relativ zum Event" : "Fällig am"}
+              </label>
+              {showDueOffset ? (
+                <>
+                  <input
+                    id={`task-due-${panelTask.id}`}
+                    type="number"
+                    name="dueOffsetDays"
+                    defaultValue={
+                      panelTask.dueOffsetDays != null
+                        ? String(panelTask.dueOffsetDays)
+                        : ""
+                    }
+                    placeholder="z.B. -14"
+                    disabled={pending}
+                  />
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    Negativ = vor dem Event (−14 = 2 Wochen vorher).
+                  </p>
+                </>
+              ) : (
+                <input
+                  id={`task-due-${panelTask.id}`}
+                  type="date"
+                  name="dueAt"
+                  defaultValue={toDateInputValue(panelTask.dueAt)}
+                  disabled={pending}
+                />
+              )}
             </div>
             {groups && (
               <div className="field">
