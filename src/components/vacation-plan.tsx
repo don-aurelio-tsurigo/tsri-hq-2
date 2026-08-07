@@ -292,7 +292,7 @@ export function VacationPlan({
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight capitalize">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight capitalize">
               {monthLabel(cursor.y, cursor.m0)}
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -346,7 +346,7 @@ export function VacationPlan({
         {formOpen && (
           <div className="card space-y-4 p-5">
             <div>
-              <h3 className="font-[family-name:var(--font-display)] text-base font-extrabold">
+              <h3 className="font-[family-name:var(--font-display)] text-base font-semibold">
                 {editing ? "Ferien bearbeiten" : "Ferien eintragen"}
               </h3>
               <p className="mt-1 text-sm text-[var(--muted)]">
@@ -439,7 +439,7 @@ export function VacationPlan({
               {WEEKDAYS.map((d) => (
                 <div
                   key={d}
-                  className="px-2 py-2 text-center text-xs font-extrabold tracking-wide text-[var(--muted)] uppercase"
+                  className="px-2 py-2 text-center text-xs font-semibold tracking-wide text-[var(--muted)] uppercase"
                 >
                   {d}
                 </div>
@@ -512,7 +512,7 @@ export function VacationPlan({
                             gridRow: bar.lane + 1,
                           }}
                         >
-                          <span className="truncate font-extrabold">Ferien</span>
+                          <span className="truncate font-semibold">Ferien</span>
                           <span className="flex min-w-0 items-center gap-1">
                             <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-black/15 text-[0.55rem] font-bold">
                               {initials(bar.vacation.user.name)}

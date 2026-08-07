@@ -42,12 +42,12 @@ export default async function AdminHoursPage() {
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] text-xs tracking-wide text-[var(--muted)] uppercase">
-              <th className="px-4 py-3 font-extrabold">Person</th>
-              <th className="px-3 py-3 font-extrabold">Pensum</th>
-              <th className="px-3 py-3 font-extrabold">Woche</th>
-              <th className="px-3 py-3 font-extrabold">{monthLabel}</th>
-              <th className="px-3 py-3 font-extrabold">Jahr {yearLabel}</th>
-              <th className="px-4 py-3 font-extrabold" />
+              <th className="px-4 py-3 font-semibold">Person</th>
+              <th className="px-3 py-3 font-semibold">Pensum</th>
+              <th className="px-3 py-3 font-semibold">Woche</th>
+              <th className="px-3 py-3 font-semibold">{monthLabel}</th>
+              <th className="px-3 py-3 font-semibold">Jahr {yearLabel}</th>
+              <th className="px-4 py-3 font-semibold" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">

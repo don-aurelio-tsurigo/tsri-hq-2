@@ -43,7 +43,7 @@ export function LoginForm() {
         <p className="brand-mark text-sm tracking-[0.04em] text-[var(--fg)] uppercase">
           Tsüri HQ 2.0
         </p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Willkommen zurück
         </h1>
         <p className="mt-2 text-[var(--muted)]">

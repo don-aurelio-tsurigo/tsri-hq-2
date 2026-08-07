@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
         <p className="brand-mark text-sm text-[var(--accent)] uppercase">
           Tsüri HQ 2.0
         </p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight">
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
           Warte auf Einladung
         </h1>
         <p className="mt-3 text-[var(--muted)]">
@@ -34,7 +34,7 @@ export default async function OnboardingPage() {
       <p className="brand-mark text-sm text-[var(--accent)] uppercase">
         Tsüri HQ 2.0
       </p>
-      <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+      <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
         Team anlegen
       </h1>
       <p className="mt-2 text-[var(--muted)]">

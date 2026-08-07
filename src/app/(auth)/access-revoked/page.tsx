@@ -34,7 +34,7 @@ export default async function AccessRevokedPage() {
         <p className="brand-mark text-sm tracking-[0.04em] uppercase">
           Tsüri HQ 2.0
         </p>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-extrabold tracking-tight">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
           Zugang deaktiviert
         </h1>
         <p className="text-[var(--muted)]">
