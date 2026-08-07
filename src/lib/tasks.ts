@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { toDateKey } from "@/lib/cooking";
 import { getPersonalSpace } from "@/lib/spaces";
 import type { TaskStatus } from "@/generated/prisma/client";
 import {
@@ -128,6 +129,50 @@ export async function listArticles(spaceId: string) {
       },
     },
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  });
+}
+
+const MY_HOME_ARTICLE_STAGES = [
+  "weiter",
+  "in_arbeit",
+  "bereit",
+  "publiziert",
+] as const;
+
+/**
+ * Home "Meine Artikel": assigned, stage ab Weiter (ohne Input/Warteliste/Abgelehnt),
+ * mit Publikationsdatum ab heute.
+ */
+export async function listMyHomeArticles(
+  organizationId: string,
+  userId: string,
+) {
+  const todayKey = toDateKey(new Date());
+  const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
+
+  return prisma.task.findMany({
+    where: {
+      kind: "article",
+      status: { not: "cancelled" },
+      archivedAt: null,
+      stage: { in: [...MY_HOME_ARTICLE_STAGES] },
+      publishAt: { gte: dayStart },
+      space: {
+        organizationId,
+        type: { not: "personal" },
+        isTemplate: false,
+        archivedAt: null,
+      },
+      OR: [
+        { assigneeId: userId },
+        { assignments: { some: { userId } } },
+      ],
+    },
+    include: {
+      space: true,
+      assignee: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: [{ publishAt: "asc" }, { updatedAt: "desc" }],
   });
 }
 

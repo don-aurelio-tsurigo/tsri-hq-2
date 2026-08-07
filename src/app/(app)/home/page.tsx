@@ -17,8 +17,9 @@ import {
 } from "@/lib/cooking";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
-import { getCurrentDashboardItems } from "@/lib/tasks";
+import { getCurrentDashboardItems, listMyHomeArticles } from "@/lib/tasks";
 import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
+import { listTodaysTsueriArticles } from "@/lib/editorial-program";
 import {
   getFerienplanSpaceId,
   listPendingVacationApprovals,
@@ -59,6 +60,9 @@ export default async function HomePage() {
 
   const [
     items,
+    todaysArticles,
+    myArticles,
+    redaktionSpace,
     user,
     cookingSlots,
     cookingMonth,
@@ -70,6 +74,15 @@ export default async function HomePage() {
     assignedChores,
   ] = await Promise.all([
     getCurrentDashboardItems(membership.organizationId, session.user.id),
+    listTodaysTsueriArticles(membership.organizationId),
+    listMyHomeArticles(membership.organizationId, session.user.id),
+    prisma.space.findFirst({
+      where: {
+        organizationId: membership.organizationId,
+        slug: "redaktion",
+      },
+      select: { id: true },
+    }),
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { privateNotes: true },
@@ -119,8 +132,8 @@ export default async function HomePage() {
   const cookingMonthCount = cookingMonth.count;
 
   const tasks = items.filter((i) => i.kind !== "article");
-  const articles = items.filter((i) => i.kind === "article");
   const choreWeekKey = `${getISOWeekYear(today)}-W${String(getISOWeek(today)).padStart(2, "0")}`;
+  const redaktionLink = redaktionSpace?.id ?? null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -202,7 +215,116 @@ export default async function HomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-            Arbeitszeit diese Woche
+            Heute auf Tsüri
+          </h2>
+          {redaktionLink && (
+            <Link
+              href={`/spaces/${redaktionLink}#programm`}
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              Zum Programm
+            </Link>
+          )}
+        </div>
+        {todaysArticles.length === 0 ? (
+          <div className="card px-5 py-8 text-center text-[var(--muted)]">
+            Heute keine Artikel geplant
+          </div>
+        ) : (
+          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
+            {todaysArticles.map((article) => (
+              <li
+                key={article.id}
+                className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium">{article.title}</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {article.stage && isArticleStage(article.stage)
+                      ? ARTICLE_STAGE_LABELS[article.stage]
+                      : article.stage ?? "—"}
+                    {article.assignee ? ` · ${article.assignee.name}` : ""}
+                  </p>
+                </div>
+                {article.space && (
+                  <Link
+                    href={`/spaces/${article.space.id}`}
+                    className="text-sm text-[var(--accent)] hover:underline"
+                  >
+                    Öffnen
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {myArticles.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
+              Meine Artikel ({myArticles.length})
+            </h2>
+            {myArticles[0]?.space && (
+              <Link
+                href={`/spaces/${myArticles[0].space.id}`}
+                className="text-sm font-medium text-[var(--accent)] hover:underline"
+              >
+                Zur Redaktion
+              </Link>
+            )}
+          </div>
+          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
+            {myArticles.map((article) => (
+              <li
+                key={article.id}
+                className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium">{article.title}</p>
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {article.stage && isArticleStage(article.stage)
+                      ? ARTICLE_STAGE_LABELS[article.stage]
+                      : article.stage ?? "—"}
+                    {article.publishAt
+                      ? ` · ${format(article.publishAt, "d. MMM yyyy", { locale: de })}`
+                      : ""}
+                  </p>
+                </div>
+                {article.space && (
+                  <Link
+                    href={`/spaces/${article.space.id}`}
+                    className="text-sm text-[var(--accent)] hover:underline"
+                  >
+                    Öffnen
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
+            Aktuelle Aufgaben ({tasks.length})
+          </h2>
+          <Link
+            href="/tasks"
+            className="text-sm font-medium text-[var(--accent)] hover:underline"
+          >
+            Zu Tasks
+          </Link>
+        </div>
+        <TaskList tasks={tasks} showSpace />
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
+            Deine Arbeitszeit
           </h2>
           <Link
             href="/hours"
@@ -250,69 +372,6 @@ export default async function HomePage() {
             </p>
           </div>
         </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-            Aktuelle Artikel ({articles.length})
-          </h2>
-          {articles[0]?.space && (
-            <Link
-              href={`/spaces/${articles[0].space.id}`}
-              className="text-sm font-medium text-[var(--accent)] hover:underline"
-            >
-              Zur Redaktion
-            </Link>
-          )}
-        </div>
-        {articles.length === 0 ? (
-          <div className="card px-5 py-8 text-center text-[var(--muted)]">
-            Keine offenen Artikel zugewiesen.
-          </div>
-        ) : (
-          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
-            {articles.map((article) => (
-              <li
-                key={article.id}
-                className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-medium">{article.title}</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    {article.stage && isArticleStage(article.stage)
-                      ? ARTICLE_STAGE_LABELS[article.stage]
-                      : article.stage ?? "—"}
-                    {article.space ? ` · ${article.space.name}` : ""}
-                  </p>
-                </div>
-                {article.space && (
-                  <Link
-                    href={`/spaces/${article.space.id}`}
-                    className="text-sm text-[var(--accent)] hover:underline"
-                  >
-                    Öffnen
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-            Aktuelle Aufgaben ({tasks.length})
-          </h2>
-          <Link
-            href="/tasks"
-            className="text-sm font-medium text-[var(--accent)] hover:underline"
-          >
-            Zu Tasks
-          </Link>
-        </div>
-        <TaskList tasks={tasks} showSpace />
       </section>
 
       <section className="space-y-3">

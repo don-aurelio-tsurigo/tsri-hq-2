@@ -45,6 +45,38 @@ export async function listProgramArticles(spaceId: string) {
   });
 }
 
+/** Articles programmed for today across the org's Redaktion space. */
+export async function listTodaysTsueriArticles(organizationId: string) {
+  const redaktion = await prisma.space.findFirst({
+    where: { organizationId, slug: "redaktion" },
+    select: { id: true },
+  });
+  if (!redaktion) return [];
+
+  const todayKey = toDateKey(new Date());
+  const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
+  const dayEnd = new Date(`${todayKey}T23:59:59.999Z`);
+
+  return prisma.task.findMany({
+    where: {
+      spaceId: redaktion.id,
+      kind: "article",
+      status: { not: "cancelled" },
+      archivedAt: null,
+      publishAt: { gte: dayStart, lte: dayEnd },
+      OR: [{ stage: null }, { stage: { not: "abgelehnt" } }],
+    },
+    include: {
+      assignee: { select: { id: true, name: true } },
+      space: { select: { id: true, name: true } },
+    },
+    orderBy: [
+      { sortOrder: "asc" },
+      { updatedAt: "desc" },
+    ],
+  });
+}
+
 export function isSameDayKey(date: Date | null | undefined, dateKey: string) {
   if (!date) return false;
   return toDateKey(date) === dateKey;
