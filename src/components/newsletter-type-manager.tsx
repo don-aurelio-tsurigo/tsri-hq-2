@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createNewsletterType,
+  deleteNewsletterType,
   updateNewsletterType,
 } from "@/lib/actions";
 import {
@@ -83,6 +84,28 @@ export function NewsletterTypeManager({
     });
   }
 
+  function removeType(type: NewsletterTypeRow) {
+    if (
+      !confirm(
+        `«${type.name}» wirklich löschen?\nDer Typ verschwindet aus der Planung; bestehende Ausgaben bleiben erhalten.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    const fd = new FormData();
+    fd.set("id", type.id);
+    startTransition(async () => {
+      const result = await deleteNewsletterType(fd);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      if (editId === type.id) resetForm();
+      router.refresh();
+    });
+  }
+
   return (
     <section className="card space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -106,13 +129,24 @@ export function NewsletterTypeManager({
                 {t.requiresWordle ? " · Wordle aktiv" : ""}
               </p>
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary text-xs"
-              onClick={() => startEdit(t)}
-            >
-              Bearbeiten
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                className="btn btn-ghost px-2 py-1 text-xs"
+                disabled={pending}
+                onClick={() => startEdit(t)}
+              >
+                Bearbeiten
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger px-2 py-1 text-xs"
+                disabled={pending}
+                onClick={() => removeType(t)}
+              >
+                Löschen
+              </button>
+            </div>
           </li>
         ))}
         {types.length === 0 && (

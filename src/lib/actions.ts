@@ -212,6 +212,7 @@ const taskCreateSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(50000).optional(),
   dueAt: z.string().optional(),
+  dueOffsetDays: z.string().optional(),
   assigneeId: z.string().optional(),
   groupId: z.string().optional(),
   kind: z.enum(["generic", "article", "chore", "cooking"]).optional(),
@@ -228,6 +229,9 @@ export async function createTask(formData: FormData) {
     title: formData.get("title"),
     description: formData.get("description") || undefined,
     dueAt: formData.get("dueAt") || undefined,
+    dueOffsetDays: formData.has("dueOffsetDays")
+      ? String(formData.get("dueOffsetDays") ?? "")
+      : undefined,
     assigneeId: formData.get("assigneeId") || undefined,
     groupId: formData.has("groupId")
       ? String(formData.get("groupId") ?? "")
@@ -359,6 +363,37 @@ export async function createTask(formData: FormData) {
     }
   }
 
+  let dueOffsetDays: number | null = null;
+  if (parsed.data.dueOffsetDays !== undefined) {
+    const raw = parsed.data.dueOffsetDays.trim();
+    if (raw === "") {
+      dueOffsetDays = null;
+    } else {
+      const n = Number.parseInt(raw, 10);
+      if (!Number.isFinite(n)) {
+        return { error: "Ungültiger Tage-Offset." };
+      }
+      dueOffsetDays = n;
+    }
+  }
+
+  let dueAt: Date | null = parsed.data.dueAt
+    ? new Date(parsed.data.dueAt)
+    : null;
+  if (
+    dueOffsetDays != null &&
+    space.type === "project" &&
+    space.eventAt
+  ) {
+    const { dueAtFromEvent } = await import("@/lib/projects");
+    dueAt = dueAtFromEvent(space.eventAt, dueOffsetDays);
+  } else if (dueOffsetDays != null && space.isTemplate) {
+    dueAt = null;
+  } else if (parsed.data.dueAt && space.type === "project" && space.eventAt) {
+    const { offsetFromEvent } = await import("@/lib/projects");
+    dueOffsetDays = offsetFromEvent(space.eventAt, dueAt!);
+  }
+
   const createData: {
     spaceId: string;
     title: string;
@@ -371,6 +406,7 @@ export async function createTask(formData: FormData) {
     assigneeId: string | null;
     createdById: string;
     dueAt: Date | null;
+    dueOffsetDays?: number | null;
     groupId?: string | null;
     status: "todo" | "doing" | "done" | "cancelled";
   } = {
@@ -380,7 +416,8 @@ export async function createTask(formData: FormData) {
     kind,
     assigneeId,
     createdById: session.user.id,
-    dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
+    dueAt,
+    dueOffsetDays,
     status:
       stage === "publiziert"
         ? "done"
@@ -428,6 +465,7 @@ const taskUpdateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(50000).optional(),
   dueAt: z.string().optional(),
+  dueOffsetDays: z.string().optional(),
   publishAt: z.string().optional(),
   stage: z.string().optional(),
   categoryId: z.string().optional(),
@@ -451,6 +489,9 @@ export async function updateTask(formData: FormData) {
           : undefined,
     dueAt: formData.has("dueAt")
       ? String(formData.get("dueAt") ?? "")
+      : undefined,
+    dueOffsetDays: formData.has("dueOffsetDays")
+      ? String(formData.get("dueOffsetDays") ?? "")
       : undefined,
     publishAt: formData.has("publishAt")
       ? String(formData.get("publishAt") ?? "")
@@ -492,6 +533,7 @@ export async function updateTask(formData: FormData) {
     title?: string;
     description?: string | null;
     dueAt?: Date | null;
+    dueOffsetDays?: number | null;
     publishAt?: Date | null;
     stage?: string;
     categoryId?: string | null;
@@ -506,8 +548,40 @@ export async function updateTask(formData: FormData) {
   if (parsed.data.description !== undefined) {
     data.description = parsed.data.description.trim() || null;
   }
-  if (parsed.data.dueAt !== undefined) {
+
+  if (parsed.data.dueOffsetDays !== undefined) {
+    const raw = parsed.data.dueOffsetDays.trim();
+    if (raw === "") {
+      data.dueOffsetDays = null;
+    } else {
+      const n = Number.parseInt(raw, 10);
+      if (!Number.isFinite(n)) {
+        return { error: "Ungültiger Tage-Offset." };
+      }
+      data.dueOffsetDays = n;
+    }
+    if (
+      data.dueOffsetDays != null &&
+      task.space.type === "project" &&
+      task.space.eventAt
+    ) {
+      const { dueAtFromEvent } = await import("@/lib/projects");
+      data.dueAt = dueAtFromEvent(task.space.eventAt, data.dueOffsetDays);
+    } else if (data.dueOffsetDays != null && task.space.isTemplate) {
+      data.dueAt = null;
+    }
+  } else if (parsed.data.dueAt !== undefined) {
     data.dueAt = parsed.data.dueAt ? new Date(parsed.data.dueAt) : null;
+    if (
+      data.dueAt &&
+      task.space.type === "project" &&
+      task.space.eventAt
+    ) {
+      const { offsetFromEvent } = await import("@/lib/projects");
+      data.dueOffsetDays = offsetFromEvent(task.space.eventAt, data.dueAt);
+    } else {
+      data.dueOffsetDays = null;
+    }
   }
   if (parsed.data.publishAt !== undefined) {
     const raw = parsed.data.publishAt.trim();
@@ -850,20 +924,41 @@ const projectCreateSchema = z.object({
     .trim()
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
+  eventAt: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? undefined : v))
+    .optional(),
+  venue: z
+    .string()
+    .trim()
+    .transform((v) => (v.length === 0 ? undefined : v))
+    .optional(),
+  projectStatus: z
+    .enum(["idea", "planning", "live", "done"])
+    .optional(),
 });
 
 export async function createProject(formData: FormData) {
   const { session, membership } = await requireMembership();
+  const statusRaw = String(formData.get("projectStatus") ?? "").trim();
   const parsed = projectCreateSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description") || undefined,
     templateId: formData.get("templateId") || undefined,
+    eventAt: formData.get("eventAt") || undefined,
+    venue: formData.get("venue") || undefined,
+    projectStatus: statusRaw || undefined,
   });
   if (!parsed.success) {
     return { error: "Projektname fehlt oder ist ungültig (min. 2 Zeichen)." };
   }
 
-  const { uniqueProjectSlug, copyProjectTaskTitles } =
+  if (parsed.data.eventAt && !/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.eventAt)) {
+    return { error: "Ungültiges Event-Datum." };
+  }
+
+  const { uniqueProjectSlug, copyProjectStructure } =
     await import("@/lib/projects");
 
   let template: {
@@ -894,6 +989,10 @@ export async function createProject(formData: FormData) {
     template?.description?.trim() ||
     null;
 
+  const eventAt = parsed.data.eventAt
+    ? new Date(`${parsed.data.eventAt}T12:00:00.000Z`)
+    : null;
+
   const project = await prisma.space.create({
     data: {
       organizationId: membership.organizationId,
@@ -904,11 +1003,16 @@ export async function createProject(formData: FormData) {
       visibility: "team",
       ownerUserId: session.user.id,
       isTemplate: false,
+      eventAt,
+      venue: parsed.data.venue?.trim() || null,
+      projectStatus: parsed.data.projectStatus ?? (eventAt ? "planning" : "idea"),
     },
   });
 
   if (template) {
-    await copyProjectTaskTitles(template.id, project.id, session.user.id);
+    await copyProjectStructure(template.id, project.id, session.user.id, {
+      eventAt,
+    });
   }
 
   revalidatePath("/tasks");
@@ -981,7 +1085,7 @@ const saveAsTemplateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
 });
 
-/** Clone a project (task titles) into a new template project. */
+/** Clone a project (groups + tasks + relative dues) into a new template project. */
 export async function saveProjectAsTemplate(formData: FormData) {
   const { session, membership } = await requireMembership();
   const parsed = saveAsTemplateSchema.safeParse({
@@ -1006,7 +1110,7 @@ export async function saveProjectAsTemplate(formData: FormData) {
     return { error: "Keine Berechtigung." };
   }
 
-  const { uniqueProjectSlug, copyProjectTaskTitles } =
+  const { uniqueProjectSlug, copyProjectStructure } =
     await import("@/lib/projects");
   const templateName =
     parsed.data.name?.trim() || `${source.name} (Vorlage)`;
@@ -1025,15 +1129,98 @@ export async function saveProjectAsTemplate(formData: FormData) {
       visibility: "team",
       ownerUserId: session.user.id,
       isTemplate: true,
+      // Templates keep no concrete event date; offsets live on tasks
+      eventAt: null,
+      venue: null,
+      projectStatus: null,
     },
   });
 
-  await copyProjectTaskTitles(source.id, template.id, session.user.id);
+  await copyProjectStructure(source.id, template.id, session.user.id);
 
   revalidatePath("/projects");
   revalidatePath(`/projects/${source.id}`);
   revalidatePath(`/projects/${template.id}`);
   return { ok: true as const, id: template.id };
+}
+
+const projectEventMetaSchema = z.object({
+  spaceId: z.string().min(1),
+  eventAt: z.string().optional(),
+  venue: z.string().max(200).optional(),
+  projectStatus: z.enum(["idea", "planning", "live", "done"]).optional(),
+});
+
+export async function updateProjectEventMeta(formData: FormData) {
+  const { session, membership } = await requireMembership();
+  const statusRaw = String(formData.get("projectStatus") ?? "").trim();
+  const parsed = projectEventMetaSchema.safeParse({
+    spaceId: formData.get("spaceId"),
+    eventAt: formData.has("eventAt")
+      ? String(formData.get("eventAt") ?? "")
+      : undefined,
+    venue: formData.has("venue")
+      ? String(formData.get("venue") ?? "")
+      : undefined,
+    projectStatus: statusRaw || undefined,
+  });
+  if (!parsed.success) {
+    return { error: "Ungültige Event-Daten." };
+  }
+
+  const space = await prisma.space.findUnique({
+    where: { id: parsed.data.spaceId },
+    include: { access: true },
+  });
+  if (
+    !space ||
+    space.type !== "project" ||
+    !canEditSpace(session.user, space, membership)
+  ) {
+    return { error: "Kein Zugriff." };
+  }
+
+  let eventAt: Date | null | undefined;
+  if (parsed.data.eventAt !== undefined) {
+    const raw = parsed.data.eventAt.trim();
+    if (raw === "") {
+      eventAt = null;
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return { error: "Ungültiges Event-Datum." };
+    } else {
+      eventAt = new Date(`${raw}T12:00:00.000Z`);
+    }
+  }
+
+  const data: {
+    eventAt?: Date | null;
+    venue?: string | null;
+    projectStatus?: "idea" | "planning" | "live" | "done" | null;
+  } = {};
+
+  if (eventAt !== undefined) data.eventAt = eventAt;
+  if (parsed.data.venue !== undefined) {
+    data.venue = parsed.data.venue.trim() || null;
+  }
+  if (parsed.data.projectStatus !== undefined) {
+    data.projectStatus = parsed.data.projectStatus;
+  }
+
+  await prisma.space.update({
+    where: { id: space.id },
+    data,
+  });
+
+  if (eventAt !== undefined) {
+    const { applyDueOffsetsFromEvent } = await import("@/lib/projects");
+    await applyDueOffsetsFromEvent(space.id, eventAt);
+  }
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${space.id}`);
+  revalidatePath("/tasks");
+  revalidatePath("/home");
+  return { ok: true as const };
 }
 
 export async function deleteProjectTemplate(formData: FormData) {
@@ -1592,6 +1779,31 @@ export async function updateNewsletterType(formData: FormData) {
       weekdays: parsed.data.weekdays,
       requiresWordle: parsed.data.requiresWordle,
     },
+  });
+
+  revalidatePath("/settings/newsletter");
+  revalidatePath("/newsletter");
+  return { ok: true as const };
+}
+
+/** Soft-delete: Typ wird ausgeblendet, Campaigns bleiben erhalten. */
+export async function deleteNewsletterType(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Fehlende ID." };
+
+  const type = await prisma.newsletterType.findFirst({
+    where: {
+      id,
+      organizationId: membership.organizationId,
+      active: true,
+    },
+  });
+  if (!type) return { error: "Typ nicht gefunden." };
+
+  await prisma.newsletterType.update({
+    where: { id },
+    data: { active: false },
   });
 
   revalidatePath("/settings/newsletter");
