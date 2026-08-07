@@ -283,21 +283,26 @@ export function EditorialKanban({
           />
         </div>
         <div className="field w-44">
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor="filter-cat">Kategorie</label>
+          <label htmlFor="filter-cat">
+            Kategorie
             {isAdmin && (
-              <button
-                type="button"
-                className="text-xs font-normal text-[var(--muted)] hover:text-[var(--fg)] hover:underline"
-                onClick={() => {
-                  setManageRubriken(false);
-                  setManageCategories(true);
-                }}
-              >
-                Bearbeiten
-              </button>
+              <>
+                {" "}
+                (
+                <button
+                  type="button"
+                  className="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[inherit] underline"
+                  onClick={() => {
+                    setManageRubriken(false);
+                    setManageCategories(true);
+                  }}
+                >
+                  Bearbeiten
+                </button>
+                )
+              </>
             )}
-          </div>
+          </label>
           <select
             id="filter-cat"
             value={categoryId}
@@ -312,21 +317,26 @@ export function EditorialKanban({
           </select>
         </div>
         <div className="field w-44">
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor="filter-rubrik">Eigenleistung</label>
+          <label htmlFor="filter-rubrik">
+            Eigenleistung
             {isAdmin && (
-              <button
-                type="button"
-                className="text-xs font-normal text-[var(--muted)] hover:text-[var(--fg)] hover:underline"
-                onClick={() => {
-                  setManageCategories(false);
-                  setManageRubriken(true);
-                }}
-              >
-                Bearbeiten
-              </button>
+              <>
+                {" "}
+                (
+                <button
+                  type="button"
+                  className="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[inherit] underline"
+                  onClick={() => {
+                    setManageCategories(false);
+                    setManageRubriken(true);
+                  }}
+                >
+                  Bearbeiten
+                </button>
+                )
+              </>
             )}
-          </div>
+          </label>
           <select
             id="filter-rubrik"
             value={rubrikId}
