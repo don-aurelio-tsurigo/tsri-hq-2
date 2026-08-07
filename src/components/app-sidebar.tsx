@@ -191,14 +191,6 @@ export function AppSidebar({
               Artikel
             </NavLink>
             <NavLink
-              href={spaceHref("quellen")}
-              active={spaceActive("quellen")}
-              icon={Rss}
-              onNavigate={onMobileClose}
-            >
-              Newsfeed
-            </NavLink>
-            <NavLink
               href="/newsletter"
               active={
                 pathname === "/newsletter" ||
@@ -208,6 +200,14 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Newsletter
+            </NavLink>
+            <NavLink
+              href={spaceHref("quellen")}
+              active={spaceActive("quellen")}
+              icon={Rss}
+              onNavigate={onMobileClose}
+            >
+              Newsfeed
             </NavLink>
           </div>
         </div>
