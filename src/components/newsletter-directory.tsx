@@ -174,17 +174,13 @@ function MoreMenu({
 function SlotCard({
   slot,
   members,
-  currentUserId,
 }: {
   slot: NewsletterCalendarSlot;
   members: Member[];
-  currentUserId: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [authorId, setAuthorId] = useState(
-    slot.campaign?.authorId ?? currentUserId,
-  );
+  const [authorId, setAuthorId] = useState(slot.campaign?.authorId ?? "");
   const [url, setUrl] = useState(slot.campaign?.campaignUrl ?? "");
   const [note, setNote] = useState(slot.campaign?.note ?? "");
   const [wordleWord, setWordleWord] = useState(
@@ -232,18 +228,18 @@ function SlotCard({
         });
 
   useEffect(() => {
-    setAuthorId(slot.campaign?.authorId ?? currentUserId);
+    setAuthorId(slot.campaign?.authorId ?? "");
     setUrl(slot.campaign?.campaignUrl ?? "");
     setNote(slot.campaign?.note ?? "");
     setWordleWord(slot.campaign?.wordleWord ?? "");
     setNoteOpen(!!(slot.campaign?.note?.trim()));
     setError(null);
     if (!prepared) setEditing(false);
-  }, [slot, currentUserId, prepared]);
+  }, [slot, prepared]);
 
   function baseline() {
     return {
-      authorId: slot.campaign?.authorId ?? currentUserId,
+      authorId: slot.campaign?.authorId ?? "",
       url: slot.campaign?.campaignUrl ?? "",
       note: slot.campaign?.note ?? "",
       wordleWord: slot.campaign?.wordleWord ?? "",
@@ -341,7 +337,7 @@ function SlotCard({
         setError(result.error);
         return;
       }
-      setAuthorId(currentUserId);
+      setAuthorId("");
       setUrl("");
       setNote("");
       setWordleWord("");
@@ -352,7 +348,7 @@ function SlotCard({
   }
 
   function beginEditPrepared() {
-    setAuthorId(slot.campaign?.authorId ?? currentUserId);
+    setAuthorId(slot.campaign?.authorId ?? "");
     setUrl(slot.campaign?.campaignUrl ?? "");
     setNote(slot.campaign?.note ?? "");
     setWordleWord(slot.campaign?.wordleWord ?? "");
@@ -362,7 +358,7 @@ function SlotCard({
   }
 
   function cancelEditPrepared() {
-    setAuthorId(slot.campaign?.authorId ?? currentUserId);
+    setAuthorId(slot.campaign?.authorId ?? "");
     setUrl(slot.campaign?.campaignUrl ?? "");
     setNote(slot.campaign?.note ?? "");
     setWordleWord(slot.campaign?.wordleWord ?? "");
@@ -596,14 +592,12 @@ export function NewsletterDirectory({
   types,
   initialTypeIds,
   members,
-  currentUserId,
   calendar,
 }: {
   types: NewsletterTypeOption[];
   /** Empty = alle Typen anzeigen */
   initialTypeIds: string[];
   members: Member[];
-  currentUserId: string;
   calendar: CalendarMonth;
 }) {
   const router = useRouter();
@@ -878,7 +872,6 @@ export function NewsletterDirectory({
                         key={`${slot.typeId}-${slot.dateKey}`}
                         slot={slot}
                         members={members}
-                        currentUserId={currentUserId}
                       />
                     ))}
                   </div>

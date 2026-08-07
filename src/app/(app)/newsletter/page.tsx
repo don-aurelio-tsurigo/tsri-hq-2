@@ -25,7 +25,7 @@ export default async function NewsletterPage({
 }: {
   searchParams: Promise<{ month?: string; type?: string | string[] }>;
 }) {
-  const { session, membership } = await requireMembership();
+  const { membership } = await requireMembership();
   const { month: monthParam, type: typeParam } = await searchParams;
   await ensureDefaultNewsletterTypes(membership.organizationId);
 
@@ -72,7 +72,6 @@ export default async function NewsletterPage({
         types={typeOptions}
         initialTypeIds={validFilter}
         members={members.map((m) => m.user)}
-        currentUserId={session.user.id}
         calendar={{
           monthLabel: calendar.monthLabel,
           monthKey: monthParamKey(monthAnchor),
