@@ -13,6 +13,7 @@ import {
   ArticleCategoryManager,
   type CategoryOption,
 } from "@/components/article-category-manager";
+import { DateRangeField } from "@/components/date-range-field";
 import {
   ARTICLE_STAGES,
   ARTICLE_STAGE_COLORS,
@@ -367,32 +368,16 @@ export function EditorialKanban({
             </select>
           </div>
         )}
-        <div className="field">
-          <label htmlFor="filter-from">Erstellt</label>
-          <div className="flex items-center gap-1.5">
-            <input
-              id="filter-from"
-              type="date"
-              className="w-[9.5rem]"
-              value={createdFrom}
-              max={createdTo || undefined}
-              onChange={(e) => setCreatedFrom(e.target.value)}
-              aria-label="Erstellt von"
-            />
-            <span className="text-sm text-[var(--muted)]" aria-hidden>
-              –
-            </span>
-            <input
-              id="filter-to"
-              type="date"
-              className="w-[9.5rem]"
-              value={createdTo}
-              min={createdFrom || undefined}
-              onChange={(e) => setCreatedTo(e.target.value)}
-              aria-label="Erstellt bis"
-            />
-          </div>
-        </div>
+        <DateRangeField
+          id="filter-created"
+          label="Erstellt"
+          from={createdFrom}
+          to={createdTo}
+          onChange={(from, to) => {
+            setCreatedFrom(from);
+            setCreatedTo(to);
+          }}
+        />
       </div>
 
       <p className="text-sm text-[var(--muted)]">
