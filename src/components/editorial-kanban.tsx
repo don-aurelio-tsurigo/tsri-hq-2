@@ -367,23 +367,31 @@ export function EditorialKanban({
             </select>
           </div>
         )}
-        <div className="field w-40">
-          <label htmlFor="filter-from">Erstellt ab</label>
-          <input
-            id="filter-from"
-            type="date"
-            value={createdFrom}
-            onChange={(e) => setCreatedFrom(e.target.value)}
-          />
-        </div>
-        <div className="field w-40">
-          <label htmlFor="filter-to">Erstellt bis</label>
-          <input
-            id="filter-to"
-            type="date"
-            value={createdTo}
-            onChange={(e) => setCreatedTo(e.target.value)}
-          />
+        <div className="field">
+          <label htmlFor="filter-from">Erstellt</label>
+          <div className="flex items-center gap-1.5">
+            <input
+              id="filter-from"
+              type="date"
+              className="w-[9.5rem]"
+              value={createdFrom}
+              max={createdTo || undefined}
+              onChange={(e) => setCreatedFrom(e.target.value)}
+              aria-label="Erstellt von"
+            />
+            <span className="text-sm text-[var(--muted)]" aria-hidden>
+              –
+            </span>
+            <input
+              id="filter-to"
+              type="date"
+              className="w-[9.5rem]"
+              value={createdTo}
+              min={createdFrom || undefined}
+              onChange={(e) => setCreatedTo(e.target.value)}
+              aria-label="Erstellt bis"
+            />
+          </div>
         </div>
       </div>
 
