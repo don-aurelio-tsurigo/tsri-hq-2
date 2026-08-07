@@ -605,6 +605,7 @@ export function NewsletterDirectory({
   const [selectedIds, setSelectedIds] = useState<string[]>(() =>
     initialTypeIds.length > 0 ? initialTypeIds : allTypeIds,
   );
+  const [fromTodayOnly, setFromTodayOnly] = useState(true);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const filterActive =
@@ -616,8 +617,9 @@ export function NewsletterDirectory({
         ...day,
         slots: day.slots.filter((s) => selectedSet.has(s.typeId)),
       }))
-      .filter((day) => day.slots.length > 0);
-  }, [calendar.days, selectedSet]);
+      .filter((day) => day.slots.length > 0)
+      .filter((day) => !fromTodayOnly || day.dateKey >= today);
+  }, [calendar.days, selectedSet, fromTodayOnly, today]);
 
   const openCount = useMemo(
     () =>
@@ -728,7 +730,9 @@ export function NewsletterDirectory({
               </h2>
               <p className="text-sm text-[var(--muted)]">
                 {openCount} noch offen
-                {filterActive ? " (gefiltert)" : " in diesem Monat"}
+                {filterActive || fromTodayOnly
+                  ? " (gefiltert)"
+                  : " in diesem Monat"}
               </p>
             </div>
             <Link
@@ -738,12 +742,32 @@ export function NewsletterDirectory({
               →
             </Link>
           </div>
-          <Link
-            href={monthHref(calendar.currentMonth, typeFilterParam)}
-            className="text-sm font-semibold text-[var(--accent)] hover:underline"
-          >
-            Dieser Monat
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              aria-pressed={fromTodayOnly}
+              title={
+                fromTodayOnly
+                  ? "Nur Ausgaben ab heute — klicken für alle im Monat"
+                  : "Alle Ausgaben im Monat — klicken für nur ab heute"
+              }
+              className={[
+                "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                fromTodayOnly
+                  ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                  : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+              ].join(" ")}
+              onClick={() => setFromTodayOnly((v) => !v)}
+            >
+              Ab heute
+            </button>
+            <Link
+              href={monthHref(calendar.currentMonth, typeFilterParam)}
+              className="text-sm font-semibold text-[var(--accent)] hover:underline"
+            >
+              Dieser Monat
+            </Link>
+          </div>
         </div>
 
         {calendar.days.length === 0 ? (
@@ -753,16 +777,40 @@ export function NewsletterDirectory({
           </div>
         ) : filteredDays.length === 0 ? (
           <div className="card px-4 py-8 text-sm text-[var(--muted)]">
-            {selectedIds.length === 0
-              ? "Kein Newsletter-Typ ausgewählt."
-              : "Keine Slots für die gewählten Filter."}{" "}
-            <button
-              type="button"
-              className="font-semibold text-[var(--accent)] hover:underline"
-              onClick={showAll}
-            >
-              Alle anzeigen
-            </button>
+            {selectedIds.length === 0 ? (
+              <>
+                Kein Newsletter-Typ ausgewählt.{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-[var(--accent)] hover:underline"
+                  onClick={showAll}
+                >
+                  Alle anzeigen
+                </button>
+              </>
+            ) : fromTodayOnly ? (
+              <>
+                Keine Ausgaben ab heute in diesem Monat.{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-[var(--accent)] hover:underline"
+                  onClick={() => setFromTodayOnly(false)}
+                >
+                  Vergangene einblenden
+                </button>
+              </>
+            ) : (
+              <>
+                Keine Slots für die gewählten Filter.{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-[var(--accent)] hover:underline"
+                  onClick={showAll}
+                >
+                  Alle anzeigen
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <ul className="space-y-4">
