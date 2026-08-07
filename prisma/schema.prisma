@@ -108,8 +108,12 @@ model Organization {
   hideNewsletterHolidays Boolean @default(false)
   /// Slack: wöchentlicher Kochplan-Digest (Montag)
   slackCookingWeeklyEnabled Boolean @default(false)
+  /// Incoming Webhook URL for weekly digest (overrides SLACK_WEBHOOK_URL)
+  slackCookingWeeklyWebhookUrl String?
   /// Slack: monatlicher Eintrag-Reminder (letzte Monatswoche)
   slackCookingMonthlyEnabled Boolean @default(false)
+  /// Incoming Webhook URL for monthly reminder (overrides SLACK_WEBHOOK_URL)
+  slackCookingMonthlyWebhookUrl String?
   /// Dedup-Key letzte Wochen-Nachricht, z.B. 2026-W32
   slackCookingWeeklyLastKey String?
   /// Dedup-Key letzte Monats-Nachricht, z.B. 2026-09 (Folgemonat)

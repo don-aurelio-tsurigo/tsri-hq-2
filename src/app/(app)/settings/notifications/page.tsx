@@ -11,6 +11,8 @@ export default async function NotificationsSettingsPage() {
     select: {
       slackCookingWeeklyEnabled: true,
       slackCookingMonthlyEnabled: true,
+      slackCookingWeeklyWebhookUrl: true,
+      slackCookingMonthlyWebhookUrl: true,
     },
   });
 
@@ -24,15 +26,17 @@ export default async function NotificationsSettingsPage() {
           Benachrichtigungen
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Slack-Kanalnachrichten für den Kochplan steuern. Weitere Kanäle
-          können später ergänzt werden.
+          Slack-Kanalnachrichten für den Kochplan steuern. Pro Notification
+          eigenen Webhook setzen — weitere Kanäle können später ergänzt werden.
         </p>
       </header>
 
       <SlackCookingNotificationSettings
         weeklyEnabled={org.slackCookingWeeklyEnabled}
         monthlyEnabled={org.slackCookingMonthlyEnabled}
-        webhookConfigured={isSlackWebhookConfigured()}
+        weeklyWebhookUrl={org.slackCookingWeeklyWebhookUrl ?? ""}
+        monthlyWebhookUrl={org.slackCookingMonthlyWebhookUrl ?? ""}
+        envWebhookConfigured={isSlackWebhookConfigured(null)}
       />
     </div>
   );

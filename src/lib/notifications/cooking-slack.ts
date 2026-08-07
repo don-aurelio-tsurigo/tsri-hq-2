@@ -97,6 +97,8 @@ export async function runSlackCookingNotificationsForAllOrgs(
       id: true,
       slackCookingWeeklyEnabled: true,
       slackCookingMonthlyEnabled: true,
+      slackCookingWeeklyWebhookUrl: true,
+      slackCookingMonthlyWebhookUrl: true,
       slackCookingWeeklyLastKey: true,
       slackCookingMonthlyLastKey: true,
     },
@@ -135,7 +137,7 @@ export async function runSlackCookingNotificationsForAllOrgs(
         slots,
         spaceId,
       });
-      const result = await postToSlack(text);
+      const result = await postToSlack(text, org.slackCookingWeeklyWebhookUrl);
       if (result.ok && !result.skipped) {
         await prisma.organization.update({
           where: { id: org.id },
@@ -159,7 +161,7 @@ export async function runSlackCookingNotificationsForAllOrgs(
         targetMonth: nextMonthAnchor.getUTCMonth() + 1,
         spaceId,
       });
-      const result = await postToSlack(text);
+      const result = await postToSlack(text, org.slackCookingMonthlyWebhookUrl);
       if (result.ok && !result.skipped) {
         await prisma.organization.update({
           where: { id: org.id },

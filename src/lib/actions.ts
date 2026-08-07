@@ -33,6 +33,7 @@ import {
   runNewsFeedFetch,
   updateNewsItemStatus,
 } from "@/lib/news-feed";
+import { normalizeSlackWebhookInput } from "@/lib/notifications/slack";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -3003,11 +3004,22 @@ export async function updateSlackCookingNotificationSettings(
     formData.get("slackCookingMonthlyEnabled") === "on" ||
     formData.get("slackCookingMonthlyEnabled") === "true";
 
+  const weeklyWebhook = normalizeSlackWebhookInput(
+    String(formData.get("slackCookingWeeklyWebhookUrl") ?? ""),
+  );
+  if (!weeklyWebhook.ok) return { error: weeklyWebhook.error };
+  const monthlyWebhook = normalizeSlackWebhookInput(
+    String(formData.get("slackCookingMonthlyWebhookUrl") ?? ""),
+  );
+  if (!monthlyWebhook.ok) return { error: monthlyWebhook.error };
+
   await prisma.organization.update({
     where: { id: membership.organizationId },
     data: {
       slackCookingWeeklyEnabled: weekly,
       slackCookingMonthlyEnabled: monthly,
+      slackCookingWeeklyWebhookUrl: weeklyWebhook.value,
+      slackCookingMonthlyWebhookUrl: monthlyWebhook.value,
     },
   });
 
