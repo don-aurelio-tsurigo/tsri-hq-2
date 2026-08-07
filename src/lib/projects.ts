@@ -1,4 +1,16 @@
 import { prisma } from "@/lib/db";
+import {
+  dueAtFromEvent,
+  offsetFromEvent,
+  type PhaseProgress,
+} from "@/lib/project-meta";
+
+export {
+  dueAtFromEvent,
+  offsetFromEvent,
+  toDateInputValue,
+  type PhaseProgress,
+} from "@/lib/project-meta";
 
 function slugify(input: string) {
   return input
@@ -50,7 +62,7 @@ export async function listProjects(organizationId: string) {
       archivedAt: null,
     },
     include: projectInclude,
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ eventAt: "asc" }, { updatedAt: "desc" }],
   });
 }
 
@@ -103,12 +115,39 @@ export async function countOpenTasks(projectId: string) {
   });
 }
 
-/** Copy non-cancelled generic task titles into a target project (fresh todos). */
-export async function copyProjectTaskTitles(
+/**
+ * Copy task groups + generic tasks into a target project.
+ * Preserves dueOffsetDays; when eventAt is set, also derives dueAt.
+ * When source has eventAt and tasks have dueAt but no offset, offsets are inferred.
+ */
+export async function copyProjectStructure(
   sourceProjectId: string,
   targetProjectId: string,
   createdById: string,
+  options?: { eventAt?: Date | null },
 ) {
+  const source = await prisma.space.findUnique({
+    where: { id: sourceProjectId },
+    select: { eventAt: true },
+  });
+
+  const sourceGroups = await prisma.taskGroup.findMany({
+    where: { spaceId: sourceProjectId },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
+  const groupIdMap = new Map<string, string>();
+  for (const group of sourceGroups) {
+    const created = await prisma.taskGroup.create({
+      data: {
+        spaceId: targetProjectId,
+        name: group.name,
+        sortOrder: group.sortOrder,
+      },
+    });
+    groupIdMap.set(group.id, created.id);
+  }
+
   const sourceTasks = await prisma.task.findMany({
     where: {
       spaceId: sourceProjectId,
@@ -116,23 +155,160 @@ export async function copyProjectTaskTitles(
       kind: "generic",
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { title: true, description: true, sortOrder: true },
+    select: {
+      title: true,
+      description: true,
+      sortOrder: true,
+      groupId: true,
+      dueAt: true,
+      dueOffsetDays: true,
+    },
   });
 
-  if (sourceTasks.length === 0) return 0;
+  if (sourceTasks.length === 0) {
+    return { groups: sourceGroups.length, tasks: 0 };
+  }
+
+  const eventAt = options?.eventAt ?? null;
 
   await prisma.task.createMany({
-    data: sourceTasks.map((t, index) => ({
-      spaceId: targetProjectId,
-      title: t.title,
-      description: t.description,
-      kind: "generic" as const,
-      status: "todo" as const,
-      sortOrder: t.sortOrder ?? index,
-      createdById,
-      assigneeId: null,
-    })),
+    data: sourceTasks.map((t, index) => {
+      let dueOffsetDays = t.dueOffsetDays;
+      if (dueOffsetDays == null && t.dueAt && source?.eventAt) {
+        dueOffsetDays = offsetFromEvent(source.eventAt, t.dueAt);
+      }
+
+      const dueAt =
+        eventAt && dueOffsetDays != null
+          ? dueAtFromEvent(eventAt, dueOffsetDays)
+          : null;
+
+      return {
+        spaceId: targetProjectId,
+        title: t.title,
+        description: t.description,
+        kind: "generic" as const,
+        status: "todo" as const,
+        sortOrder: t.sortOrder ?? index,
+        createdById,
+        assigneeId: null,
+        groupId: t.groupId ? (groupIdMap.get(t.groupId) ?? null) : null,
+        dueOffsetDays,
+        dueAt,
+      };
+    }),
   });
 
-  return sourceTasks.length;
+  return { groups: sourceGroups.length, tasks: sourceTasks.length };
+}
+
+/** @deprecated Use copyProjectStructure */
+export async function copyProjectTaskTitles(
+  sourceProjectId: string,
+  targetProjectId: string,
+  createdById: string,
+) {
+  const result = await copyProjectStructure(
+    sourceProjectId,
+    targetProjectId,
+    createdById,
+  );
+  return result.tasks;
+}
+
+/** Apply dueOffsetDays → dueAt for all tasks on a project after eventAt changes. */
+export async function applyDueOffsetsFromEvent(
+  projectId: string,
+  eventAt: Date | null,
+) {
+  const tasks = await prisma.task.findMany({
+    where: {
+      spaceId: projectId,
+      dueOffsetDays: { not: null },
+      status: { not: "cancelled" },
+    },
+    select: { id: true, dueOffsetDays: true },
+  });
+
+  if (tasks.length === 0) return 0;
+
+  await prisma.$transaction(
+    tasks.map((t) =>
+      prisma.task.update({
+        where: { id: t.id },
+        data: {
+          dueAt:
+            eventAt && t.dueOffsetDays != null
+              ? dueAtFromEvent(eventAt, t.dueOffsetDays)
+              : null,
+        },
+      }),
+    ),
+  );
+
+  return tasks.length;
+}
+
+export async function getProjectPhaseProgress(
+  projectId: string,
+): Promise<PhaseProgress[]> {
+  const [groups, tasks] = await Promise.all([
+    prisma.taskGroup.findMany({
+      where: { spaceId: projectId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true },
+    }),
+    prisma.task.findMany({
+      where: {
+        spaceId: projectId,
+        kind: "generic",
+        status: { not: "cancelled" },
+      },
+      select: { groupId: true, status: true },
+    }),
+  ]);
+
+  const buckets = new Map<string | null, PhaseProgress>();
+  for (const g of groups) {
+    buckets.set(g.id, {
+      groupId: g.id,
+      name: g.name,
+      open: 0,
+      done: 0,
+      total: 0,
+    });
+  }
+  buckets.set(null, {
+    groupId: null,
+    name: "Ohne Phase",
+    open: 0,
+    done: 0,
+    total: 0,
+  });
+
+  for (const t of tasks) {
+    const key = t.groupId;
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        groupId: key,
+        name: "Ohne Phase",
+        open: 0,
+        done: 0,
+        total: 0,
+      });
+    }
+    const b = buckets.get(key)!;
+    b.total += 1;
+    if (t.status === "done") b.done += 1;
+    else b.open += 1;
+  }
+
+  const ordered: PhaseProgress[] = [];
+  for (const g of groups) {
+    const b = buckets.get(g.id)!;
+    if (b.total > 0) ordered.push(b);
+  }
+  const ungrouped = buckets.get(null)!;
+  if (ungrouped.total > 0) ordered.push(ungrouped);
+  return ordered;
 }

@@ -133,7 +133,9 @@ export function GroupedTasksBoard({
   title,
   description,
   headerExtra,
+  belowTitle,
   projectNotes,
+  isTemplate = false,
   variant = "space",
 }: {
   spaceId: string;
@@ -145,8 +147,12 @@ export function GroupedTasksBoard({
   title: string;
   description?: string | null;
   headerExtra?: ReactNode;
+  /** Rendered directly under the page title (e.g. phase progress). */
+  belowTitle?: ReactNode;
   /** When set, shows an editable project notes field under the header. */
   projectNotes?: boolean;
+  /** Template projects edit relative offsets instead of absolute due dates. */
+  isTemplate?: boolean;
   /**
    * `space` = TaskGroup sections (project detail / single space).
    * `inbox` = merged personal + assigned project tasks with due/project modes.
@@ -291,6 +297,7 @@ export function GroupedTasksBoard({
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
           {title}
         </h1>
+        {belowTitle}
         {!projectNotes && description ? (
           <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
             {description}
@@ -320,9 +327,12 @@ export function GroupedTasksBoard({
         <CreateTaskForm
           spaceId={spaceId}
           compact
-          showDueDate
+          showDueDate={!isTemplate}
+          showDueOffset={isTemplate}
           members={editMembers}
-          placeholder="Neue private Aufgabe…"
+          placeholder={
+            isTemplate ? "Neuer Vorlagen-Task…" : "Neue Aufgabe…"
+          }
         />
       )}
 
@@ -443,6 +453,7 @@ export function GroupedTasksBoard({
                 enableDrag={canEdit}
                 dropGroupId={null}
                 onMoveToGroup={canEdit ? moveToGroup : undefined}
+                showDueOffset={isTemplate}
               />
             </CollapsibleSection>
 
@@ -540,6 +551,7 @@ export function GroupedTasksBoard({
                       enableDrag={canEdit}
                       dropGroupId={group.id}
                       onMoveToGroup={canEdit ? moveToGroup : undefined}
+                      showDueOffset={isTemplate}
                     />
                   )}
                 </CollapsibleSection>
@@ -606,6 +618,7 @@ export function GroupedTasksBoard({
             showSpace={isInbox}
             groups={listGroups}
             members={editMembers}
+            showDueOffset={isTemplate}
           />
         </CollapsibleSection>
       )}

@@ -15,6 +15,7 @@ export function CreateTaskForm({
   groupId,
   placeholder = "Neue private Aufgabe…",
   showDueDate,
+  showDueOffset,
 }: {
   spaceId: string;
   compact?: boolean;
@@ -24,6 +25,8 @@ export function CreateTaskForm({
   placeholder?: string;
   /** Compact: show date input instead of group select */
   showDueDate?: boolean;
+  /** Compact/full: relative days to event (templates) */
+  showDueOffset?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -52,13 +55,24 @@ export function CreateTaskForm({
             placeholder={placeholder}
             className="min-w-0 flex-1 basis-[10rem] rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-sm"
           />
-          {showDueDate && (
+          {showDueOffset ? (
             <input
-              type="date"
-              name="dueAt"
-              aria-label="Fällig am"
-              className="w-[9.5rem] shrink-0 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
+              type="number"
+              name="dueOffsetDays"
+              aria-label="Tage relativ zum Event"
+              title="Negativ = vor dem Event"
+              placeholder="−Tage"
+              className="w-[5.5rem] shrink-0 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
             />
+          ) : (
+            showDueDate && (
+              <input
+                type="date"
+                name="dueAt"
+                aria-label="Fällig am"
+                className="w-[9.5rem] shrink-0 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm"
+              />
+            )
           )}
           {showAssignee && (
             <select
@@ -110,8 +124,19 @@ export function CreateTaskForm({
               </div>
             )}
             <div className="field">
-              <label htmlFor="dueAt">Fällig am</label>
-              <input id="dueAt" name="dueAt" type="date" />
+              <label htmlFor={showDueOffset ? "dueOffsetDays" : "dueAt"}>
+                {showDueOffset ? "Tage relativ zum Event" : "Fällig am"}
+              </label>
+              {showDueOffset ? (
+                <input
+                  id="dueOffsetDays"
+                  name="dueOffsetDays"
+                  type="number"
+                  placeholder="z.B. -14"
+                />
+              ) : (
+                <input id="dueAt" name="dueAt" type="date" />
+              )}
             </div>
           </div>
           {groups && groups.length > 0 && groupId === undefined && (

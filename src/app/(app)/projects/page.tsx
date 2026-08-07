@@ -43,8 +43,8 @@ export default async function ProjectsPage() {
             Projekte
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Events, Adventskalender und andere Vorhaben — jedes Projekt hat seine
-            eigenen Tasks. Vorlagen speichern fixe To-Dos für neue Projekte.
+            Events und Vorhaben — mit Datum, Phasen und Tasks. Vorlagen
+            übernehmen Gruppen und relative Fristen.
           </p>
         </div>
         <CreateProjectForm
@@ -112,6 +112,17 @@ export default async function ProjectsPage() {
                       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
                         {project.name}
                       </h2>
+                      {(project.eventAt || project.venue) && (
+                        <p className="mt-1 text-sm text-[var(--muted)]">
+                          {project.eventAt
+                            ? format(project.eventAt, "d. MMM yyyy", {
+                                locale: de,
+                              })
+                            : null}
+                          {project.eventAt && project.venue ? " · " : ""}
+                          {project.venue}
+                        </p>
+                      )}
                       {project.description && (
                         <p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">
                           {project.description}
@@ -160,8 +171,8 @@ export default async function ProjectsPage() {
                     {template.name}
                   </Link>
                   <p className="mt-0.5 text-xs text-[var(--muted)]">
-                    {template._count.tasks} To-Dos · bearbeiten zum Anpassen der
-                    Vorlage
+                    {template._count.tasks} To-Dos · Phasen & relative Fristen ·
+                    bearbeiten zum Anpassen
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

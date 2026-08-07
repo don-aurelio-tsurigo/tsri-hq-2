@@ -2,8 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { ProjectActions } from "@/components/project-actions";
+import {
+  ProjectEventMeta,
+  ProjectPhaseProgress,
+} from "@/components/project-event-meta";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
-import { getProject } from "@/lib/projects";
+import {
+  getProject,
+  getProjectPhaseProgress,
+} from "@/lib/projects";
 import { requireMembership } from "@/lib/session";
 import { listSpaceTasks, listTaskGroups } from "@/lib/tasks";
 import { prisma } from "@/lib/db";
@@ -21,7 +28,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [tasks, groups, members] = await Promise.all([
+  const [tasks, groups, members, phases] = await Promise.all([
     listSpaceTasks(project.id),
     listTaskGroups(project.id),
     prisma.membership.findMany({
@@ -32,6 +39,7 @@ export default async function ProjectDetailPage({
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
     }),
+    getProjectPhaseProgress(project.id),
   ]);
 
   const canEdit = canEditSpace(session.user, project, membership);
@@ -51,31 +59,43 @@ export default async function ProjectDetailPage({
       description={project.description}
       projectNotes={!project.isTemplate}
       canEdit={canEdit}
+      isTemplate={project.isTemplate}
       members={members.map((m) => m.user)}
       groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       headerExtra={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/projects"
-            className="text-sm font-medium text-[var(--accent)] hover:underline"
-          >
-            ← Projekte
-          </Link>
-          <ProjectActions
-            projectId={project.id}
-            projectName={project.name}
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href="/projects"
+              className="text-sm font-medium text-[var(--accent)] hover:underline"
+            >
+              ← Projekte
+            </Link>
+            <ProjectActions
+              projectId={project.id}
+              projectName={project.name}
+              isTemplate={project.isTemplate}
+              archived={archived}
+              canEdit={canEdit}
+            />
+          </div>
+          <ProjectEventMeta
+            spaceId={project.id}
+            eventAt={project.eventAt}
+            venue={project.venue}
+            canEdit={canEdit && !archived}
             isTemplate={project.isTemplate}
-            archived={archived}
-            canEdit={canEdit}
           />
         </div>
       }
+      belowTitle={<ProjectPhaseProgress phases={phases} />}
       tasks={tasks.map((t) => ({
         id: t.id,
         title: t.title,
         description: t.description,
         status: t.status,
         dueAt: t.dueAt,
+        dueOffsetDays: t.dueOffsetDays,
         kind: t.kind,
         stage: t.stage,
         assigneeId: t.assigneeId,
