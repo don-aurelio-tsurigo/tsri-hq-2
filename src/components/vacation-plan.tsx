@@ -300,16 +300,34 @@ export function VacationPlan({
   return (
     <div className="space-y-8">
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight capitalize">
-              {monthLabel(cursor.y, cursor.m0)}
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              {mineOnly
-                ? "Nur deine genehmigten Ferien."
-                : "Genehmigte Ferien des gesamten Teams."}
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Vorheriger Monat"
+            >
+              ←
+            </button>
+            <div>
+              <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight capitalize">
+                {monthLabel(cursor.y, cursor.m0)}
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                {mineOnly
+                  ? "Nur deine genehmigten Ferien."
+                  : "Genehmigte Ferien des gesamten Teams."}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => shiftMonth(1)}
+              aria-label="Nächster Monat"
+            >
+              →
+            </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -325,31 +343,13 @@ export function VacationPlan({
             >
               Meine Ferien
             </button>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                className="btn btn-ghost px-2.5 py-1.5 text-sm"
-                onClick={() => shiftMonth(-1)}
-                aria-label="Vorheriger Monat"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost px-3 py-1.5 text-sm"
-                onClick={goToday}
-              >
-                Heute
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost px-2.5 py-1.5 text-sm"
-                onClick={() => shiftMonth(1)}
-                aria-label="Nächster Monat"
-              >
-                ›
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost px-3 py-1.5 text-sm"
+              onClick={goToday}
+            >
+              Heute
+            </button>
             <button
               type="button"
               className="btn btn-primary"
