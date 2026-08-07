@@ -489,7 +489,7 @@ function SlotCard({
             : complete
               ? "border-emerald-500/50 bg-emerald-50/80"
               : prepared
-                ? "border-[var(--border)] bg-white"
+                ? "border-[color-mix(in_oklab,var(--highlight)_65%,var(--border))] bg-[var(--highlight)]/55"
                 : "border-[var(--accent)]/40 bg-[var(--accent-soft)]/40",
       ].join(" ")}
     >
@@ -504,6 +504,11 @@ function SlotCard({
             >
               {slot.typeName}
             </p>
+            {prepared && !complete && !skipped && (
+              <span className="text-xs font-semibold text-[var(--fg)]/70">
+                Unvollständig
+              </span>
+            )}
             {savedFlash && (
               <span className="text-xs font-semibold text-[var(--accent-hover)]">
                 Gespeichert
