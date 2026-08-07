@@ -2991,3 +2991,27 @@ export async function bulkUpdateNewsItemStatusAction(
   await revalidateQuellen(membership.organizationId);
   return { ok: true as const, updated };
 }
+
+export async function updateSlackCookingNotificationSettings(
+  formData: FormData,
+) {
+  const { membership } = await requireAdmin();
+  const weekly =
+    formData.get("slackCookingWeeklyEnabled") === "on" ||
+    formData.get("slackCookingWeeklyEnabled") === "true";
+  const monthly =
+    formData.get("slackCookingMonthlyEnabled") === "on" ||
+    formData.get("slackCookingMonthlyEnabled") === "true";
+
+  await prisma.organization.update({
+    where: { id: membership.organizationId },
+    data: {
+      slackCookingWeeklyEnabled: weekly,
+      slackCookingMonthlyEnabled: monthly,
+    },
+  });
+
+  revalidatePath("/settings/notifications");
+  return { ok: true as const };
+}
+

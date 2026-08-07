@@ -16,6 +16,7 @@ import {
   Info,
   LogOut,
   Mail,
+  Bell,
   Newspaper,
   Pin,
   Rss,
@@ -357,6 +358,17 @@ export function AppSidebar({
                 onNavigate={onMobileClose}
               >
                 Newslettereinstellungen
+              </NavLink>
+              <NavLink
+                href="/settings/notifications"
+                active={
+                  pathname === "/settings/notifications" ||
+                  pathname.startsWith("/settings/notifications/")
+                }
+                icon={Bell}
+                onNavigate={onMobileClose}
+              >
+                Benachrichtigungen
               </NavLink>
             </div>
           </div>

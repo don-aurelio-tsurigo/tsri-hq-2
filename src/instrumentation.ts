@@ -3,6 +3,10 @@ export async function register() {
     const { startNewsFeedScheduler } = await import(
       "./lib/news-feed-scheduler"
     );
+    const { startSlackCookingScheduler } = await import(
+      "./lib/notifications/slack-scheduler"
+    );
     startNewsFeedScheduler();
+    startSlackCookingScheduler();
   }
 }

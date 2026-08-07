@@ -10,7 +10,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 19; // v19: NewsletterType.requiresWordle
+const PRISMA_CLIENT_SCHEMA_VERSION = 20; // v20: Organization Slack cooking notification fields
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -29,7 +29,13 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   NewsletterBlockedRange: ["newsletterTypeId"],
   Membership: ["pensumPercent", "archivedAt"],
   CookingSlot: ["assignedById"],
-  Organization: ["hideNewsletterHolidays"],
+  Organization: [
+    "hideNewsletterHolidays",
+    "slackCookingWeeklyEnabled",
+    "slackCookingMonthlyEnabled",
+    "slackCookingWeeklyLastKey",
+    "slackCookingMonthlyLastKey",
+  ],
   TimeEntry: ["segments"],
   TimeSegment: ["type", "startTime", "endTime"],
 };
