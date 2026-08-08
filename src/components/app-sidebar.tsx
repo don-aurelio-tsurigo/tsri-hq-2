@@ -13,6 +13,7 @@ import {
   Clock,
   FolderKanban,
   Home,
+  Images,
   Info,
   LogOut,
   Mail,
@@ -201,6 +202,17 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Newsletter
+            </NavLink>
+            <NavLink
+              href="/carousel"
+              active={
+                pathname === "/carousel" ||
+                pathname.startsWith("/carousel/")
+              }
+              icon={Images}
+              onNavigate={onMobileClose}
+            >
+              Carousel
             </NavLink>
             <NavLink
               href={spaceHref("quellen")}

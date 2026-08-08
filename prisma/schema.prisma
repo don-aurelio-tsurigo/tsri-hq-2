@@ -45,6 +45,7 @@ model User {
   timeEntries           TimeEntry[]
   createdWikiPages      WikiPage[]           @relation("WikiPageCreator")
   updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
+  createdCarouselPosts  CarouselPost[]       @relation("CarouselPostCreator")
 
   @@map("user")
 }
@@ -701,4 +702,19 @@ model NewsItem {
   @@index([organizationId, source])
   @@index([organizationId, publishedAt])
   @@map("news_item")
+}
+
+/// Instagram-Carousel (Arbeitstitel + Slide-JSON für den Editor)
+model CarouselPost {
+  id          String   @id @default(cuid())
+  title       String
+  slides      Json
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation("CarouselPostCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([createdById])
+  @@map("carousel_post")
 }

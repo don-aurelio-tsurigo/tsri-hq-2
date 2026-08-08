@@ -327,3 +327,23 @@ export async function bulkUpdateNewsItemStatusAction(
 ) {
   return bulkUpdateNewsItemStatusActionImpl(ids, status);
 }
+
+import {
+  createCarouselPost as createCarouselPostAction,
+  updateCarouselSlides as updateCarouselSlidesAction,
+  deleteCarouselPost as deleteCarouselPostAction,
+} from "./actions/carousel";
+
+export async function createCarouselPost(title?: string) {
+  return createCarouselPostAction(title);
+}
+export async function updateCarouselSlides(
+  id: string,
+  slides: unknown,
+  title?: string,
+) {
+  return updateCarouselSlidesAction(id, slides, title);
+}
+export async function deleteCarouselPost(formData: FormData) {
+  return deleteCarouselPostAction(formData);
+}
