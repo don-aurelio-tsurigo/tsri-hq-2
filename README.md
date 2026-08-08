@@ -40,24 +40,30 @@ Login nach Seed:
 
 ## Deploy (Render)
 
-`npm start` führt vor dem Server **`prisma migrate deploy`** aus (inkrementelle Prod-Migrationen).
-
 ### Einmaliger Schema-Reset (Task-Split)
 
-Die aktuelle Baseline (`20260808140000_init_task_split`) ist nicht kompatibel mit der alten `Task`+`kind`-DB. Einmalig Prod leeren, dann neu migrieren + seeden:
+Die Baseline (`20260808140000_init_task_split`) ist nicht kompatibel mit der alten `Task`+`kind`-DB. **`migrate deploy` im Start-Command scheitert**, solange die alte Schema-History noch da ist — deshalb erst Deploy (ohne migrate), dann Reset:
 
-1. Im Render-Dashboard: **Web Service → Shell** öffnen (oder lokal mit der Prod-`DATABASE_URL`).
-2. Ausführen:
+1. Neuesten `main`-Deploy abwarten (Start-Command nur `next start`).
+2. Render: **Web Service → Shell**, dann:
 
 ```bash
 npx prisma migrate reset --force
 ```
 
-Das droppt die DB, wendet alle Migrationen an und startet `npm run db:seed`.
+Das droppt die DB, wendet alle Migrationen an und führt `npm run db:seed` aus.
 
-3. Danach App neu starten / Deploy abwarten. Login wie nach lokalem Seed (`admin@team.local` / `admin1234`, sofern keine `SEED_*` Env Vars gesetzt sind).
+3. App neu starten (Manual Deploy / Restart). Login: `admin@team.local` / `admin1234` (oder `SEED_*` Env Vars).
 
-**Achtung:** Alle Prod-Daten gehen verloren. Spätere Deploys brauchen nur noch `migrate deploy` (automatisch via `npm start`).
+**Achtung:** Alle Prod-Daten gehen verloren.
+
+Danach für künftige Deploys im Render-Dashboard unter **Settings → Pre-Deploy Command** (oder Start Command) eintragen:
+
+```bash
+npx prisma migrate deploy
+```
+
+bzw. Start: `npx prisma migrate deploy && next start`. Lokal/Scripts: `npm run db:deploy`.
 
 ## Kernkonzept
 
