@@ -14,7 +14,7 @@ import { NewsFeed } from "@/components/news-feed";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { listSpaceTasks } from "@/lib/tasks";
-import { listArticles } from "@/lib/editorial";
+import { listArticles } from "@/lib/articles";
 import {
   ensureDefaultEigenleistungRubriken,
   listEigenleistungRubriken,

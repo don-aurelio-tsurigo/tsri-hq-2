@@ -18,7 +18,7 @@ import {
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
 import { getCurrentDashboardItems } from "@/lib/tasks";
-import { listMyHomeArticles } from "@/lib/editorial";
+import { listMyHomeArticles } from "@/lib/articles";
 import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
 import { listTodaysTsueriArticles } from "@/lib/editorial-program";
 import {
