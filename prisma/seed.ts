@@ -18,9 +18,9 @@ async function main() {
   const orgName = process.env.SEED_ORG_NAME ?? "Tsüri-Team";
   const orgSlug = process.env.SEED_ORG_SLUG ?? "team";
 
+  const hashed = await hashPassword(password);
   let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    const hashed = await hashPassword(password);
     user = await prisma.user.create({
       data: {
         name,
@@ -37,7 +37,29 @@ async function main() {
     });
     console.log(`Created admin user ${email}`);
   } else {
-    console.log(`Admin user ${email} already exists`);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { name, emailVerified: true },
+    });
+    const account = await prisma.account.findFirst({
+      where: { userId: user.id, providerId: "credential" },
+    });
+    if (account) {
+      await prisma.account.update({
+        where: { id: account.id },
+        data: { password: hashed },
+      });
+    } else {
+      await prisma.account.create({
+        data: {
+          userId: user.id,
+          accountId: email,
+          providerId: "credential",
+          password: hashed,
+        },
+      });
+    }
+    console.log(`Updated admin user ${email} (password synced from SEED_*)`);
   }
 
   let org = await prisma.organization.findUnique({ where: { slug: orgSlug } });
