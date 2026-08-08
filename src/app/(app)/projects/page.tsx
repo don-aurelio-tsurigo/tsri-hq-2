@@ -73,8 +73,6 @@ export default async function ProjectsPage() {
                 description: task.description,
                 status: task.status,
                 dueAt: task.dueAt,
-                kind: task.kind,
-                stage: task.stage,
                 assigneeId: task.assigneeId,
                 groupId: task.groupId,
                 createdAt: task.createdAt,

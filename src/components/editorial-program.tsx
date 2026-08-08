@@ -10,7 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { setArticlePublishAt, updateTask } from "@/lib/actions";
+import { setArticlePublishAt, updateArticle } from "@/lib/actions";
 import {
   ARTICLE_STAGES,
   ARTICLE_STAGE_LABELS,
@@ -166,7 +166,7 @@ export function EditorialProgram({
       const fd = new FormData();
       fd.set("id", articleId);
       fd.set("assigneeId", assigneeId);
-      return updateTask(fd);
+      return updateArticle(fd);
     });
   }
 
@@ -175,14 +175,14 @@ export function EditorialProgram({
       const fd = new FormData();
       fd.set("id", articleId);
       fd.set("categoryId", categoryId);
-      return updateTask(fd);
+      return updateArticle(fd);
     });
   }
 
   function saveArticle(fd: FormData) {
     setError(null);
     startTransition(async () => {
-      const result = await updateTask(fd);
+      const result = await updateArticle(fd);
       if (result?.error) {
         setError(result.error);
         return;

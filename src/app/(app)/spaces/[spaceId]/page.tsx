@@ -13,7 +13,8 @@ import { WikiSpace } from "@/components/wiki-space";
 import { NewsFeed } from "@/components/news-feed";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
-import { listArticles, listSpaceTasks } from "@/lib/tasks";
+import { listSpaceTasks } from "@/lib/tasks";
+import { listArticles } from "@/lib/editorial";
 import {
   ensureDefaultEigenleistungRubriken,
   listEigenleistungRubriken,

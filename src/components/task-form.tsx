@@ -43,7 +43,6 @@ export function CreateTaskForm({
       }}
     >
       <input type="hidden" name="spaceId" value={spaceId} />
-      <input type="hidden" name="kind" value="generic" />
       {groupId !== undefined && (
         <input type="hidden" name="groupId" value={groupId} />
       )}

@@ -54,10 +54,9 @@ export const DEFAULT_CHORES: { title: string; description: string }[] = [
 ];
 
 export async function listChores(spaceId: string) {
-  return prisma.task.findMany({
+  return prisma.chore.findMany({
     where: {
       spaceId,
-      kind: "chore",
       status: { not: "cancelled" },
     },
     include: {
@@ -77,9 +76,8 @@ export async function listAssignedChoresForUser(
   organizationId: string,
   userId: string,
 ) {
-  return prisma.task.findMany({
+  return prisma.chore.findMany({
     where: {
-      kind: "chore",
       status: { not: "cancelled" },
       space: { organizationId, slug: "aemliplan" },
       assignments: { some: { userId } },
@@ -98,17 +96,16 @@ export async function ensureDefaultChores(
   spaceId: string,
   createdById: string,
 ) {
-  const existing = await prisma.task.count({
-    where: { spaceId, kind: "chore" },
+  const existing = await prisma.chore.count({
+    where: { spaceId },
   });
   if (existing > 0) return;
 
-  await prisma.task.createMany({
+  await prisma.chore.createMany({
     data: DEFAULT_CHORES.map((chore, index) => ({
       spaceId,
       title: chore.title,
       description: chore.description || null,
-      kind: "chore",
       status: "todo",
       createdById,
       sortOrder: index,

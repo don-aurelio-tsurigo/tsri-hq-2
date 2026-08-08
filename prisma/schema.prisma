@@ -22,26 +22,29 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  memberships   Membership[]
-  ownedSpaces   Space[]       @relation("SpaceOwner")
-  spaceAccess   SpaceAccess[]
-  createdTasks  Task[]           @relation("TaskCreator")
-  assignedTasks Task[]           @relation("TaskAssignee")
-  taskAssignments TaskAssignment[]
-  cookingSlots    CookingSlot[]
-  cookingAssignments CookingSlot[] @relation("CookingSlotAssigner")
-  invitationsSent Invitation[]   @relation("InvitationInviter")
-  passwordResets  PasswordResetToken[] @relation("PasswordResetTarget")
+  sessions              Session[]
+  accounts              Account[]
+  memberships           Membership[]
+  ownedSpaces           Space[]              @relation("SpaceOwner")
+  spaceAccess           SpaceAccess[]
+  createdTasks          Task[]               @relation("TaskCreator")
+  assignedTasks         Task[]               @relation("TaskAssignee")
+  createdArticles       Article[]            @relation("ArticleCreator")
+  assignedArticles      Article[]            @relation("ArticleAssignee")
+  createdChores         Chore[]              @relation("ChoreCreator")
+  choreAssignments      ChoreAssignment[]
+  cookingSlots          CookingSlot[]
+  cookingAssignments    CookingSlot[]        @relation("CookingSlotAssigner")
+  invitationsSent       Invitation[]         @relation("InvitationInviter")
+  passwordResets        PasswordResetToken[] @relation("PasswordResetTarget")
   passwordResetsCreated PasswordResetToken[] @relation("PasswordResetCreator")
-  authoredNewsletters NewsletterCampaign[] @relation("NewsletterAuthor")
-  createdNewsletters  NewsletterCampaign[] @relation("NewsletterCreator")
-  vacationRequests    VacationRequest[]    @relation("VacationRequester")
-  vacationReviews     VacationRequest[]    @relation("VacationReviewer")
-  timeEntries         TimeEntry[]
-  createdWikiPages    WikiPage[]           @relation("WikiPageCreator")
-  updatedWikiPages    WikiPage[]           @relation("WikiPageUpdater")
+  authoredNewsletters   NewsletterCampaign[] @relation("NewsletterAuthor")
+  createdNewsletters    NewsletterCampaign[] @relation("NewsletterCreator")
+  vacationRequests      VacationRequest[]    @relation("VacationRequester")
+  vacationReviews       VacationRequest[]    @relation("VacationReviewer")
+  timeEntries           TimeEntry[]
+  createdWikiPages      WikiPage[]           @relation("WikiPageCreator")
+  updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
 
   @@map("user")
 }
@@ -101,37 +104,37 @@ enum MembershipRole {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
+  id                            String   @id @default(cuid())
+  name                          String
+  slug                          String   @unique
   /// Newsletter-Slots an Feiertagen ausblenden (ZH/CH)
-  hideNewsletterHolidays Boolean @default(false)
+  hideNewsletterHolidays        Boolean  @default(false)
   /// Slack: wöchentlicher Kochplan-Digest (Montag)
-  slackCookingWeeklyEnabled Boolean @default(false)
+  slackCookingWeeklyEnabled     Boolean  @default(false)
   /// Incoming Webhook URL for weekly digest (overrides SLACK_WEBHOOK_URL)
-  slackCookingWeeklyWebhookUrl String?
+  slackCookingWeeklyWebhookUrl  String?
   /// Slack: monatlicher Eintrag-Reminder (letzte Monatswoche)
-  slackCookingMonthlyEnabled Boolean @default(false)
+  slackCookingMonthlyEnabled    Boolean  @default(false)
   /// Incoming Webhook URL for monthly reminder (overrides SLACK_WEBHOOK_URL)
   slackCookingMonthlyWebhookUrl String?
   /// Dedup-Key letzte Wochen-Nachricht, z.B. 2026-W32
-  slackCookingWeeklyLastKey String?
+  slackCookingWeeklyLastKey     String?
   /// Dedup-Key letzte Monats-Nachricht, z.B. 2026-09 (Folgemonat)
-  slackCookingMonthlyLastKey String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slackCookingMonthlyLastKey    String?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
 
-  memberships Membership[]
-  invitations Invitation[]
-  spaces      Space[]
-  newsletterTypes NewsletterType[]
+  memberships             Membership[]
+  invitations             Invitation[]
+  spaces                  Space[]
+  newsletterTypes         NewsletterType[]
   newsletterBlockedRanges NewsletterBlockedRange[]
-  vacationRequests VacationRequest[]
-  timeEntries      TimeEntry[]
-  eigenleistungRubriken EigenleistungRubrik[]
-  articleCategories   ArticleCategory[]
-  wikiPages        WikiPage[]
-  newsItems        NewsItem[]
+  vacationRequests        VacationRequest[]
+  timeEntries             TimeEntry[]
+  eigenleistungRubriken   EigenleistungRubrik[]
+  articleCategories       ArticleCategory[]
+  wikiPages               WikiPage[]
+  newsItems               NewsItem[]
 
   @@map("organization")
 }
@@ -237,6 +240,8 @@ model Space {
   owner        User?         @relation("SpaceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   access       SpaceAccess[]
   tasks        Task[]
+  articles     Article[]
+  chores       Chore[]
   taskGroups   TaskGroup[]
   cookingSlots CookingSlot[]
   wikiPages    WikiPage[]
@@ -263,7 +268,7 @@ model SpaceAccess {
   @@map("space_access")
 }
 
-// ─── Tasks (generic; article/chore/cooking via kind later) ─────
+// ─── Tasks / Articles / Chores ─────────────────────────────────
 
 enum TaskStatus {
   todo
@@ -272,11 +277,14 @@ enum TaskStatus {
   cancelled
 }
 
-enum TaskKind {
-  generic
-  article
-  chore
-  cooking
+enum ArticleStage {
+  input
+  weiter
+  warteliste
+  abgelehnt
+  in_arbeit
+  bereit
+  publiziert
 }
 
 /// Redaktions-Kategorien (admin-verwaltbar, org-weit)
@@ -292,7 +300,7 @@ model ArticleCategory {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tasks        Task[]
+  articles     Article[]
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
@@ -312,58 +320,77 @@ model EigenleistungRubrik {
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  tasks        Task[]
+  articles     Article[]
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
   @@map("eigenleistung_rubrik")
 }
 
+/// Generic / project tasks (Inbox, personal lists, project todos)
 model Task {
-  id          String           @id @default(cuid())
-  spaceId     String
-  title       String
-  /// Freitext / Artikelinhalt / Pitch-Notizen
-  description String?          @db.Text
-  status      TaskStatus       @default(todo)
-  kind        TaskKind         @default(generic)
-  /// Editorial Kanban stage (see ARTICLE_STAGES)
-  stage       String?
-  categoryId  String?
-  eigenleistungRubrikId String?
-  assigneeId  String?
-  createdById String
-  groupId     String?
-  dueAt       DateTime?
+  id            String     @id @default(cuid())
+  spaceId       String
+  title         String
+  description   String?    @db.Text
+  status        TaskStatus @default(todo)
+  assigneeId    String?
+  createdById   String
+  groupId       String?
+  dueAt         DateTime?
   /// Tage relativ zu Space.eventAt (negativ = vorher). Vorlagen + Spawn.
   dueOffsetDays Int?
-  /// Geplanter Publikationstag (Redaktionsprogramm)
-  publishAt   DateTime?        @db.Date
-  /// Soft-archive: ausgeblendet aus aktiven Kanban-/Programm-Ansichten
-  archivedAt  DateTime?
-  sortOrder   Int              @default(0)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  sortOrder     Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   space     Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   group     TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  category            ArticleCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  eigenleistungRubrik EigenleistungRubrik? @relation(fields: [eigenleistungRubrikId], references: [id], onDelete: SetNull)
-  assignments TaskAssignment[]
 
   @@index([spaceId, status])
-  @@index([spaceId, stage])
-  @@index([spaceId, publishAt])
-  @@index([spaceId, archivedAt])
   @@index([spaceId, groupId])
   @@index([assigneeId])
   @@index([createdById])
-  @@index([kind])
+  @@map("task")
+}
+
+/// Editorial articles (Kanban / Redaktionsprogramm)
+model Article {
+  id                    String       @id @default(cuid())
+  spaceId               String
+  title                 String
+  /// Pitch-Notizen / Artikelinhalt
+  description           String?      @db.Text
+  stage                 ArticleStage @default(input)
+  categoryId            String?
+  eigenleistungRubrikId String?
+  /// Zuständige Person
+  assigneeId            String?
+  createdById           String
+  /// Geplanter Publikationstag (Redaktionsprogramm)
+  publishAt             DateTime?    @db.Date
+  /// Soft-archive: ausgeblendet aus aktiven Kanban-/Programm-Ansichten
+  archivedAt            DateTime?
+  sortOrder             Int          @default(0)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  space               Space                @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  assignee            User?                @relation("ArticleAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy           User                 @relation("ArticleCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  category            ArticleCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  eigenleistungRubrik EigenleistungRubrik? @relation(fields: [eigenleistungRubrikId], references: [id], onDelete: SetNull)
+
+  @@index([spaceId, stage])
+  @@index([spaceId, publishAt])
+  @@index([spaceId, archivedAt])
+  @@index([assigneeId])
+  @@index([createdById])
   @@index([categoryId])
   @@index([eigenleistungRubrikId])
-  @@map("task")
+  @@map("article")
 }
 
 /// User-defined groups/lists for tasks within a space (personal tasks)
@@ -375,26 +402,51 @@ model TaskGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  space Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  tasks Task[]
+  space  Space   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+  chores Chore[]
 
   @@index([spaceId, sortOrder])
   @@map("task_group")
 }
 
-/// Multi-assignee for chores / shared work
-model TaskAssignment {
+/// Ämtli / chores with multi-assignee
+model Chore {
+  id          String     @id @default(cuid())
+  spaceId     String
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(todo)
+  groupId     String?
+  createdById String
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  space       Space             @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  group       TaskGroup?        @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  createdBy   User              @relation("ChoreCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignments ChoreAssignment[]
+
+  @@index([spaceId, status])
+  @@index([spaceId, groupId])
+  @@index([createdById])
+  @@map("chore")
+}
+
+/// Multi-assignee for chores
+model ChoreAssignment {
   id        String   @id @default(cuid())
-  taskId    String
+  choreId   String
   userId    String
   createdAt DateTime @default(now())
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chore Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, userId])
+  @@unique([choreId, userId])
   @@index([userId])
-  @@map("task_assignment")
+  @@map("chore_assignment")
 }
 
 /// Kochplan: ein Slot pro Tag (Di–Fr)
@@ -448,12 +500,12 @@ model NewsletterType {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  campaigns    NewsletterCampaign[]
+  organization  Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaigns     NewsletterCampaign[]
   blockedRanges NewsletterBlockedRange[]
 
-  @@index([organizationId])
   @@unique([organizationId, name])
+  @@index([organizationId])
   @@map("newsletter_type")
 }
 
@@ -477,18 +529,18 @@ model NewsletterBlockedRange {
 }
 
 model NewsletterCampaign {
-  id           String                    @id @default(cuid())
-  typeId       String
-  authorId     String?
-  createdById  String
-  date         DateTime                  @db.Date
-  campaignUrl  String?
-  status       NewsletterCampaignStatus  @default(published)
-  note         String?
+  id          String                   @id @default(cuid())
+  typeId      String
+  authorId    String?
+  createdById String
+  date        DateTime                 @db.Date
+  campaignUrl String?
+  status      NewsletterCampaignStatus @default(published)
+  note        String?
   /// Wordle-Lösungswort für diese Ausgabe (genau 5 Buchstaben)
-  wordleWord   String?
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
+  wordleWord  String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
 
   type      NewsletterType @relation(fields: [typeId], references: [id], onDelete: Cascade)
   author    User?          @relation("NewsletterAuthor", fields: [authorId], references: [id], onDelete: SetNull)
@@ -650,4 +702,3 @@ model NewsItem {
   @@index([organizationId, publishedAt])
   @@map("news_item")
 }
-

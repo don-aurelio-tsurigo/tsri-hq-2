@@ -14,8 +14,6 @@ function toTaskRow(
     description: string | null;
     status: "todo" | "doing" | "done" | "cancelled";
     dueAt: Date | null;
-    kind: string;
-    stage: string | null;
     assigneeId: string | null;
     groupId: string | null;
     createdAt: Date;
@@ -32,8 +30,6 @@ function toTaskRow(
     description: t.description,
     status: t.status,
     dueAt: t.dueAt,
-    kind: t.kind,
-    stage: t.stage,
     assigneeId: t.assigneeId,
     groupId: t.groupId,
     createdAt: t.createdAt,

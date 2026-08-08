@@ -152,7 +152,6 @@ export async function copyProjectStructure(
     where: {
       spaceId: sourceProjectId,
       status: { not: "cancelled" },
-      kind: "generic",
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: {
@@ -187,7 +186,6 @@ export async function copyProjectStructure(
         spaceId: targetProjectId,
         title: t.title,
         description: t.description,
-        kind: "generic" as const,
         status: "todo" as const,
         sortOrder: t.sortOrder ?? index,
         createdById,
@@ -261,7 +259,6 @@ export async function getProjectPhaseProgress(
     prisma.task.findMany({
       where: {
         spaceId: projectId,
-        kind: "generic",
         status: { not: "cancelled" },
       },
       select: { groupId: true, status: true },

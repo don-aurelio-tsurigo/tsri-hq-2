@@ -17,7 +17,8 @@ import {
 } from "@/lib/cooking";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
-import { getCurrentDashboardItems, listMyHomeArticles } from "@/lib/tasks";
+import { getCurrentDashboardItems } from "@/lib/tasks";
+import { listMyHomeArticles } from "@/lib/editorial";
 import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
 import { listTodaysTsueriArticles } from "@/lib/editorial-program";
 import {
@@ -131,7 +132,7 @@ export default async function HomePage() {
   const kochplanId = cookingMonth.spaceId;
   const cookingMonthCount = cookingMonth.count;
 
-  const tasks = items.filter((i) => i.kind !== "article");
+  const tasks = items;
   const choreWeekKey = `${getISOWeekYear(today)}-W${String(getISOWeek(today)).padStart(2, "0")}`;
   const redaktionLink = redaktionSpace?.id ?? null;
 

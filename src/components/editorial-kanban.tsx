@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { createTask, updateTask, moveArticleStage, archiveArticle, unarchiveArticle, deleteArticle } from "@/lib/actions";
+import { createArticle, updateArticle, moveArticleStage, archiveArticle, unarchiveArticle, deleteArticle } from "@/lib/actions";
 import {
   EigenleistungRubrikManager,
   RubrikBadge,
@@ -207,7 +207,7 @@ export function EditorialKanban({
     fd.set("id", articleId);
     fd.set("assigneeId", nextAssigneeId ?? "");
     startTransition(async () => {
-      await updateTask(fd);
+      await updateArticle(fd);
     });
   }
 
@@ -714,7 +714,7 @@ function CreateArticleDialog({
         action={(fd) => {
           setError(null);
           startTransition(async () => {
-            const result = await createTask(fd);
+            const result = await createArticle(fd);
             if (result?.error) {
               setError(result.error);
               return;
@@ -724,7 +724,6 @@ function CreateArticleDialog({
         }}
       >
         <input type="hidden" name="spaceId" value={spaceId} />
-        <input type="hidden" name="kind" value="article" />
         <input type="hidden" name="stage" value={DEFAULT_ARTICLE_STAGE} />
 
         <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
@@ -920,7 +919,7 @@ function ArticleDetailDrawer({
               if (!canEdit) return;
               setError(null);
               startTransition(async () => {
-                const result = await updateTask(fd);
+                const result = await updateArticle(fd);
                 if (result?.error) {
                   setError(result.error);
                   return;

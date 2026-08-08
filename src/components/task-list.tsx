@@ -19,8 +19,6 @@ export type TaskRow = {
   status: TaskStatus;
   dueAt: Date | string | null;
   dueOffsetDays?: number | null;
-  kind: string;
-  stage: string | null;
   assigneeId?: string | null;
   groupId?: string | null;
   createdAt?: Date | string;
@@ -290,12 +288,6 @@ export function TaskList({
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
                     {showSpace && task.space && (
                       <span className="badge badge-muted">{task.space.name}</span>
-                    )}
-                    {task.kind !== "generic" && (
-                      <span className="badge">{task.kind}</span>
-                    )}
-                    {task.stage && (
-                      <span className="badge badge-muted">Stage: {task.stage}</span>
                     )}
                     {!members &&
                       task.assignee &&

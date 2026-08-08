@@ -24,14 +24,12 @@ export function formatWeekRange(monday: Date) {
 
 /** Scheduled articles for the redaktion program (have publishAt). */
 export async function listProgramArticles(spaceId: string) {
-  return prisma.task.findMany({
+  return prisma.article.findMany({
     where: {
       spaceId,
-      kind: "article",
-      status: { not: "cancelled" },
       archivedAt: null,
       publishAt: { not: null },
-      OR: [{ stage: null }, { stage: { not: "abgelehnt" } }],
+      stage: { not: "abgelehnt" },
     },
     include: {
       assignee: { select: { id: true, name: true } },
@@ -60,14 +58,12 @@ export async function listTodaysTsueriArticles(organizationId: string) {
   const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
   const dayEnd = new Date(`${todayKey}T23:59:59.999Z`);
 
-  return prisma.task.findMany({
+  return prisma.article.findMany({
     where: {
       spaceId: redaktion.id,
-      kind: "article",
-      status: { not: "cancelled" },
       archivedAt: null,
       publishAt: { gte: dayStart, lte: dayEnd },
-      OR: [{ stage: null }, { stage: { not: "abgelehnt" } }],
+      stage: { not: "abgelehnt" },
     },
     include: {
       assignee: { select: { id: true, name: true } },

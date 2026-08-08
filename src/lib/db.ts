@@ -10,19 +10,20 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 22; // v22: ArticleCategory model + Task.categoryId
+const PRISMA_CLIENT_SCHEMA_VERSION = 23; // v23: Task/Article/Chore split
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
   User: ["phone", "birthDate", "privateNotes"],
-  Task: [
+  Task: ["groupId", "dueOffsetDays"],
+  Article: [
+    "stage",
     "categoryId",
-    "assignments",
-    "publishAt",
-    "groupId",
     "eigenleistungRubrikId",
+    "publishAt",
     "archivedAt",
   ],
+  Chore: ["assignments"],
   Space: ["archivedAt", "isTemplate"],
   NewsletterType: ["weekdays", "requiresWordle"],
   NewsletterCampaign: ["wordleWord"],
@@ -43,7 +44,9 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
 };
 
 const REQUIRED_MODELS = [
-  "TaskAssignment",
+  "Article",
+  "Chore",
+  "ChoreAssignment",
   "TaskGroup",
   "CookingSlot",
   "NewsletterType",
@@ -81,12 +84,14 @@ function clientMatchesSchema(client: PrismaClient) {
       if (!models[modelName]) return false;
     }
 
-    for (const [modelName, required] of Object.entries(REQUIRED_FIELDS)) {
-      const fields = models[modelName]?.fields?.map((f) => f.name) ?? [];
-      if (fields.length === 0) return false;
-      if (!required.every((name) => fields.includes(name))) return false;
+    for (const [modelName, fields] of Object.entries(REQUIRED_FIELDS)) {
+      const model = models[modelName];
+      if (!model?.fields) return false;
+      const names = new Set(model.fields.map((f) => f.name));
+      for (const field of fields) {
+        if (!names.has(field)) return false;
+      }
     }
-
     return true;
   } catch {
     return false;

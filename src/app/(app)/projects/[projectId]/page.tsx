@@ -96,8 +96,6 @@ export default async function ProjectDetailPage({
         status: t.status,
         dueAt: t.dueAt,
         dueOffsetDays: t.dueOffsetDays,
-        kind: t.kind,
-        stage: t.stage,
         assigneeId: t.assigneeId,
         groupId: t.groupId,
         createdAt: t.createdAt,

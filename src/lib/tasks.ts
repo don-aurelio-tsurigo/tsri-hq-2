@@ -1,27 +1,20 @@
 import { prisma } from "@/lib/db";
-import { toDateKey } from "@/lib/cooking";
-import { getPersonalSpace } from "@/lib/spaces";
 import type { TaskStatus } from "@/generated/prisma/client";
-import {
-  ARTICLE_STAGES,
-  ARTICLE_STAGE_LABELS,
-  type ArticleStage,
-} from "@/lib/editorial";
+import { getPersonalSpace } from "@/lib/spaces";
 
 export type InboxTask = Awaited<ReturnType<typeof getInboxTasks>>[number];
 export type SpaceTask = Awaited<ReturnType<typeof listSpaceTasks>>[number];
-export type ArticleTask = Awaited<ReturnType<typeof listArticles>>[number];
 
 /**
  * Current items for Home dashboard: private + assigned open work
- * (not done / not cancelled). Articles exclude terminal stages.
+ * (not done / not cancelled). Articles live on a separate model.
  */
 export async function getCurrentDashboardItems(
   organizationId: string,
   userId: string,
 ) {
   const personal = await getPersonalSpace(organizationId, userId);
-  const items = await prisma.task.findMany({
+  return prisma.task.findMany({
     where: {
       status: { in: ["todo", "doing"] },
       space: { organizationId },
@@ -35,20 +28,7 @@ export async function getCurrentDashboardItems(
             archivedAt: null,
           },
         },
-        {
-          assignments: { some: { userId } },
-          space: {
-            type: { not: "personal" as const },
-            isTemplate: false,
-            archivedAt: null,
-          },
-        },
       ],
-      NOT: {
-        kind: "article",
-        stage: { in: ["publiziert", "abgelehnt"] },
-      },
-      archivedAt: null,
     },
     include: {
       space: true,
@@ -56,7 +36,6 @@ export async function getCurrentDashboardItems(
     },
     orderBy: [{ dueAt: "asc" }, { updatedAt: "desc" }],
   });
-  return items;
 }
 
 /**
@@ -95,7 +74,6 @@ export async function listAssignedProjectTasks(
     where: {
       status: { in: ["todo", "doing"] },
       assigneeId: userId,
-      kind: "generic",
       space: {
         organizationId,
         type: "project",
@@ -113,78 +91,9 @@ export async function listAssignedProjectTasks(
   });
 }
 
-/** All non-cancelled articles (full editorial database, incl. published + soft-archived). */
-export async function listArticles(spaceId: string) {
-  return prisma.task.findMany({
-    where: {
-      spaceId,
-      kind: "article",
-      status: { not: "cancelled" },
-    },
-    include: {
-      assignee: { select: { id: true, name: true, email: true } },
-      createdBy: { select: { id: true, name: true } },
-      eigenleistungRubrik: {
-        select: { id: true, name: true, color: true },
-      },
-      category: {
-        select: { id: true, name: true, color: true, active: true },
-      },
-    },
-    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-  });
-}
-
-const MY_HOME_ARTICLE_STAGES = [
-  "weiter",
-  "in_arbeit",
-  "bereit",
-  "publiziert",
-] as const;
-
-/**
- * Home "Meine Artikel": assigned, stage ab Weiter (ohne Input/Warteliste/Abgelehnt),
- * mit Publikationsdatum ab heute.
- */
-export async function listMyHomeArticles(
-  organizationId: string,
-  userId: string,
-) {
-  const todayKey = toDateKey(new Date());
-  const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
-
-  return prisma.task.findMany({
-    where: {
-      kind: "article",
-      status: { not: "cancelled" },
-      archivedAt: null,
-      stage: { in: [...MY_HOME_ARTICLE_STAGES] },
-      publishAt: { gte: dayStart },
-      space: {
-        organizationId,
-        type: { not: "personal" },
-        isTemplate: false,
-        archivedAt: null,
-      },
-      OR: [
-        { assigneeId: userId },
-        { assignments: { some: { userId } } },
-      ],
-    },
-    include: {
-      space: true,
-      assignee: { select: { id: true, name: true, email: true } },
-    },
-    orderBy: [{ publishAt: "asc" }, { updatedAt: "desc" }],
-  });
-}
-
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   todo: "Offen",
   doing: "In Arbeit",
   done: "Erledigt",
   cancelled: "Abgebrochen",
 };
-
-export { ARTICLE_STAGES, ARTICLE_STAGE_LABELS };
-export type { ArticleStage };
