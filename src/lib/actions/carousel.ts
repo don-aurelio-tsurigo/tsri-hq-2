@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { createEmptyCoverSlide, parseSlides } from "@/lib/carousel";
+import { createEmptyCoverSlide } from "@/lib/carousel/slides";
+import { parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
 
 const idSchema = z.string().min(1);

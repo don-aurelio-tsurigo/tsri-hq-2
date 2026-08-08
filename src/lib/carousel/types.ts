@@ -1,6 +1,11 @@
 export const DEFAULT_CATEGORY = "STADTLEBEN";
-export const DEFAULT_BG = "#faff72";
+/** Tsüri Instagram gold/ochre from production slide examples */
+export const DEFAULT_BG = "#b9935e";
 export const DEFAULT_OUTRO_CTA = "LINK IN DER BIO";
+export const BRAND_MARK = "TSÜRI";
+
+export const CANVAS_WIDTH = 1080;
+export const CANVAS_HEIGHT = 1350;
 
 export type SlideBase = {
   id: string;
@@ -36,3 +41,4 @@ export type OutroSlide = SlideBase & {
 };
 
 export type Slide = CoverSlide | TextSlide | QuoteSlide | OutroSlide;
+export type SlideType = Slide["type"];

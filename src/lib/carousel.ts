@@ -1,24 +1,16 @@
-import { randomUUID } from "crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import {
-  DEFAULT_CATEGORY,
-  type CoverSlide,
-  type Slide,
-} from "@/lib/carousel/types";
+import { createEmptyCoverSlide } from "@/lib/carousel/slides";
+import type { Slide } from "@/lib/carousel/types";
 
-export function createEmptyCoverSlide(
-  category: string = DEFAULT_CATEGORY,
-): CoverSlide {
-  return {
-    id: randomUUID(),
-    type: "cover",
-    category,
-    backgroundImageUrl: null,
-    overline: "",
-    headline: "",
-  };
-}
+export { createEmptyCoverSlide } from "@/lib/carousel/slides";
+export {
+  createEmptyOutroSlide,
+  createEmptyQuoteSlide,
+  createEmptySlide,
+  createEmptyTextSlide,
+  lastCategory,
+} from "@/lib/carousel/slides";
 
 export function parseSlides(value: Prisma.JsonValue): Slide[] {
   if (!Array.isArray(value)) return [];
