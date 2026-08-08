@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
@@ -19,16 +18,23 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const { error: err } = await authClient.signIn.email({
-        email,
-        password,
-      });
-      if (err) {
-        setError(err.message ?? "Login fehlgeschlagen.");
-        return;
+      try {
+        const { error: err } = await authClient.signIn.email({
+          email,
+          password,
+          callbackURL: "/home",
+        });
+        if (err) {
+          setError(err.message ?? "Login fehlgeschlagen.");
+          return;
+        }
+        // Hard navigation avoids soft-nav hanging on first /home compile in dev.
+        window.location.assign("/home");
+      } catch (e) {
+        setError(
+          e instanceof Error ? e.message : "Login fehlgeschlagen (Netzwerk).",
+        );
       }
-      router.push("/home");
-      router.refresh();
     });
   }
 

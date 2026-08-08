@@ -23,7 +23,14 @@ export const auth = betterAuth({
   user: {
     additionalFields: {},
   },
-  trustedOrigins: [process.env.BETTER_AUTH_URL ?? "http://localhost:3000"],
+  trustedOrigins: [
+    process.env.BETTER_AUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+  ].filter((v): v is string => !!v),
 });
 
 export type Session = typeof auth.$Infer.Session;
