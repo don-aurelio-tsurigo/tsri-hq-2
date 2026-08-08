@@ -212,7 +212,7 @@ export function AppSidebar({
               icon={Images}
               onNavigate={onMobileClose}
             >
-              Carousel
+              Insta-Posts
             </NavLink>
             <NavLink
               href={spaceHref("quellen")}
