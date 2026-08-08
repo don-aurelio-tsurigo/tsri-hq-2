@@ -1,2 +1,3 @@
-// Barrel file - wird schrittweise mit domänenspezifischen Re-Exports befüllt
-// Aktuell: alles kommt noch aus der alten actions.ts
+// Barrel file - domain modules live alongside this file.
+// Prefer importing from `@/lib/actions` (compatibility wrappers in `../actions.ts`)
+// or from a specific domain module under `./`.
