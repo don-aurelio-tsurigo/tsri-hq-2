@@ -334,7 +334,7 @@ import {
   deleteCarouselPost as deleteCarouselPostAction,
 } from "./actions/carousel";
 
-export async function createCarouselPost(title?: string) {
+export async function createCarouselPost(title?: string | FormData) {
   return createCarouselPostAction(title);
 }
 export async function updateCarouselSlides(

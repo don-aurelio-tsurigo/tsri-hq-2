@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { CarouselList } from "@/components/carousel-list";
+import { CreateCarouselButton } from "@/components/create-carousel-button";
 import { listCarouselPosts, parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
 
@@ -21,9 +21,7 @@ export default async function CarouselIndexPage() {
             Carousels anlegen, bearbeiten und als PNG exportieren.
           </p>
         </div>
-        <Link href="/carousel/new" className="btn btn-primary">
-          Neu erstellen
-        </Link>
+        <CreateCarouselButton />
       </header>
 
       <CarouselList

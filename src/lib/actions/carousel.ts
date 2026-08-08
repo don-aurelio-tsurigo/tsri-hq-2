@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -10,11 +11,17 @@ import { requireMembership } from "@/lib/session";
 const idSchema = z.string().min(1);
 const titleSchema = z.string().min(1).max(200);
 
-export async function createCarouselPost(title?: string) {
+export async function createCarouselPost(title?: string | FormData) {
   const { session } = await requireMembership();
+  const rawTitle =
+    typeof title === "string"
+      ? title
+      : title instanceof FormData
+        ? String(title.get("title") ?? "")
+        : "";
   const resolvedTitle =
-    title && titleSchema.safeParse(title).success
-      ? title.trim()
+    rawTitle && titleSchema.safeParse(rawTitle).success
+      ? rawTitle.trim()
       : "Neues Carousel";
 
   const post = await prisma.carouselPost.create({
@@ -26,7 +33,7 @@ export async function createCarouselPost(title?: string) {
   });
 
   revalidatePath("/carousel");
-  return { id: post.id };
+  redirect(`/carousel/${post.id}`);
 }
 
 export async function updateCarouselSlides(

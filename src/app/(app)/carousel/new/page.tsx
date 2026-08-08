@@ -1,9 +1,15 @@
-import { redirect } from "next/navigation";
 import { createCarouselPost } from "@/lib/actions";
-import { requireMembership } from "@/lib/session";
 
-export default async function NewCarouselPage() {
-  await requireMembership();
-  const { id } = await createCarouselPost();
-  redirect(`/carousel/${id}`);
+/** Fallback-Route: Form-Action statt Mutation während RSC-Render. */
+export default function NewCarouselPage() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-4 py-16 text-center">
+      <p className="text-[var(--muted)]">Neues Carousel wird angelegt…</p>
+      <form action={createCarouselPost}>
+        <button type="submit" className="btn btn-primary">
+          Weiter
+        </button>
+      </form>
+    </div>
+  );
 }
