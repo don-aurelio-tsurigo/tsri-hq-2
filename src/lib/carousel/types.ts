@@ -3,6 +3,7 @@ export const DEFAULT_CATEGORY = "STADTLEBEN";
 export const DEFAULT_BG = "#b9935e";
 export const DEFAULT_OUTRO_CTA = "LINK IN DER BIO";
 export const BRAND_MARK = "TSÜRI";
+export const BRAND_LOGO_SRC = "/brand/tsuri-logo.png";
 
 export const CANVAS_WIDTH = 1080;
 export const CANVAS_HEIGHT = 1350;

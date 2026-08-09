@@ -1,4 +1,5 @@
 import {
+  BRAND_LOGO_SRC,
   BRAND_MARK,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -35,16 +36,24 @@ function Category({ text }: { text: string }) {
 
 function BrandMark() {
   return (
-    <p
-      className="absolute left-0 right-0 text-center font-extrabold tracking-[0.12em] text-white"
-      style={{
-        bottom: 64,
-        fontSize: 42,
-        fontFamily: "var(--font-display), system-ui, sans-serif",
-      }}
+    <div
+      className="absolute left-0 right-0 flex justify-center"
+      style={{ bottom: 56 }}
     >
-      {BRAND_MARK}
-    </p>
+      {/* Logo is dark; invert to white for gold/photo Instagram backgrounds */}
+      <img
+        src={BRAND_LOGO_SRC}
+        alt={BRAND_MARK}
+        width={220}
+        height={72}
+        className="object-contain object-center"
+        style={{
+          width: 220,
+          height: 72,
+          filter: "brightness(0) invert(1)",
+        }}
+      />
+    </div>
   );
 }
 
