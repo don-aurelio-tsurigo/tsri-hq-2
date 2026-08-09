@@ -29,7 +29,7 @@ function Category({ text }: { text: string }) {
       className="absolute left-0 right-0 text-center font-medium tracking-[0.18em] text-white uppercase"
       style={{
         top: 72,
-        fontSize: 28,
+        fontSize: 23,
         fontFamily: CAROUSEL_FONT,
       }}
     >
@@ -106,11 +106,11 @@ function CoverPreview({ slide }: { slide: Extract<Slide, { type: "cover" }> }) {
         }}
       >
         {slide.overline ? (
-          <p className="mb-3 font-medium" style={{ fontSize: 36 }}>
+          <p className="mb-3 font-medium" style={{ fontSize: 30 }}>
             {slide.overline}
           </p>
         ) : null}
-        <p className="font-extrabold leading-[1.12]" style={{ fontSize: 56 }}>
+        <p className="font-extrabold leading-[1.12]" style={{ fontSize: 54 }}>
           {slide.headline || "Headline…"}
         </p>
       </div>
@@ -175,7 +175,7 @@ function QuotePreview({ slide }: { slide: Extract<Slide, { type: "quote" }> }) {
       >
         <p
           className="font-extrabold leading-none"
-          style={{ fontSize: 120, marginBottom: 24 }}
+          style={{ fontSize: 181, marginBottom: 24 }}
         >
           «
         </p>
@@ -217,7 +217,7 @@ function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
           fontFamily: CAROUSEL_FONT,
         }}
       >
-        <p className="font-extrabold leading-[1.15]" style={{ fontSize: 56 }}>
+        <p className="font-extrabold leading-[1.15]" style={{ fontSize: 54 }}>
           {slide.headline || "Headline…"}
         </p>
         <p
