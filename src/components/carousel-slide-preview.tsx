@@ -101,23 +101,51 @@ function Guides({
   );
 }
 
-function imageStyle(
-  url: string | null,
-  transform: LayerTransform,
-  overlay?: Partial<ImageOverlay> | null,
-): CSSProperties {
+function ImageLayer({
+  url,
+  transform,
+  overlay,
+  className,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: {
+  url: string | null;
+  transform: LayerTransform;
+  overlay?: Partial<ImageOverlay> | null;
+  className?: string;
+  onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerUp?: (e: PointerEvent<HTMLDivElement>) => void;
+}) {
   const t = normalizeTransform(transform);
   const o = normalizeImageOverlay(overlay);
-  return {
-    backgroundColor: "#1a1a1a",
-    backgroundImage: url ? `url(${url})` : undefined,
-    backgroundRepeat: "no-repeat",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
-    transformOrigin: "center center",
-    filter: url ? imageDimFilter(o.dim) : undefined,
-  };
+  return (
+    <div
+      className={`absolute inset-0 z-0 overflow-hidden ${className ?? ""}`}
+      style={{
+        backgroundColor: "#1a1a1a",
+        transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
+        transformOrigin: "center center",
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    >
+      {url ? (
+        // <img> (not CSS background) so html-to-image can embed after export inlining.
+        // Do not set crossOrigin here — external CDNs without CORS would fail to display.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+          style={{ filter: imageDimFilter(o.dim) }}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 function ImageScrim({
@@ -280,9 +308,11 @@ function CoverPreview({
 
   return (
     <>
-      <div
-        className={`absolute inset-0 z-0 ${imageDrag.className}`}
-        style={imageStyle(slide.backgroundImageUrl, imageT, slide.imageOverlay)}
+      <ImageLayer
+        url={slide.backgroundImageUrl}
+        transform={imageT}
+        overlay={slide.imageOverlay}
+        className={imageDrag.className}
         onPointerDown={imageDrag.onPointerDown}
         onPointerMove={imageDrag.onPointerMove}
         onPointerUp={imageDrag.onPointerUp}
@@ -306,11 +336,14 @@ function CoverPreview({
         onPointerUp={textDrag.onPointerUp}
       >
         {slide.overline ? (
-          <p className="mb-3 font-medium" style={{ fontSize: 30, lineHeight: 1.2 }}>
+          <p
+            className="font-normal"
+            style={{ fontSize: 35, lineHeight: 1.2, marginBottom: 40 }}
+          >
             {slide.overline}
           </p>
         ) : null}
-        <p className="font-extrabold" style={{ fontSize: 54, lineHeight: 1.2 }}>
+        <p className="font-bold" style={{ fontSize: 68, lineHeight: 1.12 }}>
           {slide.headline || "Headline…"}
         </p>
       </div>
@@ -365,13 +398,11 @@ function TextPreview({
     <>
       {hasImage ? (
         <>
-          <div
-            className={`absolute inset-0 z-0 ${imageDrag.className}`}
-            style={imageStyle(
-              slide.backgroundImageUrl,
-              imageT,
-              slide.imageOverlay,
-            )}
+          <ImageLayer
+            url={slide.backgroundImageUrl}
+            transform={imageT}
+            overlay={slide.imageOverlay}
+            className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
@@ -458,13 +489,11 @@ function QuotePreview({
     <>
       {hasImage ? (
         <>
-          <div
-            className={`absolute inset-0 z-0 ${imageDrag.className}`}
-            style={imageStyle(
-              slide.backgroundImageUrl,
-              imageT,
-              slide.imageOverlay,
-            )}
+          <ImageLayer
+            url={slide.backgroundImageUrl}
+            transform={imageT}
+            overlay={slide.imageOverlay}
+            className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
@@ -577,14 +606,15 @@ function OutroPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        <p className="font-extrabold" style={{ fontSize: 54, lineHeight: 1.2 }}>
+        <p className="font-bold" style={{ fontSize: 76, lineHeight: 1.32 }}>
           {slide.headline || "Headline…"}
         </p>
         <p
-          className="mt-8 text-right font-semibold tracking-[0.08em] uppercase"
+          className="text-right font-medium tracking-[0.08em] uppercase"
           style={{
-            fontSize: 32,
+            fontSize: 40,
             lineHeight: 1.2,
+            marginTop: 28,
             fontFamily: CAROUSEL_FONT,
           }}
         >

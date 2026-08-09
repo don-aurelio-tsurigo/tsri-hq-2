@@ -6,7 +6,12 @@ import { flushSync } from "react-dom";
 import { toPng } from "html-to-image";
 import JSZip from "jszip";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
-import { BRAND_LOGO_SRC, CANVAS_HEIGHT, CANVAS_WIDTH, type Slide } from "@/lib/carousel/types";
+import {
+  BRAND_LOGO_SRC,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  type Slide,
+} from "@/lib/carousel/types";
 
 function slugify(value: string) {
   const slug = value
@@ -17,6 +22,53 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug || "carousel";
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Bild konnte nicht gelesen werden."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Inline remote/same-origin images so html-to-image never needs CORS re-fetch. */
+async function inlineImageUrl(src: string): Promise<string> {
+  if (src.startsWith("data:")) return src;
+
+  const tryFetch = async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/") && !src.startsWith("blob:")) {
+      // some servers omit type; still try
+    }
+    return blobToDataUrl(blob);
+  };
+
+  try {
+    return await tryFetch(src);
+  } catch {
+    if (src.startsWith("blob:") || src.startsWith("/")) {
+      throw new Error(`Bild konnte nicht geladen werden: ${src.slice(0, 80)}`);
+    }
+    const proxy = `/api/carousel/proxy-image?url=${encodeURIComponent(src)}`;
+    return await tryFetch(proxy);
+  }
+}
+
+async function prepareSlideForExport(slide: Slide): Promise<Slide> {
+  if (
+    slide.type !== "cover" &&
+    slide.type !== "text" &&
+    slide.type !== "quote"
+  ) {
+    return slide;
+  }
+  if (!slide.backgroundImageUrl) return slide;
+  const backgroundImageUrl = await inlineImageUrl(slide.backgroundImageUrl);
+  return { ...slide, backgroundImageUrl };
 }
 
 function slideImageUrls(slide: Slide): string[] {
@@ -35,7 +87,9 @@ function slideImageUrls(slide: Slide): string[] {
 function preloadImage(src: string) {
   return new Promise<void>((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!src.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve();
     img.onerror = () => resolve();
     img.src = src;
@@ -73,8 +127,8 @@ export async function exportAllCarouselSlides(
 
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
-  host.style.cssText =
-    "position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;pointer-events:none;";
+  // Keep real canvas size off-screen — 0×0 hosts break image layout/export.
+  host.style.cssText = `position:fixed;left:-10000px;top:0;width:${CANVAS_WIDTH}px;height:${CANVAS_HEIGHT}px;overflow:hidden;pointer-events:none;`;
   document.body.appendChild(host);
 
   let root: Root | null = createRoot(host);
@@ -82,7 +136,7 @@ export async function exportAllCarouselSlides(
 
   try {
     for (let i = 0; i < slides.length; i++) {
-      const slide = slides[i]!;
+      const slide = await prepareSlideForExport(slides[i]!);
       flushSync(() => {
         root!.render(
           createElement(CarouselSlidePreview, {
@@ -106,7 +160,8 @@ export async function exportAllCarouselSlides(
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
         pixelRatio: 1,
-        cacheBust: true,
+        // cacheBust appends ?t=… and breaks data: URLs / some CDNs
+        cacheBust: false,
         style: {
           transform: "none",
           width: `${CANVAS_WIDTH}px`,
