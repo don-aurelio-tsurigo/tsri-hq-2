@@ -14,8 +14,12 @@ import {
 import {
   createEmptySlide,
   lastCategory,
+  themeFieldsForCategory,
 } from "@/lib/carousel/slides";
 import { normalizeTransform } from "@/lib/carousel/transform";
+import {
+  resolveSlideInk,
+} from "@/lib/carousel/categories";
 import {
   DEFAULT_BG,
   DEFAULT_TRANSFORM,
@@ -477,9 +481,55 @@ export function CarouselEditor({
                   className="w-full"
                   disabled={!canEdit}
                   value={active.category}
-                  onChange={(e) => updateActive({ category: e.target.value })}
+                  onChange={(e) => {
+                    const category = e.target.value;
+                    if (
+                      active.type === "text" ||
+                      active.type === "quote" ||
+                      active.type === "outro"
+                    ) {
+                      updateActive({
+                        category,
+                        ...themeFieldsForCategory(category),
+                      });
+                    } else {
+                      updateActive({ category });
+                    }
+                  }}
                 />
               </Field>
+
+              {active.type === "text" ||
+              active.type === "quote" ||
+              active.type === "outro" ? (
+                <Field label="Textfarbe">
+                  <div className="flex gap-2">
+                    {(
+                      [
+                        ["light", "Weiss"],
+                        ["dark", "Schwarz"],
+                      ] as const
+                    ).map(([value, label]) => {
+                      const current = resolveSlideInk(active);
+                      const selected = current === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          disabled={!canEdit}
+                          className={[
+                            "btn px-3 py-1.5 text-sm",
+                            selected ? "btn-primary" : "btn-ghost",
+                          ].join(" ")}
+                          onClick={() => updateActive({ ink: value })}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+              ) : null}
 
               {slideSupportsBackgroundImage(active) ? (
                 <Field label="Hintergrundbild">

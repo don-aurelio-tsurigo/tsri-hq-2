@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  inkCssColor,
+  resolveSlideInk,
+  type SlideInk,
+} from "@/lib/carousel/categories";
 import { carouselFont } from "@/lib/carousel/fonts";
 import {
   imageDimFilter,
@@ -38,15 +43,16 @@ export function sanitizeSlideHtml(input: string): string {
     .replace(/\n/g, "<br/>");
 }
 
-function Category({ text }: { text: string }) {
+function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
   return (
     <p
-      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.18em] text-white uppercase"
+      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.18em] uppercase"
       style={{
         top: 72,
         fontSize: 30,
         lineHeight: 1.2,
         fontFamily: CAROUSEL_FONT,
+        color: inkCssColor(ink),
       }}
     >
       {text || "STADTLEBEN"}
@@ -54,7 +60,7 @@ function Category({ text }: { text: string }) {
   );
 }
 
-function BrandMark() {
+function BrandMark({ ink = "light" }: { ink?: SlideInk }) {
   return (
     <div
       className="pointer-events-none absolute left-0 right-0 z-20 flex justify-center"
@@ -69,7 +75,8 @@ function BrandMark() {
         style={{
           width: 220,
           height: 72,
-          filter: "brightness(0) invert(1)",
+          // white on dark slides / black on bright category colors
+          filter: ink === "dark" ? "brightness(0)" : "brightness(0) invert(1)",
         }}
       />
     </div>
@@ -321,14 +328,15 @@ function CoverPreview({
         hasImage={Boolean(slide.backgroundImageUrl)}
         overlay={slide.imageOverlay}
       />
-      <Category text={slide.category} />
+      <Category text={slide.category} ink="light" />
       <div
-        className={`absolute z-30 text-white ${textDrag.className}`}
+        className={`absolute z-30 ${textDrag.className}`}
         style={{
           left: 88,
           right: 88,
           bottom: 220,
           fontFamily: CAROUSEL_FONT,
+          color: inkCssColor("light"),
           ...textTransformStyle(textT, "left bottom"),
         }}
         onPointerDown={textDrag.onPointerDown}
@@ -347,7 +355,7 @@ function CoverPreview({
           {slide.headline || "Headline…"}
         </p>
       </div>
-      <BrandMark />
+      <BrandMark ink="light" />
     </>
   );
 }
@@ -367,6 +375,8 @@ function TextPreview({
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
   const hasImage = Boolean(slide.backgroundImageUrl);
+  const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
+  const inkColor = inkCssColor(ink);
   const imageT = normalizeTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const imageDrag = useLayerDrag({
@@ -415,9 +425,9 @@ function TextPreview({
           style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
         />
       )}
-      <Category text={slide.category} />
+      <Category text={slide.category} ink={ink} />
       <div
-        className={`absolute z-30 overflow-hidden text-white ${textDrag.className}`}
+        className={`absolute z-30 overflow-hidden ${textDrag.className}`}
         style={{
           left: 100,
           right: 100,
@@ -427,6 +437,7 @@ function TextPreview({
           lineHeight: 1.05,
           fontFamily: CAROUSEL_FONT,
           fontWeight: 400,
+          color: inkColor,
           ...textTransformStyle(textT, "center top"),
         }}
         onPointerDown={textDrag.onPointerDown}
@@ -438,7 +449,7 @@ function TextPreview({
             "<span style='opacity:0.55'>Text…</span>",
         }}
       />
-      <BrandMark />
+      <BrandMark ink={ink} />
     </>
   );
 }
@@ -458,6 +469,8 @@ function QuotePreview({
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
   const hasImage = Boolean(slide.backgroundImageUrl);
+  const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
+  const inkColor = inkCssColor(ink);
   const imageT = normalizeTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const imageDrag = useLayerDrag({
@@ -506,15 +519,16 @@ function QuotePreview({
           style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
         />
       )}
-      <Category text={slide.category} />
+      <Category text={slide.category} ink={ink} />
       <div
-        className={`absolute z-30 text-white ${textDrag.className}`}
+        className={`absolute z-30 ${textDrag.className}`}
         style={{
           left: 100,
           right: 100,
           top: 220,
           bottom: 180,
           fontFamily: CAROUSEL_FONT,
+          color: inkColor,
           ...textTransformStyle(textT, "left top"),
         }}
         onPointerDown={textDrag.onPointerDown}
@@ -545,7 +559,7 @@ function QuotePreview({
           </p>
         ) : null}
       </div>
-      <BrandMark />
+      <BrandMark ink={ink} />
     </>
   );
 }
@@ -563,6 +577,8 @@ function OutroPreview({
 } & InteractiveProps & {
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
+  const ink = resolveSlideInk(slide);
+  const inkColor = inkCssColor(ink);
   const textT = normalizeTransform(slide.textTransform);
   const textDrag = useLayerDrag({
     enabled: Boolean(interactive),
@@ -583,14 +599,15 @@ function OutroPreview({
         className="absolute inset-0"
         style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
       />
-      <Category text={slide.category} />
+      <Category text={slide.category} ink={ink} />
       <div
-        className={`absolute z-30 text-white ${textDrag.className}`}
+        className={`absolute z-30 ${textDrag.className}`}
         style={{
           left: 88,
           right: 88,
           top: "42%",
           fontFamily: CAROUSEL_FONT,
+          color: inkColor,
           ...textTransformStyle(
             {
               ...textT,
@@ -621,7 +638,7 @@ function OutroPreview({
           {slide.ctaText || "LINK IN DER BIO"}
         </p>
       </div>
-      <BrandMark />
+      <BrandMark ink={ink} />
     </>
   );
 }

@@ -1,16 +1,17 @@
 import { z } from "zod";
 import {
+  backgroundColorForCategory,
+  defaultInkForCategory,
+  normalizeCarouselCategory,
+  DEFAULT_CATEGORY,
+} from "@/lib/carousel/categories";
+import {
   createEmptyCoverSlide,
   createEmptyOutroSlide,
   createEmptyQuoteSlide,
   createEmptyTextSlide,
 } from "@/lib/carousel/slides";
-import {
-  DEFAULT_BG,
-  DEFAULT_CATEGORY,
-  DEFAULT_OUTRO_CTA,
-  type Slide,
-} from "@/lib/carousel/types";
+import { DEFAULT_OUTRO_CTA, type Slide } from "@/lib/carousel/types";
 
 const coverDraft = z.object({
   type: z.literal("cover"),
@@ -45,20 +46,13 @@ export const llmCarouselSchema = z.object({
 
 export type LlmCarouselDraft = z.infer<typeof llmCarouselSchema>;
 
-function normalizeCategory(raw: string): string {
-  const cleaned = raw
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-ZÄÖÜ0-9\s\-]/g, "")
-    .replace(/\s+/g, " ");
-  return cleaned || DEFAULT_CATEGORY;
-}
-
 export function llmDraftToSlides(
   draft: LlmCarouselDraft,
   options?: { coverImageUrl?: string | null },
 ): Slide[] {
-  const category = normalizeCategory(draft.category);
+  const category = normalizeCarouselCategory(draft.category);
+  const backgroundColor = backgroundColorForCategory(category);
+  const ink = defaultInkForCategory(category);
   const slides = draft.slides;
 
   if (slides[0]?.type !== "cover") {
@@ -85,7 +79,8 @@ export function llmDraftToSlides(
         const text = createEmptyTextSlide(category);
         return {
           ...text,
-          backgroundColor: DEFAULT_BG,
+          backgroundColor,
+          ink,
           bodyHtml: sanitizeBodyHtml(slide.bodyHtml).slice(0, 800),
         };
       }
@@ -93,7 +88,8 @@ export function llmDraftToSlides(
         const quote = createEmptyQuoteSlide(category);
         return {
           ...quote,
-          backgroundColor: DEFAULT_BG,
+          backgroundColor,
+          ink,
           quoteText: slide.quoteText.trim(),
           attribution: slide.attribution.trim(),
         };
@@ -102,7 +98,8 @@ export function llmDraftToSlides(
         const outro = createEmptyOutroSlide(category);
         return {
           ...outro,
-          backgroundColor: DEFAULT_BG,
+          backgroundColor,
+          ink,
           headline: slide.headline.trim(),
           ctaText: (slide.ctaText?.trim() || DEFAULT_OUTRO_CTA).toUpperCase(),
         };

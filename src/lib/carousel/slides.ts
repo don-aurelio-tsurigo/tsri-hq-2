@@ -1,6 +1,10 @@
 import {
-  DEFAULT_BG,
+  backgroundColorForCategory,
+  defaultInkForCategory,
   DEFAULT_CATEGORY,
+  type SlideInk,
+} from "@/lib/carousel/categories";
+import {
   DEFAULT_OUTRO_CTA,
   type CoverSlide,
   type OutroSlide,
@@ -35,7 +39,8 @@ export function createEmptyTextSlide(
     type: "text",
     category,
     backgroundImageUrl: null,
-    backgroundColor: DEFAULT_BG,
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
     bodyHtml: "",
   };
 }
@@ -48,7 +53,8 @@ export function createEmptyQuoteSlide(
     type: "quote",
     category,
     backgroundImageUrl: null,
-    backgroundColor: DEFAULT_BG,
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
     quoteText: "",
     attribution: "",
   };
@@ -61,7 +67,8 @@ export function createEmptyOutroSlide(
     id: newId(),
     type: "outro",
     category,
-    backgroundColor: DEFAULT_BG,
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
     headline: "",
     ctaText: DEFAULT_OUTRO_CTA,
   };
@@ -86,4 +93,14 @@ export function createEmptySlide(
 export function lastCategory(slides: Slide[]): string {
   const last = slides[slides.length - 1];
   return last?.category?.trim() || DEFAULT_CATEGORY;
+}
+
+export function themeFieldsForCategory(category: string): {
+  backgroundColor: string;
+  ink: SlideInk;
+} {
+  return {
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
+  };
 }

@@ -1,6 +1,11 @@
-export const DEFAULT_CATEGORY = "STADTLEBEN";
-/** Tsüri Instagram gold/ochre from production slide examples */
-export const DEFAULT_BG = "#b9935e";
+import type { SlideInk } from "@/lib/carousel/categories";
+
+export {
+  DEFAULT_BG,
+  DEFAULT_CATEGORY,
+  type SlideInk,
+} from "@/lib/carousel/categories";
+
 export const DEFAULT_OUTRO_CTA = "LINK IN DER BIO";
 export const BRAND_MARK = "TSÜRI";
 export const BRAND_LOGO_SRC = "/brand/tsuri-logo.png";
@@ -50,6 +55,8 @@ export type TextSlide = SlideBase & {
   type: "text";
   backgroundImageUrl: string | null;
   backgroundColor: string;
+  /** white vs black text; default from category theme */
+  ink?: SlideInk;
   bodyHtml: string;
   imageTransform?: LayerTransform;
   textTransform?: LayerTransform;
@@ -60,6 +67,7 @@ export type QuoteSlide = SlideBase & {
   type: "quote";
   backgroundImageUrl: string | null;
   backgroundColor: string;
+  ink?: SlideInk;
   quoteText: string;
   attribution: string;
   imageTransform?: LayerTransform;
@@ -70,6 +78,7 @@ export type QuoteSlide = SlideBase & {
 export type OutroSlide = SlideBase & {
   type: "outro";
   backgroundColor: string;
+  ink?: SlideInk;
   headline: string;
   ctaText: string;
   textTransform?: LayerTransform;
