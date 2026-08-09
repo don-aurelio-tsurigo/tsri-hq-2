@@ -21,6 +21,16 @@ export const DEFAULT_TRANSFORM: LayerTransform = {
   scale: 1,
 };
 
+/** Darkening treatment for slides with a background image */
+export type ImageOverlay = {
+  /** Flat image dim via brightness filter, 0–1 */
+  dim: number;
+  /** Opacity at the bottom of the gradient, 0–1 */
+  gradientStrength: number;
+  /** How far up the gradient reaches, 0–1 (1 = full height) */
+  gradientLift: number;
+};
+
 export type SlideBase = {
   id: string;
   category: string;
@@ -33,6 +43,7 @@ export type CoverSlide = SlideBase & {
   headline: string;
   imageTransform?: LayerTransform;
   textTransform?: LayerTransform;
+  imageOverlay?: ImageOverlay;
 };
 
 export type TextSlide = SlideBase & {
@@ -42,6 +53,7 @@ export type TextSlide = SlideBase & {
   bodyHtml: string;
   imageTransform?: LayerTransform;
   textTransform?: LayerTransform;
+  imageOverlay?: ImageOverlay;
 };
 
 export type QuoteSlide = SlideBase & {
@@ -52,6 +64,7 @@ export type QuoteSlide = SlideBase & {
   attribution: string;
   imageTransform?: LayerTransform;
   textTransform?: LayerTransform;
+  imageOverlay?: ImageOverlay;
 };
 
 export type OutroSlide = SlideBase & {

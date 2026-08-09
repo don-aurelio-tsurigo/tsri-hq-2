@@ -3,6 +3,11 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { carouselFont } from "@/lib/carousel/fonts";
 import {
+  imageDimFilter,
+  imageOverlayGradient,
+  normalizeImageOverlay,
+} from "@/lib/carousel/overlay";
+import {
   normalizeTransform,
   snapTransformOffsets,
 } from "@/lib/carousel/transform";
@@ -13,6 +18,7 @@ import {
   CANVAS_WIDTH,
   DEFAULT_BG,
   type EditableLayer,
+  type ImageOverlay,
   type LayerTransform,
   type Slide,
 } from "@/lib/carousel/types";
@@ -94,15 +100,44 @@ function Guides({
   );
 }
 
-function imageStyle(url: string | null, transform: LayerTransform): CSSProperties {
+function imageStyle(
+  url: string | null,
+  transform: LayerTransform,
+  overlay?: Partial<ImageOverlay> | null,
+): CSSProperties {
   const t = normalizeTransform(transform);
+  const o = normalizeImageOverlay(overlay);
   return {
     backgroundColor: "#1a1a1a",
     backgroundImage: url ? `url(${url})` : undefined,
     backgroundRepeat: "no-repeat",
     backgroundSize: `${Math.round(t.scale * 100)}%`,
     backgroundPosition: `calc(50% + ${t.x}px) calc(50% + ${t.y}px)`,
+    filter: url ? imageDimFilter(o.dim) : undefined,
   };
+}
+
+function ImageScrim({
+  hasImage,
+  overlay,
+  fallback,
+}: {
+  hasImage: boolean;
+  overlay?: Partial<ImageOverlay> | null;
+  fallback?: string;
+}) {
+  const o = normalizeImageOverlay(overlay);
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 z-10"
+      style={{
+        background: hasImage
+          ? imageOverlayGradient(o)
+          : (fallback ??
+            "linear-gradient(180deg, #2a2a2a 0%, #111 100%)"),
+      }}
+    />
+  );
 }
 
 function textTransformStyle(
@@ -244,18 +279,14 @@ function CoverPreview({
     <>
       <div
         className={`absolute inset-0 z-0 ${imageDrag.className}`}
-        style={imageStyle(slide.backgroundImageUrl, imageT)}
+        style={imageStyle(slide.backgroundImageUrl, imageT, slide.imageOverlay)}
         onPointerDown={imageDrag.onPointerDown}
         onPointerMove={imageDrag.onPointerMove}
         onPointerUp={imageDrag.onPointerUp}
       />
-      <div
-        className="pointer-events-none absolute inset-0 z-10"
-        style={{
-          background: slide.backgroundImageUrl
-            ? "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.55) 100%)"
-            : "linear-gradient(180deg, #2a2a2a 0%, #111 100%)",
-        }}
+      <ImageScrim
+        hasImage={Boolean(slide.backgroundImageUrl)}
+        overlay={slide.imageOverlay}
       />
       <Category text={slide.category} />
       <div
@@ -333,18 +364,16 @@ function TextPreview({
         <>
           <div
             className={`absolute inset-0 z-0 ${imageDrag.className}`}
-            style={imageStyle(slide.backgroundImageUrl, imageT)}
+            style={imageStyle(
+              slide.backgroundImageUrl,
+              imageT,
+              slide.imageOverlay,
+            )}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
           />
-          <div
-            className="pointer-events-none absolute inset-0 z-10"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.5) 100%)",
-            }}
-          />
+          <ImageScrim hasImage overlay={slide.imageOverlay} />
         </>
       ) : (
         <div
@@ -428,18 +457,16 @@ function QuotePreview({
         <>
           <div
             className={`absolute inset-0 z-0 ${imageDrag.className}`}
-            style={imageStyle(slide.backgroundImageUrl, imageT)}
+            style={imageStyle(
+              slide.backgroundImageUrl,
+              imageT,
+              slide.imageOverlay,
+            )}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
           />
-          <div
-            className="pointer-events-none absolute inset-0 z-10"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.55) 100%)",
-            }}
-          />
+          <ImageScrim hasImage overlay={slide.imageOverlay} />
         </>
       ) : (
         <div

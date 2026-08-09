@@ -8,6 +8,10 @@ import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import { fileToCompressedDataUrl } from "@/lib/carousel/image";
 import {
+  DEFAULT_IMAGE_OVERLAY,
+  normalizeImageOverlay,
+} from "@/lib/carousel/overlay";
+import {
   createEmptySlide,
   lastCategory,
 } from "@/lib/carousel/slides";
@@ -16,6 +20,7 @@ import {
   DEFAULT_BG,
   DEFAULT_TRANSFORM,
   type EditableLayer,
+  type ImageOverlay,
   type LayerTransform,
   type Slide,
   type SlideType,
@@ -85,6 +90,10 @@ export function CarouselEditor({
   const disableMoveLeft = !active || activeIndex <= 0;
   const disableMoveRight =
     !active || activeIndex < 0 || activeIndex >= slides.length - 1;
+  const imageOverlay =
+    active && slideSupportsBackgroundImage(active)
+      ? normalizeImageOverlay(active.imageOverlay)
+      : DEFAULT_IMAGE_OVERLAY;
 
   useEffect(() => {
     if (!active) return;
@@ -125,6 +134,16 @@ export function CarouselEditor({
         s.id === active.id ? ({ ...s, ...patch } as Slide) : s,
       ),
     );
+  }
+
+  function updateImageOverlay(patch: Partial<ImageOverlay>) {
+    if (!active || !slideSupportsBackgroundImage(active)) return;
+    updateActive({
+      imageOverlay: {
+        ...normalizeImageOverlay(active.imageOverlay),
+        ...patch,
+      },
+    });
   }
 
   function currentTransform(layer: EditableLayer): LayerTransform {
@@ -515,6 +534,78 @@ export function CarouselEditor({
                     ) : null}
                   </div>
                 </Field>
+              ) : null}
+
+              {slideSupportsBackgroundImage(active) &&
+              active.backgroundImageUrl ? (
+                <div className="space-y-3 rounded-md border border-[var(--border)] p-3">
+                  <p className="text-sm font-medium">Bild-Abdunklung</p>
+                  <Field
+                    label={`Bild abdunkeln (${Math.round(imageOverlay.dim * 100)}%)`}
+                  >
+                    <input
+                      type="range"
+                      className="w-full"
+                      disabled={!canEdit}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={imageOverlay.dim}
+                      onChange={(e) =>
+                        updateImageOverlay({ dim: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label={`Verlauf stärker (${Math.round(imageOverlay.gradientStrength * 100)}%)`}
+                  >
+                    <input
+                      type="range"
+                      className="w-full"
+                      disabled={!canEdit}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={imageOverlay.gradientStrength}
+                      onChange={(e) =>
+                        updateImageOverlay({
+                          gradientStrength: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label={`Verlauf nach oben (${Math.round(imageOverlay.gradientLift * 100)}%)`}
+                  >
+                    <input
+                      type="range"
+                      className="w-full"
+                      disabled={!canEdit}
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={imageOverlay.gradientLift}
+                      onChange={(e) =>
+                        updateImageOverlay({
+                          gradientLift: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost px-3 py-1.5 text-sm"
+                      onClick={() =>
+                        updateActive({
+                          imageOverlay: { ...DEFAULT_IMAGE_OVERLAY },
+                        })
+                      }
+                    >
+                      Abdunklung zurücksetzen
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
 
               {active.type === "cover" ? (
