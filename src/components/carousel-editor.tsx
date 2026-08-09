@@ -146,6 +146,18 @@ export function CarouselEditor({
     setActiveId(next[Math.max(0, idx - 1)]?.id ?? next[0]!.id);
   }
 
+  function moveActive(delta: -1 | 1) {
+    if (!canEdit || !active || slides.length <= 1) return;
+    const idx = slides.findIndex((s) => s.id === active.id);
+    if (idx < 0) return;
+    const nextIdx = idx + delta;
+    if (nextIdx < 0 || nextIdx >= slides.length) return;
+    const next = [...slides];
+    const [item] = next.splice(idx, 1);
+    next.splice(nextIdx, 0, item!);
+    setSlides(next);
+  }
+
   async function handleExportAll() {
     setError(null);
     setExporting(true);
@@ -289,6 +301,31 @@ export function CarouselEditor({
 
           {canEdit ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                className="btn btn-ghost px-3 py-1.5 text-sm"
+                disabled={
+                  !active ||
+                  slides.findIndex((s) => s.id === active.id) <= 0
+                }
+                onClick={() => moveActive(-1)}
+                title="Nach links verschieben"
+              >
+                ← Nach links
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost px-3 py-1.5 text-sm"
+                disabled={
+                  !active ||
+                  slides.findIndex((s) => s.id === active.id) >=
+                    slides.length - 1
+                }
+                onClick={() => moveActive(1)}
+                title="Nach rechts verschieben"
+              >
+                Nach rechts →
+              </button>
               {(Object.keys(SLIDE_TYPE_LABEL) as SlideType[]).map((type) => (
                 <button
                   key={type}
