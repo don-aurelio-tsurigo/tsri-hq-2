@@ -1,9 +1,11 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
   prismaSchemaVersion: number | undefined;
+  prismaPool: Pool | undefined;
 };
 
 /**
@@ -62,13 +64,55 @@ const REQUIRED_MODELS = [
   "CarouselPost",
 ] as const;
 
+function isTransientDbError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  const msg = e.message ?? "";
+  return (
+    e.code === "P1017" ||
+    e.code === "ECONNRESET" ||
+    e.code === "57P01" ||
+    /Server has closed the connection/i.test(msg) ||
+    /Connection terminated unexpectedly/i.test(msg) ||
+    /read ECONNRESET/i.test(msg)
+  );
+}
+
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
   }
-  const adapter = new PrismaPg({ connectionString });
-  return new PrismaClient({ adapter });
+
+  const pool = new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+  });
+  globalForPrisma.prismaPool = pool;
+
+  const adapter = new PrismaPg(pool);
+  const client = new PrismaClient({ adapter });
+
+  // Retry once on flaky local Prisma Postgres drops (ECONNRESET / P1017).
+  // Use $extends (not a Proxy) so Better Auth joins keep working.
+  const withRetry = client.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ args, query }) {
+          try {
+            return await query(args);
+          } catch (error) {
+            if (!isTransientDbError(error)) throw error;
+            return await query(args);
+          }
+        },
+      },
+    },
+  });
+
+  return withRetry as unknown as PrismaClient;
 }
 
 function clientMatchesSchema(client: PrismaClient) {

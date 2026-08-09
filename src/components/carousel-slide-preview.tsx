@@ -44,7 +44,7 @@ function Category({ text }: { text: string }) {
       className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.18em] text-white uppercase"
       style={{
         top: 72,
-        fontSize: 23,
+        fontSize: 30,
         lineHeight: 1.2,
         fontFamily: CAROUSEL_FONT,
       }}
@@ -112,8 +112,10 @@ function imageStyle(
     backgroundColor: "#1a1a1a",
     backgroundImage: url ? `url(${url})` : undefined,
     backgroundRepeat: "no-repeat",
-    backgroundSize: `${Math.round(t.scale * 100)}%`,
-    backgroundPosition: `calc(50% + ${t.x}px) calc(50% + ${t.y}px)`,
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
+    transformOrigin: "center center",
     filter: url ? imageDimFilter(o.dim) : undefined,
   };
 }
@@ -390,10 +392,10 @@ function TextPreview({
           right: 100,
           top: 200,
           bottom: 180,
-          fontSize: 40,
-          lineHeight: 1.2,
+          fontSize: 60,
+          lineHeight: 1.05,
           fontFamily: CAROUSEL_FONT,
-          fontWeight: 500,
+          fontWeight: 400,
           ...textTransformStyle(textT, "center top"),
         }}
         onPointerDown={textDrag.onPointerDown}
