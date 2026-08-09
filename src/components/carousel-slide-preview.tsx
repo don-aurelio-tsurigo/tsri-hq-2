@@ -1,10 +1,19 @@
+"use client";
+
+import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { carouselFont } from "@/lib/carousel/fonts";
+import {
+  normalizeTransform,
+  snapTransformOffsets,
+} from "@/lib/carousel/transform";
 import {
   BRAND_LOGO_SRC,
   BRAND_MARK,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   DEFAULT_BG,
+  type EditableLayer,
+  type LayerTransform,
   type Slide,
 } from "@/lib/carousel/types";
 
@@ -26,7 +35,7 @@ export function sanitizeSlideHtml(input: string): string {
 function Category({ text }: { text: string }) {
   return (
     <p
-      className="absolute left-0 right-0 text-center font-medium tracking-[0.18em] text-white uppercase"
+      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.18em] text-white uppercase"
       style={{
         top: 72,
         fontSize: 23,
@@ -41,10 +50,9 @@ function Category({ text }: { text: string }) {
 function BrandMark() {
   return (
     <div
-      className="absolute left-0 right-0 flex justify-center"
+      className="pointer-events-none absolute left-0 right-0 z-20 flex justify-center"
       style={{ bottom: 56 }}
     >
-      {/* Logo is dark; invert to white for gold/photo Instagram backgrounds */}
       <img
         src={BRAND_LOGO_SRC}
         alt={BRAND_MARK}
@@ -61,49 +69,207 @@ function BrandMark() {
   );
 }
 
-function BgImage({
-  url,
-  overlay,
+function Guides({
+  vertical,
+  horizontal,
 }: {
-  url: string | null;
-  overlay?: boolean;
+  vertical: number | null;
+  horizontal: number | null;
 }) {
   return (
     <>
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundColor: "#1a1a1a",
-          backgroundImage: url ? `url(${url})` : undefined,
-        }}
-      />
-      {overlay || !url ? (
+      {vertical !== null ? (
         <div
-          className="absolute inset-0"
-          style={{
-            background: url
-              ? "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.55) 100%)"
-              : "linear-gradient(180deg, #2a2a2a 0%, #111 100%)",
-          }}
+          className="pointer-events-none absolute top-0 bottom-0 z-40 w-px bg-[var(--highlight)]"
+          style={{ left: vertical }}
+        />
+      ) : null}
+      {horizontal !== null ? (
+        <div
+          className="pointer-events-none absolute left-0 right-0 z-40 h-px bg-[var(--highlight)]"
+          style={{ top: horizontal }}
         />
       ) : null}
     </>
   );
 }
 
-function CoverPreview({ slide }: { slide: Extract<Slide, { type: "cover" }> }) {
+function imageStyle(url: string | null, transform: LayerTransform): CSSProperties {
+  const t = normalizeTransform(transform);
+  return {
+    backgroundColor: "#1a1a1a",
+    backgroundImage: url ? `url(${url})` : undefined,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: `${Math.round(t.scale * 100)}%`,
+    backgroundPosition: `calc(50% + ${t.x}px) calc(50% + ${t.y}px)`,
+  };
+}
+
+function textTransformStyle(
+  transform: LayerTransform | undefined,
+  origin: string,
+): CSSProperties {
+  const t = normalizeTransform(transform);
+  return {
+    transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
+    transformOrigin: origin,
+  };
+}
+
+type InteractiveProps = {
+  interactive?: boolean;
+  selectedLayer?: EditableLayer | null;
+  onSelectLayer?: (layer: EditableLayer) => void;
+  onImageTransform?: (transform: LayerTransform) => void;
+  onTextTransform?: (transform: LayerTransform) => void;
+  previewScale?: number;
+};
+
+function useLayerDrag({
+  enabled,
+  layer,
+  selected,
+  transform,
+  anchorX,
+  anchorY,
+  previewScale,
+  onSelect,
+  onChange,
+  onGuides,
+}: {
+  enabled: boolean;
+  layer: EditableLayer;
+  selected: boolean;
+  transform: LayerTransform;
+  anchorX: number;
+  anchorY: number;
+  previewScale: number;
+  onSelect?: (layer: EditableLayer) => void;
+  onChange?: (transform: LayerTransform) => void;
+  onGuides?: (guides: { v: number | null; h: number | null }) => void;
+}) {
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    origin: LayerTransform;
+  } | null>(null);
+
+  return {
+    onPointerDown(e: PointerEvent<HTMLDivElement>) {
+      if (!enabled) return;
+      e.stopPropagation();
+      onSelect?.(layer);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origin: { ...transform },
+      };
+    },
+    onPointerMove(e: PointerEvent<HTMLDivElement>) {
+      if (!enabled || !dragRef.current || !onChange) return;
+      const dx = (e.clientX - dragRef.current.startX) / previewScale;
+      const dy = (e.clientY - dragRef.current.startY) / previewScale;
+      const nextX = dragRef.current.origin.x + dx;
+      const nextY = dragRef.current.origin.y + dy;
+      const snapped = snapTransformOffsets(nextX, nextY, anchorX, anchorY);
+      onGuides?.(snapped.guides);
+      onChange({
+        x: snapped.x,
+        y: snapped.y,
+        scale: dragRef.current.origin.scale,
+      });
+    },
+    onPointerUp(e: PointerEvent<HTMLDivElement>) {
+      if (!enabled) return;
+      dragRef.current = null;
+      onGuides?.({ v: null, h: null });
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    },
+    className: [
+      enabled ? "cursor-grab active:cursor-grabbing" : "",
+      selected && enabled ? "outline outline-2 outline-[var(--highlight)]" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
+}
+
+function CoverPreview({
+  slide,
+  interactive,
+  selectedLayer,
+  onSelectLayer,
+  onImageTransform,
+  onTextTransform,
+  previewScale = 1,
+  onGuides,
+}: {
+  slide: Extract<Slide, { type: "cover" }>;
+} & InteractiveProps & {
+    onGuides?: (guides: { v: number | null; h: number | null }) => void;
+  }) {
+  const imageT = normalizeTransform(slide.imageTransform);
+  const textT = normalizeTransform(slide.textTransform);
+  const imageDrag = useLayerDrag({
+    enabled: Boolean(interactive && slide.backgroundImageUrl),
+    layer: "image",
+    selected: selectedLayer === "image",
+    transform: imageT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onImageTransform,
+    onGuides,
+  });
+  const textDrag = useLayerDrag({
+    enabled: Boolean(interactive),
+    layer: "text",
+    selected: selectedLayer === "text",
+    transform: textT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT - 320,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onTextTransform,
+    onGuides,
+  });
+
   return (
     <>
-      <BgImage url={slide.backgroundImageUrl} overlay />
+      <div
+        className={`absolute inset-0 z-0 ${imageDrag.className}`}
+        style={imageStyle(slide.backgroundImageUrl, imageT)}
+        onPointerDown={imageDrag.onPointerDown}
+        onPointerMove={imageDrag.onPointerMove}
+        onPointerUp={imageDrag.onPointerUp}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 z-10"
+        style={{
+          background: slide.backgroundImageUrl
+            ? "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.55) 100%)"
+            : "linear-gradient(180deg, #2a2a2a 0%, #111 100%)",
+        }}
+      />
       <Category text={slide.category} />
       <div
-        className="absolute text-white"
+        className={`absolute z-30 text-white ${textDrag.className}`}
         style={{
           left: 88,
           right: 88,
           bottom: 220,
           fontFamily: CAROUSEL_FONT,
+          ...textTransformStyle(textT, "left bottom"),
         }}
+        onPointerDown={textDrag.onPointerDown}
+        onPointerMove={textDrag.onPointerMove}
+        onPointerUp={textDrag.onPointerUp}
       >
         {slide.overline ? (
           <p className="mb-3 font-medium" style={{ fontSize: 30 }}>
@@ -119,7 +285,33 @@ function CoverPreview({ slide }: { slide: Extract<Slide, { type: "cover" }> }) {
   );
 }
 
-function TextPreview({ slide }: { slide: Extract<Slide, { type: "text" }> }) {
+function TextPreview({
+  slide,
+  interactive,
+  selectedLayer,
+  onSelectLayer,
+  onTextTransform,
+  previewScale = 1,
+  onGuides,
+}: {
+  slide: Extract<Slide, { type: "text" }>;
+} & InteractiveProps & {
+    onGuides?: (guides: { v: number | null; h: number | null }) => void;
+  }) {
+  const textT = normalizeTransform(slide.textTransform);
+  const textDrag = useLayerDrag({
+    enabled: Boolean(interactive),
+    layer: "text",
+    selected: selectedLayer === "text",
+    transform: textT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onTextTransform,
+    onGuides,
+  });
+
   return (
     <>
       <div
@@ -128,7 +320,7 @@ function TextPreview({ slide }: { slide: Extract<Slide, { type: "text" }> }) {
       />
       <Category text={slide.category} />
       <div
-        className="absolute overflow-hidden text-white"
+        className={`absolute z-30 overflow-hidden text-white ${textDrag.className}`}
         style={{
           left: 100,
           right: 100,
@@ -138,7 +330,11 @@ function TextPreview({ slide }: { slide: Extract<Slide, { type: "text" }> }) {
           lineHeight: 1.35,
           fontFamily: CAROUSEL_FONT,
           fontWeight: 500,
+          ...textTransformStyle(textT, "center top"),
         }}
+        onPointerDown={textDrag.onPointerDown}
+        onPointerMove={textDrag.onPointerMove}
+        onPointerUp={textDrag.onPointerUp}
         dangerouslySetInnerHTML={{
           __html:
             sanitizeSlideHtml(slide.bodyHtml) ||
@@ -150,12 +346,67 @@ function TextPreview({ slide }: { slide: Extract<Slide, { type: "text" }> }) {
   );
 }
 
-function QuotePreview({ slide }: { slide: Extract<Slide, { type: "quote" }> }) {
+function QuotePreview({
+  slide,
+  interactive,
+  selectedLayer,
+  onSelectLayer,
+  onImageTransform,
+  onTextTransform,
+  previewScale = 1,
+  onGuides,
+}: {
+  slide: Extract<Slide, { type: "quote" }>;
+} & InteractiveProps & {
+    onGuides?: (guides: { v: number | null; h: number | null }) => void;
+  }) {
   const hasImage = Boolean(slide.backgroundImageUrl);
+  const imageT = normalizeTransform(slide.imageTransform);
+  const textT = normalizeTransform(slide.textTransform);
+  const imageDrag = useLayerDrag({
+    enabled: Boolean(interactive && hasImage),
+    layer: "image",
+    selected: selectedLayer === "image",
+    transform: imageT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onImageTransform,
+    onGuides,
+  });
+  const textDrag = useLayerDrag({
+    enabled: Boolean(interactive),
+    layer: "text",
+    selected: selectedLayer === "text",
+    transform: textT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onTextTransform,
+    onGuides,
+  });
+
   return (
     <>
       {hasImage ? (
-        <BgImage url={slide.backgroundImageUrl} overlay />
+        <>
+          <div
+            className={`absolute inset-0 z-0 ${imageDrag.className}`}
+            style={imageStyle(slide.backgroundImageUrl, imageT)}
+            onPointerDown={imageDrag.onPointerDown}
+            onPointerMove={imageDrag.onPointerMove}
+            onPointerUp={imageDrag.onPointerUp}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 z-10"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.55) 100%)",
+            }}
+          />
+        </>
       ) : (
         <div
           className="absolute inset-0"
@@ -164,14 +415,18 @@ function QuotePreview({ slide }: { slide: Extract<Slide, { type: "quote" }> }) {
       )}
       <Category text={slide.category} />
       <div
-        className="absolute text-white"
+        className={`absolute z-30 text-white ${textDrag.className}`}
         style={{
           left: 100,
           right: 100,
           top: 220,
           bottom: 180,
           fontFamily: CAROUSEL_FONT,
+          ...textTransformStyle(textT, "left top"),
         }}
+        onPointerDown={textDrag.onPointerDown}
+        onPointerMove={textDrag.onPointerMove}
+        onPointerUp={textDrag.onPointerUp}
       >
         <p
           className="font-extrabold leading-none"
@@ -199,7 +454,33 @@ function QuotePreview({ slide }: { slide: Extract<Slide, { type: "quote" }> }) {
   );
 }
 
-function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
+function OutroPreview({
+  slide,
+  interactive,
+  selectedLayer,
+  onSelectLayer,
+  onTextTransform,
+  previewScale = 1,
+  onGuides,
+}: {
+  slide: Extract<Slide, { type: "outro" }>;
+} & InteractiveProps & {
+    onGuides?: (guides: { v: number | null; h: number | null }) => void;
+  }) {
+  const textT = normalizeTransform(slide.textTransform);
+  const textDrag = useLayerDrag({
+    enabled: Boolean(interactive),
+    layer: "text",
+    selected: selectedLayer === "text",
+    transform: textT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT * 0.42,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onTextTransform,
+    onGuides,
+  });
+
   return (
     <>
       <div
@@ -208,14 +489,26 @@ function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
       />
       <Category text={slide.category} />
       <div
-        className="absolute text-white"
+        className={`absolute z-30 text-white ${textDrag.className}`}
         style={{
           left: 88,
           right: 88,
           top: "42%",
-          transform: "translateY(-50%)",
           fontFamily: CAROUSEL_FONT,
+          ...textTransformStyle(
+            {
+              ...textT,
+              // preserve vertical centering of the block, then apply offsets
+              x: textT.x,
+              y: textT.y,
+            },
+            "center center",
+          ),
+          transform: `translateY(-50%) translate(${textT.x}px, ${textT.y}px) scale(${textT.scale})`,
         }}
+        onPointerDown={textDrag.onPointerDown}
+        onPointerMove={textDrag.onPointerMove}
+        onPointerUp={textDrag.onPointerUp}
       >
         <p className="font-extrabold leading-[1.15]" style={{ fontSize: 54 }}>
           {slide.headline || "Headline…"}
@@ -238,13 +531,41 @@ function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
 export function CarouselSlidePreview({
   slide,
   scale = 0.35,
+  forExport = false,
+  interactive = false,
+  selectedLayer = null,
+  onSelectLayer,
+  onImageTransform,
+  onTextTransform,
 }: {
   slide: Slide;
   scale?: number;
-}) {
+  forExport?: boolean;
+} & InteractiveProps) {
+  const [guides, setGuides] = useState<{
+    v: number | null;
+    h: number | null;
+  }>({ v: null, h: null });
+
+  const shared = {
+    interactive: interactive && !forExport,
+    selectedLayer,
+    onSelectLayer,
+    onImageTransform,
+    onTextTransform,
+    previewScale: scale,
+    onGuides: setGuides,
+  };
+
   return (
     <div
-      className={`relative shrink-0 overflow-hidden shadow-lg ring-1 ring-black/10 ${carouselFont.variable} ${carouselFont.className}`}
+      data-carousel-canvas={forExport ? "true" : undefined}
+      className={[
+        "relative shrink-0 overflow-hidden",
+        carouselFont.variable,
+        carouselFont.className,
+        forExport ? "" : "shadow-lg ring-1 ring-black/10",
+      ].join(" ")}
       style={{
         width: CANVAS_WIDTH * scale,
         height: CANVAS_HEIGHT * scale,
@@ -259,10 +580,21 @@ export function CarouselSlidePreview({
           fontFamily: CAROUSEL_FONT,
         }}
       >
-        {slide.type === "cover" ? <CoverPreview slide={slide} /> : null}
-        {slide.type === "text" ? <TextPreview slide={slide} /> : null}
-        {slide.type === "quote" ? <QuotePreview slide={slide} /> : null}
-        {slide.type === "outro" ? <OutroPreview slide={slide} /> : null}
+        {slide.type === "cover" ? (
+          <CoverPreview slide={slide} {...shared} />
+        ) : null}
+        {slide.type === "text" ? (
+          <TextPreview slide={slide} {...shared} />
+        ) : null}
+        {slide.type === "quote" ? (
+          <QuotePreview slide={slide} {...shared} />
+        ) : null}
+        {slide.type === "outro" ? (
+          <OutroPreview slide={slide} {...shared} />
+        ) : null}
+        {interactive && !forExport ? (
+          <Guides vertical={guides.v} horizontal={guides.h} />
+        ) : null}
       </div>
     </div>
   );

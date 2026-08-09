@@ -8,6 +8,19 @@ export const BRAND_LOGO_SRC = "/brand/tsuri-logo.png";
 export const CANVAS_WIDTH = 1080;
 export const CANVAS_HEIGHT = 1350;
 
+/** Offset/scale relative to the template default placement */
+export type LayerTransform = {
+  x: number;
+  y: number;
+  scale: number;
+};
+
+export const DEFAULT_TRANSFORM: LayerTransform = {
+  x: 0,
+  y: 0,
+  scale: 1,
+};
+
 export type SlideBase = {
   id: string;
   category: string;
@@ -18,12 +31,15 @@ export type CoverSlide = SlideBase & {
   backgroundImageUrl: string | null;
   overline: string;
   headline: string;
+  imageTransform?: LayerTransform;
+  textTransform?: LayerTransform;
 };
 
 export type TextSlide = SlideBase & {
   type: "text";
   backgroundColor: string;
   bodyHtml: string;
+  textTransform?: LayerTransform;
 };
 
 export type QuoteSlide = SlideBase & {
@@ -32,6 +48,8 @@ export type QuoteSlide = SlideBase & {
   backgroundColor: string;
   quoteText: string;
   attribution: string;
+  imageTransform?: LayerTransform;
+  textTransform?: LayerTransform;
 };
 
 export type OutroSlide = SlideBase & {
@@ -39,7 +57,9 @@ export type OutroSlide = SlideBase & {
   backgroundColor: string;
   headline: string;
   ctaText: string;
+  textTransform?: LayerTransform;
 };
 
 export type Slide = CoverSlide | TextSlide | QuoteSlide | OutroSlide;
 export type SlideType = Slide["type"];
+export type EditableLayer = "image" | "text";

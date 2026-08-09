@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { updateCarouselSlides } from "@/lib/actions";
+import { exportAllCarouselSlides } from "@/lib/carousel/export";
+import { fileToCompressedDataUrl } from "@/lib/carousel/image";
 import {
   createEmptySlide,
   lastCategory,
 } from "@/lib/carousel/slides";
+import { normalizeTransform } from "@/lib/carousel/transform";
 import {
   DEFAULT_BG,
+  DEFAULT_TRANSFORM,
+  type EditableLayer,
+  type LayerTransform,
   type Slide,
   type SlideType,
 } from "@/lib/carousel/types";
@@ -22,7 +28,16 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
   outro: "Outro",
 };
 
+const PREVIEW_SCALE = 0.42;
+
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
+function slideHasImageLayer(slide: Slide) {
+  return (
+    (slide.type === "cover" || slide.type === "quote") &&
+    Boolean(slide.backgroundImageUrl)
+  );
+}
 
 export function CarouselEditor({
   postId,
@@ -44,12 +59,24 @@ export function CarouselEditor({
   const [activeId, setActiveId] = useState(slides[0]?.id ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [pending, startTransition] = useTransition();
   const skipFirstSave = useRef(true);
   const saveToken = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const active =
     slides.find((s) => s.id === activeId) ?? slides[0] ?? null;
+
+  useEffect(() => {
+    if (!active) return;
+    if (selectedLayer === "image" && !slideHasImageLayer(active)) {
+      setSelectedLayer("text");
+    }
+  }, [active, selectedLayer]);
 
   useEffect(() => {
     if (!canEdit) return;
@@ -85,6 +112,25 @@ export function CarouselEditor({
     );
   }
 
+  function currentTransform(layer: EditableLayer): LayerTransform {
+    if (!active) return { ...DEFAULT_TRANSFORM };
+    if (layer === "image" && (active.type === "cover" || active.type === "quote")) {
+      return normalizeTransform(active.imageTransform);
+    }
+    return normalizeTransform(active.textTransform);
+  }
+
+  function setLayerTransform(layer: EditableLayer, transform: LayerTransform) {
+    if (!active || !canEdit) return;
+    if (layer === "image") {
+      if (active.type === "cover" || active.type === "quote") {
+        updateActive({ imageTransform: transform });
+      }
+      return;
+    }
+    updateActive({ textTransform: transform });
+  }
+
   function addSlide(type: SlideType) {
     if (!canEdit) return;
     const slide = createEmptySlide(type, lastCategory(slides));
@@ -100,6 +146,44 @@ export function CarouselEditor({
     setActiveId(next[Math.max(0, idx - 1)]?.id ?? next[0]!.id);
   }
 
+  async function handleExportAll() {
+    setError(null);
+    setExporting(true);
+    setExportProgress(`0 / ${slides.length}`);
+    try {
+      await exportAllCarouselSlides(slides, title, (done, total) => {
+        setExportProgress(`${done} / ${total}`);
+      });
+      setExportProgress(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Export fehlgeschlagen.",
+      );
+      setExportProgress(null);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImageFile(file: File | null) {
+    if (!file || !canEdit || !active) return;
+    if (active.type !== "cover" && active.type !== "quote") return;
+    setUploading(true);
+    setError(null);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file);
+      updateActive({ backgroundImageUrl: dataUrl });
+      setSelectedLayer("image");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Bild-Upload fehlgeschlagen.",
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   const saveLabel =
     saveState === "saving" || pending
       ? "Speichert…"
@@ -111,10 +195,13 @@ export function CarouselEditor({
             ? "Fehler"
             : "";
 
+  const transform = currentTransform(selectedLayer);
+  const canEditImage = Boolean(active && slideHasImageLayer(active));
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 flex-1 space-y-2">
           <Link
             href="/carousel"
             className="text-sm font-semibold text-[var(--accent)] hover:underline"
@@ -147,14 +234,38 @@ export function CarouselEditor({
             <p className="text-sm text-[var(--muted)]">
               Nur Ansicht — nur der Ersteller kann speichern.
             </p>
-          ) : null}
+          ) : (
+            <p className="text-sm text-[var(--muted)]">
+              Text/Bild im Preview ziehen · snap an Hilfslinien · Skala rechts
+            </p>
+          )}
         </div>
+        <button
+          type="button"
+          className="btn btn-primary shrink-0"
+          disabled={exporting || slides.length === 0}
+          onClick={() => {
+            void handleExportAll();
+          }}
+        >
+          {exporting
+            ? `Exportiere… ${exportProgress ?? ""}`
+            : "Alle als PNG exportieren"}
+        </button>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col items-center gap-4">
           {active ? (
-            <CarouselSlidePreview slide={active} scale={0.42} />
+            <CarouselSlidePreview
+              slide={active}
+              scale={PREVIEW_SCALE}
+              interactive={canEdit}
+              selectedLayer={selectedLayer}
+              onSelectLayer={setSelectedLayer}
+              onImageTransform={(t) => setLayerTransform("image", t)}
+              onTextTransform={(t) => setLayerTransform("text", t)}
+            />
           ) : null}
 
           <div className="flex w-full max-w-[460px] gap-2 overflow-x-auto pb-1">
@@ -212,6 +323,67 @@ export function CarouselEditor({
                 </h2>
               </div>
 
+              {canEdit ? (
+                <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
+                  <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                    Ebene
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className={[
+                        "btn px-3 py-1.5 text-sm",
+                        selectedLayer === "text"
+                          ? "btn-primary"
+                          : "btn-ghost",
+                      ].join(" ")}
+                      onClick={() => setSelectedLayer("text")}
+                    >
+                      Text
+                    </button>
+                    <button
+                      type="button"
+                      className={[
+                        "btn px-3 py-1.5 text-sm",
+                        selectedLayer === "image"
+                          ? "btn-primary"
+                          : "btn-ghost",
+                      ].join(" ")}
+                      disabled={!canEditImage}
+                      onClick={() => setSelectedLayer("image")}
+                    >
+                      Bild
+                    </button>
+                  </div>
+                  <Field label={`Skalierung (${Math.round(transform.scale * 100)}%)`}>
+                    <input
+                      type="range"
+                      min={0.35}
+                      max={2.5}
+                      step={0.01}
+                      value={transform.scale}
+                      onChange={(e) =>
+                        setLayerTransform(selectedLayer, {
+                          ...transform,
+                          scale: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    className="btn btn-ghost px-3 py-1.5 text-sm"
+                    onClick={() =>
+                      setLayerTransform(selectedLayer, {
+                        ...DEFAULT_TRANSFORM,
+                      })
+                    }
+                  >
+                    Position zurücksetzen
+                  </button>
+                </div>
+              ) : null}
+
               <Field label="Kategorie">
                 <input
                   className="w-full"
@@ -221,21 +393,63 @@ export function CarouselEditor({
                 />
               </Field>
 
-              {active.type === "cover" ? (
-                <>
-                  <Field label="Hintergrundbild (URL)">
+              {active.type === "cover" || active.type === "quote" ? (
+                <Field label="Hintergrundbild">
+                  <div className="space-y-2">
                     <input
                       className="w-full"
                       disabled={!canEdit}
-                      value={active.backgroundImageUrl ?? ""}
-                      onChange={(e) =>
+                      value={
+                        active.backgroundImageUrl?.startsWith("data:")
+                          ? "(hochgeladenes Bild)"
+                          : (active.backgroundImageUrl ?? "")
+                      }
+                      onChange={(e) => {
+                        if (e.target.value === "(hochgeladenes Bild)") return;
                         updateActive({
                           backgroundImageUrl: e.target.value.trim() || null,
-                        })
-                      }
-                      placeholder="https://…"
+                        });
+                      }}
+                      placeholder="https://… oder Datei wählen"
                     />
-                  </Field>
+                    {canEdit ? (
+                      <div className="flex flex-wrap gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            void handleImageFile(e.target.files?.[0] ?? null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-sm"
+                          disabled={uploading}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {uploading ? "Lädt…" : "Bild hochladen"}
+                        </button>
+                        {active.backgroundImageUrl ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"
+                            onClick={() =>
+                              updateActive({ backgroundImageUrl: null })
+                            }
+                          >
+                            Bild entfernen
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </Field>
+              ) : null}
+
+              {active.type === "cover" ? (
+                <>
                   <Field label="Overline">
                     <input
                       className="w-full"
@@ -298,19 +512,6 @@ export function CarouselEditor({
 
               {active.type === "quote" ? (
                 <>
-                  <Field label="Hintergrundbild (URL, optional)">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.backgroundImageUrl ?? ""}
-                      onChange={(e) =>
-                        updateActive({
-                          backgroundImageUrl: e.target.value.trim() || null,
-                        })
-                      }
-                      placeholder="leer = Vollfläche"
-                    />
-                  </Field>
                   <Field label="Hintergrundfarbe">
                     <div className="flex gap-2">
                       <input

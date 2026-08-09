@@ -28,6 +28,8 @@
     "@tiptap/starter-kit": "^3.29.2",
     "better-auth": "^1.6.25",
     "date-fns": "^4.4.0",
+    "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.28.0",
     "marked": "^18.0.9",
     "next": "16.2.12",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.3",
     "@types/react": "^19",
