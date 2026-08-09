@@ -79,6 +79,13 @@ export function CarouselEditor({
   const active =
     slides.find((s) => s.id === activeId) ?? slides[0] ?? null;
 
+  const activeIndex = active
+    ? slides.findIndex((s) => s.id === active.id)
+    : -1;
+  const disableMoveLeft = !active || activeIndex <= 0;
+  const disableMoveRight =
+    !active || activeIndex < 0 || activeIndex >= slides.length - 1;
+
   useEffect(() => {
     if (!active) return;
     if (selectedLayer === "image" && !slideHasImageLayer(active)) {
@@ -328,10 +335,7 @@ export function CarouselEditor({
                 <button
                   type="button"
                   className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
-                  disabled={
-                    !active ||
-                    slides.findIndex((s) => s.id === active.id) <= 0
-                  }
+                  disabled={disableMoveLeft}
                   onClick={() => moveActive(-1)}
                   title="Nach links verschieben"
                   aria-label="Nach links verschieben"
@@ -341,11 +345,7 @@ export function CarouselEditor({
                 <button
                   type="button"
                   className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
-                  disabled={
-                    !active ||
-                    slides.findIndex((s) => s.id === active.id) >=
-                      slides.length - 1
-                  }
+                  disabled={disableMoveRight}
                   onClick={() => moveActive(1)}
                   title="Nach rechts verschieben"
                   aria-label="Nach rechts verschieben"
