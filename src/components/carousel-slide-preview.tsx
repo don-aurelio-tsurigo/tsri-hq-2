@@ -45,6 +45,7 @@ function Category({ text }: { text: string }) {
       style={{
         top: 72,
         fontSize: 23,
+        lineHeight: 1.2,
         fontFamily: CAROUSEL_FONT,
       }}
     >
@@ -303,11 +304,11 @@ function CoverPreview({
         onPointerUp={textDrag.onPointerUp}
       >
         {slide.overline ? (
-          <p className="mb-3 font-medium" style={{ fontSize: 30 }}>
+          <p className="mb-3 font-medium" style={{ fontSize: 30, lineHeight: 1.2 }}>
             {slide.overline}
           </p>
         ) : null}
-        <p className="font-extrabold leading-[1.12]" style={{ fontSize: 54 }}>
+        <p className="font-extrabold" style={{ fontSize: 54, lineHeight: 1.2 }}>
           {slide.headline || "Headline…"}
         </p>
       </div>
@@ -390,7 +391,7 @@ function TextPreview({
           top: 200,
           bottom: 180,
           fontSize: 40,
-          lineHeight: 1.35,
+          lineHeight: 1.2,
           fontFamily: CAROUSEL_FONT,
           fontWeight: 500,
           ...textTransformStyle(textT, "center top"),
@@ -496,8 +497,8 @@ function QuotePreview({
           «
         </p>
         <p
-          className="font-extrabold leading-[1.25]"
-          style={{ fontSize: 40, whiteSpace: "pre-wrap" }}
+          className="font-extrabold"
+          style={{ fontSize: 40, lineHeight: 1.4, whiteSpace: "pre-wrap" }}
         >
           {slide.quoteText || "Zitat…"}
           {slide.quoteText && !slide.quoteText.trimEnd().endsWith("»")
@@ -505,7 +506,10 @@ function QuotePreview({
             : ""}
         </p>
         {slide.attribution ? (
-          <p className="mt-8 font-medium opacity-95" style={{ fontSize: 30 }}>
+          <p
+            className="mt-8 font-medium opacity-95"
+            style={{ fontSize: 30, lineHeight: 1.2 }}
+          >
             {slide.attribution}
           </p>
         ) : null}
@@ -571,13 +575,14 @@ function OutroPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        <p className="font-extrabold leading-[1.15]" style={{ fontSize: 54 }}>
+        <p className="font-extrabold" style={{ fontSize: 54, lineHeight: 1.2 }}>
           {slide.headline || "Headline…"}
         </p>
         <p
           className="mt-8 text-right font-semibold tracking-[0.08em] uppercase"
           style={{
             fontSize: 32,
+            lineHeight: 1.2,
             fontFamily: CAROUSEL_FONT,
           }}
         >
