@@ -1,3 +1,4 @@
+import { carouselFont } from "@/lib/carousel/fonts";
 import {
   BRAND_LOGO_SRC,
   BRAND_MARK,
@@ -6,6 +7,9 @@ import {
   DEFAULT_BG,
   type Slide,
 } from "@/lib/carousel/types";
+
+const CAROUSEL_FONT =
+  "var(--font-carousel), 'Roboto', system-ui, sans-serif";
 
 export function sanitizeSlideHtml(input: string): string {
   const escaped = input
@@ -26,7 +30,7 @@ function Category({ text }: { text: string }) {
       style={{
         top: 72,
         fontSize: 28,
-        fontFamily: "var(--font-body), system-ui, sans-serif",
+        fontFamily: CAROUSEL_FONT,
       }}
     >
       {text || "STADTLEBEN"}
@@ -98,7 +102,7 @@ function CoverPreview({ slide }: { slide: Extract<Slide, { type: "cover" }> }) {
           left: 88,
           right: 88,
           bottom: 220,
-          fontFamily: "var(--font-display), system-ui, sans-serif",
+          fontFamily: CAROUSEL_FONT,
         }}
       >
         {slide.overline ? (
@@ -132,7 +136,7 @@ function TextPreview({ slide }: { slide: Extract<Slide, { type: "text" }> }) {
           bottom: 180,
           fontSize: 40,
           lineHeight: 1.35,
-          fontFamily: "var(--font-body), system-ui, sans-serif",
+          fontFamily: CAROUSEL_FONT,
           fontWeight: 500,
         }}
         dangerouslySetInnerHTML={{
@@ -166,7 +170,7 @@ function QuotePreview({ slide }: { slide: Extract<Slide, { type: "quote" }> }) {
           right: 100,
           top: 220,
           bottom: 180,
-          fontFamily: "var(--font-body), system-ui, sans-serif",
+          fontFamily: CAROUSEL_FONT,
         }}
       >
         <p
@@ -210,7 +214,7 @@ function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
           right: 88,
           top: "42%",
           transform: "translateY(-50%)",
-          fontFamily: "var(--font-display), system-ui, sans-serif",
+          fontFamily: CAROUSEL_FONT,
         }}
       >
         <p className="font-extrabold leading-[1.15]" style={{ fontSize: 56 }}>
@@ -220,7 +224,7 @@ function OutroPreview({ slide }: { slide: Extract<Slide, { type: "outro" }> }) {
           className="mt-8 text-right font-semibold tracking-[0.08em] uppercase"
           style={{
             fontSize: 32,
-            fontFamily: "var(--font-body), system-ui, sans-serif",
+            fontFamily: CAROUSEL_FONT,
           }}
         >
           {slide.ctaText || "LINK IN DER BIO"}
@@ -240,7 +244,7 @@ export function CarouselSlidePreview({
 }) {
   return (
     <div
-      className="relative shrink-0 overflow-hidden shadow-lg ring-1 ring-black/10"
+      className={`relative shrink-0 overflow-hidden shadow-lg ring-1 ring-black/10 ${carouselFont.variable} ${carouselFont.className}`}
       style={{
         width: CANVAS_WIDTH * scale,
         height: CANVAS_HEIGHT * scale,
@@ -252,6 +256,7 @@ export function CarouselSlidePreview({
           width: CANVAS_WIDTH,
           height: CANVAS_HEIGHT,
           transform: `scale(${scale})`,
+          fontFamily: CAROUSEL_FONT,
         }}
       >
         {slide.type === "cover" ? <CoverPreview slide={slide} /> : null}
