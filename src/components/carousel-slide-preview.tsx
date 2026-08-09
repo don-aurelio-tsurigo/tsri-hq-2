@@ -493,14 +493,14 @@ function QuotePreview({
         onPointerUp={textDrag.onPointerUp}
       >
         <p
-          className="font-extrabold leading-none"
-          style={{ fontSize: 181, marginBottom: 24 }}
+          className="font-bold leading-none"
+          style={{ fontSize: 240, marginBottom: 46 }}
         >
           «
         </p>
         <p
-          className="font-extrabold"
-          style={{ fontSize: 40, lineHeight: 1.4, whiteSpace: "pre-wrap" }}
+          className="font-bold"
+          style={{ fontSize: 60, lineHeight: 1.25, whiteSpace: "pre-wrap" }}
         >
           {slide.quoteText || "Zitat…"}
           {slide.quoteText && !slide.quoteText.trimEnd().endsWith("»")
@@ -509,8 +509,8 @@ function QuotePreview({
         </p>
         {slide.attribution ? (
           <p
-            className="mt-8 font-medium opacity-95"
-            style={{ fontSize: 30, lineHeight: 1.2 }}
+            className="font-normal opacity-95"
+            style={{ fontSize: 45, lineHeight: 1.2, marginTop: 52 }}
           >
             {slide.attribution}
           </p>
