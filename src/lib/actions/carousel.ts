@@ -1,16 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
+import { AiGenerationError, generateSlidesFromArticle } from "@/lib/ai/anthropic";
 import { prisma } from "@/lib/db";
 import { createEmptyCoverSlide } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
+import { fetchTsriArticleByUrl } from "@/lib/wepublish/article";
+import { WepublishApiError } from "@/lib/wepublish/client";
 
 const idSchema = z.string().min(1);
 const titleSchema = z.string().min(1).max(200);
+const urlSchema = z.string().min(8).max(500);
 
 export async function createCarouselPost(title?: string | FormData) {
   const { session } = await requireMembership();
@@ -35,6 +39,47 @@ export async function createCarouselPost(title?: string | FormData) {
 
   revalidatePath("/carousel");
   redirect(`/carousel/${post.id}`);
+}
+
+export async function importCarouselFromArticleUrl(
+  articleUrl: string,
+): Promise<{ error: string }> {
+  const { session } = await requireMembership();
+  const parsedUrl = urlSchema.safeParse(articleUrl?.trim() ?? "");
+  if (!parsedUrl.success) {
+    return { error: "Bitte eine gültige Artikel-URL einfügen." };
+  }
+
+  try {
+    const article = await fetchTsriArticleByUrl(parsedUrl.data);
+    const slides = await generateSlidesFromArticle(article);
+    if (slides.length < 6) {
+      return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
+    }
+
+    const title =
+      article.title.length > 200
+        ? `${article.title.slice(0, 197)}…`
+        : article.title;
+
+    const post = await prisma.carouselPost.create({
+      data: {
+        title,
+        slides: slides as unknown as Prisma.InputJsonValue,
+        createdById: session.user.id,
+      },
+    });
+
+    revalidatePath("/carousel");
+    redirect(`/carousel/${post.id}`);
+  } catch (error) {
+    unstable_rethrow(error);
+    if (error instanceof WepublishApiError || error instanceof AiGenerationError) {
+      return { error: error.message };
+    }
+    console.error("importCarouselFromArticleUrl", error);
+    return { error: "Import fehlgeschlagen. Bitte später erneut versuchen." };
+  }
 }
 
 export async function updateCarouselSlides(

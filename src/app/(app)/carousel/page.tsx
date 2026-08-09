@@ -1,5 +1,6 @@
 import { CarouselList } from "@/components/carousel-list";
 import { CreateCarouselButton } from "@/components/create-carousel-button";
+import { ImportCarouselFromArticle } from "@/components/import-carousel-from-article";
 import { listCarouselPosts, parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
 
@@ -23,6 +24,8 @@ export default async function CarouselIndexPage() {
         </div>
         <CreateCarouselButton />
       </header>
+
+      <ImportCarouselFromArticle />
 
       <CarouselList
         posts={posts.map((post) => ({
