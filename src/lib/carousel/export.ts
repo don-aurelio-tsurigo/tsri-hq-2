@@ -22,7 +22,9 @@ function slugify(value: string) {
 function slideImageUrls(slide: Slide): string[] {
   const urls = [BRAND_LOGO_SRC];
   if (
-    (slide.type === "cover" || slide.type === "quote") &&
+    (slide.type === "cover" ||
+      slide.type === "text" ||
+      slide.type === "quote") &&
     slide.backgroundImageUrl
   ) {
     urls.push(slide.backgroundImageUrl);

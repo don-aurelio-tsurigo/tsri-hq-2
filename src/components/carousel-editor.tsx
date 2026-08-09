@@ -34,8 +34,16 @@ type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
 function slideHasImageLayer(slide: Slide) {
   return (
-    (slide.type === "cover" || slide.type === "quote") &&
+    (slide.type === "cover" ||
+      slide.type === "text" ||
+      slide.type === "quote") &&
     Boolean(slide.backgroundImageUrl)
+  );
+}
+
+function slideSupportsBackgroundImage(slide: Slide) {
+  return (
+    slide.type === "cover" || slide.type === "text" || slide.type === "quote"
   );
 }
 
@@ -114,7 +122,12 @@ export function CarouselEditor({
 
   function currentTransform(layer: EditableLayer): LayerTransform {
     if (!active) return { ...DEFAULT_TRANSFORM };
-    if (layer === "image" && (active.type === "cover" || active.type === "quote")) {
+    if (
+      layer === "image" &&
+      (active.type === "cover" ||
+        active.type === "text" ||
+        active.type === "quote")
+    ) {
       return normalizeTransform(active.imageTransform);
     }
     return normalizeTransform(active.textTransform);
@@ -123,7 +136,11 @@ export function CarouselEditor({
   function setLayerTransform(layer: EditableLayer, transform: LayerTransform) {
     if (!active || !canEdit) return;
     if (layer === "image") {
-      if (active.type === "cover" || active.type === "quote") {
+      if (
+        active.type === "cover" ||
+        active.type === "text" ||
+        active.type === "quote"
+      ) {
         updateActive({ imageTransform: transform });
       }
       return;
@@ -179,7 +196,13 @@ export function CarouselEditor({
 
   async function handleImageFile(file: File | null) {
     if (!file || !canEdit || !active) return;
-    if (active.type !== "cover" && active.type !== "quote") return;
+    if (
+      active.type !== "cover" &&
+      active.type !== "text" &&
+      active.type !== "quote"
+    ) {
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
@@ -439,7 +462,7 @@ export function CarouselEditor({
                 />
               </Field>
 
-              {active.type === "cover" || active.type === "quote" ? (
+              {slideSupportsBackgroundImage(active) ? (
                 <Field label="Hintergrundbild">
                   <div className="space-y-2">
                     <input

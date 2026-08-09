@@ -37,8 +37,10 @@ export type CoverSlide = SlideBase & {
 
 export type TextSlide = SlideBase & {
   type: "text";
+  backgroundImageUrl: string | null;
   backgroundColor: string;
   bodyHtml: string;
+  imageTransform?: LayerTransform;
   textTransform?: LayerTransform;
 };
 

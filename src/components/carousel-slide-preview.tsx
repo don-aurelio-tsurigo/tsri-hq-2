@@ -290,6 +290,7 @@ function TextPreview({
   interactive,
   selectedLayer,
   onSelectLayer,
+  onImageTransform,
   onTextTransform,
   previewScale = 1,
   onGuides,
@@ -298,7 +299,21 @@ function TextPreview({
 } & InteractiveProps & {
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
+  const hasImage = Boolean(slide.backgroundImageUrl);
+  const imageT = normalizeTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
+  const imageDrag = useLayerDrag({
+    enabled: Boolean(interactive && hasImage),
+    layer: "image",
+    selected: selectedLayer === "image",
+    transform: imageT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onImageTransform,
+    onGuides,
+  });
   const textDrag = useLayerDrag({
     enabled: Boolean(interactive),
     layer: "text",
@@ -314,10 +329,29 @@ function TextPreview({
 
   return (
     <>
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
-      />
+      {hasImage ? (
+        <>
+          <div
+            className={`absolute inset-0 z-0 ${imageDrag.className}`}
+            style={imageStyle(slide.backgroundImageUrl, imageT)}
+            onPointerDown={imageDrag.onPointerDown}
+            onPointerMove={imageDrag.onPointerMove}
+            onPointerUp={imageDrag.onPointerUp}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 z-10"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.5) 100%)",
+            }}
+          />
+        </>
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
+        />
+      )}
       <Category text={slide.category} />
       <div
         className={`absolute z-30 overflow-hidden text-white ${textDrag.className}`}

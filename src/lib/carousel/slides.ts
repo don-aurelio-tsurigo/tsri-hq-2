@@ -34,6 +34,7 @@ export function createEmptyTextSlide(
     id: newId(),
     type: "text",
     category,
+    backgroundImageUrl: null,
     backgroundColor: DEFAULT_BG,
     bodyHtml: "",
   };
