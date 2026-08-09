@@ -280,52 +280,61 @@ export function CarouselEditor({
             />
           ) : null}
 
-          <div className="flex w-full max-w-[460px] gap-2 overflow-x-auto pb-1">
-            {slides.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                onClick={() => setActiveId(slide.id)}
-                className={[
-                  "shrink-0 overflow-hidden rounded-lg ring-2 transition",
-                  slide.id === active?.id
-                    ? "ring-[var(--accent)]"
-                    : "ring-transparent hover:ring-[var(--border)]",
-                ].join(" ")}
-                title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
-              >
-                <CarouselSlidePreview slide={slide} scale={0.08} />
-              </button>
-            ))}
+          <div className="flex w-full max-w-[460px] flex-col items-center gap-2">
+            <div className="flex w-full gap-2 overflow-x-auto pb-1">
+              {slides.map((slide, index) => (
+                <button
+                  key={slide.id}
+                  type="button"
+                  onClick={() => setActiveId(slide.id)}
+                  className={[
+                    "shrink-0 overflow-hidden rounded-lg ring-2 transition",
+                    slide.id === active?.id
+                      ? "ring-[var(--accent)]"
+                      : "ring-transparent hover:ring-[var(--border)]",
+                  ].join(" ")}
+                  title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
+                >
+                  <CarouselSlidePreview slide={slide} scale={0.08} />
+                </button>
+              ))}
+            </div>
+
+            {canEdit && slides.length > 1 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
+                  disabled={
+                    !active ||
+                    slides.findIndex((s) => s.id === active.id) <= 0
+                  }
+                  onClick={() => moveActive(-1)}
+                  title="Nach links verschieben"
+                  aria-label="Nach links verschieben"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
+                  disabled={
+                    !active ||
+                    slides.findIndex((s) => s.id === active.id) >=
+                      slides.length - 1
+                  }
+                  onClick={() => moveActive(1)}
+                  title="Nach rechts verschieben"
+                  aria-label="Nach rechts verschieben"
+                >
+                  →
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {canEdit ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                className="btn btn-ghost px-3 py-1.5 text-sm"
-                disabled={
-                  !active ||
-                  slides.findIndex((s) => s.id === active.id) <= 0
-                }
-                onClick={() => moveActive(-1)}
-                title="Nach links verschieben"
-              >
-                ← Nach links
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost px-3 py-1.5 text-sm"
-                disabled={
-                  !active ||
-                  slides.findIndex((s) => s.id === active.id) >=
-                    slides.length - 1
-                }
-                onClick={() => moveActive(1)}
-                title="Nach rechts verschieben"
-              >
-                Nach rechts →
-              </button>
               {(Object.keys(SLIDE_TYPE_LABEL) as SlideType[]).map((type) => (
                 <button
                   key={type}
