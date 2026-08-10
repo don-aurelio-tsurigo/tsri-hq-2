@@ -39,6 +39,8 @@ export function sanitizeSlideHtml(input: string): string {
   return escaped
     .replace(/&lt;b&gt;/gi, "<b>")
     .replace(/&lt;\/b&gt;/gi, "</b>")
+    .replace(/&lt;i&gt;/gi, "<i>")
+    .replace(/&lt;\/i&gt;/gi, "</i>")
     .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
     .replace(/\n/g, "<br/>");
 }
@@ -544,12 +546,16 @@ function QuotePreview({
         <p
           className="font-bold"
           style={{ fontSize: 60, lineHeight: 1.25, whiteSpace: "pre-wrap" }}
-        >
-          {slide.quoteText || "Zitat…"}
-          {slide.quoteText && !slide.quoteText.trimEnd().endsWith("»")
-            ? "»"
-            : ""}
-        </p>
+          dangerouslySetInnerHTML={{
+            __html: (() => {
+              const raw = slide.quoteText || "Zitat…";
+              const html = sanitizeSlideHtml(raw);
+              const plain = raw.replace(/<[^>]+>/g, "");
+              if (plain.trimEnd().endsWith("»")) return html;
+              return `${html}»`;
+            })(),
+          }}
+        />
         {slide.attribution ? (
           <p
             className="font-normal opacity-95"

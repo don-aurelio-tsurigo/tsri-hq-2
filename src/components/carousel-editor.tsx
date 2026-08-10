@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
@@ -706,17 +707,16 @@ export function CarouselEditor({
                       />
                     </div>
                   </Field>
-                  <Field label="Text (Zeilenumbruch ok, <b>fett</b>)">
-                    <textarea
-                      className="min-h-48 w-full font-mono text-sm"
+                  <div className="field">
+                    <CarouselFormatTextarea
+                      label="Text"
                       disabled={!canEdit}
                       value={active.bodyHtml}
-                      onChange={(e) =>
-                        updateActive({ bodyHtml: e.target.value })
-                      }
+                      onChange={(bodyHtml) => updateActive({ bodyHtml })}
                       placeholder="Schon wieder ist es heiss…"
+                      className="min-h-48 w-full font-mono text-sm"
                     />
-                  </Field>
+                  </div>
                 </>
               ) : null}
 
@@ -743,16 +743,15 @@ export function CarouselEditor({
                       />
                     </div>
                   </Field>
-                  <Field label="Zitat">
-                    <textarea
-                      className="min-h-40 w-full"
+                  <div className="field">
+                    <CarouselFormatTextarea
+                      label="Zitat"
                       disabled={!canEdit}
                       value={active.quoteText}
-                      onChange={(e) =>
-                        updateActive({ quoteText: e.target.value })
-                      }
+                      onChange={(quoteText) => updateActive({ quoteText })}
+                      className="min-h-40 w-full font-mono text-sm"
                     />
-                  </Field>
+                  </div>
                   <Field label="Attribution">
                     <input
                       className="w-full"

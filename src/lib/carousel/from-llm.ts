@@ -116,6 +116,8 @@ function sanitizeBodyHtml(input: string): string {
   return escaped
     .replace(/&lt;b&gt;/gi, "<b>")
     .replace(/&lt;\/b&gt;/gi, "</b>")
+    .replace(/&lt;i&gt;/gi, "<i>")
+    .replace(/&lt;\/i&gt;/gi, "</i>")
     .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
     .replace(/\n/g, "<br/>")
     .trim();

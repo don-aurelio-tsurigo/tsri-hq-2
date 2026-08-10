@@ -27,7 +27,7 @@ Regeln:
 ${categoryColorPromptBlock()}
 - Setze "category" auf genau einen Namen aus der Liste (GROSSBUCHSTABEN); Farbe und Textkontrast folgen daraus automatisiert.
 - Cover: überline aus Pre-Title übernehmen, headline: Artikel-Titel verwenden (darf Zeilenumbrüche als \\n enthalten).
-- Text-Slides: bodyHtml max. 500 Zeichen, nur <b> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags.
+- Text-Slides: bodyHtml max. 500 Zeichen, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags.
 - Quote: quoteText ohne führende Anführungszeichen; attribution mit Name.
 - Outro: Titel + ctaText  "LINK IN DER BIO".
 - Keine erfundenen Fakten; Ziel ist es den Text aufzuteilen und bei Bedarf zu kürzen. Dichte nichts dazu.
