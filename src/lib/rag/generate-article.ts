@@ -19,6 +19,9 @@ export type { KurzmeldungDraft };
 export { formatKurzmeldungForCopy };
 
 const TOOL_NAME = "create_kurzmeldung";
+/** Stronger recency bias for generation (no human vetting of hit freshness). */
+const GENERATION_RECENCY_WEIGHT = 0.04;
+const ARCHIVE_STALE_AFTER_MS = 365.25 * 24 * 60 * 60 * 1000;
 const STYLEGUIDE_PATH = join(
   process.cwd(),
   "src/lib/rag/kurzmeldung-styleguide.md",
@@ -68,19 +71,40 @@ function getClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
+function isStaleArchiveHit(
+  publishedAt: string | null,
+  now = new Date(),
+): boolean {
+  if (!publishedAt) return true;
+  const d = new Date(publishedAt);
+  if (Number.isNaN(d.getTime())) return true;
+  return now.getTime() - d.getTime() > ARCHIVE_STALE_AFTER_MS;
+}
+
+function formatArchiveMonthYear(publishedAt: string | null): string {
+  if (!publishedAt) return "unbekanntes Datum";
+  const d = new Date(publishedAt);
+  if (Number.isNaN(d.getTime())) return "unbekanntes Datum";
+  return d.toLocaleDateString("de-CH", { month: "long", year: "numeric" });
+}
+
 function formatRagContext(hits: RagSearchHit[]): string {
   if (hits.length === 0) {
     return "(keine RAG-Treffer)";
   }
+  const now = new Date();
   return hits
     .map((hit, i) => {
       const authors =
         hit.authors.length > 0 ? hit.authors.join(", ") : "unbekannt";
+      const stale = isStaleArchiveHit(hit.publishedAt, now);
+      const monthYear = formatArchiveMonthYear(hit.publishedAt);
       return [
-        `### RAG-Treffer ${i + 1}`,
+        `### RAG-Treffer ${i + 1}${stale ? " — ARCHIV - möglicherweise überholt" : ""}`,
         `Titel: ${hit.title ?? "(ohne Titel)"}`,
         `URL: ${hit.url ?? "—"}`,
-        `Datum: ${hit.publishedAt ?? "—"}`,
+        `Datum: ${hit.publishedAt ?? "—"} (${monthYear})`,
+        `Status: ${stale ? "ARCHIV - möglicherweise überholt (>12 Monate)" : "relativ aktuell (<12 Monate)"}`,
         `Autor:innen: ${authors}`,
         `Ausschnitt: ${hit.chunkText}`,
       ].join("\n");
@@ -105,7 +129,7 @@ async function fetchRagContext(query: string): Promise<{
     const hits = await searchRagChunks({
       queryEmbedding: embedding,
       limit: 5,
-      recencyWeight: 0.015,
+      recencyWeight: GENERATION_RECENCY_WEIGHT,
     });
     if (hits.length === 0) {
       return {
@@ -151,7 +175,9 @@ const toolInputSchema = {
 function buildSystemPrompt(styleGuide: string, ragHitCount: number): string {
   const ragRule =
     ragHitCount > 0
-      ? `- Es liegen ${ragHitCount} RAG-Treffer aus dem Tsüri-Archiv vor. Mindestens EIN Satz MUSS auf frühere Berichterstattung Bezug nehmen (Zielumfang 300–400 Wörter), z.B. «Bereits im [Jahr] berichtete Tsüri über ähnliche Vorfälle…», mit Markdown-Link auf den gefundenen Artikel (Titel als Linktext, URL aus dem RAG-Treffer). Nur thematisch passende Treffer verwenden; wenn keiner passt, den am nächsten liegenden ehrlich als verwandten Kontext nennen, aber nicht erfinden.`
+      ? `- Es liegen ${ragHitCount} RAG-Treffer aus dem Tsüri-Archiv vor. Mindestens EIN Satz MUSS auf frühere Berichterstattung Bezug nehmen (Zielumfang 300–400 Wörter), z.B. «Bereits im [Jahr] berichtete Tsüri über ähnliche Vorfälle…», mit Markdown-Link auf den gefundenen Artikel (Titel als Linktext, URL aus dem RAG-Treffer). Nur thematisch passende Treffer verwenden; wenn keiner passt, den am nächsten liegenden ehrlich als verwandten Kontext nennen, aber nicht erfinden.
+- Kontext-Artikel aus dem RAG-Archiv sind historischer Hintergrund, KEIN aktueller Fakt. Wenn ein RAG-Treffer verwendet wird, MUSS das Datum des Treffers erkennbar gemacht werden (z.B. «wie Tsüri im [Monat/Jahr] berichtete» statt einer zeitlosen Formulierung). Vermeide Formulierungen, die einen vergangenen Zustand als aktuell suggerieren (z.B. NICHT «derzeit kaum freie Termine», SONDERN «im [Monat/Jahr] waren laut Tsüri-Recherche kaum freie Termine verfügbar – der aktuelle Stand ist nicht bekannt»).
+- RAG-Treffer, die als «ARCHIV - möglicherweise überholt» markiert sind (>12 Monate), besonders vorsichtig einordnen und nie als aktuellen Zustand darstellen.`
       : `- Keine RAG-Treffer: keinen erfundenen Archiv-Bezug einbauen.`;
 
   return `Du bist Redakteur:in bei Tsüri.ch und schreibst kurze, quellenbasierte Kurzmeldungen.

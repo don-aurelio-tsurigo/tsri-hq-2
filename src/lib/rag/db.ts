@@ -19,6 +19,20 @@ export function getRagPool(): Pool {
     throw new Error("RAG_DATABASE_URL oder DATABASE_URL fehlt.");
   }
 
+  if (/…|\.\.\./.test(connectionString)) {
+    throw new Error(
+      "RAG_DATABASE_URL ist unvollständig (enthält …). Bitte die komplette External Database URL aus Render einsetzen.",
+    );
+  }
+
+  try {
+    new URL(connectionString.replace(/^postgres(ql)?:/, "http:"));
+  } catch {
+    throw new Error(
+      "RAG_DATABASE_URL ist keine gültige Postgres-URL. Format: postgresql://USER:PASS@HOST/DB?sslmode=require",
+    );
+  }
+
   const isRemote = /render\.com/i.test(connectionString);
   const pool = new Pool({
     connectionString,
