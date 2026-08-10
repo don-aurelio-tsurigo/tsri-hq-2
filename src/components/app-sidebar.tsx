@@ -23,6 +23,7 @@ import {
   Pin,
   Rss,
   Settings2,
+  User,
   Users,
   X,
 } from "lucide-react";
@@ -90,11 +91,13 @@ function NavLink({
 
 function NavSection({
   title,
+  icon: Icon,
   open,
   onToggle,
   children,
 }: {
   title: string;
+  icon: LucideIcon;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -105,13 +108,18 @@ function NavSection({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase transition-colors hover:bg-white/10 hover:text-white"
+        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-bold tracking-wider text-white uppercase transition-colors hover:bg-white/10"
       >
-        <span>{title}</span>
+        <Icon
+          aria-hidden
+          className="size-4 shrink-0 opacity-90"
+          strokeWidth={1.75}
+        />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
         <ChevronDown
           aria-hidden
           className={[
-            "size-3.5 shrink-0 opacity-70 transition-transform duration-200",
+            "size-4 shrink-0 opacity-80 transition-transform duration-200",
             open ? "rotate-180" : "",
           ].join(" ")}
           strokeWidth={2.25}
@@ -237,6 +245,7 @@ export function AppSidebar({
 
         <NavSection
           title="Redaktion"
+          icon={Newspaper}
           open={isSectionOpen("redaktion")}
           onToggle={() => toggleSection("redaktion")}
         >
@@ -271,6 +280,7 @@ export function AppSidebar({
 
         <NavSection
           title="Social Media"
+          icon={Images}
           open={isSectionOpen("social")}
           onToggle={() => toggleSection("social")}
         >
@@ -289,6 +299,7 @@ export function AppSidebar({
 
         <NavSection
           title="Tasks"
+          icon={CheckSquare}
           open={isSectionOpen("tasks")}
           onToggle={() => toggleSection("tasks")}
         >
@@ -315,6 +326,7 @@ export function AppSidebar({
 
         <NavSection
           title="Team"
+          icon={Users}
           open={isSectionOpen("team")}
           onToggle={() => toggleSection("team")}
         >
@@ -374,6 +386,7 @@ export function AppSidebar({
 
         <NavSection
           title="Privat"
+          icon={User}
           open={isSectionOpen("privat")}
           onToggle={() => toggleSection("privat")}
         >
@@ -390,6 +403,7 @@ export function AppSidebar({
         {isAdmin && (
           <NavSection
             title="Admin"
+            icon={Settings2}
             open={isSectionOpen("admin")}
             onToggle={() => toggleSection("admin")}
           >
