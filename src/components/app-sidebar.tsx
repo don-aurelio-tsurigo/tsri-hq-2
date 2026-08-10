@@ -193,6 +193,14 @@ export function AppSidebar({
               Artikel
             </NavLink>
             <NavLink
+              href={spaceHref("quellen")}
+              active={spaceActive("quellen")}
+              icon={Rss}
+              onNavigate={onMobileClose}
+            >
+              Newsfeed
+            </NavLink>
+            <NavLink
               href="/newsletter"
               active={
                 pathname === "/newsletter" ||
@@ -203,6 +211,14 @@ export function AppSidebar({
             >
               Newsletter
             </NavLink>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
+            Social Media
+          </p>
+          <div className="flex flex-col gap-0.5">
             <NavLink
               href="/carousel"
               active={
@@ -212,41 +228,14 @@ export function AppSidebar({
               icon={Images}
               onNavigate={onMobileClose}
             >
-              Insta-Posts
-            </NavLink>
-            <NavLink
-              href={spaceHref("quellen")}
-              active={spaceActive("quellen")}
-              icon={Rss}
-              onNavigate={onMobileClose}
-            >
-              Newsfeed
+              Insta Posts
             </NavLink>
           </div>
         </div>
 
         <div>
           <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Civic Media
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink
-              href="/projects"
-              active={
-                pathname === "/projects" ||
-                pathname.startsWith("/projects/")
-              }
-              icon={FolderKanban}
-              onNavigate={onMobileClose}
-            >
-              Projekte
-            </NavLink>
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Privat
+            Tasks
           </p>
           <div className="flex flex-col gap-0.5">
             <NavLink
@@ -260,14 +249,15 @@ export function AppSidebar({
               Meine Tasks
             </NavLink>
             <NavLink
-              href="/hours"
+              href="/projects"
               active={
-                pathname === "/hours" || pathname.startsWith("/hours/")
+                pathname === "/projects" ||
+                pathname.startsWith("/projects/")
               }
-              icon={Clock}
+              icon={FolderKanban}
               onNavigate={onMobileClose}
             >
-              Arbeitszeit
+              Projekte
             </NavLink>
           </div>
         </div>
@@ -329,6 +319,24 @@ export function AppSidebar({
                 {pin.title}
               </NavLink>
             ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
+            Privat
+          </p>
+          <div className="flex flex-col gap-0.5">
+            <NavLink
+              href="/hours"
+              active={
+                pathname === "/hours" || pathname.startsWith("/hours/")
+              }
+              icon={Clock}
+              onNavigate={onMobileClose}
+            >
+              Arbeitszeit
+            </NavLink>
           </div>
         </div>
 
