@@ -10,6 +10,7 @@ import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import { fileToCompressedDataUrl } from "@/lib/carousel/image";
 import {
   DEFAULT_IMAGE_OVERLAY,
+  defaultImageOverlayForSlideType,
   normalizeImageOverlay,
 } from "@/lib/carousel/overlay";
 import {
@@ -96,10 +97,13 @@ export function CarouselEditor({
   const disableMoveLeft = !active || activeIndex <= 0;
   const disableMoveRight =
     !active || activeIndex < 0 || activeIndex >= slides.length - 1;
+  const overlayDefaults = active
+    ? defaultImageOverlayForSlideType(active.type)
+    : DEFAULT_IMAGE_OVERLAY;
   const imageOverlay =
     active && slideSupportsBackgroundImage(active)
-      ? normalizeImageOverlay(active.imageOverlay)
-      : DEFAULT_IMAGE_OVERLAY;
+      ? normalizeImageOverlay(active.imageOverlay, overlayDefaults)
+      : overlayDefaults;
 
   useEffect(() => {
     if (!active) return;
@@ -146,7 +150,7 @@ export function CarouselEditor({
     if (!active || !slideSupportsBackgroundImage(active)) return;
     updateActive({
       imageOverlay: {
-        ...normalizeImageOverlay(active.imageOverlay),
+        ...normalizeImageOverlay(active.imageOverlay, overlayDefaults),
         ...patch,
       },
     });
@@ -653,7 +657,9 @@ export function CarouselEditor({
                       className="btn btn-ghost px-3 py-1.5 text-sm"
                       onClick={() =>
                         updateActive({
-                          imageOverlay: { ...DEFAULT_IMAGE_OVERLAY },
+                          imageOverlay: defaultImageOverlayForSlideType(
+                            active.type,
+                          ),
                         })
                       }
                     >

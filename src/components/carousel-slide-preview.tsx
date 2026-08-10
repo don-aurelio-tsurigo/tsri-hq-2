@@ -8,6 +8,7 @@ import {
 } from "@/lib/carousel/categories";
 import { carouselFont } from "@/lib/carousel/fonts";
 import {
+  defaultImageOverlayForSlideType,
   imageDimFilter,
   imageOverlayGradient,
   normalizeImageOverlay,
@@ -115,6 +116,7 @@ function ImageLayer({
   url,
   transform,
   overlay,
+  overlayDefaults,
   className,
   onPointerDown,
   onPointerMove,
@@ -123,13 +125,14 @@ function ImageLayer({
   url: string | null;
   transform: LayerTransform;
   overlay?: Partial<ImageOverlay> | null;
+  overlayDefaults?: ImageOverlay;
   className?: string;
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerUp?: (e: PointerEvent<HTMLDivElement>) => void;
 }) {
   const t = normalizeTransform(transform);
-  const o = normalizeImageOverlay(overlay);
+  const o = normalizeImageOverlay(overlay, overlayDefaults);
   return (
     <div
       className={`absolute inset-0 z-0 overflow-hidden ${className ?? ""}`}
@@ -161,13 +164,15 @@ function ImageLayer({
 function ImageScrim({
   hasImage,
   overlay,
+  overlayDefaults,
   fallback,
 }: {
   hasImage: boolean;
   overlay?: Partial<ImageOverlay> | null;
+  overlayDefaults?: ImageOverlay;
   fallback?: string;
 }) {
-  const o = normalizeImageOverlay(overlay);
+  const o = normalizeImageOverlay(overlay, overlayDefaults);
   return (
     <div
       className="pointer-events-none absolute inset-0 z-10"
@@ -415,12 +420,17 @@ function TextPreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("text")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
           />
-          <ImageScrim hasImage overlay={slide.imageOverlay} />
+          <ImageScrim
+            hasImage
+            overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("text")}
+          />
         </>
       ) : (
         <div
@@ -509,12 +519,17 @@ function QuotePreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("quote")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
             onPointerMove={imageDrag.onPointerMove}
             onPointerUp={imageDrag.onPointerUp}
           />
-          <ImageScrim hasImage overlay={slide.imageOverlay} />
+          <ImageScrim
+            hasImage
+            overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("quote")}
+          />
         </>
       ) : (
         <div

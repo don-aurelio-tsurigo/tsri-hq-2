@@ -4,6 +4,7 @@ import {
   DEFAULT_CATEGORY,
   type SlideInk,
 } from "@/lib/carousel/categories";
+import { defaultImageOverlayForSlideType } from "@/lib/carousel/overlay";
 import {
   DEFAULT_OUTRO_CTA,
   type CoverSlide,
@@ -28,6 +29,7 @@ export function createEmptyCoverSlide(
     backgroundImageUrl: null,
     overline: "",
     headline: "",
+    imageOverlay: defaultImageOverlayForSlideType("cover"),
   };
 }
 
@@ -42,6 +44,7 @@ export function createEmptyTextSlide(
     backgroundColor: backgroundColorForCategory(category),
     ink: defaultInkForCategory(category),
     bodyHtml: "",
+    imageOverlay: defaultImageOverlayForSlideType("text"),
   };
 }
 
@@ -57,6 +60,7 @@ export function createEmptyQuoteSlide(
     ink: defaultInkForCategory(category),
     quoteText: "",
     attribution: "",
+    imageOverlay: defaultImageOverlayForSlideType("quote"),
   };
 }
 

@@ -1,9 +1,16 @@
 import type { ImageOverlay } from "@/lib/carousel/types";
 
-/** Soft bottom fade; top of the ramp stays transparent (opacity 0). */
+/** Soft bottom fade used on cover photos. */
 export const DEFAULT_IMAGE_OVERLAY: ImageOverlay = {
   dim: 0,
   gradientStrength: 0.5,
+  gradientLift: 0.6,
+};
+
+/** Text/quote photos: no gradient by default. */
+export const DEFAULT_TEXT_QUOTE_IMAGE_OVERLAY: ImageOverlay = {
+  dim: 0,
+  gradientStrength: 0,
   gradientLift: 0.6,
 };
 
@@ -14,16 +21,24 @@ function clamp01(value: number) {
 
 export function normalizeImageOverlay(
   overlay?: Partial<ImageOverlay> | null,
+  defaults: ImageOverlay = DEFAULT_IMAGE_OVERLAY,
 ): ImageOverlay {
   return {
-    dim: clamp01(overlay?.dim ?? DEFAULT_IMAGE_OVERLAY.dim),
+    dim: clamp01(overlay?.dim ?? defaults.dim),
     gradientStrength: clamp01(
-      overlay?.gradientStrength ?? DEFAULT_IMAGE_OVERLAY.gradientStrength,
+      overlay?.gradientStrength ?? defaults.gradientStrength,
     ),
-    gradientLift: clamp01(
-      overlay?.gradientLift ?? DEFAULT_IMAGE_OVERLAY.gradientLift,
-    ),
+    gradientLift: clamp01(overlay?.gradientLift ?? defaults.gradientLift),
   };
+}
+
+export function defaultImageOverlayForSlideType(
+  type: "cover" | "text" | "quote" | "outro",
+): ImageOverlay {
+  if (type === "text" || type === "quote") {
+    return { ...DEFAULT_TEXT_QUOTE_IMAGE_OVERLAY };
+  }
+  return { ...DEFAULT_IMAGE_OVERLAY };
 }
 
 /** Flat image darken via CSS brightness (1 = unchanged, lower = darker). */
