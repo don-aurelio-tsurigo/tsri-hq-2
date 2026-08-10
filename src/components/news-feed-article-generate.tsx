@@ -37,6 +37,7 @@ export function NewsFeedArticleGenerate({
 }) {
   const autoFulltext = sourceAutoFetchesFulltext(sourceKey);
   const [pastedText, setPastedText] = useState("");
+  const [showManualPaste, setShowManualPaste] = useState(false);
   const [state, setState] = useState<DraftPanelState>(emptyState);
   const [pending, startTransition] = useTransition();
 
@@ -118,15 +119,24 @@ export function NewsFeedArticleGenerate({
       {autoFulltext ? (
         <div className="space-y-1">
           <p className="text-[11px] text-[var(--muted)]">
-            Stadt Zürich: Volltext wird automatisch von der Mitteilungs-URL
-            geladen. Optional kannst du trotzdem Text einfügen (Fallback).
+            Stadt Zürich: Volltext wird beim Generieren automatisch geladen.
+            {" · "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => setShowManualPaste((v) => !v)}
+            >
+              {showManualPaste ? "Fallback ausblenden" : "Text manuell einfügen"}
+            </button>
           </p>
-          <textarea
-            className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--fg)]"
-            placeholder="Optional: Volltext manuell einfügen…"
-            value={pastedText}
-            onChange={(e) => setPastedText(e.target.value)}
-          />
+          {showManualPaste && (
+            <textarea
+              className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--fg)]"
+              placeholder="Optional: Volltext manuell einfügen…"
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+            />
+          )}
         </div>
       ) : (
         <label className="block space-y-1">

@@ -50,6 +50,16 @@ function formatDate(iso: string | null) {
   }
 }
 
+/** Feed-Karten zeigen nur Teaser; Volltext bleibt in summary für die Generierung. */
+function teaserText(summary: string | null, max = 280): string | null {
+  if (!summary?.trim()) return null;
+  const text = summary.trim().replace(/\s+/g, " ");
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > 120 ? cut.slice(0, at) : cut).trim()}…`;
+}
+
 function tabClass(active: boolean) {
   return [
     "rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
@@ -258,7 +268,9 @@ export function NewsFeed({
         </div>
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => (
+          {items.map((item) => {
+            const teaser = teaserText(item.summary);
+            return (
             <li key={item.id} className="card space-y-3 px-5 py-4">
               <div className="flex flex-wrap items-start gap-3">
                 <label className="mt-1 flex shrink-0 items-center gap-2">
@@ -284,8 +296,8 @@ export function NewsFeed({
                   >
                     {item.title}
                   </a>
-                  {item.summary && (
-                    <p className="text-sm text-[var(--muted)]">{item.summary}</p>
+                  {teaser && (
+                    <p className="text-sm text-[var(--muted)]">{teaser}</p>
                   )}
                 </div>
               </div>
@@ -312,7 +324,8 @@ export function NewsFeed({
                 />
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
