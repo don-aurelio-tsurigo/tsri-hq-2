@@ -6,7 +6,9 @@ export async function register() {
     const { startSlackCookingScheduler } = await import(
       "./lib/notifications/slack-scheduler"
     );
+    const { startRagSyncScheduler } = await import("./lib/rag/sync-scheduler");
     startNewsFeedScheduler();
     startSlackCookingScheduler();
+    startRagSyncScheduler();
   }
 }

@@ -15,6 +15,7 @@
     "db:studio": "prisma studio",
     "db:check-pgvector": "tsx scripts/check-pgvector.ts",
     "db:import-rag": "tsx scripts/import-rag-from-staging.ts",
+    "rag:sync": "tsx scripts/rag-sync.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
