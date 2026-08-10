@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -56,6 +56,7 @@ function NavLink({
   children,
   className,
   onNavigate,
+  nested = false,
 }: {
   href: string;
   active: boolean;
@@ -63,13 +64,17 @@ function NavLink({
   children: ReactNode;
   className?: string;
   onNavigate?: () => void;
+  nested?: boolean;
 }) {
   return (
     <Link
       href={href}
       onClick={onNavigate}
       className={[
-        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+        "flex items-center gap-2.5 rounded-xl transition-colors",
+        nested
+          ? "px-3 py-1.5 text-[0.8125rem] font-medium"
+          : "px-3 py-2 text-sm font-semibold",
         active
           ? "bg-[var(--highlight)] !text-[#0a0a0a]"
           : "text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white",
@@ -79,7 +84,8 @@ function NavLink({
       <Icon
         aria-hidden
         className={[
-          "size-4 shrink-0",
+          "shrink-0",
+          nested ? "size-3.5" : "size-4",
           active ? "opacity-90" : "opacity-70",
         ].join(" ")}
         strokeWidth={1.75}
@@ -126,7 +132,15 @@ function NavSection({
         />
       </button>
       {open ? (
-        <div className="mt-0.5 flex flex-col gap-0.5">{children}</div>
+        <div className="mt-0.5 flex flex-col gap-0.5 pl-4">
+          {Children.map(children, (child) =>
+            isValidElement(child)
+              ? cloneElement(child as ReactElement<{ nested?: boolean }>, {
+                  nested: true,
+                })
+              : child,
+          )}
+        </div>
       ) : null}
     </div>
   );
@@ -231,7 +245,7 @@ export function AppSidebar({
         </p>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4">
         <div className="mb-2 flex flex-col gap-0.5">
           <NavLink
             href="/home"
