@@ -119,7 +119,7 @@ export function NewsFeedArticleGenerate({
       {autoFulltext ? (
         <div className="space-y-1">
           <p className="text-[11px] text-[var(--muted)]">
-            Stadt Zürich: Volltext wird beim Generieren automatisch geladen.
+            Volltext wird beim Generieren automatisch geladen.
             {" · "}
             <button
               type="button"

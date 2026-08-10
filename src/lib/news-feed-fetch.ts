@@ -3,6 +3,7 @@ import {
   BAUGESUCHE_SOURCE,
   BAUGESUCHE_TOWN,
   FEED_USER_AGENT,
+  FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY,
   GEMEINDERAT_MAX_AGE_DAYS,
   RSS_SOURCES,
   STADT_MEDIENMITTEILUNGEN_KEY,
@@ -87,7 +88,27 @@ async function fetchRssSource(source: FeedSource): Promise<ParsedNewsItem[]> {
   if (source.autoFetchFulltext && source.key === STADT_MEDIENMITTEILUNGEN_KEY) {
     return enrichStadtMedienmitteilungen(items);
   }
+  if (
+    source.autoFetchFulltext &&
+    source.key === FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY
+  ) {
+    return enrichFlughafenMedienmitteilungen(items);
+  }
   return items;
+}
+
+/** Volltext für Auto-Fulltext-Quellen nachladen (Generate-Fallback). */
+export async function fetchAutoFulltext(
+  sourceKey: string,
+  url: string,
+): Promise<string | null> {
+  if (sourceKey === STADT_MEDIENMITTEILUNGEN_KEY) {
+    return fetchStadtMedienmitteilungFulltext(url);
+  }
+  if (sourceKey === FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY) {
+    return fetchFlughafenMedienmitteilungFulltext(url);
+  }
+  return null;
 }
 
 /** Nachladen des Volltexts von stadt-zuerich.ch Artikel-Seiten. */
@@ -162,6 +183,60 @@ async function enrichStadtMedienmitteilungen(
   return out;
 }
 
+/** Nachladen des Volltexts von newsroom.flughafen-zuerich.ch Artikel-Seiten. */
+export async function fetchFlughafenMedienmitteilungFulltext(
+  url: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, { headers: headers() });
+    if (!res.ok) return null;
+    const html = await res.text();
+    return extractFlughafenMedienmitteilungBody(html);
+  } catch {
+    return null;
+  }
+}
+
+export function extractFlughafenMedienmitteilungBody(
+  html: string,
+): string | null {
+  const article =
+    html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] ??
+    html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] ??
+    html;
+  const paras = [...article.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map((m) => stripHtml(m[1]!))
+    .filter((p) => p.length > 40);
+  const text = paras.join("\n\n").trim();
+  return text.length >= 80 ? text : null;
+}
+
+/**
+ * Presspage liefert den Artikel oft schon im RSS (pp:summary + description).
+ * Falls der Feed-Text zu kurz ist, Artikel-Seite nachladen.
+ */
+async function enrichFlughafenMedienmitteilungen(
+  items: ParsedNewsItem[],
+): Promise<ParsedNewsItem[]> {
+  const concurrency = 4;
+  const out: ParsedNewsItem[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = items.slice(i, i + concurrency);
+    const enriched = await Promise.all(
+      chunk.map(async (item) => {
+        if ((item.summary?.length ?? 0) >= 200) {
+          return { ...item, summary: item.summary.slice(0, 20_000) };
+        }
+        const full = await fetchFlughafenMedienmitteilungFulltext(item.link);
+        if (!full) return item;
+        return { ...item, summary: full.slice(0, 20_000) };
+      }),
+    );
+    out.push(...enriched);
+  }
+  return out;
+}
+
 export function parseRss(
   xml: string,
   sourceKey: string,
@@ -177,6 +252,9 @@ export function parseRss(
   const isSrfRegionaljournal = sourceKey === "srf-regionaljournal-zh-sh";
   const SRF_SHOW_PAGE =
     "https://www.srf.ch/audio/regionaljournal-zuerich-schaffhausen";
+
+  const isFlughafen =
+    sourceKey === FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY;
 
   while ((match = itemRegex.exec(xml)) !== null) {
     const block = match[1]!;
@@ -195,6 +273,11 @@ export function parseRss(
     if (isSrfRegionaljournal) link = SRF_SHOW_PAGE;
     if (!link || !title) continue;
 
+    if (isFlughafen) {
+      const category = clean(extractTag(block, "category"));
+      if (!/medienmitteilung/i.test(category)) continue;
+    }
+
     let publishedAt: Date | null;
     let summary: string;
 
@@ -206,6 +289,11 @@ export function parseRss(
         const ts = publishedAt?.getTime() ?? null;
         if (ts === null || ts < cutoff) continue;
       }
+    } else if (isFlughafen) {
+      publishedAt = safeDate(pubDateRaw);
+      const lead = stripHtml(extractTag(block, "pp:summary"));
+      const body = stripHtml(description);
+      summary = [lead, body].filter(Boolean).join("\n\n").slice(0, 20_000);
     } else {
       publishedAt = safeDate(pubDateRaw);
       summary = description.slice(0, 600);
@@ -502,11 +590,17 @@ function clean(raw: string): string {
 
 function decodeEntities(s: string): string {
   return s
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#160;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) =>
+      String.fromCharCode(Number.parseInt(h, 16)),
+    );
 }
 
 function safeDate(pubDate: string): Date | null {

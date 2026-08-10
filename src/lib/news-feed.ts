@@ -2,7 +2,7 @@ import type { NewsItemStatus, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   allFeedSources,
-  STADT_MEDIENMITTEILUNGEN_KEY,
+  sourceAutoFetchesFulltext,
 } from "@/lib/news-feed-constants";
 import {
   collectFeedItems,
@@ -97,13 +97,13 @@ export async function upsertNewsItems(
     insertedApprox += result.count;
   }
 
-  // Bestehende Stadt-Medienmitteilungen: Summary mit nachgeladenem Volltext aktualisieren
-  const stadtFull = items.filter(
+  // Bestehende Auto-Fulltext-Quellen: Summary mit nachgeladenem Volltext aktualisieren
+  const fulltextUpdates = items.filter(
     (item) =>
-      item.source === STADT_MEDIENMITTEILUNGEN_KEY &&
+      sourceAutoFetchesFulltext(item.source) &&
       (item.summary?.length ?? 0) >= 200,
   );
-  for (const item of stadtFull) {
+  for (const item of fulltextUpdates) {
     await prisma.newsItem.updateMany({
       where: { organizationId, externalId: item.externalId },
       data: {

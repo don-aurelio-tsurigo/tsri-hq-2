@@ -12,7 +12,7 @@ import {
 import { AiGenerationError } from "@/lib/ai/anthropic";
 import { generateKurzmeldungFromFeedItem } from "@/lib/rag/generate-article";
 import { sourceAutoFetchesFulltext } from "@/lib/news-feed-constants";
-import { fetchStadtMedienmitteilungFulltext } from "@/lib/news-feed-fetch";
+import { fetchAutoFulltext } from "@/lib/news-feed-fetch";
 
 // ─── Newsfeed / Quellen ────────────────────────────────────────
 
@@ -111,11 +111,11 @@ export async function generateNewsArticleAction(
 
   let sourceText = pasted;
   if (!sourceText && autoFulltext) {
-    // Gespeicherter Volltext oder Live-Nachladen von der Stadt-Seite
+    // Gespeicherter Volltext oder Live-Nachladen von der Artikel-Seite
     if ((item.summary?.length ?? 0) >= 200) {
       sourceText = item.summary ?? "";
     } else {
-      const full = await fetchStadtMedienmitteilungFulltext(item.link);
+      const full = await fetchAutoFulltext(item.source, item.link);
       if (full) {
         sourceText = full;
         await prisma.newsItem.update({
@@ -135,7 +135,7 @@ export async function generateNewsArticleAction(
   if (autoFulltext && sourceText.length < 120) {
     return {
       error:
-        "Volltext der Stadt-Medienmitteilung konnte nicht geladen werden. Bitte Text manuell einfügen.",
+        "Volltext der Medienmitteilung konnte nicht geladen werden. Bitte Text manuell einfügen.",
     };
   }
 

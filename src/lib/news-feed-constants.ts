@@ -11,12 +11,20 @@ export type FeedSource = {
 };
 
 export const STADT_MEDIENMITTEILUNGEN_KEY = "stadt-zuerich-medienmitteilungen";
+export const FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY =
+  "flughafen-zuerich-medienmitteilungen";
 
 export const RSS_SOURCES: FeedSource[] = [
   {
     key: STADT_MEDIENMITTEILUNGEN_KEY,
     label: "Stadt Zürich – Medienmitteilungen",
     url: "https://www.stadt-zuerich.ch/de/aktuell/medienmitteilungen/_jcr_content/mainparsys/teaser.rss",
+    autoFetchFulltext: true,
+  },
+  {
+    key: FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY,
+    label: "Flughafen Zürich – Medienmitteilungen",
+    url: "https://newsroom.flughafen-zuerich.ch/feed/",
     autoFetchFulltext: true,
   },
   {
