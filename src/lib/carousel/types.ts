@@ -30,9 +30,9 @@ export const DEFAULT_TRANSFORM: LayerTransform = {
 export type ImageOverlay = {
   /** Flat image dim via brightness filter, 0–1 */
   dim: number;
-  /** Opacity at the bottom of the gradient, 0–1 */
+  /** Verlauf Stärke: opacity at the bottom, 0–1 */
   gradientStrength: number;
-  /** How far up the gradient reaches, 0–1 (1 = full height) */
+  /** Verlauf Höhe: how far up the ramp reaches, 0–1 */
   gradientLift: number;
 };
 

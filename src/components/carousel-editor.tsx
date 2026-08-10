@@ -607,7 +607,7 @@ export function CarouselEditor({
                     />
                   </Field>
                   <Field
-                    label={`Verlauf stärker (${Math.round(imageOverlay.gradientStrength * 100)}%)`}
+                    label={`Verlauf Stärke (${Math.round(imageOverlay.gradientStrength * 100)}%)`}
                   >
                     <input
                       type="range"
@@ -625,7 +625,7 @@ export function CarouselEditor({
                     />
                   </Field>
                   <Field
-                    label={`Verlauf nach oben (${Math.round(imageOverlay.gradientLift * 100)}%)`}
+                    label={`Verlauf Höhe (${Math.round(imageOverlay.gradientLift * 100)}%)`}
                   >
                     <input
                       type="range"

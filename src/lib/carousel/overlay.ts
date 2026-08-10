@@ -3,8 +3,8 @@ import type { ImageOverlay } from "@/lib/carousel/types";
 /** Soft bottom fade; top of the ramp stays transparent (opacity 0). */
 export const DEFAULT_IMAGE_OVERLAY: ImageOverlay = {
   dim: 0,
-  gradientStrength: 0.55,
-  gradientLift: 1,
+  gradientStrength: 0.5,
+  gradientLift: 0.6,
 };
 
 function clamp01(value: number) {
@@ -34,8 +34,8 @@ export function imageDimFilter(dim: number): string {
 
 /**
  * Bottom-heavy darken gradient.
- * - gradientStrength: opacity at the bottom (0–1)
- * - gradientLift: how far up the ramp reaches (0 = thin bottom edge, 1 = full height)
+ * - gradientStrength (UI: Verlauf Stärke): opacity at the bottom (0–1)
+ * - gradientLift (UI: Verlauf Höhe): how far up the ramp reaches (0 = thin bottom edge, 1 = full height)
  *
  * Always starts at opacity 0 at the top of the ramp (no hard step).
  */
