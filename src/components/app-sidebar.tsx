@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CheckSquare,
   ChefHat,
+  ChevronDown,
   ClipboardList,
   Clock,
   FolderKanban,
@@ -38,6 +39,14 @@ type WikiPin = {
   slug: string;
   spaceId: string;
 };
+
+type NavSectionId =
+  | "redaktion"
+  | "social"
+  | "tasks"
+  | "team"
+  | "privat"
+  | "admin";
 
 function NavLink({
   href,
@@ -79,6 +88,42 @@ function NavLink({
   );
 }
 
+function NavSection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <span>{title}</span>
+        <ChevronDown
+          aria-hidden
+          className={[
+            "size-3.5 shrink-0 opacity-70 transition-transform duration-200",
+            open ? "rotate-180" : "",
+          ].join(" ")}
+          strokeWidth={2.25}
+        />
+      </button>
+      {open ? (
+        <div className="mt-0.5 flex flex-col gap-0.5">{children}</div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AppSidebar({
   userName,
   orgName,
@@ -99,6 +144,17 @@ export function AppSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [openSections, setOpenSections] = useState<
+    Partial<Record<NavSectionId, boolean>>
+  >({});
+
+  function isSectionOpen(id: NavSectionId) {
+    return openSections[id] === true;
+  }
+
+  function toggleSection(id: NavSectionId) {
+    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
 
   function spaceHref(slug: string) {
     const space = spacesBySlug[slug];
@@ -167,8 +223,8 @@ export function AppSidebar({
         </p>
       </div>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4">
-        <div className="flex flex-col gap-0.5">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+        <div className="mb-2 flex flex-col gap-0.5">
           <NavLink
             href="/home"
             active={pathname === "/home" || pathname === "/inbox"}
@@ -179,219 +235,209 @@ export function AppSidebar({
           </NavLink>
         </div>
 
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Redaktion
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink
-              href={spaceHref("redaktion")}
-              active={spaceActive("redaktion")}
-              icon={Newspaper}
-              onNavigate={onMobileClose}
-            >
-              Artikel
-            </NavLink>
-            <NavLink
-              href={spaceHref("quellen")}
-              active={spaceActive("quellen")}
-              icon={Rss}
-              onNavigate={onMobileClose}
-            >
-              Newsfeed
-            </NavLink>
-            <NavLink
-              href="/newsletter"
-              active={
-                pathname === "/newsletter" ||
-                pathname.startsWith("/newsletter/")
-              }
-              icon={Mail}
-              onNavigate={onMobileClose}
-            >
-              Newsletter
-            </NavLink>
-          </div>
-        </div>
+        <NavSection
+          title="Redaktion"
+          open={isSectionOpen("redaktion")}
+          onToggle={() => toggleSection("redaktion")}
+        >
+          <NavLink
+            href={spaceHref("redaktion")}
+            active={spaceActive("redaktion")}
+            icon={Newspaper}
+            onNavigate={onMobileClose}
+          >
+            Artikel
+          </NavLink>
+          <NavLink
+            href={spaceHref("quellen")}
+            active={spaceActive("quellen")}
+            icon={Rss}
+            onNavigate={onMobileClose}
+          >
+            Newsfeed
+          </NavLink>
+          <NavLink
+            href="/newsletter"
+            active={
+              pathname === "/newsletter" ||
+              pathname.startsWith("/newsletter/")
+            }
+            icon={Mail}
+            onNavigate={onMobileClose}
+          >
+            Newsletter
+          </NavLink>
+        </NavSection>
 
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Social Media
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink
-              href="/carousel"
-              active={
-                pathname === "/carousel" ||
-                pathname.startsWith("/carousel/")
-              }
-              icon={Images}
-              onNavigate={onMobileClose}
-            >
-              Insta Posts
-            </NavLink>
-          </div>
-        </div>
+        <NavSection
+          title="Social Media"
+          open={isSectionOpen("social")}
+          onToggle={() => toggleSection("social")}
+        >
+          <NavLink
+            href="/carousel"
+            active={
+              pathname === "/carousel" ||
+              pathname.startsWith("/carousel/")
+            }
+            icon={Images}
+            onNavigate={onMobileClose}
+          >
+            Insta Posts
+          </NavLink>
+        </NavSection>
 
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Tasks
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <NavLink
-              href="/tasks"
-              active={
-                pathname === "/tasks" || pathname.startsWith("/tasks/")
-              }
-              icon={CheckSquare}
-              onNavigate={onMobileClose}
-            >
-              Meine Tasks
-            </NavLink>
-            <NavLink
-              href="/projects"
-              active={
-                pathname === "/projects" ||
-                pathname.startsWith("/projects/")
-              }
-              icon={FolderKanban}
-              onNavigate={onMobileClose}
-            >
-              Projekte
-            </NavLink>
-          </div>
-        </div>
+        <NavSection
+          title="Tasks"
+          open={isSectionOpen("tasks")}
+          onToggle={() => toggleSection("tasks")}
+        >
+          <NavLink
+            href="/tasks"
+            active={pathname === "/tasks" || pathname.startsWith("/tasks/")}
+            icon={CheckSquare}
+            onNavigate={onMobileClose}
+          >
+            Meine Tasks
+          </NavLink>
+          <NavLink
+            href="/projects"
+            active={
+              pathname === "/projects" ||
+              pathname.startsWith("/projects/")
+            }
+            icon={FolderKanban}
+            onNavigate={onMobileClose}
+          >
+            Projekte
+          </NavLink>
+        </NavSection>
 
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Team
-          </p>
-          <div className="flex flex-col gap-0.5">
+        <NavSection
+          title="Team"
+          open={isSectionOpen("team")}
+          onToggle={() => toggleSection("team")}
+        >
+          <NavLink
+            href={spaceHref("kochplan")}
+            active={spaceActive("kochplan")}
+            icon={ChefHat}
+            onNavigate={onMobileClose}
+          >
+            Kochplan
+          </NavLink>
+          <NavLink
+            href={spaceHref("ferienplan")}
+            active={spaceActive("ferienplan")}
+            icon={CalendarDays}
+            onNavigate={onMobileClose}
+          >
+            Ferienplan
+          </NavLink>
+          <NavLink
+            href={spaceHref("aemliplan")}
+            active={spaceActive("aemliplan")}
+            icon={ClipboardList}
+            onNavigate={onMobileClose}
+          >
+            Ämtliplan
+          </NavLink>
+          <NavLink
+            href={spaceHref("team-infos")}
+            active={spaceActive("team-infos")}
+            icon={Info}
+            onNavigate={onMobileClose}
+          >
+            Teaminfos
+          </NavLink>
+          <NavLink
+            href={spaceHref("wiki")}
+            active={spaceActive("wiki") && !searchParams.get("page")}
+            icon={BookOpen}
+            onNavigate={onMobileClose}
+          >
+            Wiki
+          </NavLink>
+          {wikiPins.map((pin) => (
             <NavLink
-              href={spaceHref("kochplan")}
-              active={spaceActive("kochplan")}
-              icon={ChefHat}
+              key={`${pin.spaceId}-${pin.slug}`}
+              href={`/spaces/${pin.spaceId}?page=${encodeURIComponent(pin.slug)}`}
+              active={wikiPageActive(pin.slug)}
+              icon={Pin}
+              className="ml-3 !py-1.5 text-xs"
               onNavigate={onMobileClose}
             >
-              Kochplan
+              {pin.title}
             </NavLink>
-            <NavLink
-              href={spaceHref("ferienplan")}
-              active={spaceActive("ferienplan")}
-              icon={CalendarDays}
-              onNavigate={onMobileClose}
-            >
-              Ferienplan
-            </NavLink>
-            <NavLink
-              href={spaceHref("aemliplan")}
-              active={spaceActive("aemliplan")}
-              icon={ClipboardList}
-              onNavigate={onMobileClose}
-            >
-              Ämtliplan
-            </NavLink>
-            <NavLink
-              href={spaceHref("team-infos")}
-              active={spaceActive("team-infos")}
-              icon={Info}
-              onNavigate={onMobileClose}
-            >
-              Teaminfos
-            </NavLink>
-            <NavLink
-              href={spaceHref("wiki")}
-              active={spaceActive("wiki") && !searchParams.get("page")}
-              icon={BookOpen}
-              onNavigate={onMobileClose}
-            >
-              Wiki
-            </NavLink>
-            {wikiPins.map((pin) => (
-              <NavLink
-                key={`${pin.spaceId}-${pin.slug}`}
-                href={`/spaces/${pin.spaceId}?page=${encodeURIComponent(pin.slug)}`}
-                active={wikiPageActive(pin.slug)}
-                icon={Pin}
-                className="ml-3 !py-1.5 text-xs"
-                onNavigate={onMobileClose}
-              >
-                {pin.title}
-              </NavLink>
-            ))}
-          </div>
-        </div>
+          ))}
+        </NavSection>
 
-        <div>
-          <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-            Privat
-          </p>
-          <div className="flex flex-col gap-0.5">
+        <NavSection
+          title="Privat"
+          open={isSectionOpen("privat")}
+          onToggle={() => toggleSection("privat")}
+        >
+          <NavLink
+            href="/hours"
+            active={pathname === "/hours" || pathname.startsWith("/hours/")}
+            icon={Clock}
+            onNavigate={onMobileClose}
+          >
+            Arbeitszeit
+          </NavLink>
+        </NavSection>
+
+        {isAdmin && (
+          <NavSection
+            title="Admin"
+            open={isSectionOpen("admin")}
+            onToggle={() => toggleSection("admin")}
+          >
             <NavLink
-              href="/hours"
+              href="/settings/members"
               active={
-                pathname === "/hours" || pathname.startsWith("/hours/")
+                pathname === "/settings/members" ||
+                pathname.startsWith("/settings/members/")
+              }
+              icon={Users}
+              onNavigate={onMobileClose}
+            >
+              Teamverwaltung
+            </NavLink>
+            <NavLink
+              href="/settings/hours"
+              active={
+                pathname === "/settings/hours" ||
+                pathname.startsWith("/settings/hours/")
               }
               icon={Clock}
               onNavigate={onMobileClose}
             >
-              Arbeitszeit
+              Teamarbeitszeit
             </NavLink>
-          </div>
-        </div>
-
-        {isAdmin && (
-          <div>
-            <p className="mb-2 px-3 text-[0.7rem] font-extrabold tracking-wider text-[var(--sidebar-muted)] uppercase">
-              Admin
-            </p>
-            <div className="flex flex-col gap-0.5">
-              <NavLink
-                href="/settings/members"
-                active={
-                  pathname === "/settings/members" ||
-                  pathname.startsWith("/settings/members/")
-                }
-                icon={Users}
-                onNavigate={onMobileClose}
-              >
-                Teamverwaltung
-              </NavLink>
-              <NavLink
-                href="/settings/hours"
-                active={
-                  pathname === "/settings/hours" ||
-                  pathname.startsWith("/settings/hours/")
-                }
-                icon={Clock}
-                onNavigate={onMobileClose}
-              >
-                Teamarbeitszeit
-              </NavLink>
-              <NavLink
-                href="/settings/newsletter"
-                active={
-                  pathname === "/settings/newsletter" ||
-                  pathname.startsWith("/settings/newsletter/")
-                }
-                icon={Settings2}
-                onNavigate={onMobileClose}
-              >
-                Newslettereinstellungen
-              </NavLink>
-              <NavLink
-                href="/settings/notifications"
-                active={
-                  pathname === "/settings/notifications" ||
-                  pathname.startsWith("/settings/notifications/")
-                }
-                icon={Bell}
-                onNavigate={onMobileClose}
-              >
-                Benachrichtigungen
-              </NavLink>
-            </div>
-          </div>
+            <NavLink
+              href="/settings/newsletter"
+              active={
+                pathname === "/settings/newsletter" ||
+                pathname.startsWith("/settings/newsletter/")
+              }
+              icon={Settings2}
+              onNavigate={onMobileClose}
+            >
+              Newslettereinstellungen
+            </NavLink>
+            <NavLink
+              href="/settings/notifications"
+              active={
+                pathname === "/settings/notifications" ||
+                pathname.startsWith("/settings/notifications/")
+              }
+              icon={Bell}
+              onNavigate={onMobileClose}
+            >
+              Benachrichtigungen
+            </NavLink>
+          </NavSection>
         )}
       </nav>
 
