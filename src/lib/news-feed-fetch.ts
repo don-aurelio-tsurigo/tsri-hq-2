@@ -5,6 +5,7 @@ import {
   FEED_USER_AGENT,
   GEMEINDERAT_MAX_AGE_DAYS,
   RSS_SOURCES,
+  STADT_MEDIENMITTEILUNGEN_KEY,
   TAGBLATT_SOURCE,
   TAGBLATT_URL,
   type FeedSource,
@@ -82,7 +83,83 @@ async function fetchRssSource(source: FeedSource): Promise<ParsedNewsItem[]> {
   const res = await fetch(source.url, { headers: headers() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const xml = await res.text();
-  return parseRss(xml, source.key, source.label);
+  const items = parseRss(xml, source.key, source.label);
+  if (source.autoFetchFulltext && source.key === STADT_MEDIENMITTEILUNGEN_KEY) {
+    return enrichStadtMedienmitteilungen(items);
+  }
+  return items;
+}
+
+/** Nachladen des Volltexts von stadt-zuerich.ch Artikel-Seiten. */
+export async function fetchStadtMedienmitteilungFulltext(
+  url: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(url, { headers: headers() });
+    if (!res.ok) return null;
+    const html = await res.text();
+    return extractStadtMedienmitteilungBody(html);
+  } catch {
+    return null;
+  }
+}
+
+export function extractStadtMedienmitteilungBody(html: string): string | null {
+  const leadMatch = html.match(
+    /<stzh-text\b[^>]*slot=["']lead["'][^>]*>([\s\S]*?)<\/stzh-text>/i,
+  );
+  const richMatch = html.match(
+    /<stzh-richtext\b[^>]*>([\s\S]*?)<\/stzh-richtext>/i,
+  );
+
+  const parts: string[] = [];
+  if (leadMatch) {
+    const lead = stripHtml(leadMatch[1]!);
+    if (lead) parts.push(lead);
+  }
+  if (richMatch) {
+    const paras = [...richMatch[1]!.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)].map(
+      (m) => stripHtml(m[1]!),
+    );
+    for (const p of paras) {
+      if (p) parts.push(p);
+    }
+  }
+
+  if (parts.length === 0) {
+    // Fallback: alle <p> im main
+    const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] ?? html;
+    const paras = [...main.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+      .map((m) => stripHtml(m[1]!))
+      .filter((p) => p.length > 40);
+    parts.push(...paras);
+  }
+
+  const text = parts.join("\n\n").trim();
+  return text.length >= 80 ? text : null;
+}
+
+function stripHtml(raw: string): string {
+  return clean(raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " "));
+}
+
+async function enrichStadtMedienmitteilungen(
+  items: ParsedNewsItem[],
+): Promise<ParsedNewsItem[]> {
+  const concurrency = 4;
+  const out: ParsedNewsItem[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = items.slice(i, i + concurrency);
+    const enriched = await Promise.all(
+      chunk.map(async (item) => {
+        const full = await fetchStadtMedienmitteilungFulltext(item.link);
+        if (!full) return item;
+        return { ...item, summary: full.slice(0, 20_000) };
+      }),
+    );
+    out.push(...enriched);
+  }
+  return out;
 }
 
 export function parseRss(

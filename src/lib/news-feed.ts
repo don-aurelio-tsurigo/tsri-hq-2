@@ -1,6 +1,9 @@
 import type { NewsItemStatus, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { allFeedSources } from "@/lib/news-feed-constants";
+import {
+  allFeedSources,
+  STADT_MEDIENMITTEILUNGEN_KEY,
+} from "@/lib/news-feed-constants";
 import {
   collectFeedItems,
   type ParsedNewsItem,
@@ -92,6 +95,24 @@ export async function upsertNewsItems(
       skipDuplicates: true,
     });
     insertedApprox += result.count;
+  }
+
+  // Bestehende Stadt-Medienmitteilungen: Summary mit nachgeladenem Volltext aktualisieren
+  const stadtFull = items.filter(
+    (item) =>
+      item.source === STADT_MEDIENMITTEILUNGEN_KEY &&
+      (item.summary?.length ?? 0) >= 200,
+  );
+  for (const item of stadtFull) {
+    await prisma.newsItem.updateMany({
+      where: { organizationId, externalId: item.externalId },
+      data: {
+        summary: item.summary,
+        title: item.title,
+        link: item.link,
+        fetchedAt,
+      },
+    });
   }
 
   return insertedApprox;

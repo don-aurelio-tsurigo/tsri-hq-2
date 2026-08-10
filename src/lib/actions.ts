@@ -313,6 +313,7 @@ import {
   refreshNewsFeed as refreshNewsFeedAction,
   updateNewsItemStatusAction as updateNewsItemStatusActionImpl,
   bulkUpdateNewsItemStatusAction as bulkUpdateNewsItemStatusActionImpl,
+  generateNewsArticleAction as generateNewsArticleActionImpl,
 } from "./actions/news-feed";
 
 export async function refreshNewsFeed() {
@@ -326,6 +327,12 @@ export async function bulkUpdateNewsItemStatusAction(
   status: string,
 ) {
   return bulkUpdateNewsItemStatusActionImpl(ids, status);
+}
+export async function generateNewsArticleAction(
+  newsItemId: string,
+  pastedSourceText?: string,
+) {
+  return generateNewsArticleActionImpl(newsItemId, pastedSourceText);
 }
 
 import {

@@ -6,13 +6,18 @@ export type FeedSource = {
   url: string;
   /** Paywall / Audio — nur Teaser im RSS */
   requiresFulltext?: boolean;
+  /** Volltext wird serverseitig von der Artikel-URL nachgeladen */
+  autoFetchFulltext?: boolean;
 };
+
+export const STADT_MEDIENMITTEILUNGEN_KEY = "stadt-zuerich-medienmitteilungen";
 
 export const RSS_SOURCES: FeedSource[] = [
   {
-    key: "stadt-zuerich-medienmitteilungen",
+    key: STADT_MEDIENMITTEILUNGEN_KEY,
     label: "Stadt Zürich – Medienmitteilungen",
     url: "https://www.stadt-zuerich.ch/de/aktuell/medienmitteilungen/_jcr_content/mainparsys/teaser.rss",
+    autoFetchFulltext: true,
   },
   {
     key: "gemeinderat-zuerich",
@@ -85,16 +90,23 @@ export function allFeedSources(): {
   key: string;
   label: string;
   requiresFulltext: boolean;
+  autoFetchFulltext: boolean;
 }[] {
   return [
     ...RSS_SOURCES.map((s) => ({
       key: s.key,
       label: s.label,
       requiresFulltext: !!s.requiresFulltext,
+      autoFetchFulltext: !!s.autoFetchFulltext,
     })),
-    { ...BAUGESUCHE_SOURCE, requiresFulltext: false },
-    { ...TAGBLATT_SOURCE, requiresFulltext: false },
+    { ...BAUGESUCHE_SOURCE, requiresFulltext: false, autoFetchFulltext: false },
+    { ...TAGBLATT_SOURCE, requiresFulltext: false, autoFetchFulltext: false },
   ];
+}
+
+/** Quellen, bei denen der Server den Volltext selbst laden kann. */
+export function sourceAutoFetchesFulltext(sourceKey: string): boolean {
+  return RSS_SOURCES.some((s) => s.key === sourceKey && s.autoFetchFulltext);
 }
 
 export function isNewsItemStatus(value: string): value is NewsItemStatus {

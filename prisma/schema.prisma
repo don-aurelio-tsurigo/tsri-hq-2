@@ -5,6 +5,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // multiSchema: HQ models stay in public; RAG tables live in schema "rag"
+  schemas  = ["public", "rag"]
 }
 
 // ─── Better Auth ───────────────────────────────────────────────
@@ -47,6 +49,7 @@ model User {
   updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
   createdCarouselPosts  CarouselPost[]       @relation("CarouselPostCreator")
 
+  @@schema("public")
   @@map("user")
 }
 
@@ -62,6 +65,7 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@schema("public")
   @@map("session")
 }
 
@@ -82,6 +86,7 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@index([userId])
+  @@schema("public")
   @@map("account")
 }
 
@@ -94,6 +99,7 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+  @@schema("public")
   @@map("verification")
 }
 
@@ -102,6 +108,7 @@ model Verification {
 enum MembershipRole {
   admin
   member
+  @@schema("public")
 }
 
 model Organization {
@@ -137,6 +144,7 @@ model Organization {
   wikiPages               WikiPage[]
   newsItems               NewsItem[]
 
+  @@schema("public")
   @@map("organization")
 }
 
@@ -158,6 +166,7 @@ model Membership {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId, archivedAt])
+  @@schema("public")
   @@map("membership")
 }
 
@@ -177,6 +186,7 @@ model Invitation {
 
   @@index([email])
   @@index([organizationId])
+  @@schema("public")
   @@map("invitation")
 }
 
@@ -194,6 +204,7 @@ model PasswordResetToken {
   createdBy User @relation("PasswordResetCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@schema("public")
   @@map("password_reset_token")
 }
 
@@ -203,18 +214,21 @@ enum SpaceType {
   personal
   team
   project
+  @@schema("public")
 }
 
 enum SpaceVisibility {
   private
   team
   restricted
+  @@schema("public")
 }
 
 enum SpacePermission {
   view
   edit
   admin
+  @@schema("public")
 }
 
 model Space {
@@ -252,6 +266,7 @@ model Space {
   @@index([organizationId, type])
   @@index([organizationId, type, archivedAt])
   @@index([organizationId, type, isTemplate])
+  @@schema("public")
   @@map("space")
 }
 
@@ -266,6 +281,7 @@ model SpaceAccess {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([spaceId, userId])
+  @@schema("public")
   @@map("space_access")
 }
 
@@ -276,6 +292,7 @@ enum TaskStatus {
   doing
   done
   cancelled
+  @@schema("public")
 }
 
 enum ArticleStage {
@@ -286,6 +303,7 @@ enum ArticleStage {
   in_arbeit
   bereit
   publiziert
+  @@schema("public")
 }
 
 /// Redaktions-Kategorien (admin-verwaltbar, org-weit)
@@ -305,6 +323,7 @@ model ArticleCategory {
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
+  @@schema("public")
   @@map("article_category")
 }
 
@@ -325,6 +344,7 @@ model EigenleistungRubrik {
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
+  @@schema("public")
   @@map("eigenleistung_rubrik")
 }
 
@@ -354,6 +374,7 @@ model Task {
   @@index([spaceId, groupId])
   @@index([assigneeId])
   @@index([createdById])
+  @@schema("public")
   @@map("task")
 }
 
@@ -391,6 +412,7 @@ model Article {
   @@index([createdById])
   @@index([categoryId])
   @@index([eigenleistungRubrikId])
+  @@schema("public")
   @@map("article")
 }
 
@@ -408,6 +430,7 @@ model TaskGroup {
   chores Chore[]
 
   @@index([spaceId, sortOrder])
+  @@schema("public")
   @@map("task_group")
 }
 
@@ -432,6 +455,7 @@ model Chore {
   @@index([spaceId, status])
   @@index([spaceId, groupId])
   @@index([createdById])
+  @@schema("public")
   @@map("chore")
 }
 
@@ -447,6 +471,7 @@ model ChoreAssignment {
 
   @@unique([choreId, userId])
   @@index([userId])
+  @@schema("public")
   @@map("chore_assignment")
 }
 
@@ -470,6 +495,7 @@ model CookingSlot {
   @@index([userId])
   @@index([assignedById])
   @@index([spaceId, date])
+  @@schema("public")
   @@map("cooking_slot")
 }
 
@@ -478,6 +504,7 @@ model CookingSlot {
 enum NewsletterFrequency {
   daily
   weekly
+  @@schema("public")
 }
 
 /// Geplant / erschienen / ausgefallen (z.B. Sommerpause)
@@ -485,6 +512,7 @@ enum NewsletterCampaignStatus {
   planned
   published
   skipped
+  @@schema("public")
 }
 
 model NewsletterType {
@@ -507,6 +535,7 @@ model NewsletterType {
 
   @@unique([organizationId, name])
   @@index([organizationId])
+  @@schema("public")
   @@map("newsletter_type")
 }
 
@@ -526,6 +555,7 @@ model NewsletterBlockedRange {
 
   @@index([organizationId, startDate, endDate])
   @@index([newsletterTypeId, startDate, endDate])
+  @@schema("public")
   @@map("newsletter_blocked_range")
 }
 
@@ -550,6 +580,7 @@ model NewsletterCampaign {
   @@index([typeId, date])
   @@index([authorId])
   @@index([date])
+  @@schema("public")
   @@map("newsletter_campaign")
 }
 
@@ -559,6 +590,7 @@ enum VacationStatus {
   pending
   approved
   rejected
+  @@schema("public")
 }
 
 model VacationRequest {
@@ -581,6 +613,7 @@ model VacationRequest {
   @@index([organizationId, startDate])
   @@index([organizationId, status])
   @@index([userId])
+  @@schema("public")
   @@map("vacation_request")
 }
 
@@ -591,6 +624,7 @@ enum TimeEntryType {
   sick
   vacation
   holiday
+  @@schema("public")
 }
 
 /// Ein Tageseintrag: Arbeit mit 1:n Zeitsegmenten (Arbeit/Pause), oder Abwesenheit
@@ -611,12 +645,14 @@ model TimeEntry {
   @@unique([organizationId, userId, date])
   @@index([userId, date])
   @@index([organizationId, date])
+  @@schema("public")
   @@map("time_entry")
 }
 
 enum TimeSegmentType {
   work
   break
+  @@schema("public")
 }
 
 /// Geschlossenes Intervall (Arbeit oder Pause) innerhalb eines Tageseintrags
@@ -633,6 +669,7 @@ model TimeSegment {
   timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@index([timeEntryId, sortOrder])
+  @@schema("public")
   @@map("time_segment")
 }
 
@@ -666,6 +703,7 @@ model WikiPage {
   @@index([spaceId, parentId, sortOrder])
   @@index([organizationId, pinned])
   @@index([parentId])
+  @@schema("public")
   @@map("wiki_page")
 }
 
@@ -676,6 +714,7 @@ enum NewsItemStatus {
   interessant
   beobachten
   verworfen
+  @@schema("public")
 }
 
 /// Eintrag aus lokalen Zürich-Quellen (RSS / Scrape / Amtsblatt)
@@ -701,6 +740,7 @@ model NewsItem {
   @@index([organizationId, status])
   @@index([organizationId, source])
   @@index([organizationId, publishedAt])
+  @@schema("public")
   @@map("news_item")
 }
 
@@ -716,5 +756,49 @@ model CarouselPost {
   createdBy User @relation("CarouselPostCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
+  @@schema("public")
   @@map("carousel_post")
+}
+
+
+// ─── RAG / pgvector (schema: rag) ──────────────────────────────
+// Embeddings: Voyage voyage-4, 1024 dims. Vector ops via $queryRaw only.
+
+model RagArticle {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wepublishId  String    @unique @map("wepublish_id")
+  slug         String?
+  url          String?
+  title        String?
+  lead         String?
+  publishedAt  DateTime? @map("published_at") @db.Timestamptz(6)
+  authors      Json?     @db.JsonB
+  tags         Json?     @db.JsonB
+  imageUrl     String?   @map("image_url")
+  rawWordCount Int?      @map("raw_word_count")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  chunks RagArticleChunk[]
+
+  @@map("articles")
+  @@schema("rag")
+}
+
+model RagArticleChunk {
+  id          String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  articleId   String                       @map("article_id") @db.Uuid
+  chunkIndex  Int                          @map("chunk_index")
+  chunkText   String                       @map("chunk_text")
+  charCount   Int?                         @map("char_count")
+  wordCount   Int?                         @map("word_count")
+  /// Voyage embedding; read/write via prisma.$queryRaw / $executeRaw
+  embeddingVec Unsupported("vector(1024)")? @map("embedding_vec")
+  updatedAt   DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  article RagArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, chunkIndex])
+  @@index([articleId])
+  @@map("article_chunks")
+  @@schema("rag")
 }

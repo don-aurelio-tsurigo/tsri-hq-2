@@ -7,6 +7,7 @@ import {
   refreshNewsFeed,
   updateNewsItemStatusAction,
 } from "@/lib/actions";
+import { NewsFeedArticleGenerate } from "@/components/news-feed-article-generate";
 import {
   NEWS_ITEM_STATUS_LABELS,
 } from "@/lib/news-feed-constants";
@@ -288,21 +289,27 @@ export function NewsFeed({
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 pl-7">
-                {visibleActions.map((action) => (
-                  <button
-                    key={action.status}
-                    type="button"
-                    disabled={pending}
-                    className={[
-                      action.danger ? "btn btn-danger" : "btn btn-ghost",
-                      "!px-2.5 !py-1 text-xs",
-                    ].join(" ")}
-                    onClick={() => setItemStatus(item.id, action.status)}
-                  >
-                    {action.label}
-                  </button>
-                ))}
+              <div className="space-y-2 pl-7">
+                <div className="flex flex-wrap gap-2">
+                  {visibleActions.map((action) => (
+                    <button
+                      key={action.status}
+                      type="button"
+                      disabled={pending}
+                      className={[
+                        action.danger ? "btn btn-danger" : "btn btn-ghost",
+                        "!px-2.5 !py-1 text-xs",
+                      ].join(" ")}
+                      onClick={() => setItemStatus(item.id, action.status)}
+                    >
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+                <NewsFeedArticleGenerate
+                  newsItemId={item.id}
+                  sourceKey={item.source}
+                />
               </div>
             </li>
           ))}
