@@ -573,29 +573,6 @@ export function CarouselEditor({
                 </div>
               ) : null}
 
-              <Field label="Kategorie">
-                <input
-                  className="w-full"
-                  disabled={!canEdit}
-                  value={active.category}
-                  onChange={(e) => {
-                    const category = e.target.value;
-                    if (
-                      active.type === "text" ||
-                      active.type === "quote" ||
-                      active.type === "outro"
-                    ) {
-                      updateActive({
-                        category,
-                        ...themeFieldsForCategory(category),
-                      });
-                    } else {
-                      updateActive({ category });
-                    }
-                  }}
-                />
-              </Field>
-
               {active.type === "text" ||
               active.type === "quote" ||
               active.type === "outro" ? (
@@ -756,6 +733,29 @@ export function CarouselEditor({
                   ) : null}
                 </div>
               ) : null}
+
+              <Field label="Kategorie">
+                <input
+                  className="w-full"
+                  disabled={!canEdit}
+                  value={active.category}
+                  onChange={(e) => {
+                    const category = e.target.value;
+                    if (
+                      active.type === "text" ||
+                      active.type === "quote" ||
+                      active.type === "outro"
+                    ) {
+                      updateActive({
+                        category,
+                        ...themeFieldsForCategory(category),
+                      });
+                    } else {
+                      updateActive({ category });
+                    }
+                  }}
+                />
+              </Field>
 
               {active.type === "text" ||
               active.type === "quote" ||
