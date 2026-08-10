@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
 import { toPgVectorLiteral } from "@/lib/rag/embed-query";
+import { ragDatabaseHost, ragQuery } from "@/lib/rag/db";
 
 export const DEFAULT_SEARCH_LIMIT = 8;
 export const DEFAULT_RECENCY_WEIGHT = 0.015;
@@ -62,6 +62,13 @@ function formatPublishedAt(value: Date | string | null): string | null {
   return d.toISOString();
 }
 
+export async function countRagChunks(): Promise<number> {
+  const rows = await ragQuery<{ n: number }>(
+    `SELECT count(*)::int AS n FROM rag.article_chunks WHERE embedding_vec IS NOT NULL`,
+  );
+  return rows[0]?.n ?? 0;
+}
+
 /**
  * Cosine nearest-neighbour via HNSW, then re-rank with recency bias in-process
  * (keeps the <=> ORDER BY indexable; adjusted score is not a pure vector op).
@@ -81,8 +88,23 @@ export async function searchRagChunks(
     recencyWeight > 0 ? Math.min(Math.max(limit * 10, 50), 200) : limit;
 
   const vecLiteral = toPgVectorLiteral(params.queryEmbedding);
+  const values: unknown[] = [vecLiteral];
+  const filters: string[] = ["c.embedding_vec IS NOT NULL"];
 
-  const rows = await prisma.$queryRaw<RawHit[]>`
+  if (author) {
+    values.push(author);
+    filters.push(`a.authors::text ILIKE '%' || $${values.length} || '%'`);
+  }
+  if (tag) {
+    values.push(tag);
+    filters.push(`a.tags::text ILIKE '%' || $${values.length} || '%'`);
+  }
+
+  values.push(fetchLimit);
+  const limitParam = `$${values.length}`;
+
+  const rows = await ragQuery<RawHit>(
+    `
     SELECT
       a.title,
       a.url,
@@ -90,15 +112,15 @@ export async function searchRagChunks(
       a.authors,
       a.tags,
       c.chunk_text,
-      (1 - (c.embedding_vec <=> ${vecLiteral}::vector))::float8 AS similarity
+      (1 - (c.embedding_vec <=> $1::vector))::float8 AS similarity
     FROM rag.article_chunks c
     JOIN rag.articles a ON a.id = c.article_id
-    WHERE c.embedding_vec IS NOT NULL
-      AND (${author}::text IS NULL OR a.authors::text ILIKE '%' || ${author} || '%')
-      AND (${tag}::text IS NULL OR a.tags::text ILIKE '%' || ${tag} || '%')
-    ORDER BY c.embedding_vec <=> ${vecLiteral}::vector
-    LIMIT ${fetchLimit}
-  `;
+    WHERE ${filters.join(" AND ")}
+    ORDER BY c.embedding_vec <=> $1::vector
+    LIMIT ${limitParam}
+    `,
+    values,
+  );
 
   const now = new Date();
   return rows
@@ -119,3 +141,5 @@ export async function searchRagChunks(
     .sort((a, b) => b.adjustedScore - a.adjustedScore)
     .slice(0, limit);
 }
+
+export { ragDatabaseHost };

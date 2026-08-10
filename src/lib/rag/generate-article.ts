@@ -8,7 +8,12 @@ import {
   kurzmeldungDraftSchema,
   type KurzmeldungDraft,
 } from "@/lib/rag/kurzmeldung-shared";
-import { searchRagChunks, type RagSearchHit } from "@/lib/rag/search";
+import {
+  countRagChunks,
+  ragDatabaseHost,
+  searchRagChunks,
+  type RagSearchHit,
+} from "@/lib/rag/search";
 
 export type { KurzmeldungDraft };
 export { formatKurzmeldungForCopy };
@@ -88,12 +93,26 @@ async function fetchRagContext(query: string): Promise<{
   warning: string | null;
 }> {
   try {
+    const indexed = await countRagChunks();
+    if (indexed === 0) {
+      return {
+        hits: [],
+        warning: `RAG-Archiv leer auf ${ragDatabaseHost()} (0 Chunks). Lokal: RAG_DATABASE_URL auf die Render-DB mit Embeddings setzen.`,
+      };
+    }
+
     const embedding = await embedQuery(query);
     const hits = await searchRagChunks({
       queryEmbedding: embedding,
       limit: 5,
       recencyWeight: 0.015,
     });
+    if (hits.length === 0) {
+      return {
+        hits: [],
+        warning: `Keine thematisch passenden RAG-Treffer (Archiv: ${indexed.toLocaleString("de-CH")} Chunks).`,
+      };
+    }
     return { hits, warning: null };
   } catch (err) {
     const message =

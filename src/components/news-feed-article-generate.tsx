@@ -191,7 +191,7 @@ export function NewsFeedArticleGenerate({
 
           {state.draft && (
             <>
-              {state.ragHitCount != null && !state.ragWarning && (
+              {state.ragHitCount != null && state.ragHitCount > 0 && !state.ragWarning && (
                 <p className="text-xs text-[var(--muted)]">
                   RAG-Kontext: {state.ragHitCount} Treffer einbezogen (nur wenn
                   relevant).
