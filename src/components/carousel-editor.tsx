@@ -421,6 +421,94 @@ export function CarouselEditor({
                 </h2>
               </div>
 
+              {active.type === "cover" ? (
+                <>
+                  <Field label="Overline">
+                    <input
+                      className="w-full"
+                      disabled={!canEdit}
+                      value={active.overline}
+                      onChange={(e) =>
+                        updateActive({ overline: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Headline">
+                    <textarea
+                      className="min-h-28 w-full"
+                      disabled={!canEdit}
+                      value={active.headline}
+                      onChange={(e) =>
+                        updateActive({ headline: e.target.value })
+                      }
+                    />
+                  </Field>
+                </>
+              ) : null}
+
+              {active.type === "text" ? (
+                <div className="field">
+                  <CarouselFormatTextarea
+                    label="Text"
+                    disabled={!canEdit}
+                    value={active.bodyHtml}
+                    onChange={(bodyHtml) => updateActive({ bodyHtml })}
+                    placeholder="Schon wieder ist es heiss…"
+                    className="min-h-48 w-full font-mono text-sm"
+                  />
+                </div>
+              ) : null}
+
+              {active.type === "quote" ? (
+                <>
+                  <div className="field">
+                    <CarouselFormatTextarea
+                      label="Zitat"
+                      disabled={!canEdit}
+                      value={active.quoteText}
+                      onChange={(quoteText) => updateActive({ quoteText })}
+                      className="min-h-40 w-full font-mono text-sm"
+                    />
+                  </div>
+                  <Field label="Attribution">
+                    <input
+                      className="w-full"
+                      disabled={!canEdit}
+                      value={active.attribution}
+                      onChange={(e) =>
+                        updateActive({ attribution: e.target.value })
+                      }
+                      placeholder="Name, Rolle"
+                    />
+                  </Field>
+                </>
+              ) : null}
+
+              {active.type === "outro" ? (
+                <>
+                  <Field label="Headline">
+                    <textarea
+                      className="min-h-28 w-full"
+                      disabled={!canEdit}
+                      value={active.headline}
+                      onChange={(e) =>
+                        updateActive({ headline: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="CTA">
+                    <input
+                      className="w-full"
+                      disabled={!canEdit}
+                      value={active.ctaText}
+                      onChange={(e) =>
+                        updateActive({ ctaText: e.target.value })
+                      }
+                    />
+                  </Field>
+                </>
+              ) : null}
+
               {canEdit ? (
                 <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
                   <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
@@ -669,157 +757,30 @@ export function CarouselEditor({
                 </div>
               ) : null}
 
-              {active.type === "cover" ? (
-                <>
-                  <Field label="Overline">
+              {active.type === "text" ||
+              active.type === "quote" ||
+              active.type === "outro" ? (
+                <Field label="Hintergrundfarbe">
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      className="h-10 w-12 cursor-pointer rounded border border-[var(--border)] bg-white p-1"
+                      disabled={!canEdit}
+                      value={active.backgroundColor || DEFAULT_BG}
+                      onChange={(e) =>
+                        updateActive({ backgroundColor: e.target.value })
+                      }
+                    />
                     <input
                       className="w-full"
                       disabled={!canEdit}
-                      value={active.overline}
+                      value={active.backgroundColor}
                       onChange={(e) =>
-                        updateActive({ overline: e.target.value })
+                        updateActive({ backgroundColor: e.target.value })
                       }
-                    />
-                  </Field>
-                  <Field label="Headline">
-                    <textarea
-                      className="min-h-28 w-full"
-                      disabled={!canEdit}
-                      value={active.headline}
-                      onChange={(e) =>
-                        updateActive({ headline: e.target.value })
-                      }
-                    />
-                  </Field>
-                </>
-              ) : null}
-
-              {active.type === "text" ? (
-                <>
-                  <Field label="Hintergrundfarbe">
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        className="h-10 w-12 cursor-pointer rounded border border-[var(--border)] bg-white p-1"
-                        disabled={!canEdit}
-                        value={active.backgroundColor || DEFAULT_BG}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                      <input
-                        className="w-full"
-                        disabled={!canEdit}
-                        value={active.backgroundColor}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                    </div>
-                  </Field>
-                  <div className="field">
-                    <CarouselFormatTextarea
-                      label="Text"
-                      disabled={!canEdit}
-                      value={active.bodyHtml}
-                      onChange={(bodyHtml) => updateActive({ bodyHtml })}
-                      placeholder="Schon wieder ist es heiss…"
-                      className="min-h-48 w-full font-mono text-sm"
                     />
                   </div>
-                </>
-              ) : null}
-
-              {active.type === "quote" ? (
-                <>
-                  <Field label="Hintergrundfarbe">
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        className="h-10 w-12 cursor-pointer rounded border border-[var(--border)] bg-white p-1"
-                        disabled={!canEdit}
-                        value={active.backgroundColor || DEFAULT_BG}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                      <input
-                        className="w-full"
-                        disabled={!canEdit}
-                        value={active.backgroundColor}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                    </div>
-                  </Field>
-                  <div className="field">
-                    <CarouselFormatTextarea
-                      label="Zitat"
-                      disabled={!canEdit}
-                      value={active.quoteText}
-                      onChange={(quoteText) => updateActive({ quoteText })}
-                      className="min-h-40 w-full font-mono text-sm"
-                    />
-                  </div>
-                  <Field label="Attribution">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.attribution}
-                      onChange={(e) =>
-                        updateActive({ attribution: e.target.value })
-                      }
-                      placeholder="Name, Rolle"
-                    />
-                  </Field>
-                </>
-              ) : null}
-
-              {active.type === "outro" ? (
-                <>
-                  <Field label="Hintergrundfarbe">
-                    <div className="flex gap-2">
-                      <input
-                        type="color"
-                        className="h-10 w-12 cursor-pointer rounded border border-[var(--border)] bg-white p-1"
-                        disabled={!canEdit}
-                        value={active.backgroundColor || DEFAULT_BG}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                      <input
-                        className="w-full"
-                        disabled={!canEdit}
-                        value={active.backgroundColor}
-                        onChange={(e) =>
-                          updateActive({ backgroundColor: e.target.value })
-                        }
-                      />
-                    </div>
-                  </Field>
-                  <Field label="Headline">
-                    <textarea
-                      className="min-h-28 w-full"
-                      disabled={!canEdit}
-                      value={active.headline}
-                      onChange={(e) =>
-                        updateActive({ headline: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="CTA">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.ctaText}
-                      onChange={(e) =>
-                        updateActive({ ctaText: e.target.value })
-                      }
-                    />
-                  </Field>
-                </>
+                </Field>
               ) : null}
             </>
           ) : (
