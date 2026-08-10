@@ -30,7 +30,7 @@ export const DEFAULT_TRANSFORM: LayerTransform = {
 export const DEFAULT_IMAGE_TRANSFORM: LayerTransform = {
   x: 0,
   y: 0,
-  scale: 1.5,
+  scale: 1.9,
 };
 
 /** Darkening treatment for slides with a background image */
