@@ -17,12 +17,13 @@ import {
   lastCategory,
   themeFieldsForCategory,
 } from "@/lib/carousel/slides";
-import { normalizeTransform } from "@/lib/carousel/transform";
+import { normalizeImageTransform, normalizeTransform } from "@/lib/carousel/transform";
 import {
   resolveSlideInk,
 } from "@/lib/carousel/categories";
 import {
   DEFAULT_BG,
+  DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_TRANSFORM,
   type EditableLayer,
   type ImageOverlay,
@@ -159,7 +160,7 @@ export function CarouselEditor({
         active.type === "text" ||
         active.type === "quote")
     ) {
-      return normalizeTransform(active.imageTransform);
+      return normalizeImageTransform(active.imageTransform);
     }
     return normalizeTransform(active.textTransform);
   }
@@ -467,9 +468,12 @@ export function CarouselEditor({
                     type="button"
                     className="btn btn-ghost px-3 py-1.5 text-sm"
                     onClick={() =>
-                      setLayerTransform(selectedLayer, {
-                        ...DEFAULT_TRANSFORM,
-                      })
+                      setLayerTransform(
+                        selectedLayer,
+                        selectedLayer === "image"
+                          ? { ...DEFAULT_IMAGE_TRANSFORM }
+                          : { ...DEFAULT_TRANSFORM },
+                      )
                     }
                   >
                     Position zurücksetzen

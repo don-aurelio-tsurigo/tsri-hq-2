@@ -13,6 +13,7 @@ import {
   normalizeImageOverlay,
 } from "@/lib/carousel/overlay";
 import {
+  normalizeImageTransform,
   normalizeTransform,
   snapTransformOffsets,
 } from "@/lib/carousel/transform";
@@ -149,7 +150,7 @@ function ImageLayer({
           src={url}
           alt=""
           draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain object-center"
           style={{ filter: imageDimFilter(o.dim) }}
         />
       ) : null}
@@ -288,7 +289,7 @@ function CoverPreview({
 } & InteractiveProps & {
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
-  const imageT = normalizeTransform(slide.imageTransform);
+  const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && slide.backgroundImageUrl),
@@ -379,7 +380,7 @@ function TextPreview({
   const hasImage = Boolean(slide.backgroundImageUrl);
   const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
-  const imageT = normalizeTransform(slide.imageTransform);
+  const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),
@@ -473,7 +474,7 @@ function QuotePreview({
   const hasImage = Boolean(slide.backgroundImageUrl);
   const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
-  const imageT = normalizeTransform(slide.imageTransform);
+  const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),

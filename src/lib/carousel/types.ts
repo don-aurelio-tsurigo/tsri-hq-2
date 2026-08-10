@@ -26,6 +26,13 @@ export const DEFAULT_TRANSFORM: LayerTransform = {
   scale: 1,
 };
 
+/** Default zoom for background photos (fills height; sides may clip). */
+export const DEFAULT_IMAGE_TRANSFORM: LayerTransform = {
+  x: 0,
+  y: 0,
+  scale: 1.5,
+};
+
 /** Darkening treatment for slides with a background image */
 export type ImageOverlay = {
   /** Flat image dim via brightness filter, 0–1 */

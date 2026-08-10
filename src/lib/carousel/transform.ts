@@ -1,6 +1,7 @@
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_TRANSFORM,
   type LayerTransform,
 } from "@/lib/carousel/types";
@@ -30,6 +31,20 @@ export function normalizeTransform(
       Number.isFinite(value.scale) && value.scale > 0
         ? Math.min(3, Math.max(0.35, value.scale))
         : 1,
+  };
+}
+
+export function normalizeImageTransform(
+  value?: LayerTransform | null,
+): LayerTransform {
+  if (!value) return { ...DEFAULT_IMAGE_TRANSFORM };
+  return {
+    x: Number.isFinite(value.x) ? value.x : 0,
+    y: Number.isFinite(value.y) ? value.y : 0,
+    scale:
+      Number.isFinite(value.scale) && value.scale > 0
+        ? Math.min(3, Math.max(0.35, value.scale))
+        : DEFAULT_IMAGE_TRANSFORM.scale,
   };
 }
 
