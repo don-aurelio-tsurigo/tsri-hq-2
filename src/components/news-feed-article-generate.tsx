@@ -164,7 +164,7 @@ export function NewsFeedArticleGenerate({
         disabled={pending || state.loading || !pasteReady}
         onClick={generate}
       >
-        {state.loading || pending ? "Generiere…" : "Artikel generieren"}
+        {state.loading || pending ? "Generiere…" : "Kurz-News generieren"}
       </button>
 
       {open && (
