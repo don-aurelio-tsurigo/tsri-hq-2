@@ -34,7 +34,7 @@ FALL B — category = KOLUMNE → ZITAT-KASKADE (kein normales Textformat)
 Struktur: Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slides in diesem Fall.
 - Wähle 5–8 aufeinanderfolgende, wörtliche Zitate direkt aus dem Artikeltext, die zusammen den Argumentationsbogen der Kolumne abbilden (These → Begründung/Beispiele → Fazit/Aufruf).
 - Zitate müssen wortwörtlich aus dem Artikel stammen. Nicht umformulieren, nicht zusammenfassen.
-- Ein Zitat darf innerhalb eines Satzgefüges gekürzt werden (z.B. einen Nebensatz weglassen), wenn es sonst nicht auf einen Slide passt — nie umschreiben.
+- quoteText max. 300 Zeichen pro Slide. Ist ein Zitat länger, kürzen (durch Weglassen von Wörtern/Nebensätzen, nie durch Umschreiben der verbleibenden Wörter), bis es passt.
 - Wähle Zitate so, dass sie combined möglichst viel vom eigentlichen Gedankengang/Argument des Artikels abdecken, nicht nur die auffälligsten Einzelsätze.
 - attribution: Name der Autor:in/Kolumnist:in (aus Bylines/Artikelangabe), Rolle als "Kolumnist:in" oder "Kolumnist"/"Kolumnistin" je nach Angabe im Artikel.
 - quoteText ohne führende Anführungszeichen.
@@ -53,7 +53,7 @@ Allgemeine Feld-Regeln (beide Fälle):
 - Sprache: Deutsch (Schweiz).
 - Cover: overline aus Pre-Title übernehmen, headline: Artikel-Titel wortwörtlich verwenden (darf Zeilenumbrüche als \\n enthalten).
 - Text-Slides (nur FALL A): bodyHtml max. 500 Zeichen, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
-- Quote (beide Fälle): quoteText ohne führende Anführungszeichen, wortwörtlich, darf bei Bedarf gekürzt werden (Weglassen, nicht Umschreiben); attribution mit Name.
+- Quote (beide Fälle): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben); attribution mit Name.
 - Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
 - Fülle create_carousel_slides genau einmal.`;
