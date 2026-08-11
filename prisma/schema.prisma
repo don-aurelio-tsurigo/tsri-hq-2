@@ -751,6 +751,7 @@ model CarouselPost {
   slides      Json
   /// Original Tsüri-Artikel, falls aus URL importiert
   sourceUrl   String?
+  sourcePreTitle String?
   sourceTitle String?
   sourceLead  String?  @db.Text
   sourceBody  String?  @db.Text

@@ -46,6 +46,7 @@ type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
 export type CarouselSourceArticle = {
   url: string | null;
+  preTitle: string | null;
   title: string | null;
   lead: string | null;
   body: string | null;
@@ -442,6 +443,14 @@ export function CarouselEditor({
                     >
                       Artikel auf Tsüri öffnen
                     </a>
+                  ) : null}
+                  {sourceArticle.preTitle ? (
+                    <section className="space-y-1">
+                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                        Pre-Title
+                      </p>
+                      <p className="whitespace-pre-wrap">{sourceArticle.preTitle}</p>
+                    </section>
                   ) : null}
                   {sourceArticle.title ? (
                     <section className="space-y-1">

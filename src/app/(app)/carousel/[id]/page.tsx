@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { CarouselEditor } from "@/components/carousel-editor";
 import { getCarouselPost, parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
+import { stripArticleHeaderFromBody, recoverPreTitleFromBody } from "@/lib/wepublish/article";
 
 export default async function CarouselEditorPage({
   params,
@@ -14,13 +15,30 @@ export default async function CarouselEditorPage({
   if (!post) notFound();
 
   const slides = parseSlides(post.slides);
+  const sourcePreTitle =
+    post.sourcePreTitle ||
+    recoverPreTitleFromBody(post.sourceBody, {
+      title: post.sourceTitle,
+      lead: post.sourceLead,
+    });
+  const cleanedBody = post.sourceBody
+    ? stripArticleHeaderFromBody(post.sourceBody, {
+        preTitle: sourcePreTitle,
+        title: post.sourceTitle,
+        lead: post.sourceLead,
+      })
+    : null;
   const sourceArticle =
-    post.sourceTitle || post.sourceLead || post.sourceBody
+    sourcePreTitle ||
+    post.sourceTitle ||
+    post.sourceLead ||
+    cleanedBody
       ? {
           url: post.sourceUrl,
+          preTitle: sourcePreTitle,
           title: post.sourceTitle,
           lead: post.sourceLead,
-          body: post.sourceBody,
+          body: cleanedBody,
         }
       : null;
 

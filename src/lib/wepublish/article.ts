@@ -202,10 +202,7 @@ function blocksToPlaintext(blocks: ArticleBlock[] | null | undefined): string {
   for (const block of blocks) {
     switch (block.__typename) {
       case "TitleBlock": {
-        const chunk = [block.preTitle, block.title, block.lead]
-          .filter(Boolean)
-          .join("\n");
-        if (chunk) parts.push(chunk);
+        // Title/preTitle/lead come from article.latest fields and are shown separately.
         break;
       }
       case "RichTextBlock": {
@@ -248,6 +245,66 @@ function blocksToPlaintext(blocks: ArticleBlock[] | null | undefined): string {
   }
 
   return parts.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Remove duplicated preTitle/title/lead that older imports embedded at the start of body. */
+export function stripArticleHeaderFromBody(
+  body: string,
+  header: {
+    preTitle?: string | null;
+    title?: string | null;
+    lead?: string | null;
+  },
+): string {
+  let text = body.trim();
+  if (!text) return text;
+
+  const preTitle = header.preTitle?.trim() || null;
+  const title = header.title?.trim() || null;
+  const lead = header.lead?.trim() || null;
+  const parts = [preTitle, title, lead].filter((p): p is string => Boolean(p));
+
+  if (parts.length) {
+    const joined = parts.join("\n");
+    if (text.startsWith(joined)) {
+      return text.slice(joined.length).replace(/^\n+/, "").trim();
+    }
+  }
+
+  // Older rows: TitleBlock dump before we skipped it — optional preTitle line, then title+lead.
+  if (title && lead) {
+    const marker = `${title}\n${lead}`;
+    const idx = text.indexOf(marker);
+    if (idx >= 0 && idx < 240) {
+      return text.slice(idx + marker.length).replace(/^\n+/, "").trim();
+    }
+  }
+
+  for (const part of parts) {
+    if (text.startsWith(part)) {
+      text = text.slice(part.length).replace(/^\n+/, "").trim();
+    }
+  }
+
+  return text;
+}
+
+/** Recover preTitle from older stored bodies that still start with TitleBlock dump. */
+export function recoverPreTitleFromBody(
+  body: string | null | undefined,
+  header: { title?: string | null; lead?: string | null },
+): string | null {
+  if (!body) return null;
+  const title = header.title?.trim();
+  const lead = header.lead?.trim();
+  if (!title || !lead) return null;
+  const marker = `${title}\n${lead}`;
+  const idx = body.indexOf(marker);
+  if (idx > 0 && idx < 240) {
+    const prefix = body.slice(0, idx).trim();
+    return prefix || null;
+  }
+  return null;
 }
 
 export async function fetchTsriArticleByUrl(

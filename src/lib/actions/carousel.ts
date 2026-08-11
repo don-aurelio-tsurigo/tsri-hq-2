@@ -67,6 +67,7 @@ export async function importCarouselFromArticleUrl(
         title,
         slides: slides as unknown as Prisma.InputJsonValue,
         sourceUrl: article.url,
+        sourcePreTitle: article.preTitle,
         sourceTitle: article.title,
         sourceLead: article.lead,
         sourceBody: article.bodyText,
