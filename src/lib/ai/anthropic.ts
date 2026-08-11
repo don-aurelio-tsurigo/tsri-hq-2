@@ -59,6 +59,7 @@ Allgemeine Feld-Regeln (beide Fälle):
   - Text MIT 1 Absatzumbruch (zwei Absätze): max. 380 Zeichen gesamt.
   - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 300 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
   - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht — ein Absatzumbruch ist inhaltlich oft wichtig (z.B. zwischen zwei Gedanken) und soll nicht künstlich entfernt werden, nur um mehr Zeichen unterzubringen.
+  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe das jeweilige Limit so weit wie möglich aus (z.B. bei zwei Absätzen möglichst nah an 380 Zeichen, nicht 150). Ziel bleibt maximale Textübernahme aus dem Original — kürze nur so viel wie nötig, um unter dem Limit zu bleiben, nicht mehr.
 - Quote (beide Fälle): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben); attribution mit Name.
 - Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
