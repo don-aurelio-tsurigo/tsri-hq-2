@@ -749,6 +749,11 @@ model CarouselPost {
   id          String   @id @default(cuid())
   title       String
   slides      Json
+  /// Original Tsüri-Artikel, falls aus URL importiert
+  sourceUrl   String?
+  sourceTitle String?
+  sourceLead  String?  @db.Text
+  sourceBody  String?  @db.Text
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

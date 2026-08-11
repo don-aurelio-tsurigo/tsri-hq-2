@@ -14,6 +14,15 @@ export default async function CarouselEditorPage({
   if (!post) notFound();
 
   const slides = parseSlides(post.slides);
+  const sourceArticle =
+    post.sourceTitle || post.sourceLead || post.sourceBody
+      ? {
+          url: post.sourceUrl,
+          title: post.sourceTitle,
+          lead: post.sourceLead,
+          body: post.sourceBody,
+        }
+      : null;
 
   return (
     <CarouselEditor
@@ -22,6 +31,7 @@ export default async function CarouselEditorPage({
       initialSlides={slides}
       createdByName={post.createdBy.name}
       canEdit={post.createdById === session.user.id}
+      sourceArticle={sourceArticle}
     />
   );
 }

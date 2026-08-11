@@ -35,6 +35,7 @@ Struktur: Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slide
 - Wähle 5–8 aufeinanderfolgende, wörtliche Zitate direkt aus dem Artikeltext, die zusammen den Argumentationsbogen der Kolumne abbilden (These → Begründung/Beispiele → Fazit/Aufruf).
 - Zitate müssen wortwörtlich aus dem Artikel stammen. Nicht umformulieren, nicht zusammenfassen.
 - quoteText max. 300 Zeichen pro Slide. Ist ein Zitat länger, kürzen (durch Weglassen von Wörtern/Nebensätzen, nie durch Umschreiben der verbleibenden Wörter), bis es passt.
+- Nutze das Zeichenlimit aus: Zitate dürfen und sollen ruhig umfassend sein (mehrere Sätze am Stück), solange sie unter 300 Zeichen bleiben — nicht künstlich auf einen kurzen Einzelsatz verkürzen, wenn mehr vom zusammenhängenden Gedanken noch Platz hätte.
 - Wähle Zitate so, dass sie combined möglichst viel vom eigentlichen Gedankengang/Argument des Artikels abdecken, nicht nur die auffälligsten Einzelsätze.
 - attribution: Name der Autor:in/Kolumnist:in (aus Bylines/Artikelangabe), Rolle als "Kolumnist:in" oder "Kolumnist"/"Kolumnistin" je nach Angabe im Artikel.
 - quoteText ohne führende Anführungszeichen.
@@ -44,7 +45,7 @@ Struktur: Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slide
 WICHTIGSTE REGEL — Textmenge (gilt für FALL A, "text"-Slides):
 - Ziel ist es, so viel wie möglich vom Original-Artikeltext auf die Slides zu bringen, idealerweise praktisch den gesamten Fliesstext (ohne Lead).
 - Verwende den Artikeltext wortwörtlich. Nicht umformulieren, nicht zusammenfassen, nicht paraphrasieren.
-- Kürzen ist nur erlaubt, wenn ein Abschnitt sonst nicht auf die Slides passen würde (max. 500 Zeichen pro Text-Slide) — und auch dann nur durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze.
+- Kürzen ist nur erlaubt, wenn ein Abschnitt sonst nicht auf die Slides passen würde (siehe Längenlimit nach Absatzstruktur unten) — und auch dann nur durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze.
 - Nutze so viele Text-Slides wie nötig (innerhalb der 6–10 Slide-Grenze), um möglichst viel Original-Text unterzubringen, statt früh zusammenzufassen.
 - Den Artikel-Lead (Teaser/Intro-Absatz vor dem Fliesstext) NICHT verwenden — nur der eigentliche Artikeltext ab dem ersten Fliesstext-Absatz zählt.
 - Ändere den Text keinesfalls in der Aussage.
@@ -52,7 +53,12 @@ WICHTIGSTE REGEL — Textmenge (gilt für FALL A, "text"-Slides):
 Allgemeine Feld-Regeln (beide Fälle):
 - Sprache: Deutsch (Schweiz).
 - Cover: overline aus Pre-Title übernehmen, headline: Artikel-Titel wortwörtlich verwenden (darf Zeilenumbrüche als \\n enthalten).
-- Text-Slides (nur FALL A): bodyHtml max. 500 Zeichen, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
+- Text-Slides (nur FALL A): bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
+  LÄNGENLIMIT (abhängig von Absatzstruktur, da jeder Absatzumbruch zusätzlichen vertikalen Platz braucht):
+  - Text OHNE Absatzumbruch (ein durchgehender Block): max. 500 Zeichen.
+  - Text MIT 1 Absatzumbruch (zwei Absätze): max. 380 Zeichen gesamt.
+  - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 300 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
+  - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht — ein Absatzumbruch ist inhaltlich oft wichtig (z.B. zwischen zwei Gedanken) und soll nicht künstlich entfernt werden, nur um mehr Zeichen unterzubringen.
 - Quote (beide Fälle): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben); attribution mit Name.
 - Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.

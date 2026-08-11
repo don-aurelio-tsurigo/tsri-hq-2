@@ -266,8 +266,7 @@ export async function fetchTsriArticleByUrl(
 
   const bodyText = blocksToPlaintext(latest.blocks);
   const lead = latest.lead?.trim() || null;
-  const combined = [lead, bodyText].filter(Boolean).join("\n\n").trim();
-  if (!combined) {
+  if (!lead && !bodyText) {
     throw new WepublishApiError(
       "Artikel hat keinen lesbaren Text (evtl. Paywall oder leere Blocks).",
     );
@@ -287,6 +286,6 @@ export async function fetchTsriArticleByUrl(
       .map((t) => t?.tag?.trim())
       .filter((tag): tag is string => Boolean(tag)),
     imageUrl: latest.image?.l || latest.image?.url || null,
-    bodyText: combined,
+    bodyText,
   };
 }

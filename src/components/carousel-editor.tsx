@@ -44,6 +44,13 @@ const PREVIEW_SCALE = 0.42;
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
+export type CarouselSourceArticle = {
+  url: string | null;
+  title: string | null;
+  lead: string | null;
+  body: string | null;
+};
+
 function slideHasImageLayer(slide: Slide) {
   return (
     (slide.type === "cover" ||
@@ -65,12 +72,14 @@ export function CarouselEditor({
   initialSlides,
   createdByName,
   canEdit,
+  sourceArticle = null,
 }: {
   postId: string;
   initialTitle: string;
   initialSlides: Slide[];
   createdByName: string;
   canEdit: boolean;
+  sourceArticle?: CarouselSourceArticle | null;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [slides, setSlides] = useState<Slide[]>(
@@ -83,6 +92,7 @@ export function CarouselEditor({
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
+  const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
   const [pending, startTransition] = useTransition();
   const skipFirstSave = useRef(true);
   const saveToken = useRef(0);
@@ -405,6 +415,66 @@ export function CarouselEditor({
               >
                 Slide löschen
               </button>
+            </div>
+          ) : null}
+
+          {sourceArticle ? (
+            <div className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                onClick={() => setArticleOpen((open) => !open)}
+                aria-expanded={articleOpen}
+              >
+                <span className="text-sm font-semibold">Artikel-Original</span>
+                <span className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                  {articleOpen ? "Einklappen" : "Aufklappen"}
+                </span>
+              </button>
+              {articleOpen ? (
+                <div className="space-y-4 border-t border-[var(--border)] px-4 py-4 text-sm leading-relaxed">
+                  {sourceArticle.url ? (
+                    <a
+                      href={sourceArticle.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+                    >
+                      Artikel auf Tsüri öffnen
+                    </a>
+                  ) : null}
+                  {sourceArticle.title ? (
+                    <section className="space-y-1">
+                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                        Titel
+                      </p>
+                      <p className="font-[family-name:var(--font-display)] text-base font-semibold whitespace-pre-wrap">
+                        {sourceArticle.title}
+                      </p>
+                    </section>
+                  ) : null}
+                  {sourceArticle.lead ? (
+                    <section className="space-y-1">
+                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                        Lead
+                      </p>
+                      <p className="whitespace-pre-wrap text-[var(--muted)]">
+                        {sourceArticle.lead}
+                      </p>
+                    </section>
+                  ) : null}
+                  {sourceArticle.body ? (
+                    <section className="space-y-1">
+                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                        Text
+                      </p>
+                      <p className="max-h-[36rem] overflow-y-auto whitespace-pre-wrap">
+                        {sourceArticle.body}
+                      </p>
+                    </section>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

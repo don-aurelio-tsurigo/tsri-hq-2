@@ -66,6 +66,10 @@ export async function importCarouselFromArticleUrl(
       data: {
         title,
         slides: slides as unknown as Prisma.InputJsonValue,
+        sourceUrl: article.url,
+        sourceTitle: article.title,
+        sourceLead: article.lead,
+        sourceBody: article.bodyText,
         createdById: session.user.id,
       },
     });
