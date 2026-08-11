@@ -543,7 +543,7 @@ function QuotePreview({
         style={{
           left: 100,
           right: 100,
-          top: 220,
+          top: 210,
           bottom: 180,
           fontFamily: CAROUSEL_FONT,
           color: inkColor,
@@ -554,8 +554,13 @@ function QuotePreview({
         onPointerUp={textDrag.onPointerUp}
       >
         <p
-          className="font-bold leading-none"
-          style={{ fontSize: 240, marginBottom: 46 }}
+          className="font-bold"
+          style={{
+            fontSize: 240,
+            // Compress em-box to « ink height (~95px); 50px gap to body like Canva.
+            lineHeight: 0.45,
+            marginBottom: 50,
+          }}
         >
           «
         </p>
