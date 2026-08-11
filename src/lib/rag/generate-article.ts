@@ -21,6 +21,8 @@ export { formatKurzmeldungForCopy };
 const TOOL_NAME = "create_kurzmeldung";
 /** Stronger recency bias for generation (no human vetting of hit freshness). */
 const GENERATION_RECENCY_WEIGHT = 0.04;
+/** Empirically: good hits ~0.55–0.65; weak thematic noise often <0.50. */
+const GENERATION_MIN_ADJUSTED_SCORE = 0.55;
 const ARCHIVE_STALE_AFTER_MS = 365.25 * 24 * 60 * 60 * 1000;
 const STYLEGUIDE_PATH = join(
   process.cwd(),
@@ -130,11 +132,12 @@ async function fetchRagContext(query: string): Promise<{
       queryEmbedding: embedding,
       limit: 5,
       recencyWeight: GENERATION_RECENCY_WEIGHT,
+      minAdjustedScore: GENERATION_MIN_ADJUSTED_SCORE,
     });
     if (hits.length === 0) {
       return {
         hits: [],
-        warning: `Keine thematisch passenden RAG-Treffer (Archiv: ${indexed.toLocaleString("de-CH")} Chunks).`,
+        warning: `Keine RAG-Treffer über Score ${GENERATION_MIN_ADJUSTED_SCORE} (Archiv: ${indexed.toLocaleString("de-CH")} Chunks) — Generierung ohne Archiv-Kontext.`,
       };
     }
     return { hits, warning: null };
@@ -175,7 +178,8 @@ const toolInputSchema = {
 function buildSystemPrompt(styleGuide: string, ragHitCount: number): string {
   const ragRule =
     ragHitCount > 0
-      ? `- Es liegen ${ragHitCount} RAG-Treffer aus dem Tsüri-Archiv vor. Mindestens EIN Satz MUSS auf frühere Berichterstattung Bezug nehmen (Zielumfang 300–400 Wörter), z.B. «Bereits im [Jahr] berichtete Tsüri über ähnliche Vorfälle…», mit Markdown-Link auf den gefundenen Artikel (Titel als Linktext, URL aus dem RAG-Treffer). Nur thematisch passende Treffer verwenden; wenn keiner passt, den am nächsten liegenden ehrlich als verwandten Kontext nennen, aber nicht erfinden.
+      ? `- Es liegen ${ragHitCount} RAG-Treffer aus dem Tsüri-Archiv vor. Wenn — und nur wenn — ein Treffer eine echte inhaltliche/sachliche Verbindung zum aktuellen Ereignis hat, baue einen Archiv-Bezug ein (Zielumfang 300–400 Wörter), z.B. «Bereits im [Jahr] berichtete Tsüri über ähnliche Vorfälle…», mit Markdown-Link (Titel als Linktext, URL aus dem RAG-Treffer). Nichts erfinden.
+- Archiv-Kontext darf NUR eingebaut werden, wenn eine echte inhaltliche/sachliche Verbindung zum aktuellen Ereignis besteht — nicht bei rein geografischer Nähe (z.B. «gleicher Stadtteil») oder oberflächlicher thematischer Ähnlichkeit (z.B. «beide sind Gesundheitswarnungen»). Prüfe für jeden bereitgestellten Kontext-Treffer explizit: Würde eine Redaktion diese Verbindung tatsächlich herstellen, oder wirkt sie konstruiert? Im Zweifel: Kontext weglassen. Ein Artikel ganz ohne Archiv-Verweis ist besser als ein Artikel mit einer erzwungenen, sachlich fragwürdigen Verbindung.
 - Kontext-Artikel aus dem RAG-Archiv sind historischer Hintergrund, KEIN aktueller Fakt. Wenn ein RAG-Treffer verwendet wird, MUSS das Datum des Treffers erkennbar gemacht werden (z.B. «wie Tsüri im [Monat/Jahr] berichtete» statt einer zeitlosen Formulierung). Vermeide Formulierungen, die einen vergangenen Zustand als aktuell suggerieren (z.B. NICHT «derzeit kaum freie Termine», SONDERN «im [Monat/Jahr] waren laut Tsüri-Recherche kaum freie Termine verfügbar – der aktuelle Stand ist nicht bekannt»).
 - RAG-Treffer, die als «ARCHIV - möglicherweise überholt» markiert sind (>12 Monate), besonders vorsichtig einordnen und nie als aktuellen Zustand darstellen.`
       : `- Keine RAG-Treffer: keinen erfundenen Archiv-Bezug einbauen.`;

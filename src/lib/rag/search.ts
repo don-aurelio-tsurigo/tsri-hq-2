@@ -10,6 +10,8 @@ export type RagSearchParams = {
   queryEmbedding: number[];
   limit?: number;
   recencyWeight?: number;
+  /** Drop hits with adjustedScore below this (e.g. 0.55 for article generation). */
+  minAdjustedScore?: number;
   author?: string | null;
   tag?: string | null;
 };
@@ -123,7 +125,12 @@ export async function searchRagChunks(
   );
 
   const now = new Date();
-  return rows
+  const minAdjustedScore =
+    params.minAdjustedScore != null && Number.isFinite(params.minAdjustedScore)
+      ? params.minAdjustedScore
+      : null;
+
+  const ranked = rows
     .map((row) => {
       const cosine = Number(row.similarity);
       const adjusted = cosine - yearsSince(row.published_at, now) * recencyWeight;
@@ -138,8 +145,14 @@ export async function searchRagChunks(
         adjustedScore: adjusted,
       } satisfies RagSearchHit;
     })
-    .sort((a, b) => b.adjustedScore - a.adjustedScore)
-    .slice(0, limit);
+    .sort((a, b) => b.adjustedScore - a.adjustedScore);
+
+  const filtered =
+    minAdjustedScore == null
+      ? ranked
+      : ranked.filter((hit) => hit.adjustedScore >= minAdjustedScore);
+
+  return filtered.slice(0, limit);
 }
 
 export { ragDatabaseHost };
