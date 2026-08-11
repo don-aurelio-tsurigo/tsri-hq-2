@@ -54,6 +54,7 @@ Allgemeine Feld-Regeln (beide Fälle):
 - Sprache: Deutsch (Schweiz).
 - Cover: overline aus Pre-Title übernehmen, headline: Artikel-Titel wortwörtlich verwenden (darf Zeilenumbrüche als \\n enthalten).
 - Text-Slides (nur FALL A): bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
+  FETT-MARKIERUNG: Markiere pro Text-Slide 1–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter) mit <b>, die den Kerngedanken des Slides tragen (Zahlen, Kernaussagen, Kontraste) — wie ein Redaktionsstil, der Scannbarkeit fürs schnelle Lesen auf Social Media erzeugt. Nicht ganze Sätze fett setzen, nicht mehr als 3 Markierungen pro Slide, nicht bei jedem Slide zwingend an derselben Position (z.B. nicht immer der erste Satz).
   LÄNGENLIMIT (abhängig von Absatzstruktur, da jeder Absatzumbruch zusätzlichen vertikalen Platz braucht):
   - Text OHNE Absatzumbruch (ein durchgehender Block): max. 500 Zeichen.
   - Text MIT 1 Absatzumbruch (zwei Absätze): max. 380 Zeichen gesamt.
