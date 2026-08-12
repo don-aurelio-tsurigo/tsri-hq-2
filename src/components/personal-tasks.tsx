@@ -27,6 +27,7 @@ import {
 type Group = { id: string; name: string };
 type Member = { id: string; name: string };
 type InboxMode = "due" | "project";
+type ScopeFilter = "all" | "personal" | "project";
 
 type BucketKey = "overdue" | "today" | "week" | "later" | "none";
 
@@ -65,6 +66,7 @@ function CollapsibleSection({
   onToggle,
   children,
   mutedLabel,
+  tone,
   headerExtra,
   onDragOver,
   onDragLeave,
@@ -78,6 +80,8 @@ function CollapsibleSection({
   onToggle: (key: string) => void;
   children: ReactNode;
   mutedLabel?: boolean;
+  /** Visual emphasis for section header (e.g. overdue). */
+  tone?: "danger";
   headerExtra?: ReactNode;
   onDragOver?: (e: DragEvent) => void;
   onDragLeave?: () => void;
@@ -93,6 +97,9 @@ function CollapsibleSection({
           dragOver
             ? "bg-[color-mix(in_oklab,var(--accent)_12%,white)]"
             : "",
+          tone === "danger"
+            ? "bg-[color-mix(in_oklab,var(--danger)_8%,white)]"
+            : "",
         ].join(" ")}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -103,18 +110,32 @@ function CollapsibleSection({
           onClick={() => onToggle(sectionKey)}
           className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
         >
-          <span className="text-[0.65rem] text-[var(--muted)]" aria-hidden>
+          <span
+            className={[
+              "text-[0.65rem]",
+              tone === "danger" ? "text-[var(--danger)]" : "text-[var(--muted)]",
+            ].join(" ")}
+            aria-hidden
+          >
             {open ? "▼" : "▸"}
           </span>
           <span
             className={[
               "truncate text-sm font-semibold",
               mutedLabel ? "text-[var(--muted)]" : "",
+              tone === "danger" ? "text-[var(--danger)]" : "",
             ].join(" ")}
           >
             {label}
           </span>
-          <span className="text-xs text-[var(--muted)]">{count}</span>
+          <span
+            className={[
+              "text-xs",
+              tone === "danger" ? "text-[var(--danger)]" : "text-[var(--muted)]",
+            ].join(" ")}
+          >
+            {count}
+          </span>
         </button>
         {headerExtra}
       </div>
@@ -128,6 +149,7 @@ export function GroupedTasksBoard({
   groups,
   tasks,
   members,
+  currentUserId,
   canEdit = true,
   eyebrow = "Tasks",
   title,
@@ -142,6 +164,7 @@ export function GroupedTasksBoard({
   groups: Group[];
   tasks: TaskRow[];
   members?: Member[];
+  currentUserId?: string;
   canEdit?: boolean;
   eyebrow?: string;
   title: string;
@@ -169,20 +192,46 @@ export function GroupedTasksBoard({
   const [error, setError] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [inboxMode, setInboxMode] = useState<InboxMode>("due");
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
 
   const isInbox = variant === "inbox";
 
+  const scopeCounts = useMemo(() => {
+    let personal = 0;
+    let project = 0;
+    for (const task of tasks) {
+      const space = task.space;
+      const isPersonal =
+        !space || space.type === "personal" || space.id === spaceId;
+      if (isPersonal) personal += 1;
+      else if (space?.type === "project") project += 1;
+    }
+    return { all: tasks.length, personal, project };
+  }, [tasks, spaceId]);
+
+  const scopedTasks = useMemo(() => {
+    if (scopeFilter === "all") return tasks;
+    return tasks.filter((task) => {
+      const space = task.space;
+      const isPersonal =
+        !space || space.type === "personal" || space.id === spaceId;
+      if (scopeFilter === "personal") return isPersonal;
+      return space?.type === "project";
+    });
+  }, [tasks, scopeFilter, spaceId]);
+
   const openTasks = useMemo(
-    () => tasks.filter((t) => t.status === "todo" || t.status === "doing"),
-    [tasks],
+    () =>
+      scopedTasks.filter((t) => t.status === "todo" || t.status === "doing"),
+    [scopedTasks],
   );
   const doneTasks = useMemo(
-    () => tasks.filter((t) => t.status === "done"),
-    [tasks],
+    () => scopedTasks.filter((t) => t.status === "done"),
+    [scopedTasks],
   );
   const cancelledTasks = useMemo(
-    () => tasks.filter((t) => t.status === "cancelled"),
-    [tasks],
+    () => scopedTasks.filter((t) => t.status === "cancelled"),
+    [scopedTasks],
   );
 
   const openByTaskGroup = useMemo(() => {
@@ -345,6 +394,39 @@ export function GroupedTasksBoard({
       {isInbox && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+            Filter
+          </span>
+          {(
+            [
+              { id: "all", label: "Alle", count: scopeCounts.all },
+              { id: "personal", label: "Privat", count: scopeCounts.personal },
+              { id: "project", label: "Projekt", count: scopeCounts.project },
+            ] as const
+          ).map((opt) => {
+            const active = scopeFilter === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                aria-pressed={active}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  active
+                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => setScopeFilter(opt.id)}
+              >
+                {opt.label} ({opt.count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {isInbox && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
             Gruppierung
           </span>
           {(
@@ -387,6 +469,7 @@ export function GroupedTasksBoard({
                 count={items.length}
                 collapsed={collapsed}
                 onToggle={toggle}
+                tone={bucket.key === "overdue" ? "danger" : undefined}
               >
                 <TaskList
                   tasks={items}
@@ -394,6 +477,7 @@ export function GroupedTasksBoard({
                   compact
                   showSpace
                   members={editMembers}
+                  currentUserId={currentUserId}
                 />
               </CollapsibleSection>
             );
@@ -423,6 +507,7 @@ export function GroupedTasksBoard({
                 compact
                 showSpace={bucket.label !== "Privat"}
                 members={editMembers}
+                currentUserId={currentUserId}
               />
             </CollapsibleSection>
           ))}
@@ -456,6 +541,7 @@ export function GroupedTasksBoard({
                 compact
                 groups={listGroups}
                 members={editMembers}
+                currentUserId={currentUserId}
                 enableDrag={canEdit}
                 dropGroupId={null}
                 onMoveToGroup={canEdit ? moveToGroup : undefined}
@@ -554,6 +640,7 @@ export function GroupedTasksBoard({
                       compact
                       groups={listGroups}
                       members={editMembers}
+                      currentUserId={currentUserId}
                       enableDrag={canEdit}
                       dropGroupId={group.id}
                       onMoveToGroup={canEdit ? moveToGroup : undefined}
@@ -624,6 +711,7 @@ export function GroupedTasksBoard({
             showSpace={isInbox}
             groups={listGroups}
             members={editMembers}
+            currentUserId={currentUserId}
             showDueOffset={isTemplate}
           />
         </CollapsibleSection>
@@ -645,6 +733,7 @@ export function GroupedTasksBoard({
             showSpace={isInbox}
             groups={listGroups}
             members={editMembers}
+            currentUserId={currentUserId}
             showDueOffset={isTemplate}
           />
         </CollapsibleSection>

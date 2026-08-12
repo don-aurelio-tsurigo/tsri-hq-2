@@ -188,6 +188,7 @@ export function TaskList({
   tasks,
   showSpace = false,
   members,
+  currentUserId,
   groups,
   showDescription = false,
   enableDrawer = false,
@@ -201,6 +202,8 @@ export function TaskList({
   tasks: TaskRow[];
   showSpace?: boolean;
   members?: Member[];
+  /** Hide assignee dropdown when the task is already assigned to this user. */
+  currentUserId?: string;
   groups?: TaskGroupOption[];
   showDescription?: boolean;
   enableDrawer?: boolean;
@@ -307,6 +310,9 @@ export function TaskList({
             ? offsetLabel(task.dueOffsetDays)
             : null;
           const active = selectedId === task.id;
+          const assigneeId = task.assigneeId ?? task.assignee?.id ?? null;
+          const showAssigneeSelect =
+            !!members && (!currentUserId || assigneeId !== currentUserId);
           return (
             <li
               key={task.id}
@@ -399,13 +405,13 @@ export function TaskList({
                     task.space.type === "project" ? (
                       <Link
                         href={`/projects/${task.space.id}`}
-                        className="shrink-0 text-[0.7rem] text-[var(--accent)] hover:underline"
+                        className="badge badge-space-project shrink-0 !px-1.5 !py-0 text-[0.65rem] hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {task.space.name}
                       </Link>
                     ) : (
-                      <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
+                      <span className="badge badge-muted shrink-0 !px-1.5 !py-0 text-[0.65rem]">
                         {task.space.name}
                       </span>
                     )
@@ -419,7 +425,16 @@ export function TaskList({
                 {!compact && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
                     {showSpace && task.space && (
-                      <span className="badge badge-muted">{task.space.name}</span>
+                      <span
+                        className={[
+                          "badge",
+                          task.space.type === "project"
+                            ? "badge-space-project"
+                            : "badge-muted",
+                        ].join(" ")}
+                      >
+                        {task.space.name}
+                      </span>
                     )}
                     {!members &&
                       task.assignee &&
@@ -443,7 +458,7 @@ export function TaskList({
                   </div>
                 )}
               </div>
-              {members ? (
+              {showAssigneeSelect ? (
                 <div
                   className="shrink-0"
                   onClick={(e) => e.stopPropagation()}
@@ -451,12 +466,13 @@ export function TaskList({
                 >
                   <TaskAssigneeSelect
                     id={task.id}
-                    assigneeId={task.assigneeId ?? task.assignee?.id ?? null}
+                    assigneeId={assigneeId}
                     members={members}
                     compact={compact}
                   />
                 </div>
               ) : (
+                !members &&
                 task.assignee &&
                 task.space?.type !== "personal" && (
                   <span className="shrink-0 text-[0.65rem] text-[var(--muted)]">

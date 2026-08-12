@@ -226,6 +226,12 @@ textarea {
   border-color: transparent;
 }
 
+.badge-space-project {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  border-color: transparent;
+}
+
 .badge-done {
   background: color-mix(in oklab, #2f9e44 18%, white);
   color: #1b5e20;

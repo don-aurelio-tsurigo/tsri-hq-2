@@ -99,6 +99,7 @@ export default async function PersonalTasksPage() {
       variant="inbox"
       eyebrow="Tasks"
       title="Meine Tasks"
+      currentUserId={session.user.id}
       members={members.map((m) => m.user)}
       groups={[]}
       tasks={tasks}

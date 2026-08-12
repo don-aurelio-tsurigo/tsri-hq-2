@@ -61,6 +61,7 @@ export default async function ProjectDetailPage({
       canEdit={canEdit}
       isTemplate={project.isTemplate}
       members={members.map((m) => m.user)}
+      currentUserId={session.user.id}
       groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       headerExtra={
         <div className="space-y-2">
