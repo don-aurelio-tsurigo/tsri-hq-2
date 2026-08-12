@@ -18,6 +18,7 @@ import {
   Info,
   LogOut,
   Mail,
+  Megaphone,
   Bell,
   Newspaper,
   Pin,
@@ -45,6 +46,7 @@ type NavSectionId =
   | "redaktion"
   | "social"
   | "tasks"
+  | "werbung"
   | "team"
   | "privat"
   | "admin";
@@ -335,6 +337,22 @@ export function AppSidebar({
             onNavigate={onMobileClose}
           >
             Projekte
+          </NavLink>
+        </NavSection>
+
+        <NavSection
+          title="Werbung"
+          icon={Megaphone}
+          open={isSectionOpen("werbung")}
+          onToggle={() => toggleSection("werbung")}
+        >
+          <NavLink
+            href="/ads"
+            active={pathname === "/ads" || pathname.startsWith("/ads/")}
+            icon={Megaphone}
+            onNavigate={onMobileClose}
+          >
+            Adserver
           </NavLink>
         </NavSection>
 

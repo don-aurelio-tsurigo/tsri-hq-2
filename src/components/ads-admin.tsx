@@ -1,0 +1,266 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  createAdCampaign,
+  toggleAdCampaignStatus,
+} from "@/lib/actions/ads";
+import { defaultAdDateRange, type AdCampaignRow } from "@/lib/ads-shared";
+
+type Props = {
+  campaigns: AdCampaignRow[];
+};
+
+function statusBadge(
+  status: AdCampaignRow["status"],
+  endDate: string,
+): { label: string; className: string } {
+  const expired = new Date(`${endDate}T23:59:59.999`).getTime() < Date.now();
+  if (expired) return { label: "abgelaufen", className: "badge badge-muted" };
+  if (status === "ACTIVE")
+    return { label: "aktiv", className: "badge badge-done" };
+  return { label: "pausiert", className: "badge badge-doing" };
+}
+
+function formatRange(start: string, end: string) {
+  const fmt = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}.${m}.${y}`;
+  };
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+export function AdsAdmin({ campaigns }: Props) {
+  const router = useRouter();
+  const defaults = defaultAdDateRange();
+  const [name, setName] = useState("");
+  const [type, setType] = useState<"IMAGE" | "VIDEO">("IMAGE");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [targetUrl, setTargetUrl] = useState("");
+  const [startDate, setStartDate] = useState(defaults.startDate);
+  const [endDate, setEndDate] = useState(defaults.endDate);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function resetForm(prefill?: Partial<AdCampaignRow>) {
+    const range = defaultAdDateRange();
+    setName(prefill?.name ? `${prefill.name} (Kopie)` : "");
+    setType(prefill?.type ?? "IMAGE");
+    setMediaUrl(prefill?.mediaUrl ?? "");
+    setTargetUrl(prefill?.targetUrl ?? "");
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setError(null);
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData();
+    fd.set("name", name);
+    fd.set("type", type);
+    fd.set("mediaUrl", mediaUrl);
+    fd.set("targetUrl", targetUrl);
+    fd.set("startDate", startDate);
+    fd.set("endDate", endDate);
+    startTransition(async () => {
+      const result = await createAdCampaign(fd);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      resetForm();
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-8">
+      <section className="card p-5">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+          Neue Kampagne
+        </h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Direct-Sold für Slot <code>article-top</code>. Keine Formatprüfung —
+          Media-URL oder Vimeo-Embed eintragen.
+        </p>
+        <form onSubmit={onSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="field sm:col-span-2">
+            <label htmlFor="ad-name">Kampagnenname</label>
+            <input
+              id="ad-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <fieldset className="field sm:col-span-2">
+            <legend className="text-sm font-bold text-[var(--muted)]">
+              Creative-Typ
+            </legend>
+            <div className="mt-1 flex gap-4">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="radio"
+                  name="type"
+                  checked={type === "IMAGE"}
+                  onChange={() => setType("IMAGE")}
+                />
+                Bild
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="radio"
+                  name="type"
+                  checked={type === "VIDEO"}
+                  onChange={() => setType("VIDEO")}
+                />
+                Vimeo-Video
+              </label>
+            </div>
+          </fieldset>
+
+          <div className="field sm:col-span-2">
+            <label htmlFor="ad-media">
+              {type === "VIDEO" ? "Vimeo-Embed-URL" : "Bild-URL"}
+            </label>
+            <input
+              id="ad-media"
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              placeholder={
+                type === "VIDEO"
+                  ? "https://player.vimeo.com/video/…"
+                  : "https://…"
+              }
+              required
+            />
+          </div>
+
+          <div className="field sm:col-span-2">
+            <label htmlFor="ad-target">Ziel-URL</label>
+            <input
+              id="ad-target"
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              placeholder="https://…"
+              required
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="ad-start">Startdatum</label>
+            <input
+              id="ad-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="ad-end">Enddatum</label>
+            <input
+              id="ad-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+            <button className="btn btn-primary" type="submit" disabled={pending}>
+              {pending ? "…" : "Kampagne anlegen"}
+            </button>
+            {error && (
+              <p className="text-sm text-[var(--danger)]">{error}</p>
+            )}
+          </div>
+        </form>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+          Kampagnen ({campaigns.length})
+        </h2>
+        {campaigns.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Noch keine Kampagnen.</p>
+        ) : (
+          <div className="card overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-[var(--muted)]">
+                  <th className="px-4 py-3 font-bold">Name</th>
+                  <th className="px-4 py-3 font-bold">Zeitraum</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold tabular-nums">Impr.</th>
+                  <th className="px-4 py-3 font-bold tabular-nums">Klicks</th>
+                  <th className="px-4 py-3 font-bold">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {campaigns.map((c) => {
+                  const badge = statusBadge(c.status, c.endDate);
+                  const expired =
+                    new Date(`${c.endDate}T23:59:59.999`).getTime() <
+                    Date.now();
+                  return (
+                    <tr key={c.id}>
+                      <td className="px-4 py-3 font-medium">{c.name}</td>
+                      <td className="px-4 py-3 text-[var(--muted)]">
+                        {formatRange(c.startDate, c.endDate)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={badge.className}>{badge.label}</span>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{c.impressions}</td>
+                      <td className="px-4 py-3 tabular-nums">{c.clicks}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {!expired && (
+                            <form
+                              action={(fd) => {
+                                startTransition(async () => {
+                                  await toggleAdCampaignStatus(fd);
+                                  router.refresh();
+                                });
+                              }}
+                            >
+                              <input type="hidden" name="id" value={c.id} />
+                              <button
+                                className="btn btn-ghost"
+                                type="submit"
+                                disabled={pending}
+                              >
+                                {c.status === "ACTIVE"
+                                  ? "Pausieren"
+                                  : "Aktivieren"}
+                              </button>
+                            </form>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => {
+                              resetForm(c);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                          >
+                            Duplizieren
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

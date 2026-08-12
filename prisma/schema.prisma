@@ -766,6 +766,74 @@ model CarouselPost {
   @@map("carousel_post")
 }
 
+// ─── Direct-Sold Ads (intern) ──────────────────────────────────
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+
+  @@schema("public")
+}
+
+enum CreativeType {
+  IMAGE
+  VIDEO
+
+  @@schema("public")
+}
+
+enum AdEventType {
+  IMPRESSION
+  CLICK
+
+  @@schema("public")
+}
+
+/// Direct-Sold-Kampagne (intern verwaltet, ein Slot: article-top)
+model Campaign {
+  id        String         @id @default(cuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    CampaignStatus @default(ACTIVE)
+  creatives Creative[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([status, startDate, endDate])
+  @@schema("public")
+  @@map("campaign")
+}
+
+model Creative {
+  id         String       @id @default(cuid())
+  campaignId String
+  campaign   Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type       CreativeType
+  /// Bild-URL oder Vimeo-Embed-URL
+  mediaUrl   String
+  /// Klick-Ziel
+  targetUrl  String
+  events     AdEvent[]
+  createdAt  DateTime     @default(now())
+
+  @@index([campaignId])
+  @@schema("public")
+  @@map("creative")
+}
+
+model AdEvent {
+  id         String      @id @default(cuid())
+  creativeId String
+  creative   Creative    @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  type       AdEventType
+  createdAt  DateTime    @default(now())
+
+  @@index([creativeId, type])
+  @@schema("public")
+  @@map("ad_event")
+}
+
 
 // ─── RAG / pgvector (schema: rag) ──────────────────────────────
 // Embeddings: Voyage voyage-4, 1024 dims. Vector ops via $queryRaw only.

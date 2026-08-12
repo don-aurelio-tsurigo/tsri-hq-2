@@ -358,3 +358,15 @@ export async function deleteCarouselPost(formData: FormData) {
 export async function importCarouselFromArticleUrl(articleUrl: string) {
   return importCarouselFromArticleUrlAction(articleUrl);
 }
+
+import {
+  createAdCampaign as createAdCampaignAction,
+  toggleAdCampaignStatus as toggleAdCampaignStatusAction,
+} from "./actions/ads";
+
+export async function createAdCampaign(formData: FormData) {
+  return createAdCampaignAction(formData);
+}
+export async function toggleAdCampaignStatus(formData: FormData) {
+  return toggleAdCampaignStatusAction(formData);
+}
