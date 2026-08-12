@@ -358,25 +358,23 @@ export function AppSidebar({
           </NavLink>
         </NavSection>
 
-        {isAdmin && (
-          <NavSection
-            title="Finance"
+        <NavSection
+          title="Finance"
+          icon={Wallet}
+          open={isSectionOpen("finance")}
+          onToggle={() => toggleSection("finance")}
+        >
+          <NavLink
+            href="/payrexx"
+            active={
+              pathname === "/payrexx" || pathname.startsWith("/payrexx/")
+            }
             icon={Wallet}
-            open={isSectionOpen("finance")}
-            onToggle={() => toggleSection("finance")}
+            onNavigate={onMobileClose}
           >
-            <NavLink
-              href="/payrexx"
-              active={
-                pathname === "/payrexx" || pathname.startsWith("/payrexx/")
-              }
-              icon={Wallet}
-              onNavigate={onMobileClose}
-            >
-              Payrexx-Tool
-            </NavLink>
-          </NavSection>
-        )}
+            Payrexx-Tool
+          </NavLink>
+        </NavSection>
 
         <NavSection
           title="Team"

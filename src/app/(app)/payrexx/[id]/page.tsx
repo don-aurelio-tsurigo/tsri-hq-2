@@ -7,7 +7,7 @@ import {
   getPayoutDetail,
 } from "@/lib/payrexx";
 import { PAYOUT_FEE_KEY, UNMAPPED_KEY } from "@/lib/payrexx/types";
-import { requireAdmin } from "@/lib/session";
+import { requireMembership } from "@/lib/session";
 
 export default async function PayrexxDetailPage({
   params,
@@ -15,7 +15,7 @@ export default async function PayrexxDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { membership } = await requireAdmin();
+  const { membership } = await requireMembership();
   const detail = await getPayoutDetail(membership.organizationId, id);
   if (!detail) notFound();
 

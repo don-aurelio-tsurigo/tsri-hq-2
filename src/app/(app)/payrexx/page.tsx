@@ -2,10 +2,10 @@ import Link from "next/link";
 import { PayrexxUploadForm } from "@/components/payrexx-upload-form";
 import { deletePayrexxPayout } from "@/lib/actions/payrexx";
 import { countUnmapped, formatMoney, listPayouts } from "@/lib/payrexx";
-import { requireAdmin } from "@/lib/session";
+import { requireMembership } from "@/lib/session";
 
 export default async function PayrexxPage() {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireMembership();
   const [payouts, unmappedTotal] = await Promise.all([
     listPayouts(membership.organizationId),
     countUnmapped(membership.organizationId),
