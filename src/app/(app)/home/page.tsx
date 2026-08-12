@@ -136,7 +136,13 @@ export default async function HomePage() {
   const kochplanId = cookingMonth.spaceId;
   const cookingMonthCount = cookingMonth.count;
 
+  const HOME_TASK_LIMIT = 10;
   const tasks = items;
+  const visibleTasks = tasks.slice(0, HOME_TASK_LIMIT);
+  const taskCountLabel =
+    tasks.length > HOME_TASK_LIMIT
+      ? `${HOME_TASK_LIMIT} von ${tasks.length}`
+      : String(tasks.length);
   const choreWeekKey = `${getISOWeekYear(today)}-W${String(getISOWeek(today)).padStart(2, "0")}`;
   const redaktionLink = redaktionSpace?.id ?? null;
 
@@ -314,7 +320,7 @@ export default async function HomePage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-            Aktuelle Aufgaben ({tasks.length})
+            Aktuelle Aufgaben ({taskCountLabel})
           </h2>
           <Link
             href="/tasks"
@@ -323,7 +329,7 @@ export default async function HomePage() {
             Zu Tasks
           </Link>
         </div>
-        <TaskList tasks={tasks} showSpace />
+        <TaskList tasks={visibleTasks} showSpace compact />
       </section>
 
       <section className="space-y-3">
