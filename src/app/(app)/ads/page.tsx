@@ -31,9 +31,7 @@ export default async function AdsPage() {
         <p className="text-sm text-[var(--muted)]">
           So rendert <code>&lt;AdSlot /&gt;</code> (leer wenn keine aktive Kampagne).
         </p>
-        <div className="card overflow-hidden p-0">
-          <AdSlot />
-        </div>
+        <AdSlot />
       </section>
     </div>
   );

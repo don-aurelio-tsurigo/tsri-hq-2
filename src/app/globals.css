@@ -398,3 +398,69 @@ textarea {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* ─── Ad slot (tsüri.ch in-content chrome) ───────────────────── */
+
+.hq-ad-slot {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hq-ad-slot__wrapper {
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+  border: 0;
+  border-radius: 1cqw;
+  background-color: #e1e4e8;
+  padding: 0 0.5rem 0.5rem;
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0, 0.5, 0.25, 1) 0.15s;
+}
+
+.hq-ad-slot--ready .hq-ad-slot__wrapper {
+  opacity: 1;
+}
+
+@media (min-width: 900px) {
+  .hq-ad-slot__wrapper {
+    padding: 0 1.5rem 1.5rem;
+  }
+}
+
+.hq-ad-slot__label {
+  display: block;
+  padding: 0.45rem 0.15rem 0.35rem;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.hq-ad-slot__content {
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  line-height: 0;
+}
+
+.hq-ad-slot__media {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hq-ad-slot__media--video {
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
+.hq-ad-slot__hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}

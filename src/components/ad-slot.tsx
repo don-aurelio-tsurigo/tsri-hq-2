@@ -36,7 +36,6 @@ function trackEvent(creativeId: string, type: "IMPRESSION" | "CLICK") {
 }
 
 function vimeoEmbedSrc(url: string): string {
-  // Accept full embed URLs or plain vimeo.com/ID links
   if (url.includes("player.vimeo.com")) {
     const sep = url.includes("?") ? "&" : "?";
     return `${url}${sep}autoplay=1&muted=1&loop=1&background=1`;
@@ -50,10 +49,12 @@ function vimeoEmbedSrc(url: string): string {
 
 /**
  * Client ad slot for Direct-Sold creatives.
+ * Chrome matches tsüri.ch in-content ads (gray frame + „Anzeige“ label).
  * Renders nothing on 204 / error (no layout shift placeholder).
  */
 export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
   const [creative, setCreative] = useState<ServedCreative | null>(null);
+  const [ready, setReady] = useState(false);
   const impressed = useRef(false);
 
   useEffect(() => {
@@ -63,7 +64,6 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
 
     void (async () => {
       try {
-        // slot reserved for future targeting; unused in MVP serve API
         void slot;
         const res = await fetch("/api/ads/serve", {
           signal: controller.signal,
@@ -91,49 +91,49 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
     if (!creative || impressed.current) return;
     impressed.current = true;
     trackEvent(creative.creativeId, "IMPRESSION");
+    // Fade in after paint (matches live bildwurf-ready transition)
+    const id = window.requestAnimationFrame(() => setReady(true));
+    return () => window.cancelAnimationFrame(id);
   }, [creative]);
 
   if (!creative) return null;
 
   return (
     <aside
-      className={className}
+      className={["hq-ad-slot", ready ? "hq-ad-slot--ready" : "", className]
+        .filter(Boolean)
+        .join(" ")}
       data-ad-slot={slot}
-      aria-label="Werbung"
-      style={{ position: "relative", lineHeight: 0 }}
+      aria-label="Anzeige"
     >
-      {creative.type === "VIDEO" ? (
-        <iframe
-          src={vimeoEmbedSrc(creative.mediaUrl)}
-          title="Werbung"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowFullScreen
-          style={{
-            width: "100%",
-            aspectRatio: "16 / 9",
-            border: 0,
-            display: "block",
-          }}
-        />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={creative.mediaUrl}
-          alt=""
-          style={{ width: "100%", height: "auto", display: "block" }}
-        />
-      )}
-      <a
-        href={creative.targetUrl}
-        rel="noopener noreferrer sponsored"
-        onClick={() => trackEvent(creative.creativeId, "CLICK")}
-        aria-label="Zur Anzeige"
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 1,
-        }}
-      />
+      <div className="hq-ad-slot__wrapper">
+        <span className="hq-ad-slot__label">Anzeige</span>
+        <div className="hq-ad-slot__content">
+          {creative.type === "VIDEO" ? (
+            <iframe
+              src={vimeoEmbedSrc(creative.mediaUrl)}
+              title="Anzeige"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              className="hq-ad-slot__media hq-ad-slot__media--video"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={creative.mediaUrl}
+              alt=""
+              className="hq-ad-slot__media"
+            />
+          )}
+          <a
+            href={creative.targetUrl}
+            rel="noopener noreferrer sponsored"
+            onClick={() => trackEvent(creative.creativeId, "CLICK")}
+            aria-label="Zur Anzeige"
+            className="hq-ad-slot__hit"
+          />
+        </div>
+      </div>
     </aside>
   );
 }
