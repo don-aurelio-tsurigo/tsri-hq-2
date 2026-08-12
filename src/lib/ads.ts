@@ -52,6 +52,7 @@ export async function listAdCampaigns(): Promise<AdCampaignRow[]> {
 
     return {
       id: c.id,
+      creativeId: creative?.id ?? "",
       name: c.name,
       startDate: format(c.startDate, "yyyy-MM-dd"),
       endDate: format(c.endDate, "yyyy-MM-dd"),

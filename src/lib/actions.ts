@@ -362,6 +362,7 @@ export async function importCarouselFromArticleUrl(articleUrl: string) {
 import {
   createAdCampaign as createAdCampaignAction,
   toggleAdCampaignStatus as toggleAdCampaignStatusAction,
+  updateAdCampaign as updateAdCampaignAction,
 } from "./actions/ads";
 
 export async function createAdCampaign(formData: FormData) {
@@ -369,4 +370,7 @@ export async function createAdCampaign(formData: FormData) {
 }
 export async function toggleAdCampaignStatus(formData: FormData) {
   return toggleAdCampaignStatusAction(formData);
+}
+export async function updateAdCampaign(formData: FormData) {
+  return updateAdCampaignAction(formData);
 }

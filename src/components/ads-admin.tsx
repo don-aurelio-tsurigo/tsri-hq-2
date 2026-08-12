@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAdCampaign,
   toggleAdCampaignStatus,
+  updateAdCampaign,
 } from "@/lib/actions/ads";
 import { defaultAdDateRange, type AdCampaignRow } from "@/lib/ads-shared";
 
@@ -42,6 +43,11 @@ export function AdsAdmin({ campaigns }: Props) {
   const [endDate, setEndDate] = useState(defaults.endDate);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTargetUrl, setEditTargetUrl] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   function resetForm(prefill?: Partial<AdCampaignRow>) {
     const range = defaultAdDateRange();
@@ -52,6 +58,19 @@ export function AdsAdmin({ campaigns }: Props) {
     setStartDate(range.startDate);
     setEndDate(range.endDate);
     setError(null);
+  }
+
+  function startEdit(c: AdCampaignRow) {
+    setEditingId(c.id);
+    setEditTargetUrl(c.targetUrl);
+    setEditStartDate(c.startDate);
+    setEditEndDate(c.endDate);
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditError(null);
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -71,6 +90,26 @@ export function AdsAdmin({ campaigns }: Props) {
         return;
       }
       resetForm();
+      router.refresh();
+    });
+  }
+
+  function onSaveEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editingId) return;
+    setEditError(null);
+    const fd = new FormData();
+    fd.set("id", editingId);
+    fd.set("targetUrl", editTargetUrl);
+    fd.set("startDate", editStartDate);
+    fd.set("endDate", editEndDate);
+    startTransition(async () => {
+      const result = await updateAdCampaign(fd);
+      if (result.error) {
+        setEditError(result.error);
+        return;
+      }
+      setEditingId(null);
       router.refresh();
     });
   }
@@ -222,53 +261,151 @@ export function AdsAdmin({ campaigns }: Props) {
                   const expired =
                     new Date(`${c.endDate}T23:59:59.999`).getTime() <
                     Date.now();
+                  const isEditing = editingId === c.id;
                   return (
-                    <tr key={c.id}>
-                      <td className="px-4 py-3 font-medium">{c.name}</td>
-                      <td className="px-4 py-3 text-[var(--muted)]">
-                        {formatRange(c.startDate, c.endDate)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={badge.className}>{badge.label}</span>
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">{c.impressions}</td>
-                      <td className="px-4 py-3 tabular-nums">{c.clicks}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          {!expired && (
-                            <form
-                              action={(fd) => {
-                                startTransition(async () => {
-                                  await toggleAdCampaignStatus(fd);
-                                  router.refresh();
-                                });
+                    <Fragment key={c.id}>
+                      <tr>
+                        <td className="px-4 py-3 font-medium">{c.name}</td>
+                        <td className="px-4 py-3 text-[var(--muted)]">
+                          {formatRange(c.startDate, c.endDate)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={badge.className}>{badge.label}</span>
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">
+                          {c.impressions}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">{c.clicks}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={pending}
+                              onClick={() =>
+                                isEditing ? cancelEdit() : startEdit(c)
+                              }
+                            >
+                              {isEditing ? "Abbrechen" : "Bearbeiten"}
+                            </button>
+                            {!expired && (
+                              <form
+                                action={(fd) => {
+                                  startTransition(async () => {
+                                    await toggleAdCampaignStatus(fd);
+                                    router.refresh();
+                                  });
+                                }}
+                              >
+                                <input type="hidden" name="id" value={c.id} />
+                                <button
+                                  className="btn btn-ghost"
+                                  type="submit"
+                                  disabled={pending}
+                                >
+                                  {c.status === "ACTIVE"
+                                    ? "Pausieren"
+                                    : "Aktivieren"}
+                                </button>
+                              </form>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              onClick={() => {
+                                resetForm(c);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
                               }}
                             >
-                              <input type="hidden" name="id" value={c.id} />
-                              <button
-                                className="btn btn-ghost"
-                                type="submit"
-                                disabled={pending}
-                              >
-                                {c.status === "ACTIVE"
-                                  ? "Pausieren"
-                                  : "Aktivieren"}
-                              </button>
+                              Duplizieren
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isEditing && (
+                        <tr>
+                          <td colSpan={6} className="bg-[var(--panel-muted)] px-4 py-4">
+                            <form
+                              onSubmit={onSaveEdit}
+                              className="flex flex-col gap-3"
+                            >
+                              <p className="text-sm font-semibold">
+                                Bearbeiten: {c.name}
+                              </p>
+                              <div className="field">
+                                <label htmlFor={`edit-target-${c.id}`}>
+                                  Ziel-URL
+                                </label>
+                                <input
+                                  id={`edit-target-${c.id}`}
+                                  type="text"
+                                  className="w-full"
+                                  value={editTargetUrl}
+                                  onChange={(e) =>
+                                    setEditTargetUrl(e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="field">
+                                  <label htmlFor={`edit-start-${c.id}`}>
+                                    Startdatum
+                                  </label>
+                                  <input
+                                    id={`edit-start-${c.id}`}
+                                    type="date"
+                                    className="w-full"
+                                    value={editStartDate}
+                                    onChange={(e) =>
+                                      setEditStartDate(e.target.value)
+                                    }
+                                    required
+                                  />
+                                </div>
+                                <div className="field">
+                                  <label htmlFor={`edit-end-${c.id}`}>
+                                    Enddatum
+                                  </label>
+                                  <input
+                                    id={`edit-end-${c.id}`}
+                                    type="date"
+                                    className="w-full"
+                                    value={editEndDate}
+                                    onChange={(e) =>
+                                      setEditEndDate(e.target.value)
+                                    }
+                                    required
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <button
+                                  className="btn btn-primary"
+                                  type="submit"
+                                  disabled={pending}
+                                >
+                                  {pending ? "…" : "Speichern"}
+                                </button>
+                                <button
+                                  className="btn btn-ghost"
+                                  type="button"
+                                  disabled={pending}
+                                  onClick={cancelEdit}
+                                >
+                                  Abbrechen
+                                </button>
+                                {editError && (
+                                  <p className="text-sm text-[var(--danger)]">
+                                    {editError}
+                                  </p>
+                                )}
+                              </div>
                             </form>
-                          )}
-                          <button
-                            type="button"
-                            className="btn btn-ghost"
-                            onClick={() => {
-                              resetForm(c);
-                              window.scrollTo({ top: 0, behavior: "smooth" });
-                            }}
-                          >
-                            Duplizieren
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

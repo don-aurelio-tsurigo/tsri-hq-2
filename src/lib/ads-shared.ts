@@ -3,6 +3,7 @@ import { addDays, format } from "date-fns";
 /** Client-safe ad campaign row (no Prisma / pg imports). */
 export type AdCampaignRow = {
   id: string;
+  creativeId: string;
   name: string;
   startDate: string;
   endDate: string;
