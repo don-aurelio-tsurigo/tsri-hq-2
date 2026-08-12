@@ -400,6 +400,9 @@ textarea {
 }
 
 /* ─── Ad slot (tsüri.ch in-content chrome) ───────────────────── */
+/* Measured from live screenshots (empty frame @ ~919px wide):
+   top 51px / side 21px / bottom 20px → ≈ 5.5cqw / 2.3cqw / 2.2cqw
+   top ≈ 2.4× side. Label vertically centered in the top band. */
 
 .hq-ad-slot {
   display: block;
@@ -416,7 +419,8 @@ textarea {
   border: 0;
   border-radius: 1cqw;
   background-color: #e1e4e8;
-  padding: 0 0.5rem 0.5rem;
+  /* top band wider for «Anzeige»; sides = bottom */
+  padding: 5.5cqw 2.3cqw 2.2cqw;
   opacity: 0;
   transition: opacity 0.5s cubic-bezier(0, 0.5, 0.25, 1) 0.15s;
 }
@@ -425,20 +429,21 @@ textarea {
   opacity: 1;
 }
 
-@media (min-width: 900px) {
-  .hq-ad-slot__wrapper {
-    padding: 0 1.5rem 1.5rem;
-  }
-}
-
 .hq-ad-slot__label {
-  display: block;
-  padding: 0.45rem 0.15rem 0.35rem;
+  position: absolute;
+  top: 0;
+  left: 2.3cqw;
+  right: 2.3cqw;
+  height: 5.5cqw;
+  display: flex;
+  align-items: center;
   color: #fff;
-  font-size: 0.75rem;
+  font-size: max(0.6875rem, 1.4cqw);
   font-weight: 600;
   letter-spacing: 0.01em;
-  line-height: 1.2;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
 }
 
 .hq-ad-slot__content {
