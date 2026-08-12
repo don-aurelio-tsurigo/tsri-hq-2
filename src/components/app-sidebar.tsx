@@ -26,6 +26,7 @@ import {
   Settings2,
   User,
   Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -47,6 +48,7 @@ type NavSectionId =
   | "social"
   | "tasks"
   | "werbung"
+  | "finance"
   | "team"
   | "privat"
   | "admin";
@@ -355,6 +357,26 @@ export function AppSidebar({
             Adserver
           </NavLink>
         </NavSection>
+
+        {isAdmin && (
+          <NavSection
+            title="Finance"
+            icon={Wallet}
+            open={isSectionOpen("finance")}
+            onToggle={() => toggleSection("finance")}
+          >
+            <NavLink
+              href="/payrexx"
+              active={
+                pathname === "/payrexx" || pathname.startsWith("/payrexx/")
+              }
+              icon={Wallet}
+              onNavigate={onMobileClose}
+            >
+              Payrexx-Tool
+            </NavLink>
+          </NavSection>
+        )}
 
         <NavSection
           title="Team"

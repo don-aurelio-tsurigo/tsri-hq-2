@@ -143,6 +143,8 @@ model Organization {
   articleCategories       ArticleCategory[]
   wikiPages               WikiPage[]
   newsItems               NewsItem[]
+  payrexxPayouts          PayrexxPayout[]
+  payrexxChannelRules     PayrexxChannelRule[]
 
   @@schema("public")
   @@map("organization")
@@ -839,6 +841,76 @@ model AdEvent {
   @@map("ad_event")
 }
 
+// ─── Payrexx Abrechnung ───────────────────────────────────────
+
+model PayrexxPayout {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// Stable key from import (filename / generated)
+  uuid           String
+  date           String
+  currency       String   @default("CHF")
+  /// vollständig | braucht Review
+  status         String
+  statement      String?
+  payoutFee      Decimal  @default(0) @db.Decimal(14, 2)
+  grandTotal     Decimal  @default(0) @db.Decimal(14, 2)
+  unmappedCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines        PayrexxPayoutLine[]
+
+  @@unique([organizationId, uuid])
+  @@index([organizationId, date])
+  @@schema("public")
+  @@map("payrexx_payout")
+}
+
+model PayrexxPayoutLine {
+  id                String   @id @default(cuid())
+  payoutId          String
+  typ               String
+  transactionId     String?
+  date              String?
+  time              String?
+  amount            Decimal  @db.Decimal(14, 2)
+  fees              Decimal  @db.Decimal(14, 2)
+  total             Decimal  @db.Decimal(14, 2)
+  currency          String?
+  description       String?
+  channel           String?
+  paymentMethod     String?
+  customer          String?
+  externalReference String?
+  instance          String?
+  categoryKey       String?
+  categorySource    String?
+  createdAt         DateTime @default(now())
+
+  payout PayrexxPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+
+  @@index([payoutId, categoryKey])
+  @@index([payoutId, channel])
+  @@schema("public")
+  @@map("payrexx_payout_line")
+}
+
+model PayrexxChannelRule {
+  id             String   @id @default(cuid())
+  organizationId String
+  channel        String
+  categoryKey    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, channel])
+  @@schema("public")
+  @@map("payrexx_channel_rule")
+}
 
 // ─── RAG / pgvector (schema: rag) ──────────────────────────────
 // Embeddings: Voyage voyage-4, 1024 dims. Vector ops via $queryRaw only.
