@@ -402,7 +402,7 @@ textarea {
 /* ─── Ad slot (adserver.online chrome) ───────────────────────── */
 /* Outer: max 582px wide — padding 0 / 24 / 24 / 24
    Label bar: 39px — full inner width, top flush
-   Creative: full width; height follows media (images intrinsic, video 16:9) */
+   Creative: full width; images intrinsic; video aspect via Vimeo oEmbed (16:9 fallback) */
 
 .hq-ad-slot {
   display: block;

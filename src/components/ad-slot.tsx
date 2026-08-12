@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fetchVimeoAspectRatio, vimeoEmbedSrc } from "@/lib/ads-vimeo";
 
 export type AdSlotId = "article-top";
 
@@ -35,18 +36,6 @@ function trackEvent(creativeId: string, type: "IMPRESSION" | "CLICK") {
   }).catch(() => {});
 }
 
-function vimeoEmbedSrc(url: string): string {
-  if (url.includes("player.vimeo.com")) {
-    const sep = url.includes("?") ? "&" : "?";
-    return `${url}${sep}autoplay=1&muted=1&loop=1&background=1`;
-  }
-  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (match) {
-    return `https://player.vimeo.com/video/${match[1]}?autoplay=1&muted=1&loop=1&background=1`;
-  }
-  return url;
-}
-
 /**
  * Client ad slot for Direct-Sold creatives.
  * Chrome matches tsüri.ch in-content ads (gray frame + „Anzeige“ label).
@@ -55,6 +44,7 @@ function vimeoEmbedSrc(url: string): string {
 export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
   const [creative, setCreative] = useState<ServedCreative | null>(null);
   const [ready, setReady] = useState(false);
+  const [videoAspect, setVideoAspect] = useState<number | null>(null);
   const impressed = useRef(false);
 
   useEffect(() => {
@@ -72,7 +62,10 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
         if (cancelled || res.status === 204 || !res.ok) return;
         const data = (await res.json()) as ServedCreative;
         if (!data?.creativeId || !data.mediaUrl) return;
-        if (!cancelled) setCreative(data);
+        if (!cancelled) {
+          setVideoAspect(null);
+          setCreative(data);
+        }
       } catch {
         // fail open: show nothing
       } finally {
@@ -88,10 +81,24 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
   }, [slot]);
 
   useEffect(() => {
+    if (!creative || creative.type !== "VIDEO") return;
+    let cancelled = false;
+    const controller = new AbortController();
+    void fetchVimeoAspectRatio(creative.mediaUrl, controller.signal).then(
+      (ratio) => {
+        if (!cancelled && ratio) setVideoAspect(ratio);
+      },
+    );
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [creative]);
+
+  useEffect(() => {
     if (!creative || impressed.current) return;
     impressed.current = true;
     trackEvent(creative.creativeId, "IMPRESSION");
-    // Fade in after paint (matches live bildwurf-ready transition)
     const id = window.requestAnimationFrame(() => setReady(true));
     return () => window.cancelAnimationFrame(id);
   }, [creative]);
@@ -123,6 +130,9 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
               allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
               className="hq-ad-slot__media hq-ad-slot__media--video"
+              style={{
+                aspectRatio: String(videoAspect ?? 16 / 9),
+              }}
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

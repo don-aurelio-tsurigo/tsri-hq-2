@@ -39,19 +39,52 @@
     document.head.appendChild(style);
   }
 
+  function vimeoId(url) {
+    var match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    return match ? match[1] : null;
+  }
+
   function vimeoEmbedSrc(url) {
     if (url.indexOf("player.vimeo.com") !== -1) {
       return url + (url.indexOf("?") !== -1 ? "&" : "?") + "autoplay=1&muted=1&loop=1&background=1";
     }
-    var match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    if (match) {
+    var id = vimeoId(url);
+    if (id) {
       return (
         "https://player.vimeo.com/video/" +
-        match[1] +
+        id +
         "?autoplay=1&muted=1&loop=1&background=1"
       );
     }
     return url;
+  }
+
+  function fetchVimeoAspectRatio(url) {
+    var id = vimeoId(url);
+    if (!id) return Promise.resolve(null);
+    var page = "https://vimeo.com/" + id;
+    return fetch(
+      "https://vimeo.com/api/oembed.json?url=" + encodeURIComponent(page),
+    )
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (
+          data &&
+          typeof data.width === "number" &&
+          typeof data.height === "number" &&
+          data.width > 0 &&
+          data.height > 0
+        ) {
+          return data.width / data.height;
+        }
+        return null;
+      })
+      .catch(function () {
+        return null;
+      });
   }
 
   function track(creativeId, type) {
@@ -71,7 +104,7 @@
     }).catch(function () {});
   }
 
-  function render(el, data) {
+  function render(el, data, videoAspect) {
     var aside = document.createElement("aside");
     aside.className = "hq-ad-slot";
     aside.setAttribute("data-ad-slot", el.getAttribute("data-hq-ad") || "article-top");
@@ -97,6 +130,7 @@
       iframe.title = "Anzeige";
       iframe.allow = "autoplay; fullscreen; picture-in-picture";
       iframe.setAttribute("allowfullscreen", "");
+      iframe.style.aspectRatio = String(videoAspect || 16 / 9);
       content.appendChild(iframe);
     } else {
       var img = document.createElement("img");
@@ -151,8 +185,13 @@
         return res.json();
       })
       .then(function (data) {
-        if (!data || !data.creativeId || !data.mediaUrl) return;
-        render(el, data);
+        if (!data || !data.creativeId || !data.mediaUrl) return null;
+        if (data.type === "VIDEO") {
+          return fetchVimeoAspectRatio(data.mediaUrl).then(function (ratio) {
+            render(el, data, ratio);
+          });
+        }
+        render(el, data, null);
       })
       .catch(function () {})
       .then(function () {
