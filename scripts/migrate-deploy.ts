@@ -1,20 +1,29 @@
 /**
  * Production-safe migrate deploy.
  * Recovers when `db:push` applied schema ahead of migration history
- * (column already exists → failed migration → P3009 on restart).
+ * (object already exists → failed migration → P3009 on restart).
  */
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { Client } from "pg";
 
-const SESSION_ID = "5f3349";
+const SESSION_ID = "2f549a";
 const LOG_PATH =
-  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-5f3349.log";
+  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-2f549a.log";
 const INGEST =
   "http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274";
 
 type Hypo = "A" | "B" | "C" | "D" | "E";
+
+type HealSpec = {
+  /** Columns that must exist on a table (carousel-style ALTER migrations). */
+  columns?: { table: string; names: string[] };
+  /** Tables that must exist (CREATE TABLE migrations). */
+  tables?: string[];
+  /** Enum type names that must exist (CREATE TYPE migrations). */
+  enums?: string[];
+};
 
 function debugLog(
   hypothesisId: Hypo,
@@ -49,14 +58,20 @@ function debugLog(
   console.log(`[migrate-deploy][${hypothesisId}] ${message}`, JSON.stringify(data));
 }
 
-const MIGRATION_COLUMNS: Record<string, string[]> = {
-  "20260811140000_carousel_source_article": [
-    "sourceUrl",
-    "sourceTitle",
-    "sourceLead",
-    "sourceBody",
-  ],
-  "20260811160000_carousel_source_pre_title": ["sourcePreTitle"],
+const MIGRATION_HEAL: Record<string, HealSpec> = {
+  "20260811140000_carousel_source_article": {
+    columns: {
+      table: "carousel_post",
+      names: ["sourceUrl", "sourceTitle", "sourceLead", "sourceBody"],
+    },
+  },
+  "20260811160000_carousel_source_pre_title": {
+    columns: { table: "carousel_post", names: ["sourcePreTitle"] },
+  },
+  "20260812140000_add_ads": {
+    tables: ["campaign", "creative", "ad_event"],
+    enums: ["CampaignStatus", "CreativeType", "AdEventType"],
+  },
 };
 
 async function main() {
@@ -82,6 +97,30 @@ async function main() {
     });
     // #endregion
 
+    const adsTables = await client.query<{ table_name: string }>(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = 'public'
+         AND table_name IN ('campaign', 'creative', 'ad_event')
+       ORDER BY 1`,
+    );
+    const adsEnums = await client.query<{ typname: string }>(
+      `SELECT t.typname
+       FROM pg_type t
+       JOIN pg_namespace n ON n.oid = t.typnamespace
+       WHERE n.nspname = 'public'
+         AND t.typname IN ('CampaignStatus', 'CreativeType', 'AdEventType')
+       ORDER BY 1`,
+    );
+    const presentTables = new Set(adsTables.rows.map((r) => r.table_name));
+    const presentEnums = new Set(adsEnums.rows.map((r) => r.typname));
+    // #region agent log
+    debugLog("A", "migrate-deploy.ts:ads-schema", "ads tables/enums present", {
+      tables: [...presentTables],
+      enums: [...presentEnums],
+    });
+    // #endregion
+
     const failed = await client.query<{
       migration_name: string;
       started_at: Date;
@@ -100,8 +139,8 @@ async function main() {
     // #endregion
 
     for (const row of failed.rows) {
-      const needed = MIGRATION_COLUMNS[row.migration_name];
-      if (!needed) {
+      const spec = MIGRATION_HEAL[row.migration_name];
+      if (!spec) {
         // #region agent log
         debugLog("D", "migrate-deploy.ts:unknown-failed", "failed migration without heal map", {
           migration: row.migration_name,
@@ -109,14 +148,35 @@ async function main() {
         // #endregion
         continue;
       }
-      const allPresent = needed.every((c) => columnNames.includes(c));
+
+      let allPresent = true;
+      if (spec.columns) {
+        const tableCols = await client.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = $1`,
+          [spec.columns.table],
+        );
+        const names = new Set(tableCols.rows.map((r) => r.column_name));
+        allPresent = spec.columns.names.every((c) => names.has(c));
+      }
+      if (spec.tables) {
+        allPresent = allPresent && spec.tables.every((t) => presentTables.has(t));
+      }
+      if (spec.enums) {
+        allPresent = allPresent && spec.enums.every((e) => presentEnums.has(e));
+      }
+
       // #region agent log
-      debugLog("C", "migrate-deploy.ts:heal-check", "column presence for failed migration", {
+      debugLog("C", "migrate-deploy.ts:heal-check", "schema presence for failed migration", {
         migration: row.migration_name,
-        needed,
+        spec,
         allPresent,
+        presentTables: [...presentTables],
+        presentEnums: [...presentEnums],
       });
       // #endregion
+
       if (allPresent) {
         // #region agent log
         debugLog("E", "migrate-deploy.ts:resolve", "marking failed migration as applied", {
