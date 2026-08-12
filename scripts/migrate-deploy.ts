@@ -8,9 +8,9 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { Client } from "pg";
 
-const SESSION_ID = "2f549a";
+const SESSION_ID = "b0fde8";
 const LOG_PATH =
-  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-2f549a.log";
+  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-b0fde8.log";
 const INGEST =
   "http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274";
 
@@ -72,6 +72,9 @@ const MIGRATION_HEAL: Record<string, HealSpec> = {
     tables: ["campaign", "creative", "ad_event"],
     enums: ["CampaignStatus", "CreativeType", "AdEventType"],
   },
+  "20260812170000_campaign_impression_limit": {
+    columns: { table: "campaign", names: ["impressionLimit"] },
+  },
 };
 
 async function main() {
@@ -121,20 +124,43 @@ async function main() {
     });
     // #endregion
 
+    const impressionLimitCols = await client.query<{ column_name: string }>(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'campaign'
+         AND column_name = 'impressionLimit'`,
+    );
+    const hasImpressionLimit = impressionLimitCols.rows.length > 0;
+    // #region agent log
+    debugLog("A", "migrate-deploy.ts:impressionLimit", "campaign.impressionLimit present?", {
+      hasImpressionLimit,
+      healMapHasImpressionMigration: Object.prototype.hasOwnProperty.call(
+        MIGRATION_HEAL,
+        "20260812170000_campaign_impression_limit",
+      ),
+    });
+    // #endregion
+
     const failed = await client.query<{
       migration_name: string;
       started_at: Date;
       finished_at: Date | null;
       rolled_back_at: Date | null;
+      logs: string | null;
     }>(
-      `SELECT migration_name, started_at, finished_at, rolled_back_at
+      `SELECT migration_name, started_at, finished_at, rolled_back_at, logs
        FROM "_prisma_migrations"
        WHERE finished_at IS NULL AND rolled_back_at IS NULL
        ORDER BY started_at`,
     );
     // #region agent log
     debugLog("B", "migrate-deploy.ts:failed", "unfinished migrations", {
-      failed: failed.rows.map((r) => r.migration_name),
+      failed: failed.rows.map((r) => ({
+        migration: r.migration_name,
+        started_at: r.started_at,
+        logsPreview: (r.logs ?? "").slice(0, 500),
+      })),
     });
     // #endregion
 
@@ -144,6 +170,8 @@ async function main() {
         // #region agent log
         debugLog("D", "migrate-deploy.ts:unknown-failed", "failed migration without heal map", {
           migration: row.migration_name,
+          hasImpressionLimit,
+          logsPreview: (row.logs ?? "").slice(0, 500),
         });
         // #endregion
         continue;
@@ -186,6 +214,18 @@ async function main() {
         execFileSync(
           "npx",
           ["prisma", "migrate", "resolve", "--applied", row.migration_name],
+          { stdio: "inherit", env: process.env },
+        );
+      } else {
+        // Schema missing → allow migrate deploy to retry the SQL.
+        // #region agent log
+        debugLog("E", "migrate-deploy.ts:resolve", "marking failed migration as rolled-back for retry", {
+          migration: row.migration_name,
+        });
+        // #endregion
+        execFileSync(
+          "npx",
+          ["prisma", "migrate", "resolve", "--rolled-back", row.migration_name],
           { stdio: "inherit", env: process.env },
         );
       }
