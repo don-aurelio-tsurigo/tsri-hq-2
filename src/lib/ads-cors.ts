@@ -48,3 +48,8 @@ export function adsCorsPreflight(request: Request) {
     headers: adsCorsHeaders(request),
   });
 }
+
+/** CSP for iframe embeds (e.g. /ads/frame) — same allowlist as ads CORS. */
+export function adsFrameAncestorsCsp(): string {
+  return `frame-ancestors 'self' ${[...allowedOrigins()].join(" ")}`;
+}
