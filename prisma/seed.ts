@@ -161,7 +161,7 @@ async function main() {
       data: {
         organizationId: org.id,
         type: "personal",
-        name: `${name.split(" ")[0]}'s Space`,
+        name: `${name.split(" ")[0]} Privat`,
         slug: personalSlug,
         description: "Privater Bereich — nur für dich sichtbar",
         visibility: "private",

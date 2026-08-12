@@ -1,7 +1,7 @@
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
-import { ensurePersonalSpace, getPersonalSpace } from "@/lib/spaces";
+import { ensurePersonalSpace } from "@/lib/spaces";
 import {
   listAssignedProjectTasks,
   listSpaceTasks,
@@ -43,17 +43,11 @@ function toTaskRow(
 export default async function PersonalTasksPage() {
   const { session, membership } = await requireMembership();
 
-  let personal = await getPersonalSpace(
+  const personal = await ensurePersonalSpace(
     membership.organizationId,
     session.user.id,
+    session.user.name,
   );
-  if (!personal) {
-    personal = await ensurePersonalSpace(
-      membership.organizationId,
-      session.user.id,
-      session.user.name,
-    );
-  }
 
   const personalSpace = {
     id: personal.id,

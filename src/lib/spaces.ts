@@ -51,11 +51,17 @@ const DEFAULT_TEAM_SPACES: {
   },
 ];
 
+export function personalSpaceName(userName: string) {
+  const first = userName.trim().split(/\s+/)[0] || "Privat";
+  return `${first} Privat`;
+}
+
 export async function ensurePersonalSpace(
   organizationId: string,
   userId: string,
   userName: string,
 ) {
+  const desiredName = personalSpaceName(userName);
   const existing = await prisma.space.findFirst({
     where: {
       organizationId,
@@ -63,14 +69,22 @@ export async function ensurePersonalSpace(
       ownerUserId: userId,
     },
   });
-  if (existing) return existing;
+  if (existing) {
+    if (existing.name !== desiredName) {
+      return prisma.space.update({
+        where: { id: existing.id },
+        data: { name: desiredName },
+      });
+    }
+    return existing;
+  }
 
   const slug = `personal-${userId.slice(0, 8)}`;
   return prisma.space.create({
     data: {
       organizationId,
       type: "personal",
-      name: `${userName.split(" ")[0]}'s Space`,
+      name: desiredName,
       slug,
       description: "Privater Bereich — nur für dich sichtbar",
       visibility: "private",

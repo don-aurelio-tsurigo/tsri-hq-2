@@ -74,7 +74,11 @@ export default async function HomePage() {
     pastWeekGaps,
     assignedChores,
   ] = await Promise.all([
-    getCurrentDashboardItems(membership.organizationId, session.user.id),
+    getCurrentDashboardItems(
+      membership.organizationId,
+      session.user.id,
+      session.user.name,
+    ),
     listTodaysTsueriArticles(membership.organizationId),
     listMyHomeArticles(membership.organizationId, session.user.id),
     prisma.space.findFirst({

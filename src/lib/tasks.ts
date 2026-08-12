@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { TaskStatus } from "@/generated/prisma/client";
-import { getPersonalSpace } from "@/lib/spaces";
+import { ensurePersonalSpace, getPersonalSpace } from "@/lib/spaces";
 
 export type InboxTask = Awaited<ReturnType<typeof getInboxTasks>>[number];
 export type SpaceTask = Awaited<ReturnType<typeof listSpaceTasks>>[number];
@@ -12,8 +12,11 @@ export type SpaceTask = Awaited<ReturnType<typeof listSpaceTasks>>[number];
 export async function getCurrentDashboardItems(
   organizationId: string,
   userId: string,
+  userName?: string,
 ) {
-  const personal = await getPersonalSpace(organizationId, userId);
+  const personal = userName
+    ? await ensurePersonalSpace(organizationId, userId, userName)
+    : await getPersonalSpace(organizationId, userId);
   return prisma.task.findMany({
     where: {
       archivedAt: null,
@@ -43,8 +46,12 @@ export async function getCurrentDashboardItems(
  * Inbox = private tasks in personal space + tasks assigned to the user
  * in any team/project space (excludes cancelled).
  */
-export async function getInboxTasks(organizationId: string, userId: string) {
-  return getCurrentDashboardItems(organizationId, userId);
+export async function getInboxTasks(
+  organizationId: string,
+  userId: string,
+  userName?: string,
+) {
+  return getCurrentDashboardItems(organizationId, userId, userName);
 }
 
 export async function listSpaceTasks(spaceId: string) {
