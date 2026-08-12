@@ -107,7 +107,14 @@ export function AdSlot({ slot = "article-top", className }: AdSlotProps) {
       aria-label="Anzeige"
     >
       <div className="hq-ad-slot__wrapper">
-        <span className="hq-ad-slot__label">Anzeige</span>
+        <a
+          className="hq-ad-slot__label"
+          href="https://tsri.ch/werben"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Anzeige
+        </a>
         <div className="hq-ad-slot__content">
           {creative.type === "VIDEO" ? (
             <iframe

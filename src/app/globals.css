@@ -439,8 +439,12 @@ textarea {
   font-weight: 600;
   letter-spacing: 0.01em;
   line-height: 1;
-  pointer-events: none;
+  text-decoration: none;
   user-select: none;
+}
+
+.hq-ad-slot__label:hover {
+  text-decoration: underline;
 }
 
 .hq-ad-slot__content {
