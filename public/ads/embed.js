@@ -26,8 +26,9 @@
     ".hq-ad-slot--ready .hq-ad-slot__wrapper{opacity:1}" +
     ".hq-ad-slot__label{display:flex;align-items:center;width:100%;height:39px;color:#fff;font-size:.75rem;font-weight:600;letter-spacing:.01em;line-height:1;text-decoration:none;user-select:none}" +
     ".hq-ad-slot__label:hover{text-decoration:underline}" +
-    ".hq-ad-slot__content{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:#fff;line-height:0}" +
-    ".hq-ad-slot__media{display:block;width:100%;height:100%;object-fit:cover;border:0}" +
+    ".hq-ad-slot__content{position:relative;width:100%;overflow:hidden;background:#fff;line-height:0}" +
+    ".hq-ad-slot__media{display:block;width:100%;height:auto;border:0}" +
+    ".hq-ad-slot__media--video{aspect-ratio:16/9;height:auto}" +
     ".hq-ad-slot__hit{position:absolute;inset:0;z-index:1}";
 
   function injectStyles() {
