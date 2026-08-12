@@ -60,6 +60,7 @@ export async function listAdCampaigns(): Promise<AdCampaignRow[]> {
       type: creative?.type ?? CreativeType.IMAGE,
       mediaUrl: creative?.mediaUrl ?? "",
       targetUrl: creative?.targetUrl ?? "",
+      impressionLimit: c.impressionLimit,
       impressions,
       clicks,
     };

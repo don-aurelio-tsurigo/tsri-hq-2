@@ -41,12 +41,14 @@ export function AdsAdmin({ campaigns }: Props) {
   const [targetUrl, setTargetUrl] = useState("");
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
+  const [impressionLimit, setImpressionLimit] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTargetUrl, setEditTargetUrl] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  const [editImpressionLimit, setEditImpressionLimit] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
   function resetForm(prefill?: Partial<AdCampaignRow>) {
@@ -57,6 +59,9 @@ export function AdsAdmin({ campaigns }: Props) {
     setTargetUrl(prefill?.targetUrl ?? "");
     setStartDate(range.startDate);
     setEndDate(range.endDate);
+    setImpressionLimit(
+      prefill?.impressionLimit != null ? String(prefill.impressionLimit) : "",
+    );
     setError(null);
   }
 
@@ -65,6 +70,9 @@ export function AdsAdmin({ campaigns }: Props) {
     setEditTargetUrl(c.targetUrl);
     setEditStartDate(c.startDate);
     setEditEndDate(c.endDate);
+    setEditImpressionLimit(
+      c.impressionLimit != null ? String(c.impressionLimit) : "",
+    );
     setEditError(null);
   }
 
@@ -83,6 +91,7 @@ export function AdsAdmin({ campaigns }: Props) {
     fd.set("targetUrl", targetUrl);
     fd.set("startDate", startDate);
     fd.set("endDate", endDate);
+    fd.set("impressionLimit", impressionLimit);
     startTransition(async () => {
       const result = await createAdCampaign(fd);
       if (result.error) {
@@ -103,6 +112,7 @@ export function AdsAdmin({ campaigns }: Props) {
     fd.set("targetUrl", editTargetUrl);
     fd.set("startDate", editStartDate);
     fd.set("endDate", editEndDate);
+    fd.set("impressionLimit", editImpressionLimit);
     startTransition(async () => {
       const result = await updateAdCampaign(fd);
       if (result.error) {
@@ -225,6 +235,23 @@ export function AdsAdmin({ campaigns }: Props) {
             </div>
           </div>
 
+          <div className="field">
+            <label htmlFor="campaign-impression-limit">
+              Impression-Limit (optional)
+            </label>
+            <input
+              id="campaign-impression-limit"
+              name="impressionLimit"
+              type="number"
+              min={1}
+              step={1}
+              className="w-full"
+              value={impressionLimit}
+              onChange={(e) => setImpressionLimit(e.target.value)}
+              placeholder="leer = unbegrenzt"
+            />
+          </div>
+
           <div className="flex flex-wrap items-center gap-3">
             <button className="btn btn-primary" type="submit" disabled={pending}>
               {pending ? "…" : "Kampagne anlegen"}
@@ -250,7 +277,9 @@ export function AdsAdmin({ campaigns }: Props) {
                   <th className="px-4 py-3 font-bold">Name</th>
                   <th className="px-4 py-3 font-bold">Zeitraum</th>
                   <th className="px-4 py-3 font-bold">Status</th>
-                  <th className="px-4 py-3 font-bold tabular-nums">Impr.</th>
+                  <th className="px-4 py-3 font-bold tabular-nums">
+                    Impr. / Limit
+                  </th>
                   <th className="px-4 py-3 font-bold tabular-nums">Klicks</th>
                   <th className="px-4 py-3 font-bold">Aktionen</th>
                 </tr>
@@ -274,6 +303,8 @@ export function AdsAdmin({ campaigns }: Props) {
                         </td>
                         <td className="px-4 py-3 tabular-nums">
                           {c.impressions}
+                          {" / "}
+                          {c.impressionLimit ?? "∞"}
                         </td>
                         <td className="px-4 py-3 tabular-nums">{c.clicks}</td>
                         <td className="px-4 py-3">
@@ -378,6 +409,23 @@ export function AdsAdmin({ campaigns }: Props) {
                                     required
                                   />
                                 </div>
+                              </div>
+                              <div className="field">
+                                <label htmlFor={`edit-limit-${c.id}`}>
+                                  Impression-Limit (optional)
+                                </label>
+                                <input
+                                  id={`edit-limit-${c.id}`}
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  className="w-full"
+                                  value={editImpressionLimit}
+                                  onChange={(e) =>
+                                    setEditImpressionLimit(e.target.value)
+                                  }
+                                  placeholder="leer = unbegrenzt"
+                                />
                               </div>
                               <div className="flex flex-wrap items-center gap-3">
                                 <button

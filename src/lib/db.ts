@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 25; // v25: Campaign / Creative / AdEvent
+const PRISMA_CLIENT_SCHEMA_VERSION = 26; // v26: Campaign.impressionLimit
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -43,6 +43,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   ],
   TimeEntry: ["segments"],
   TimeSegment: ["type", "startTime", "endTime"],
+  Campaign: ["impressionLimit"],
 };
 
 const REQUIRED_MODELS = [

@@ -13,6 +13,7 @@ const createSchema = z.object({
   targetUrl: z.string().min(1).max(2000),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
+  impressionLimit: z.string().optional(),
 });
 
 function parseDayStart(isoDate: string): Date {
@@ -25,6 +26,19 @@ function parseDayEnd(isoDate: string): Date {
   return d;
 }
 
+/** Empty → null (unlimited); otherwise positive int. */
+function parseImpressionLimit(
+  raw: string | undefined,
+): { ok: true; value: number | null } | { ok: false; error: string } {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return { ok: true, value: null };
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1) {
+    return { ok: false, error: "Impression-Limit muss eine ganze Zahl ≥ 1 sein." };
+  }
+  return { ok: true, value: n };
+}
+
 export async function createAdCampaign(formData: FormData) {
   await requireAdmin();
 
@@ -35,12 +49,16 @@ export async function createAdCampaign(formData: FormData) {
     targetUrl: String(formData.get("targetUrl") ?? "").trim(),
     startDate: String(formData.get("startDate") ?? ""),
     endDate: String(formData.get("endDate") ?? ""),
+    impressionLimit: String(formData.get("impressionLimit") ?? ""),
   });
   if (!parsed.success) {
     return { error: "Bitte alle Felder ausfüllen." };
   }
 
   const { name, type, mediaUrl, targetUrl, startDate, endDate } = parsed.data;
+  const limitParsed = parseImpressionLimit(parsed.data.impressionLimit);
+  if (!limitParsed.ok) return { error: limitParsed.error };
+
   const start = parseDayStart(startDate);
   const end = parseDayEnd(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -56,6 +74,7 @@ export async function createAdCampaign(formData: FormData) {
       startDate: start,
       endDate: end,
       status: CampaignStatus.ACTIVE,
+      impressionLimit: limitParsed.value,
       creatives: {
         create: {
           type: type as CreativeType,
@@ -101,6 +120,7 @@ const updateSchema = z.object({
   targetUrl: z.string().min(1).max(2000),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
+  impressionLimit: z.string().optional(),
 });
 
 export async function updateAdCampaign(formData: FormData) {
@@ -111,12 +131,16 @@ export async function updateAdCampaign(formData: FormData) {
     targetUrl: String(formData.get("targetUrl") ?? "").trim(),
     startDate: String(formData.get("startDate") ?? ""),
     endDate: String(formData.get("endDate") ?? ""),
+    impressionLimit: String(formData.get("impressionLimit") ?? ""),
   });
   if (!parsed.success) {
     return { error: "Bitte Ziel-URL und Daten ausfüllen." };
   }
 
   const { id, targetUrl, startDate, endDate } = parsed.data;
+  const limitParsed = parseImpressionLimit(parsed.data.impressionLimit);
+  if (!limitParsed.ok) return { error: limitParsed.error };
+
   const start = parseDayStart(startDate);
   const end = parseDayEnd(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
@@ -135,7 +159,11 @@ export async function updateAdCampaign(formData: FormData) {
   await prisma.$transaction([
     prisma.campaign.update({
       where: { id },
-      data: { startDate: start, endDate: end },
+      data: {
+        startDate: start,
+        endDate: end,
+        impressionLimit: limitParsed.value,
+      },
     }),
     prisma.creative.updateMany({
       where: { campaignId: id },

@@ -791,14 +791,16 @@ enum AdEventType {
 
 /// Direct-Sold-Kampagne (intern verwaltet, ein Slot: article-top)
 model Campaign {
-  id        String         @id @default(cuid())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  status    CampaignStatus @default(ACTIVE)
-  creatives Creative[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id               String         @id @default(cuid())
+  name             String
+  startDate        DateTime
+  endDate          DateTime
+  status           CampaignStatus @default(ACTIVE)
+  /// Max. Impressions; null = unbegrenzt
+  impressionLimit  Int?
+  creatives        Creative[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@index([status, startDate, endDate])
   @@schema("public")

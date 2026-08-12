@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { CampaignStatus } from "@/generated/prisma/client";
+import { AdEventType, CampaignStatus } from "@/generated/prisma/client";
 import { adsCorsPreflight, withAdsCors } from "@/lib/ads-cors";
 import { prisma } from "@/lib/db";
 
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     },
     select: {
       id: true,
+      impressionLimit: true,
       creatives: {
         select: {
           id: true,
@@ -37,7 +38,37 @@ export async function GET(request: Request) {
     return withAdsCors(request, new NextResponse(null, { status: 204 }));
   }
 
-  const campaign = campaigns[Math.floor(Math.random() * campaigns.length)]!;
+  const creativeIds = campaigns.flatMap((c) => c.creatives.map((cr) => cr.id));
+  const impressionRows =
+    creativeIds.length === 0
+      ? []
+      : await prisma.adEvent.groupBy({
+          by: ["creativeId"],
+          where: {
+            creativeId: { in: creativeIds },
+            type: AdEventType.IMPRESSION,
+          },
+          _count: { _all: true },
+        });
+
+  const impressionsByCreative = new Map(
+    impressionRows.map((r) => [r.creativeId, r._count._all]),
+  );
+
+  const eligible = campaigns.filter((c) => {
+    if (c.impressionLimit == null) return true;
+    let total = 0;
+    for (const cr of c.creatives) {
+      total += impressionsByCreative.get(cr.id) ?? 0;
+    }
+    return total < c.impressionLimit;
+  });
+
+  if (eligible.length === 0) {
+    return withAdsCors(request, new NextResponse(null, { status: 204 }));
+  }
+
+  const campaign = eligible[Math.floor(Math.random() * eligible.length)]!;
   const creatives = campaign.creatives;
   if (creatives.length === 0) {
     return withAdsCors(request, new NextResponse(null, { status: 204 }));

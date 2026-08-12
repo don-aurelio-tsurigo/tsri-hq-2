@@ -11,6 +11,7 @@ export type AdCampaignRow = {
   type: "IMAGE" | "VIDEO";
   mediaUrl: string;
   targetUrl: string;
+  impressionLimit: number | null;
   impressions: number;
   clicks: number;
 };
