@@ -85,26 +85,29 @@ export function AdsAdmin({ campaigns }: Props) {
           Direct-Sold für Slot <code>article-top</code>. Keine Formatprüfung —
           Media-URL oder Vimeo-Embed eintragen.
         </p>
-        <form onSubmit={onSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div className="field sm:col-span-2">
-            <label htmlFor="ad-name">Kampagnenname</label>
+        <form onSubmit={onSubmit} className="mt-4 flex flex-col gap-3">
+          <div className="field">
+            <label htmlFor="campaign-name">Kampagnenname</label>
             <input
-              id="ad-name"
+              id="campaign-name"
+              name="campaignName"
+              type="text"
+              className="w-full"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
             />
           </div>
 
-          <fieldset className="field sm:col-span-2">
-            <legend className="text-sm font-bold text-[var(--muted)]">
+          <div className="field">
+            <span className="text-sm font-bold text-[var(--muted)]">
               Creative-Typ
-            </legend>
+            </span>
             <div className="mt-1 flex gap-4">
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="radio"
-                  name="type"
+                  name="creativeType"
                   checked={type === "IMAGE"}
                   onChange={() => setType("IMAGE")}
                 />
@@ -113,21 +116,24 @@ export function AdsAdmin({ campaigns }: Props) {
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   type="radio"
-                  name="type"
+                  name="creativeType"
                   checked={type === "VIDEO"}
                   onChange={() => setType("VIDEO")}
                 />
                 Vimeo-Video
               </label>
             </div>
-          </fieldset>
+          </div>
 
-          <div className="field sm:col-span-2">
-            <label htmlFor="ad-media">
+          <div className="field">
+            <label htmlFor="campaign-media-url">
               {type === "VIDEO" ? "Vimeo-Embed-URL" : "Bild-URL"}
             </label>
             <input
-              id="ad-media"
+              id="campaign-media-url"
+              name="mediaUrl"
+              type="text"
+              className="w-full"
               value={mediaUrl}
               onChange={(e) => setMediaUrl(e.target.value)}
               placeholder={
@@ -139,10 +145,13 @@ export function AdsAdmin({ campaigns }: Props) {
             />
           </div>
 
-          <div className="field sm:col-span-2">
-            <label htmlFor="ad-target">Ziel-URL</label>
+          <div className="field">
+            <label htmlFor="campaign-click-url">Ziel-URL</label>
             <input
-              id="ad-target"
+              id="campaign-click-url"
+              name="targetUrl"
+              type="text"
+              className="w-full"
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
               placeholder="https://…"
@@ -150,28 +159,34 @@ export function AdsAdmin({ campaigns }: Props) {
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="ad-start">Startdatum</label>
-            <input
-              id="ad-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="ad-end">Enddatum</label>
-            <input
-              id="ad-end"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="field">
+              <label htmlFor="campaign-start">Startdatum</label>
+              <input
+                id="campaign-start"
+                name="startDate"
+                type="date"
+                className="w-full"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="campaign-end">Enddatum</label>
+              <input
+                id="campaign-end"
+                name="endDate"
+                type="date"
+                className="w-full"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
-          <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button className="btn btn-primary" type="submit" disabled={pending}>
               {pending ? "…" : "Kampagne anlegen"}
             </button>
