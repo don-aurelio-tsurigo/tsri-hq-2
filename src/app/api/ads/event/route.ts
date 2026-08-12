@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { AdEventType } from "@/generated/prisma/client";
+import { adsCorsPreflight, withAdsCors } from "@/lib/ads-cors";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -10,12 +11,19 @@ type EventBody = {
   type?: unknown;
 };
 
+export function OPTIONS(request: Request) {
+  return adsCorsPreflight(request);
+}
+
 export async function POST(request: Request) {
   let body: EventBody;
   try {
     body = (await request.json()) as EventBody;
   } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 });
+    return withAdsCors(
+      request,
+      NextResponse.json({ error: "invalid json" }, { status: 400 }),
+    );
   }
 
   const creativeId =
@@ -27,10 +35,12 @@ export async function POST(request: Request) {
       : null;
 
   if (!creativeId || !type) {
-    return NextResponse.json({ error: "invalid body" }, { status: 400 });
+    return withAdsCors(
+      request,
+      NextResponse.json({ error: "invalid body" }, { status: 400 }),
+    );
   }
 
-  // Fire-and-forget: acknowledge immediately, write after response path.
   void prisma.adEvent
     .create({
       data: { creativeId, type },
@@ -39,5 +49,5 @@ export async function POST(request: Request) {
       console.error("[ads/event]", err);
     });
 
-  return new NextResponse(null, { status: 202 });
+  return withAdsCors(request, new NextResponse(null, { status: 202 }));
 }
