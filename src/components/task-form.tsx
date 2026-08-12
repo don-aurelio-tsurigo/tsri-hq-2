@@ -181,7 +181,7 @@ export function TaskDoneCheckbox({
   }, [status]);
 
   function toggle() {
-    if (pending) return;
+    if (pending || status === "cancelled") return;
     const nextDone = !displayDone;
     setOptimisticDone(nextDone);
 
@@ -205,13 +205,11 @@ export function TaskDoneCheckbox({
   return (
     <button
       type="button"
-      disabled={pending}
+      disabled={pending || status === "cancelled"}
       onClick={toggle}
       className="group inline-flex shrink-0 items-center justify-center rounded-md p-0.5 disabled:opacity-70"
       aria-pressed={displayDone}
-      aria-label={
-        displayDone ? "Als offen markieren" : "Erledigen und archivieren"
-      }
+      aria-label={displayDone ? "Als offen markieren" : "Erledigen"}
       title={displayDone ? "Als offen markieren" : "Erledigen"}
     >
       <span

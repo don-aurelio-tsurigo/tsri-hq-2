@@ -46,7 +46,10 @@ const projectInclude = {
   _count: {
     select: {
       tasks: {
-        where: { status: { not: "cancelled" as const } },
+        where: {
+          archivedAt: null,
+          status: { not: "cancelled" as const },
+        },
       },
     },
   },
@@ -110,6 +113,7 @@ export async function countOpenTasks(projectId: string) {
   return prisma.task.count({
     where: {
       spaceId: projectId,
+      archivedAt: null,
       status: { in: ["todo", "doing"] },
     },
   });
@@ -151,6 +155,7 @@ export async function copyProjectStructure(
   const sourceTasks = await prisma.task.findMany({
     where: {
       spaceId: sourceProjectId,
+      archivedAt: null,
       status: { not: "cancelled" },
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -222,6 +227,7 @@ export async function applyDueOffsetsFromEvent(
   const tasks = await prisma.task.findMany({
     where: {
       spaceId: projectId,
+      archivedAt: null,
       dueOffsetDays: { not: null },
       status: { not: "cancelled" },
     },
@@ -259,6 +265,7 @@ export async function getProjectPhaseProgress(
     prisma.task.findMany({
       where: {
         spaceId: projectId,
+        archivedAt: null,
         status: { not: "cancelled" },
       },
       select: { groupId: true, status: true },

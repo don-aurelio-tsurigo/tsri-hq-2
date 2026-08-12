@@ -30,6 +30,9 @@ export async function createBootstrapOrganization(
 import {
   createTask as createTaskAction,
   updateTask as updateTaskAction,
+  cancelTask as cancelTaskAction,
+  deleteTask as deleteTaskAction,
+  restoreTask as restoreTaskAction,
   createTaskGroup as createTaskGroupAction,
   updateTaskGroup as updateTaskGroupAction,
   deleteTaskGroup as deleteTaskGroupAction,
@@ -40,6 +43,15 @@ export async function createTask(formData: FormData) {
 }
 export async function updateTask(formData: FormData) {
   return updateTaskAction(formData);
+}
+export async function cancelTask(taskId: string) {
+  return cancelTaskAction(taskId);
+}
+export async function deleteTask(taskId: string) {
+  return deleteTaskAction(taskId);
+}
+export async function restoreTask(taskId: string) {
+  return restoreTaskAction(taskId);
 }
 export async function createTaskGroup(formData: FormData) {
   return createTaskGroupAction(formData);

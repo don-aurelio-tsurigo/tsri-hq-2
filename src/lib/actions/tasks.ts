@@ -339,6 +339,80 @@ export async function updateTask(formData: FormData) {
   return { ok: true as const };
 }
 
+async function loadEditableTask(taskId: string) {
+  const { session, membership } = await requireMembership();
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { space: { include: { access: true } } },
+  });
+  if (!task || !canViewSpace(session.user, task.space, membership)) {
+    return { error: "Task nicht gefunden." as const };
+  }
+  if (!canEditSpace(session.user, task.space, membership)) {
+    return { error: "Keine Berechtigung." as const };
+  }
+  return { task, session, membership };
+}
+
+function revalidateTaskPaths(spaceId: string) {
+  revalidatePath("/home");
+  revalidatePath("/tasks");
+  revalidatePath(`/spaces/${spaceId}`);
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${spaceId}`);
+}
+
+/** Set status to cancelled (keeps the row visible under "Abgebrochen"). */
+export async function cancelTask(taskId: string) {
+  if (!taskId) return { error: "Fehlende ID." as const };
+  const loaded = await loadEditableTask(taskId);
+  if ("error" in loaded) return loaded;
+
+  await prisma.task.update({
+    where: { id: loaded.task.id },
+    data: { status: "cancelled" },
+  });
+
+  revalidateTaskPaths(loaded.task.spaceId);
+  return { ok: true as const };
+}
+
+/** Soft-delete: sets archivedAt so the task disappears from all lists. */
+export async function deleteTask(taskId: string) {
+  if (!taskId) return { error: "Fehlende ID." as const };
+  const loaded = await loadEditableTask(taskId);
+  if ("error" in loaded) return loaded;
+  if (loaded.task.archivedAt) {
+    return { error: "Task ist bereits gelöscht." as const };
+  }
+
+  await prisma.task.update({
+    where: { id: loaded.task.id },
+    data: { archivedAt: new Date() },
+  });
+
+  revalidateTaskPaths(loaded.task.spaceId);
+  return { ok: true as const };
+}
+
+/** Undo soft-delete: clears archivedAt. */
+export async function restoreTask(taskId: string) {
+  if (!taskId) return { error: "Fehlende ID." as const };
+  const loaded = await loadEditableTask(taskId);
+  if ("error" in loaded) return loaded;
+  if (!loaded.task.archivedAt) {
+    return { error: "Task ist nicht gelöscht." as const };
+  }
+
+  await prisma.task.update({
+    where: { id: loaded.task.id },
+    data: { archivedAt: null },
+  });
+
+  revalidateTaskPaths(loaded.task.spaceId);
+  return { ok: true as const };
+}
+
 const taskGroupCreateSchema = z.object({
   spaceId: z.string().min(1),
   name: z.string().min(1).max(80),

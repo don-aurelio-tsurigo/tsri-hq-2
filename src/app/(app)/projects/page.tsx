@@ -26,7 +26,11 @@ export default async function ProjectsPage() {
     projects.map(async (p) => ({
       id: p.id,
       open: await prisma.task.count({
-        where: { spaceId: p.id, status: { in: ["todo", "doing"] } },
+        where: {
+          spaceId: p.id,
+          archivedAt: null,
+          status: { in: ["todo", "doing"] },
+        },
       }),
     })),
   );

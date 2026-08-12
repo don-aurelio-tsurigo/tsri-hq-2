@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, useTransition, type DragEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type DragEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, isPast, isToday } from "date-fns";
 import { de } from "date-fns/locale";
+import { MoreHorizontal } from "lucide-react";
 import { TaskAssigneeSelect, TaskDoneCheckbox } from "@/components/task-form";
-import { updateTask } from "@/lib/actions";
+import { useDeleteTaskWithUndo } from "@/components/use-delete-task-with-undo";
+import { cancelTask, updateTask } from "@/lib/actions";
 import type { TaskStatus } from "@/generated/prisma/client";
 
 const DRAWER_MS = 280;
@@ -52,6 +60,136 @@ function toDateInputValue(dueAt: Date | string | null) {
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
   if (Number.isNaN(date.getTime())) return "";
   return format(date, "yyyy-MM-dd");
+}
+
+function TaskRowMenu({ task }: { task: TaskRow }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const deleteWithUndo = useDeleteTaskWithUndo();
+
+  const showComplete = task.status !== "done" && task.status !== "cancelled";
+  const showCancel = task.status !== "cancelled";
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function markDone() {
+    const fd = new FormData();
+    fd.set("id", task.id);
+    fd.set("status", "done");
+    startTransition(async () => {
+      const result = await updateTask(fd);
+      setOpen(false);
+      if (result && "error" in result && result.error) return;
+      router.refresh();
+    });
+  }
+
+  function markCancelled() {
+    startTransition(async () => {
+      const result = await cancelTask(task.id);
+      setOpen(false);
+      if (result && "error" in result && result.error) return;
+      router.refresh();
+    });
+  }
+
+  function markDeleted() {
+    startTransition(async () => {
+      setOpen(false);
+      await deleteWithUndo(task.id);
+    });
+  }
+
+  return (
+    <div
+      ref={menuRef}
+      className={[
+        "relative shrink-0 transition-opacity",
+        open
+          ? "opacity-100"
+          : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-within:opacity-100 [@media(hover:hover)]:group-hover/row:opacity-100",
+      ].join(" ")}
+    >
+      <button
+        type="button"
+        className="inline-flex size-7 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
+        aria-label="Task-Aktionen"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={pending}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <MoreHorizontal className="size-4" strokeWidth={1.75} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-30 mt-1 min-w-[9.5rem] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+        >
+          {showComplete && (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation();
+                markDone();
+              }}
+            >
+              Erledigen
+            </button>
+          )}
+          {showCancel && (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation();
+                markCancelled();
+              }}
+            >
+              Abbrechen
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-1.5 text-left text-sm text-[var(--danger)] hover:bg-black/5"
+            disabled={pending}
+            onClick={(e) => {
+              e.stopPropagation();
+              markDeleted();
+            }}
+          >
+            Löschen
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function TaskList({
@@ -187,7 +325,7 @@ export function TaskList({
                 e.dataTransfer.effectAllowed = "move";
               }}
               className={[
-                "flex items-center gap-2.5 transition-opacity duration-200",
+                "group/row flex items-center gap-2.5 transition-opacity duration-200",
                 compact ? "px-3 py-1.5" : "px-4 py-3 gap-3",
                 active ? "bg-[color-mix(in_oklab,var(--accent)_8%,white)]" : "",
                 enableDrag
@@ -223,7 +361,8 @@ export function TaskList({
                         className={[
                           "task-title truncate leading-snug font-medium underline-offset-2 hover:underline",
                           compact ? "text-sm" : "",
-                          task.status === "done"
+                          task.status === "done" ||
+                          task.status === "cancelled"
                             ? "text-[var(--muted)] line-through"
                             : "",
                         ].join(" ")}
@@ -236,7 +375,8 @@ export function TaskList({
                       className={[
                         "task-title min-w-0 flex-1 truncate leading-snug font-medium",
                         compact ? "text-sm" : "",
-                        task.status === "done"
+                        task.status === "done" ||
+                        task.status === "cancelled"
                           ? "text-[var(--muted)] line-through"
                           : "",
                       ].join(" ")}
@@ -332,6 +472,12 @@ export function TaskList({
                   </span>
                 )
               )}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <TaskRowMenu task={task} />
+              </div>
             </li>
           );
         })}
@@ -563,7 +709,7 @@ function TaskDrawer({
                 name="status"
                 defaultValue={panelTask.status === "done" ? "done" : "todo"}
               />
-              Erledigt (archivieren)
+              Erledigt
             </label>
             {members && members.length > 0 && (
               <div className="field">

@@ -161,7 +161,9 @@ export function GroupedTasksBoard({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(["__cancelled__"]),
+  );
   const [addingGroup, setAddingGroup] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +178,10 @@ export function GroupedTasksBoard({
   );
   const doneTasks = useMemo(
     () => tasks.filter((t) => t.status === "done"),
+    [tasks],
+  );
+  const cancelledTasks = useMemo(
+    () => tasks.filter((t) => t.status === "cancelled"),
     [tasks],
   );
 
@@ -613,6 +619,27 @@ export function GroupedTasksBoard({
         >
           <TaskList
             tasks={doneTasks}
+            enableDrawer
+            compact
+            showSpace={isInbox}
+            groups={listGroups}
+            members={editMembers}
+            showDueOffset={isTemplate}
+          />
+        </CollapsibleSection>
+      )}
+
+      {cancelledTasks.length > 0 && (
+        <CollapsibleSection
+          sectionKey="__cancelled__"
+          label="Abgebrochen"
+          count={cancelledTasks.length}
+          collapsed={collapsed}
+          onToggle={toggle}
+          mutedLabel
+        >
+          <TaskList
+            tasks={cancelledTasks}
             enableDrawer
             compact
             showSpace={isInbox}

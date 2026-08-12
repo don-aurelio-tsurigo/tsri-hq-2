@@ -16,6 +16,7 @@ export async function getCurrentDashboardItems(
   const personal = await getPersonalSpace(organizationId, userId);
   return prisma.task.findMany({
     where: {
+      archivedAt: null,
       status: { in: ["todo", "doing"] },
       space: { organizationId },
       OR: [
@@ -48,7 +49,7 @@ export async function getInboxTasks(organizationId: string, userId: string) {
 
 export async function listSpaceTasks(spaceId: string) {
   return prisma.task.findMany({
-    where: { spaceId, status: { not: "cancelled" } },
+    where: { spaceId, archivedAt: null },
     include: {
       assignee: { select: { id: true, name: true, email: true } },
       createdBy: { select: { id: true, name: true } },
@@ -72,6 +73,7 @@ export async function listAssignedProjectTasks(
 ) {
   return prisma.task.findMany({
     where: {
+      archivedAt: null,
       status: { in: ["todo", "doing"] },
       assigneeId: userId,
       space: {
