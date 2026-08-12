@@ -117,15 +117,7 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
   }
 
   return (
-    <div
-      ref={menuRef}
-      className={[
-        "relative shrink-0 transition-opacity",
-        open
-          ? "opacity-100"
-          : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-within:opacity-100 [@media(hover:hover)]:group-hover/row:opacity-100",
-      ].join(" ")}
-    >
+    <div ref={menuRef} className="relative shrink-0">
       <button
         type="button"
         className="inline-flex size-7 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
@@ -325,7 +317,7 @@ export function TaskList({
                 e.dataTransfer.effectAllowed = "move";
               }}
               className={[
-                "group/row flex items-center gap-2.5 transition-opacity duration-200",
+                "flex items-center gap-2.5 transition-opacity duration-200",
                 compact ? "px-3 py-1.5" : "px-4 py-3 gap-3",
                 active ? "bg-[color-mix(in_oklab,var(--accent)_8%,white)]" : "",
                 enableDrag
