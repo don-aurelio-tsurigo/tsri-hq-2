@@ -8,9 +8,9 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { Client } from "pg";
 
-const SESSION_ID = "b0fde8";
+const SESSION_ID = "7614a7";
 const LOG_PATH =
-  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-b0fde8.log";
+  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-7614a7.log";
 const INGEST =
   "http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274";
 
@@ -23,6 +23,8 @@ type HealSpec = {
   tables?: string[];
   /** Enum type names that must exist (CREATE TYPE migrations). */
   enums?: string[];
+  /** Idempotent SQL to run before marking applied (e.g. missing indexes). */
+  ensureSql?: string[];
 };
 
 function debugLog(
@@ -75,6 +77,13 @@ const MIGRATION_HEAL: Record<string, HealSpec> = {
   "20260812170000_campaign_impression_limit": {
     columns: { table: "campaign", names: ["impressionLimit"] },
   },
+  "20260812183000_task_archived_at": {
+    columns: { table: "task", names: ["archivedAt"] },
+    // ADD COLUMN failed after column already existed → CREATE INDEX never ran
+    ensureSql: [
+      `CREATE INDEX IF NOT EXISTS "task_spaceId_archivedAt_idx" ON "task"("spaceId", "archivedAt")`,
+    ],
+  },
 };
 
 async function main() {
@@ -121,6 +130,33 @@ async function main() {
     debugLog("A", "migrate-deploy.ts:ads-schema", "ads tables/enums present", {
       tables: [...presentTables],
       enums: [...presentEnums],
+    });
+    // #endregion
+
+    const taskArchivedCols = await client.query<{ column_name: string }>(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'task'
+         AND column_name = 'archivedAt'`,
+    );
+    const taskArchivedIdx = await client.query<{ indexname: string }>(
+      `SELECT indexname
+       FROM pg_indexes
+       WHERE schemaname = 'public'
+         AND tablename = 'task'
+         AND indexname = 'task_spaceId_archivedAt_idx'`,
+    );
+    const hasTaskArchivedAt = taskArchivedCols.rows.length > 0;
+    const hasTaskArchivedIdx = taskArchivedIdx.rows.length > 0;
+    // #region agent log
+    debugLog("A", "migrate-deploy.ts:task-archivedAt", "task.archivedAt + index present?", {
+      hasTaskArchivedAt,
+      hasTaskArchivedIdx,
+      healMapHasTaskArchivedMigration: Object.prototype.hasOwnProperty.call(
+        MIGRATION_HEAL,
+        "20260812183000_task_archived_at",
+      ),
     });
     // #endregion
 
@@ -171,6 +207,7 @@ async function main() {
         debugLog("D", "migrate-deploy.ts:unknown-failed", "failed migration without heal map", {
           migration: row.migration_name,
           hasImpressionLimit,
+          hasTaskArchivedAt,
           logsPreview: (row.logs ?? "").slice(0, 500),
         });
         // #endregion
@@ -206,6 +243,17 @@ async function main() {
       // #endregion
 
       if (allPresent) {
+        if (spec.ensureSql?.length) {
+          for (const sql of spec.ensureSql) {
+            await client.query(sql);
+          }
+          // #region agent log
+          debugLog("C", "migrate-deploy.ts:ensure-sql", "ran ensureSql before resolve", {
+            migration: row.migration_name,
+            ensureSql: spec.ensureSql,
+          });
+          // #endregion
+        }
         // #region agent log
         debugLog("E", "migrate-deploy.ts:resolve", "marking failed migration as applied", {
           migration: row.migration_name,
