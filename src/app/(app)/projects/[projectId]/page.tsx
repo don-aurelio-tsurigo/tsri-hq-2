@@ -2,15 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { ProjectActions } from "@/components/project-actions";
-import {
-  ProjectEventMeta,
-  ProjectPhaseProgress,
-} from "@/components/project-event-meta";
+import { ProjectEventMeta } from "@/components/project-event-meta";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
-import {
-  getProject,
-  getProjectPhaseProgress,
-} from "@/lib/projects";
+import { getProject } from "@/lib/projects";
 import { requireMembership } from "@/lib/session";
 import { listSpaceTasks, listTaskGroups } from "@/lib/tasks";
 import { prisma } from "@/lib/db";
@@ -28,7 +22,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [tasks, groups, members, phases] = await Promise.all([
+  const [tasks, groups, members] = await Promise.all([
     listSpaceTasks(project.id),
     listTaskGroups(project.id),
     prisma.membership.findMany({
@@ -39,7 +33,6 @@ export default async function ProjectDetailPage({
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
     }),
-    getProjectPhaseProgress(project.id),
   ]);
 
   const canEdit = canEditSpace(session.user, project, membership);
@@ -89,7 +82,6 @@ export default async function ProjectDetailPage({
           />
         </div>
       }
-      belowTitle={<ProjectPhaseProgress phases={phases} />}
       tasks={tasks.map((t) => ({
         id: t.id,
         title: t.title,

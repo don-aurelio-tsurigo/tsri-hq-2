@@ -27,11 +27,3 @@ export function toDateInputValue(value: Date | string | null | undefined) {
   if (typeof value === "string") return value.slice(0, 10);
   return format(value, "yyyy-MM-dd");
 }
-
-export type PhaseProgress = {
-  groupId: string | null;
-  name: string;
-  open: number;
-  done: number;
-  total: number;
-};

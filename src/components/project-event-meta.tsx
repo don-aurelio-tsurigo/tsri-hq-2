@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { differenceInCalendarDays, format, parseISO, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
 import { updateProjectEventMeta } from "@/lib/actions";
-import { toDateInputValue, type PhaseProgress } from "@/lib/project-meta";
+import { toDateInputValue } from "@/lib/project-meta";
 
 function countdownLabel(eventAt: Date | string | null) {
   if (!eventAt) return null;
@@ -20,34 +20,6 @@ function countdownLabel(eventAt: Date | string | null) {
   if (days === -1) return "Gestern";
   if (days > 1) return `in ${days} Tagen`;
   return `vor ${Math.abs(days)} Tagen`;
-}
-
-export function ProjectPhaseProgress({ phases }: { phases: PhaseProgress[] }) {
-  if (phases.length === 0) return null;
-
-  return (
-    <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-      {phases.map((p) => {
-        const pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
-        return (
-          <li key={p.groupId ?? "__none"} className="min-w-0">
-            <div className="mb-0.5 flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate font-medium">{p.name}</span>
-              <span className="shrink-0 text-[var(--muted)]">
-                {p.done}/{p.total}
-              </span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-[var(--border)]">
-              <div
-                className="h-full rounded-full bg-[var(--accent)]"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
 }
 
 export function ProjectEventMeta({

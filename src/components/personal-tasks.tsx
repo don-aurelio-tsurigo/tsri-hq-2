@@ -170,7 +170,7 @@ export function GroupedTasksBoard({
   title: string;
   description?: string | null;
   headerExtra?: ReactNode;
-  /** Rendered directly under the page title (e.g. phase progress). */
+  /** Rendered directly under the page title. */
   belowTitle?: ReactNode;
   /** When set, shows an editable project notes field under the header. */
   projectNotes?: boolean;

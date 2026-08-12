@@ -1,15 +1,10 @@
 import { prisma } from "@/lib/db";
-import {
-  dueAtFromEvent,
-  offsetFromEvent,
-  type PhaseProgress,
-} from "@/lib/project-meta";
+import { dueAtFromEvent, offsetFromEvent } from "@/lib/project-meta";
 
 export {
   dueAtFromEvent,
   offsetFromEvent,
   toDateInputValue,
-  type PhaseProgress,
 } from "@/lib/project-meta";
 
 function slugify(input: string) {
@@ -251,68 +246,4 @@ export async function applyDueOffsetsFromEvent(
   );
 
   return tasks.length;
-}
-
-export async function getProjectPhaseProgress(
-  projectId: string,
-): Promise<PhaseProgress[]> {
-  const [groups, tasks] = await Promise.all([
-    prisma.taskGroup.findMany({
-      where: { spaceId: projectId },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true },
-    }),
-    prisma.task.findMany({
-      where: {
-        spaceId: projectId,
-        archivedAt: null,
-        status: { not: "cancelled" },
-      },
-      select: { groupId: true, status: true },
-    }),
-  ]);
-
-  const buckets = new Map<string | null, PhaseProgress>();
-  for (const g of groups) {
-    buckets.set(g.id, {
-      groupId: g.id,
-      name: g.name,
-      open: 0,
-      done: 0,
-      total: 0,
-    });
-  }
-  buckets.set(null, {
-    groupId: null,
-    name: "Ohne Phase",
-    open: 0,
-    done: 0,
-    total: 0,
-  });
-
-  for (const t of tasks) {
-    const key = t.groupId;
-    if (!buckets.has(key)) {
-      buckets.set(key, {
-        groupId: key,
-        name: "Ohne Phase",
-        open: 0,
-        done: 0,
-        total: 0,
-      });
-    }
-    const b = buckets.get(key)!;
-    b.total += 1;
-    if (t.status === "done") b.done += 1;
-    else b.open += 1;
-  }
-
-  const ordered: PhaseProgress[] = [];
-  for (const g of groups) {
-    const b = buckets.get(g.id)!;
-    if (b.total > 0) ordered.push(b);
-  }
-  const ungrouped = buckets.get(null)!;
-  if (ungrouped.total > 0) ordered.push(ungrouped);
-  return ordered;
 }
