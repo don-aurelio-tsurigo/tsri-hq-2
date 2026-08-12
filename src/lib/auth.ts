@@ -17,9 +17,9 @@ const trustedOrigins = [
 
 // #region agent log
 const debugAuthPayload = {
-  sessionId: "43e306",
+  sessionId: "b0fde8",
   runId: "pre-fix",
-  hypothesisId: "A-B-C",
+  hypothesisId: "A-B",
   location: "src/lib/auth.ts:init",
   message: "better-auth trustedOrigins resolved",
   data: {
@@ -42,7 +42,7 @@ fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
-    "X-Debug-Session-Id": "43e306",
+    "X-Debug-Session-Id": "b0fde8",
   },
   body: JSON.stringify(debugAuthPayload),
 }).catch(() => {});

@@ -7,22 +7,39 @@ async function withOriginDebug(
   request: Request,
   handler: (req: Request) => Promise<Response>,
 ) {
-  // #region agent log
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
+  const host = request.headers.get("host");
+  const xfHost = request.headers.get("x-forwarded-host");
+  const xfProto = request.headers.get("x-forwarded-proto");
+  const xfFor = request.headers.get("x-forwarded-for");
+
+  const response = await handler(request);
+
+  // #region agent log
+  const setCookie = response.headers.getSetCookie?.() ?? [];
+  const cookieNames = setCookie.map((c) => c.split("=")[0] ?? "");
   const payload = {
-    sessionId: "43e306",
+    sessionId: "b0fde8",
     runId: "pre-fix",
-    hypothesisId: "A-C-D",
+    hypothesisId: "A-B-C-D-E",
     location: "src/app/api/auth/[...all]/route.ts",
-    message: "auth request origin headers",
+    message: "auth request/response diagnostics",
     data: {
       method: request.method,
-      url: request.url,
+      requestUrl: request.url,
+      status: response.status,
       origin,
       referer,
+      host,
+      xfHost,
+      xfProto,
+      hasXfFor: Boolean(xfFor),
       originEqualsTsriHub: origin === "https://tsri-hub.online",
-      originEqualsTsriHubSlash: origin === "https://tsri-hub.online/",
+      cookieNames,
+      cookieCount: setCookie.length,
+      betterAuthUrl: process.env.BETTER_AUTH_URL ?? null,
+      nextPublicAppUrl: process.env.NEXT_PUBLIC_APP_URL ?? null,
     },
     timestamp: Date.now(),
   };
@@ -31,12 +48,13 @@ async function withOriginDebug(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Debug-Session-Id": "43e306",
+      "X-Debug-Session-Id": "b0fde8",
     },
     body: JSON.stringify(payload),
   }).catch(() => {});
   // #endregion
-  return handler(request);
+
+  return response;
 }
 
 export const GET = (request: Request) => withOriginDebug(request, handlers.GET);
