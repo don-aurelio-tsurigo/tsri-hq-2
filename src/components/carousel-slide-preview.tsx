@@ -33,6 +33,11 @@ import {
 const CAROUSEL_FONT =
   "var(--font-carousel), 'Roboto', system-ui, sans-serif";
 
+const SLIDE_TEXT_HYPHENS: CSSProperties = {
+  hyphens: "auto",
+  WebkitHyphens: "auto",
+};
+
 export function sanitizeSlideHtml(input: string): string {
   const escaped = input
     .replace(/&/g, "&amp;")
@@ -440,7 +445,7 @@ function TextPreview({
       )}
       <Category text={slide.category} ink={ink} />
       <div
-        className={`absolute z-30 overflow-hidden ${textDrag.className}`}
+        className={`carousel-slide-text absolute z-30 overflow-hidden ${textDrag.className}`}
         style={{
           left: 100,
           right: 100,
@@ -451,6 +456,7 @@ function TextPreview({
           fontFamily: CAROUSEL_FONT,
           fontWeight: 400,
           color: inkColor,
+          ...SLIDE_TEXT_HYPHENS,
           ...textTransformStyle(textT, "center top"),
         }}
         onPointerDown={textDrag.onPointerDown}
@@ -565,8 +571,13 @@ function QuotePreview({
           «
         </p>
         <p
-          className="font-bold"
-          style={{ fontSize: 60, lineHeight: 1.25, whiteSpace: "pre-wrap" }}
+          className="carousel-slide-text font-bold"
+          style={{
+            fontSize: 60,
+            lineHeight: 1.25,
+            whiteSpace: "pre-wrap",
+            ...SLIDE_TEXT_HYPHENS,
+          }}
           dangerouslySetInnerHTML={{
             __html: (() => {
               const raw = slide.quoteText || "Zitat…";
@@ -701,6 +712,7 @@ export function CarouselSlidePreview({
 
   return (
     <div
+      lang="de"
       data-carousel-canvas={forExport ? "true" : undefined}
       className={[
         "relative shrink-0 overflow-hidden",

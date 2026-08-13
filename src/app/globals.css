@@ -479,3 +479,8 @@ textarea {
   inset: 0;
   z-index: 1;
 }
+
+.carousel-slide-text {
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
