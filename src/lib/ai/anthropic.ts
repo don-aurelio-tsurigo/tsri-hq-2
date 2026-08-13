@@ -5,6 +5,7 @@ import {
   llmDraftToSlides,
   type LlmCarouselDraft,
 } from "@/lib/carousel/from-llm";
+import { enforceSlideTextLimits } from "@/lib/carousel/text-limits";
 import type { Slide } from "@/lib/carousel/types";
 import type { FetchedArticle } from "@/lib/wepublish/article";
 
@@ -199,7 +200,9 @@ export async function generateSlidesFromArticle(
   }
 
   try {
-    return llmDraftToSlides(draft, { coverImageUrl: article.imageUrl });
+    return enforceSlideTextLimits(
+      llmDraftToSlides(draft, { coverImageUrl: article.imageUrl }),
+    );
   } catch (error) {
     throw new AiGenerationError(
       error instanceof Error ? error.message : "Slide-Mapping fehlgeschlagen.",

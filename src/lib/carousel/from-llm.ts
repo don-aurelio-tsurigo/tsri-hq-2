@@ -81,7 +81,7 @@ export function llmDraftToSlides(
           ...text,
           backgroundColor,
           ink,
-          bodyHtml: sanitizeBodyHtml(slide.bodyHtml).slice(0, 800),
+          bodyHtml: sanitizeBodyHtml(slide.bodyHtml),
         };
       }
       case "quote": {
