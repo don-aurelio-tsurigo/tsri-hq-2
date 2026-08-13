@@ -5,7 +5,13 @@ import {
   textLimitForParagraphBreaks,
   visibleTextLength,
 } from "../src/lib/carousel/text-limits";
-import type { Slide } from "../src/lib/carousel/types";
+import type { QuoteSlide, Slide, TextSlide } from "../src/lib/carousel/types";
+
+type TextOrQuote = TextSlide | QuoteSlide;
+
+function isTextOrQuote(slide: Slide): slide is TextOrQuote {
+  return slide.type === "text" || slide.type === "quote";
+}
 
 function overflowByWords(prefix: string, target: number, extraWords = 3): string {
   let text = prefix.trimEnd();
@@ -22,9 +28,9 @@ function overflowByWords(prefix: string, target: number, extraWords = 3): string
 }
 
 function report(label: string, before: Slide, after: Slide) {
-  if (before.type !== "text" && before.type !== "quote") return;
-  const field = before.type === "text" ? "bodyHtml" : "quoteText";
-  const rawBefore = before.type === "text" ? before.bodyHtml : before.quoteText;
+  if (!isTextOrQuote(before) || !isTextOrQuote(after)) return;
+  const rawBefore =
+    before.type === "text" ? before.bodyHtml : before.quoteText;
   const rawAfter = after.type === "text" ? after.bodyHtml : after.quoteText;
   const breaks = before.type === "text" ? countParagraphBreaks(rawBefore) : 0;
   const limit =
@@ -36,10 +42,18 @@ function report(label: string, before: Slide, after: Slide) {
     console.log(`paragraph breaks: ${breaks} → limit ${limit}`);
   } else {
     console.log(`quote limit: ${limit}`);
+    console.log(`attribution before: ${JSON.stringify(before.attribution)}`);
+    if (after.type === "quote") {
+      console.log(`attribution after:  ${JSON.stringify(after.attribution)}`);
+    }
   }
   console.log(`visible before: ${visibleTextLength(rawBefore)}`);
   console.log(`visible after:  ${visibleTextLength(rawAfter)}`);
-  console.log(`changed: ${rawBefore !== rawAfter}`);
+  const attributionChanged =
+    before.type === "quote" &&
+    after.type === "quote" &&
+    before.attribution !== after.attribution;
+  console.log(`changed: ${rawBefore !== rawAfter || attributionChanged}`);
   console.log("--- BEFORE ---");
   console.log(rawBefore);
   console.log("--- AFTER ---");
@@ -106,4 +120,39 @@ report(
   "6) Satzende vor 70% (Fallback: letztes Wort)",
   extra[1]!,
   extraAfter[1]!,
+);
+
+const attributionCases: Slide[] = [
+  {
+    ...createEmptyQuoteSlide(),
+    quoteText: "Kurzes Zitat unter dem Limit.",
+    attribution: "Matthias von Hartz, Theater Spektakel",
+  },
+  {
+    ...createEmptyQuoteSlide(),
+    quoteText: "Kurzes Zitat unter dem Limit.",
+    attribution:
+      "Matthias von Hartz, Künstlerischer Leiter des Theater Spektakels",
+  },
+  {
+    ...createEmptyQuoteSlide(),
+    quoteText: "Kurzes Zitat unter dem Limit.",
+    attribution: "Johanna-Maria Elisabeth von und zu Beispielhausen-Oberstrass",
+  },
+];
+const attributionAfter = enforceSlideTextLimits(attributionCases);
+report(
+  "7) Kurze Attribution mit Komma (bleibt)",
+  attributionCases[0]!,
+  attributionAfter[0]!,
+);
+report(
+  "8) Lange Attribution mit Komma (nur Name)",
+  attributionCases[1]!,
+  attributionAfter[1]!,
+);
+report(
+  "9) Name ohne Komma über 43 Zeichen (bleibt)",
+  attributionCases[2]!,
+  attributionAfter[2]!,
 );
