@@ -2,6 +2,8 @@ import { createEmptyQuoteSlide, createEmptyTextSlide } from "../src/lib/carousel
 import {
   countParagraphBreaks,
   enforceSlideTextLimits,
+  TEXT_LIMIT_NO_BREAK,
+  TEXT_LIMIT_TWO_BREAKS,
   textLimitForParagraphBreaks,
   visibleTextLength,
 } from "../src/lib/carousel/text-limits";
@@ -61,9 +63,9 @@ function report(label: string, before: Slide, after: Slide) {
   console.log(`ends with: ${JSON.stringify(rawAfter.slice(-40))}`);
 }
 
-const over500 = overflowByWords(
+const overNoBreak = overflowByWords(
   "Am Mittwochabend heisst es: Wir starren alle die Sonne an.",
-  500,
+  TEXT_LIMIT_NO_BREAK,
   4,
 );
 
@@ -73,7 +75,7 @@ const twoParagraphs = [
   overflowByWords("Dritter Absatz macht das Limit knackig.", 80, 3),
 ].join("<br/><br/>");
 
-const tagAtCut = `${overflowByWords("Vor dem Highlight kommt ganz viel Fliesstext.", 490, 0)} <b>erste zweite dritte vierte</b> und noch mehr Text danach der weg muss.`;
+const tagAtCut = `${overflowByWords("Vor dem Highlight kommt ganz viel Fliesstext.", TEXT_LIMIT_NO_BREAK - 10, 0)} <b>erste zweite dritte vierte</b> und noch mehr Text danach der weg muss.`;
 
 const quoteOver300 = overflowByWords(
   "Aber nicht nur in der Innenstadt liegen diese Bäche.",
@@ -82,7 +84,7 @@ const quoteOver300 = overflowByWords(
 );
 
 const slides: Slide[] = [
-  { ...createEmptyTextSlide(), bodyHtml: over500 },
+  { ...createEmptyTextSlide(), bodyHtml: overNoBreak },
   { ...createEmptyTextSlide(), bodyHtml: twoParagraphs },
   { ...createEmptyTextSlide(), bodyHtml: tagAtCut },
   { ...createEmptyQuoteSlide(), quoteText: quoteOver300 },
@@ -90,19 +92,31 @@ const slides: Slide[] = [
 
 const enforced = enforceSlideTextLimits(slides);
 
-report("1) Text ohne Absatz knapp über 500", slides[0]!, enforced[0]!);
-report("2) Text mit zwei Absatzumbrüchen knapp über 300", slides[1]!, enforced[1]!);
-report("3) <b>-Tag genau an der 500er-Schnittstelle", slides[2]!, enforced[2]!);
+report(
+  `1) Text ohne Absatz knapp über ${TEXT_LIMIT_NO_BREAK}`,
+  slides[0]!,
+  enforced[0]!,
+);
+report(
+  `2) Text mit zwei Absatzumbrüchen knapp über ${TEXT_LIMIT_TWO_BREAKS}`,
+  slides[1]!,
+  enforced[1]!,
+);
+report(
+  `3) <b>-Tag genau an der ${TEXT_LIMIT_NO_BREAK}er-Schnittstelle`,
+  slides[2]!,
+  enforced[2]!,
+);
 report("4) Quote knapp über 300", slides[3]!, enforced[3]!);
 
 const sentenceInWindow = overflowByWords(
   `${overflowByWords("Einleitung ohne Punkt", 360, 0)} Jetzt kommt der Schlusssatz.`,
-  520,
+  TEXT_LIMIT_NO_BREAK + 20,
   5,
 );
 const earlySentenceOnly = overflowByWords(
   "Kurzer Satz ganz am Anfang.",
-  500,
+  TEXT_LIMIT_NO_BREAK,
   4,
 );
 

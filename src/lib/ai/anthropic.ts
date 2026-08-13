@@ -69,15 +69,16 @@ WICHTIGSTE REGEL — Textmenge (gilt für FALL A und den Lead-Slide in FALL C, "
 Allgemeine Feld-Regeln (alle Fälle):
 - Sprache: Deutsch (Schweiz).
 - Cover: overline aus Pre-Title übernehmen, headline: Artikel-Titel wortwörtlich verwenden (darf Zeilenumbrüche als \\n enthalten).
-- Text-Slides (FALL A, und Lead-Slide in FALL C): bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
-  FETT-MARKIERUNG: Markiere pro Text-Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken des Slides tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) mit wenig inhaltlicher Substanz ist eine einzelne Markierung oder der Verzicht darauf akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz — wie ein Redaktionsstil, der Scannbarkeit fürs schnelle Lesen auf Social Media erzeugt. Nicht ganze Sätze fett setzen, nicht mehr als 3 Markierungen pro Slide.
-  ABSATZSTRUKTUR: Text-Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten, um lesbar zu bleiben — nicht als durchgehenden Block ohne Gliederung stehen lassen. Setze den Umbruch an einer inhaltlich sinnvollen Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich in der Mitte eines Satzes/Arguments.
+- Text-Slides (nur FALL A, und Lead-Slide in FALL C): bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
+  ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
+  FETT-MARKIERUNG: Markiere pro Text-Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken des Slides tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) mit wenig inhaltlicher Substanz ist eine einzelne Markierung oder der Verzicht darauf akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 Markierungen pro Slide.
+  ABSATZSTRUKTUR: Text-Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten, um lesbar zu bleiben. Setze den Umbruch an einer inhaltlich sinnvollen Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich in der Mitte eines Satzes/Arguments.
   LÄNGENLIMIT (abhängig von Absatzstruktur, da jeder Absatzumbruch zusätzlichen vertikalen Platz braucht):
-  - Text OHNE Absatzumbruch (ein durchgehender Block): max. 500 Zeichen.
-  - Text MIT 1 Absatzumbruch (zwei Absätze): max. 380 Zeichen gesamt.
-  - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 300 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
-  - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht — ein Absatzumbruch ist inhaltlich oft wichtig (z.B. zwischen zwei Gedanken) und soll nicht künstlich entfernt werden, nur um mehr Zeichen unterzubringen.
-  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe das jeweilige Limit so weit wie möglich aus (z.B. bei zwei Absätzen möglichst nah an 380 Zeichen, nicht 150). Ziel bleibt maximale Textübernahme aus dem Original — kürze nur so viel wie nötig, um unter dem Limit zu bleiben, nicht mehr.
+  - Text OHNE Absatzumbruch (ein durchgehender Block): max. 450 Zeichen.
+  - Text MIT 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen gesamt.
+  - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
+  - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
+  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.
 - Quote (FALL B und FALL C): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben). attribution max. 43 Zeichen: Name + Rolle (nach Komma) nur wenn die ganze Zeile ≤43 Zeichen ist; sonst nur den Namen (alles nach dem ersten Komma streichen). Namen nie abschneiden.
 - Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
