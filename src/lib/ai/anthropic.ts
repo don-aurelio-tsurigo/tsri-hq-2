@@ -44,7 +44,7 @@ Struktur: Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slide
 - quoteText max. 300 Zeichen pro Slide. Ist ein Zitat länger, kürzen (durch Weglassen von Wörtern/Nebensätzen, nie durch Umschreiben der verbleibenden Wörter), bis es passt.
 - Nutze das Zeichenlimit aus: Zitate dürfen und sollen ruhig umfassend sein (mehrere Sätze am Stück), solange sie unter 300 Zeichen bleiben — nicht künstlich auf einen kurzen Einzelsatz verkürzen, wenn mehr vom zusammenhängenden Gedanken noch Platz hätte.
 - Wähle Zitate so, dass sie combined möglichst viel vom eigentlichen Gedankengang/Argument des Artikels abdecken, nicht nur die auffälligsten Einzelsätze.
-- attribution: Name der Autor:in/Kolumnist:in (aus Bylines/Artikelangabe), Rolle als "Kolumnist:in" oder "Kolumnist"/"Kolumnistin" je nach Angabe im Artikel.
+- attribution: Name der Autor:in/Kolumnist:in (aus Bylines/Artikelangabe), danach Komma und Rolle als "Kolumnist:in" oder "Kolumnist"/"Kolumnistin" — aber nur, wenn die ganze Zeile max. 43 Zeichen hat. Wird sie länger: alles nach dem ersten Komma weglassen, nur den Namen behalten. Nie mitten im Namen kürzen. Ohne Komma und trotzdem länger als 43 Zeichen: Namen unverändert lassen.
 - quoteText ohne führende Anführungszeichen.
 - backgroundImageUrl: null (solid color aus der Kategorie-Farbe), ausser ein Zitat bezieht sich auf ein konkretes Bildmotiv, das im Artikel mitgeliefert wird — dann darf backgroundImageUrl gesetzt werden.
 - Slide-Anzahl gesamt (inkl. Cover + Outro): 6–10.
@@ -53,7 +53,7 @@ FALL C — Interview (Interview erkannt, unabhängig von category)
 Struktur: exakt in dieser Reihenfolge:
 1. Cover-Slide.
 2. EIN "text"-Slide mit dem Artikel-Lead (Teaser/Intro-Absatz vor dem eigentlichen Interview) wortwörtlich übernommen — hier AUSNAHMSWEISE den Lead verwenden, nicht weglassen wie sonst üblich (siehe FALL A/allgemeine Regel). Gleiches Längenlimit wie Standard-Text-Slides (siehe Feld-Regeln unten).
-3. bis max. 9. Slide: 3–7 "quote"-Slides mit wörtlichen Antworten der interviewten Person aus dem Interview. Wähle Antworten, die zusammen den roten Faden des Gesprächs abbilden (nicht nur die pointiertesten Einzelsätze). quoteText wortwörtlich aus den Antworten der interviewten Person, max. 300 Zeichen pro Slide (falls eine Antwort länger ist, kürzen durch Weglassen, nicht Umschreiben). attribution: Name der interviewten Person + ihre Rolle/Funktion (aus dem Artikel, z.B. "Matthias von Hartz, Festivalleiter") — NICHT die Journalist:in, die die Fragen stellt.
+3. bis max. 9. Slide: 3–7 "quote"-Slides mit wörtlichen Antworten der interviewten Person aus dem Interview. Wähle Antworten, die zusammen den roten Faden des Gesprächs abbilden (nicht nur die pointiertesten Einzelsätze). quoteText wortwörtlich aus den Antworten der interviewten Person, max. 300 Zeichen pro Slide (falls eine Antwort länger ist, kürzen durch Weglassen, nicht Umschreiben). attribution: Name der interviewten Person, optional Komma + Rolle/Funktion aus dem Artikel (z.B. "Matthias von Hartz, Festivalleiter") — NICHT die Journalist:in, die die Fragen stellt. Gesamte attribution max. 43 Zeichen: passt Name+Rolle, beides behalten; wird sie länger, nur den Namen (alles nach dem ersten Komma weglassen). Nie mitten im Namen kürzen.
 10. Outro-Slide.
 - Slide-Anzahl gesamt: 6–10 (also 3–7 Quote-Slides je nach Interviewlänge, plus Cover + Lead-Text + Outro).
 - backgroundImageUrl bei Quote-Slides: null (solid color), ausser ein Zitat bezieht sich auf ein konkretes mitgeliefertes Bildmotiv.
@@ -77,7 +77,7 @@ Allgemeine Feld-Regeln (alle Fälle):
   - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 300 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
   - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht — ein Absatzumbruch ist inhaltlich oft wichtig (z.B. zwischen zwei Gedanken) und soll nicht künstlich entfernt werden, nur um mehr Zeichen unterzubringen.
   - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe das jeweilige Limit so weit wie möglich aus (z.B. bei zwei Absätzen möglichst nah an 380 Zeichen, nicht 150). Ziel bleibt maximale Textübernahme aus dem Original — kürze nur so viel wie nötig, um unter dem Limit zu bleiben, nicht mehr.
-- Quote (FALL B und FALL C): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben); attribution mit Name und Rolle.
+- Quote (FALL B und FALL C): quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben). attribution max. 43 Zeichen: Name + Rolle (nach Komma) nur wenn die ganze Zeile ≤43 Zeichen ist; sonst nur den Namen (alles nach dem ersten Komma streichen). Namen nie abschneiden.
 - Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
 - Fülle create_carousel_slides genau einmal.`;
