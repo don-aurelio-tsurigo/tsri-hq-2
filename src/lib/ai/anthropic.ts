@@ -231,6 +231,7 @@ export async function generateSlidesFromArticle(
   try {
     return enforceSlideTextLimits(
       llmDraftToSlides(draft, { coverImageUrl: article.imageUrl }),
+      format,
     );
   } catch (error) {
     throw new AiGenerationError(

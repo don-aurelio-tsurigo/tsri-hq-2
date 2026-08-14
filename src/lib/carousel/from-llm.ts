@@ -73,8 +73,7 @@ export function parseLlmCarouselDraft(
   format: CarouselFormat,
 ): LlmCarouselDraft {
   if (format === "tsueritipp") {
-    const parsed = llmTsueritippSchema.parse(input);
-    return { ...parsed, category: "TIPP" };
+    return llmTsueritippSchema.parse(input);
   }
   if (format === "kolumne") {
     return llmKolumneSchema.parse(input);

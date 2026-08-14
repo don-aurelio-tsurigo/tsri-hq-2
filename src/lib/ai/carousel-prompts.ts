@@ -127,44 +127,56 @@ ALLGEMEIN:
 
 export const TSUERITIPP_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst ein Instagram-Karussell (1080×1350) im Tsüritipp-Format.
 
-Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext liegt bereits als Liste einzelner Termine vor, oft schon mit Fettung, Zeilenumbrüchen und Emojis (z. B. 🗓️).
+Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext liegt bereits als Liste einzelner Termine vor, im Format:
+#### Wochentag: Thema.
+[Fliesstext-Absatz]
+🗓️ Datum, Zeit, Ort
 
-Deine Aufgabe ist primär Übertragung und sinnvolle Aufteilung auf Slides — NICHT Verdichten oder Umschreiben wie bei einem normalen Artikel.
+Deine Aufgabe ist redaktionelles Kürzen auf das Wesentliche — nicht reines Weglassen von Sätzen am Ende, sondern gezielte Verdichtung jedes Termins.
 
 STRUKTUR:
-- Erster Slide: "cover". Letzter Slide: "outro".
-- Dazwischen nur "text"-Slides (gleiche Struktur wie im Standardformat: ein bodyHtml-Feld). Keine separaten Titel-, Datum- oder Slot-Felder.
-- 1–2 Termine pro Text-Slide, nie mehr als 2.
-- Keine feste Slide-Ober-/Untergrenze — die Anzahl ergibt sich aus der Terminanzahl im Artikel.
+Cover-Slide → mehrere "text"-Slides (einer pro 1–2 Termine) → Outro-Slide. Kein eigener Slide-Typ nötig — Termine werden als formatiertes bodyHtml in normalen Text-Slides ausgegeben.
 
 KATEGORIE:
-Setze category immer auf TIPP (türkiser Hintergrund, weisser Text). Das Layout zeigt kein Kategorie-Kicker — oben links steht das tipp-Logo.
+${categoryColorPromptBlock()}
+Setze category auf genau einen Namen (GROSSBUCHSTABEN). Hinweis: Für das Tsüritipp-Layout wird category intern gespeichert, aber NICHT visuell angezeigt (kein Kategorie-Kicker im Slide) — das Layout zeigt stattdessen das tipp-Logo oben links.
 
 FELD-REGELN:
 
 Cover:
-- overline: aus Pre-Title übernehmen, z. B. "Immer am Mittwoch: Tsüritipp #82". Falls kein Pre-Title vorhanden ist, leer lassen.
-- headline = Artikel-Titel wortwörtlich (darf \\n enthalten für Zeilenumbrüche).
+- headline = Artikel-Titel wortwörtlich (darf \\n enthalten).
+- Kein overline-Feld nötig/anzuzeigen.
 
-Text-Slides:
-- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags.
-- Übernimm den Termintext wortwörtlich inkl. vorhandener Formatierung und Emojis. Nicht in strukturierte Felder aufteilen.
-- Typische Anordnung innerhalb von bodyHtml: fett gesetzte Überschrift (Wochentag: Thema.), dann Fliesstext, dann die Datum/Ort-Zeile (inkl. Emoji falls vorhanden). Zwei Termine auf einem Slide durch Absatzumbruch trennen.
-- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
-- LÄNGENLIMIT (abhängig von Absatzstruktur, wie Standard):
-  - Ohne Absatzumbruch: max. 450 Zeichen.
-  - Mit 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen.
-  - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide — splitte stattdessen auf einen weiteren Slide auf.
+Pro Text-Slide (1–2 Termine, nie mehr als 2):
+- Jeder Termin wird als EIN Block innerhalb von bodyHtml ausgegeben, in exakt dieser Struktur:
+  <b>Wochentag: Thema.</b><br/>
+  [verdichteter Beschreibungstext]<br/>
+  🗓️ [Datum, Zeit, Ort]
+- Bei 2 Terminen auf einem Slide: die beiden Blöcke durch <br/><br/> trennen (ein zusätzlicher Absatzumbruch zwischen den Terminen).
+- Nur <b>, <br/> als Tags verwenden. Der Titel (Zeile 1) ist immer komplett fett, der restliche Text nicht.
+
+  Zeile 1 (Titel, fett): "Wochentag: Thema." wortwörtlich aus der ####-Überschrift, inkl. Punkt am Ende.
+
+  Zeile 2 (Beschreibungstext, normal): redaktionell verdichteter Text des zugehörigen Absatzes, max. 280 Zeichen. So kürzen:
+  - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt (z.B. "Von Wollishofen hört man übers Jahr nicht viel, einmal aber schallt es von dort durch die ganze Stadt."). Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind (z.B. einleitende Fragen, die das Thema einer Veranstaltung sind).
+  - STREICHE Sekundärinfos: Namen von Support-Acts/Nebenpersonen, zusätzliche zukünftige Termine im selben Absatz, Linkverweise ("hier", "mehr dazu", "Alles Weitere hier").
+  - BEHALTE: die Kernaussage (was/wo/warum relevant), zentrale Eigennamen (Veranstaltungsname, Hauptperson, Ort), das Wesentliche der Beschreibung.
+  - WORTLAUT: Verwende für die behaltenen Satzteile den Original-Wortlaut, keine freie Umformulierung.
+  - AUSNAHME — Faktenrettung: Wenn ein gestrichener Einleitungssatz einen für das Verständnis nötigen Fakt trug (typischerweise einen Eigennamen wie den Veranstaltungs-/Ortsnamen), der sonst im gekürzten Text fehlen würde, integriere diesen einen Fakt minimal in den verbleibenden Satz (z.B. "Das Openair-Kino feiert..." → "Das Openair-Kino Röntgenplatz feiert..."). Das ist die einzige erlaubte Umformulierung — sie dient dem Erhalt von Information, nicht der Stilverbesserung.
+  - AUSNAHME — Grammatik bei Streichung: Wenn du einen Satzteil streichst, der eine indirekte Rede einleitet (z.B. "Im ankündigenden Post heisst es, sie verbinde..."), wandle den verbleibenden Nebensatz in einen normalen Hauptsatz um (Konjunktiv → Indikativ: "sie verbinde" → "sie verbindet"). Nur die grammatikalische Form anpassen, den Inhalt nicht verändern.
+
+  Zeile 3 (Datum/Ort, normal): 🗓️ + Datum/Zeit/Ort-Kern, immer wortwörtlich und vollständig erhalten. Postleitzahl und "Zürich" dürfen weggelassen werden, wenn sie redundant sind (Standardfall, da alles in Zürich stattfindet) — z.B. "Neue Hard 10, 8005 Zürich" → "🗓️ Neue Hard 10". Max. 80 Zeichen.
+
 - Reihenfolge der Termine exakt wie im Original-Artikel, nicht umsortieren.
 - ALLE im Artikel genannten Termine müssen vorkommen — keiner darf weggelassen werden.
+- Keine feste Slide-Ober-/Untergrenze — die Anzahl ergibt sich aus der Terminanzahl.
 
 Outro:
-- headline = Artikel-Titel wortwörtlich.
-- ctaText = "LINK IN DER BIO".
+- headline = Artikel-Titel wortwörtlich, ctaText = "LINK IN DER BIO".
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
-- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen — Ziel ist vollständige, wortgetreue Übertragung aller Termine, nicht Verdichtung.
+- Keine erfundenen Fakten. Ziel ist eine prägnante, redaktionell verdichtete Übertragung jedes Termins — kein reines Anhängen/Abschneiden von Sätzen, sondern gezieltes Streichen von Nebensächlichem bei Erhalt aller wichtigen Fakten.
 - Fülle create_carousel_slides genau einmal.`;
 
 export function systemPromptForFormat(format: CarouselFormat): string {

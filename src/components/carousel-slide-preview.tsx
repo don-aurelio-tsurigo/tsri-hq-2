@@ -35,12 +35,28 @@ import {
 import type { CarouselFormat } from "@/lib/carousel/format";
 
 const CAROUSEL_FONT =
-  "var(--font-carousel), 'Roboto', system-ui, sans-serif";
+  "var(--font-carousel), 'Roboto', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif";
 
 const SLIDE_TEXT_HYPHENS: CSSProperties = {
   hyphens: "auto",
   WebkitHyphens: "auto",
 };
+
+/** Spiral calendar close to 🗓️ (Twemoji-style), not a UI line icon. */
+const CALENDAR_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="1em" height="1em" aria-hidden="true" style="display:inline-block;vertical-align:-0.18em;margin-right:0.12em"><rect x="4" y="6" width="28" height="27" rx="3.5" fill="#fff"/><path d="M4 9.5c0-1.9 1.6-3.5 3.5-3.5h21c1.9 0 3.5 1.6 3.5 3.5V16H4V9.5z" fill="#dd2e44"/><g fill="none" stroke="#9aaab4" stroke-width="1.35"><path d="M9 20.5h18M9 25h18M9 29.5h18"/><path d="M13.5 18v13.5M18 18v13.5M22.5 18v13.5"/></g><g fill="none" stroke="#8b949a" stroke-width="2.1" stroke-linecap="round"><path d="M12 2.2c2.3 0 2.3 4.2 0 4.2s-2.3-4.2 0-4.2"/><path d="M24 2.2c2.3 0 2.3 4.2 0 4.2s-2.3-4.2 0-4.2"/></g><circle cx="12" cy="7.2" r="1.55" fill="#66757f"/><circle cx="24" cy="7.2" r="1.55" fill="#66757f"/></svg>`;
+
+const CALENDAR_EMOJI_RE =
+  /(?:\u{1F5D3}|\u{1F4C5})\u{FE0F}?|🗓️|📅/gu;
+
+function CalendarIcon() {
+  return (
+    <span
+      aria-hidden
+      style={{ display: "inline-block", verticalAlign: "-0.18em" }}
+      dangerouslySetInnerHTML={{ __html: CALENDAR_ICON_SVG }}
+    />
+  );
+}
 
 export function sanitizeSlideHtml(input: string): string {
   const escaped = input
@@ -54,6 +70,10 @@ export function sanitizeSlideHtml(input: string): string {
     .replace(/&lt;\/i&gt;/gi, "</i>")
     .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
     .replace(/\n/g, "<br/>");
+}
+
+function slideHtml(input: string): string {
+  return sanitizeSlideHtml(input).replace(CALENDAR_EMOJI_RE, CALENDAR_ICON_SVG);
 }
 
 function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
@@ -105,11 +125,14 @@ function SlideChrome({
   return <Category text={category} ink={ink} />;
 }
 
-function withCalendarEmoji(meta: string): string {
+function withCalendarEmoji(meta: string): {
+  icon: boolean;
+  text: string;
+} {
   const trimmed = meta.trim();
-  if (!trimmed) return "";
-  if (/^(\u{1F4C5}|\u{1F5D3}|🗓️|📅)/u.test(trimmed)) return trimmed;
-  return `🗓️ ${trimmed}`;
+  if (!trimmed) return { icon: false, text: "" };
+  const stripped = trimmed.replace(CALENDAR_EMOJI_RE, "").trimStart();
+  return { icon: true, text: stripped };
 }
 
 function BrandMark({ ink = "light" }: { ink?: SlideInk }) {
@@ -544,7 +567,7 @@ function TextPreview({
         onPointerUp={textDrag.onPointerUp}
         dangerouslySetInnerHTML={{
           __html:
-            sanitizeSlideHtml(slide.bodyHtml) ||
+            slideHtml(slide.bodyHtml) ||
             "<span style='opacity:0.55'>Text…</span>",
         }}
       />
@@ -667,7 +690,7 @@ function QuotePreview({
           dangerouslySetInnerHTML={{
             __html: (() => {
               const raw = slide.quoteText || "Zitat…";
-              const html = sanitizeSlideHtml(raw);
+              const html = slideHtml(raw);
               const plain = raw.replace(/<[^>]+>/g, "");
               if (plain.trimEnd().endsWith("»")) return html;
               return `${html}»`;
@@ -739,7 +762,8 @@ function TippItemPreview({
                 className="font-normal"
                 style={{ fontSize: 36, lineHeight: 1.2, marginTop: 16 }}
               >
-                {withCalendarEmoji(item.meta)}
+                <CalendarIcon />
+                {withCalendarEmoji(item.meta).text}
               </p>
             ) : null}
           </div>
@@ -873,7 +897,6 @@ export function CarouselSlidePreview({
       className={[
         "relative shrink-0 overflow-hidden",
         carouselFont.variable,
-        carouselFont.className,
         forExport ? "" : "shadow-lg ring-1 ring-black/10",
       ].join(" ")}
       style={{

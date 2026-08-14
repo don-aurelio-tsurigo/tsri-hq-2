@@ -5,4 +5,5 @@ export const carouselFont = Roboto({
   weight: ["400", "500", "700", "900"],
   style: ["normal", "italic"],
   variable: "--font-carousel",
+  adjustFontFallback: false,
 });

@@ -1,3 +1,4 @@
+import type { CarouselFormat } from "@/lib/carousel/format";
 import type { Slide } from "@/lib/carousel/types";
 
 export const TEXT_LIMIT_NO_BREAK = 500;
@@ -110,9 +111,13 @@ export function truncateHtmlToVisibleChars(html: string, limit: number): string 
   return stripTrailingEmptyMarkup(cut);
 }
 
-export function enforceSlideTextLimits(slides: Slide[]): Slide[] {
+export function enforceSlideTextLimits(
+  slides: Slide[],
+  format: CarouselFormat = "standard",
+): Slide[] {
   return slides.map((slide) => {
     if (slide.type === "text") {
+      if (format === "tsueritipp") return slide;
       const breaks = countParagraphBreaks(slide.bodyHtml);
       const limit = textLimitForParagraphBreaks(breaks);
       if (visibleTextLength(slide.bodyHtml) <= limit) return slide;
