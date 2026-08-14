@@ -57,8 +57,9 @@ STRUKTUR:
 Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slides in diesem Format.
 - Wähle 5–8 aufeinanderfolgende, wörtliche Zitate direkt aus dem Artikeltext, die zusammen den Argumentationsbogen der Kolumne abbilden (These → Begründung/Beispiele → Fazit/Aufruf).
 - Zitate müssen wortwörtlich aus dem Artikel stammen. Nicht umformulieren, nicht zusammenfassen.
+- ZITAT-DICHTE — WICHTIG: Ein Zitat sollte in der Regel NICHT nur ein einzelner Satz sein. Kombiniere mehrere direkt aufeinanderfolgende Sätze aus demselben Gedankengang/Absatz zu einem durchgehenden, dichteren Zitat, bis du nah an die 300-Zeichen-Grenze kommst (siehe Feld-Regeln). Ein einzelner kurzer Satz als eigenes Zitat ist nur akzeptabel, wenn er als pointierte Pointe/Schlusssatz eigenständig wirken soll (z.B. der letzte Satz einer Kolumne) — im Regelfall gilt: mehr zusammenhängender Text pro Slide ist besser als viele kurze Einzelsatz-Slides.
 - Wähle Zitate so, dass sie combined möglichst viel vom eigentlichen Gedankengang/Argument des Artikels abdecken, nicht nur die auffälligsten Einzelsätze.
-- Slide-Anzahl gesamt (inkl. Cover + Outro): 6–10.
+- Slide-Anzahl gesamt (inkl. Cover + Outro): 6–10. Da jedes Zitat jetzt mehr Text trägt, brauchst du dafür tendenziell weniger Slides als bei kurzen Einzelsatz-Zitaten — das ist erwünscht.
 
 KATEGORIE:
 ${categoryColorPromptBlock()}
@@ -71,10 +72,10 @@ Cover:
 - headline: Artikel-Titel wortwörtlich (darf \\n enthalten).
 
 Quote-Slides:
-- quoteText max. 300 Zeichen pro Slide. Ist ein Zitat länger, kürzen (durch Weglassen von Wörtern/Nebensätzen, nie durch Umschreiben der verbleibenden Wörter), bis es passt.
-- Nutze das Zeichenlimit aus: Zitate dürfen und sollen ruhig umfassend sein (mehrere Sätze am Stück), solange sie unter 300 Zeichen bleiben — nicht künstlich auf einen kurzen Einzelsatz verkürzen, wenn mehr vom zusammenhängenden Gedanken noch Platz hätte.
+- quoteText max. 300 Zeichen pro Slide. Ist die gewählte Satzkombination länger, kürze durch Weglassen von Wörtern/Nebensätzen (nie durch Umschreiben der verbleibenden Wörter), bis sie passt.
+- ZEICHENZÄHLUNG — VERBINDLICH: Zähle die Zeichen jedes quoteText vor der finalen Ausgabe explizit durch (in deinen Denkschritten, nicht in der Ausgabe), statt die Länge zu schätzen. Ziel ist möglichst nah an 300 Zeichen heranzukommen (siehe ZITAT-DICHTE oben) — ein Zitat mit z.B. nur 90 Zeichen, obwohl der nächste Satz im Original nahtlos weitergeht und noch Platz hätte, ist ein Fehler, kein akzeptables Ergebnis.
 - quoteText ohne führende Anführungszeichen.
-- attribution: Name der Person + Institution/Organisation (nicht Funktionstitel), wortwörtlich aus dem Artikel, z.B. "Matthias von Hartz, Theater Spektakel" statt "Matthias von Hartz, Künstlerischer Leiter des Theater Spektakels". Falls der Artikel keine Institution nennt (z.B. bei freien Kolumnist:innen), verwende die kürzeste im Artikel genannte Rollenbezeichnung wortwörtlich (z.B. "Kolumnistin", "Kolumnist"). Ändere nie den Namen der Person.
+- attribution: Name der Person + Institution/Organisation (nicht Funktionstitel), wortwörtlich aus dem Artikel. Falls der Artikel keine Institution nennt (z.B. bei freien Kolumnist:innen), verwende die kürzeste im Artikel genannte Rollenbezeichnung wortwörtlich (z.B. "Kolumnistin", "Kolumnist"). Ändere nie den Namen der Person.
 - backgroundImageUrl: null (solid color aus der Kategorie-Farbe), ausser ein Zitat bezieht sich auf ein konkretes im Artikel mitgeliefertes Bildmotiv.
 
 Outro:

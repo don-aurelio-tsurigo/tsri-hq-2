@@ -47,6 +47,14 @@ export const llmCarouselSchema = z.object({
     .max(10),
 });
 
+export const llmKolumneSchema = z.object({
+  category: z.string().min(1).default(DEFAULT_CATEGORY),
+  slides: z
+    .array(z.discriminatedUnion("type", [coverDraft, quoteDraft, outroDraft]))
+    .min(6)
+    .max(10),
+});
+
 export const llmTsueritippSchema = z.object({
   category: z.string().min(1).default(DEFAULT_CATEGORY),
   slides: z
@@ -57,6 +65,7 @@ export const llmTsueritippSchema = z.object({
 
 export type LlmCarouselDraft =
   | z.infer<typeof llmCarouselSchema>
+  | z.infer<typeof llmKolumneSchema>
   | z.infer<typeof llmTsueritippSchema>;
 
 export function parseLlmCarouselDraft(
@@ -66,6 +75,9 @@ export function parseLlmCarouselDraft(
   if (format === "tsueritipp") {
     const parsed = llmTsueritippSchema.parse(input);
     return { ...parsed, category: "TIPP" };
+  }
+  if (format === "kolumne") {
+    return llmKolumneSchema.parse(input);
   }
   return llmCarouselSchema.parse(input);
 }

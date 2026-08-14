@@ -52,6 +52,36 @@ const standardToolInputSchema = {
   },
 };
 
+const kolumneToolInputSchema = {
+  type: "object" as const,
+  additionalProperties: false,
+  required: ["category", "slides"],
+  properties: {
+    category: { type: "string" as const },
+    slides: {
+      type: "array" as const,
+      minItems: 6,
+      maxItems: 10,
+      items: {
+        type: "object" as const,
+        additionalProperties: false,
+        required: ["type"],
+        properties: {
+          type: {
+            type: "string" as const,
+            enum: ["cover", "quote", "outro"],
+          },
+          overline: { type: "string" as const },
+          headline: { type: "string" as const },
+          quoteText: { type: "string" as const },
+          attribution: { type: "string" as const },
+          ctaText: { type: "string" as const },
+        },
+      },
+    },
+  },
+};
+
 const tsueritippToolInputSchema = {
   type: "object" as const,
   additionalProperties: false,
@@ -147,7 +177,11 @@ export async function generateSlidesFromArticle(
 
   const client = getClient();
   const toolInputSchema =
-    format === "tsueritipp" ? tsueritippToolInputSchema : standardToolInputSchema;
+    format === "tsueritipp"
+      ? tsueritippToolInputSchema
+      : format === "kolumne"
+        ? kolumneToolInputSchema
+        : standardToolInputSchema;
   const maxTokens = format === "tsueritipp" ? 8192 : 4096;
 
   let response: Anthropic.Message;
