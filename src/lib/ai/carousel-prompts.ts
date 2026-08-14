@@ -135,7 +135,7 @@ Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext lie
 Deine Aufgabe ist redaktionelles Kürzen auf das Wesentliche — nicht reines Weglassen von Sätzen am Ende, sondern gezielte Verdichtung jedes Termins.
 
 STRUKTUR:
-Cover-Slide → mehrere "text"-Slides (einer pro 1–2 Termine) → Outro-Slide. Kein eigener Slide-Typ nötig — Termine werden als formatiertes bodyHtml in normalen Text-Slides ausgegeben.
+Cover-Slide → mehrere "text"-Slides (Termine) → Outro-Slide. Kein eigener Slide-Typ nötig — Termine werden als formatiertes bodyHtml in normalen Text-Slides ausgegeben.
 
 KATEGORIE:
 ${categoryColorPromptBlock()}
@@ -147,23 +147,30 @@ Cover:
 - headline = Artikel-Titel wortwörtlich (darf \\n enthalten).
 - Kein overline-Feld nötig/anzuzeigen.
 
-Pro Text-Slide (1–2 Termine, nie mehr als 2):
+Pro Text-Slide:
+- STANDARD: 1 Termin pro Slide. Nur wenn zwei aufeinanderfolgende Termine beide sehr kurz sind (siehe Gesamtbudget unten), dürfen 2 Termine auf einen Slide.
+- GESAMTBUDGET PRO SLIDE — VERBINDLICH: Die Summe aller sichtbaren Zeichen im Slide (Titel + Beschreibungstext + Meta-Zeile, über alle Termine auf diesem Slide zusammengezählt, OHNE <b>/<br/>-Tags und ohne das 🗓️-Zeichen mitzuzählen) darf 380 Zeichen NICHT überschreiten.
+- ZEICHENZÄHLUNG: Bevor du einen Slide mit 2 Terminen befüllst, zähle die Gesamtsumme (beide Titel + beide Beschreibungen + beide Meta-Zeilen) explizit in deinen Denkschritten durch. Liegt die Summe über 380: verteile die beiden Termine auf zwei separate Slides (je 1 Termin), statt sie zusammenzuquetschen.
+
 - Jeder Termin wird als EIN Block innerhalb von bodyHtml ausgegeben, in exakt dieser Struktur:
   <b>Wochentag: Thema.</b><br/>
   [verdichteter Beschreibungstext]<br/>
   🗓️ [Datum, Zeit, Ort]
-- Bei 2 Terminen auf einem Slide: die beiden Blöcke durch <br/><br/> trennen (ein zusätzlicher Absatzumbruch zwischen den Terminen).
+- Bei 2 Terminen auf einem Slide: die beiden Blöcke durch <br/><br/> trennen.
 - Nur <b>, <br/> als Tags verwenden. Der Titel (Zeile 1) ist immer komplett fett, der restliche Text nicht.
 
   Zeile 1 (Titel, fett): "Wochentag: Thema." wortwörtlich aus der ####-Überschrift, inkl. Punkt am Ende.
 
-  Zeile 2 (Beschreibungstext, normal): redaktionell verdichteter Text des zugehörigen Absatzes, max. 280 Zeichen. So kürzen:
-  - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt (z.B. "Von Wollishofen hört man übers Jahr nicht viel, einmal aber schallt es von dort durch die ganze Stadt."). Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind (z.B. einleitende Fragen, die das Thema einer Veranstaltung sind).
-  - STREICHE Sekundärinfos: Namen von Support-Acts/Nebenpersonen, zusätzliche zukünftige Termine im selben Absatz, Linkverweise ("hier", "mehr dazu", "Alles Weitere hier").
-  - BEHALTE: die Kernaussage (was/wo/warum relevant), zentrale Eigennamen (Veranstaltungsname, Hauptperson, Ort), das Wesentliche der Beschreibung.
-  - WORTLAUT: Verwende für die behaltenen Satzteile den Original-Wortlaut, keine freie Umformulierung.
-  - AUSNAHME — Faktenrettung: Wenn ein gestrichener Einleitungssatz einen für das Verständnis nötigen Fakt trug (typischerweise einen Eigennamen wie den Veranstaltungs-/Ortsnamen), der sonst im gekürzten Text fehlen würde, integriere diesen einen Fakt minimal in den verbleibenden Satz (z.B. "Das Openair-Kino feiert..." → "Das Openair-Kino Röntgenplatz feiert..."). Das ist die einzige erlaubte Umformulierung — sie dient dem Erhalt von Information, nicht der Stilverbesserung.
-  - AUSNAHME — Grammatik bei Streichung: Wenn du einen Satzteil streichst, der eine indirekte Rede einleitet (z.B. "Im ankündigenden Post heisst es, sie verbinde..."), wandle den verbleibenden Nebensatz in einen normalen Hauptsatz um (Konjunktiv → Indikativ: "sie verbinde" → "sie verbindet"). Nur die grammatikalische Form anpassen, den Inhalt nicht verändern.
+  Zeile 2 (Beschreibungstext, normal):
+  - Bei 1 Termin pro Slide: max. 220 Zeichen.
+  - Bei 2 Terminen pro Slide: pro Termin entsprechend kürzer, meist um die 80–110 Zeichen — kürze so weit, dass beide Termine zusammen unter dem 380er-Gesamtbudget bleiben.
+  - So kürzen:
+    - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt (z.B. "Von Wollishofen hört man übers Jahr nicht viel, einmal aber schallt es von dort durch die ganze Stadt."). Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind (z.B. einleitende Fragen, die das Thema einer Veranstaltung sind).
+    - STREICHE Sekundärinfos: Namen von Support-Acts/Nebenpersonen, zusätzliche zukünftige Termine im selben Absatz, Linkverweise ("hier", "mehr dazu", "Alles Weitere hier").
+    - BEHALTE: die Kernaussage (was/wo/warum relevant), zentrale Eigennamen (Veranstaltungsname, Hauptperson, Ort), das Wesentliche der Beschreibung.
+    - WORTLAUT: Verwende für die behaltenen Satzteile den Original-Wortlaut, keine freie Umformulierung.
+    - AUSNAHME — Faktenrettung: Wenn ein gestrichener Einleitungssatz einen für das Verständnis nötigen Fakt trug (typischerweise einen Eigennamen wie den Veranstaltungs-/Ortsnamen), der sonst im gekürzten Text fehlen würde, integriere diesen einen Fakt minimal in den verbleibenden Satz (z.B. "Das Openair-Kino feiert..." → "Das Openair-Kino Röntgenplatz feiert..."). Das ist die einzige erlaubte Umformulierung.
+    - AUSNAHME — Grammatik bei Streichung: Wenn du einen Satzteil streichst, der eine indirekte Rede einleitet (z.B. "Im ankündigenden Post heisst es, sie verbinde..."), wandle den verbleibenden Nebensatz in einen normalen Hauptsatz um (Konjunktiv → Indikativ: "sie verbinde" → "sie verbindet"). Nur die grammatikalische Form anpassen, den Inhalt nicht verändern.
 
   Zeile 3 (Datum/Ort, normal): 🗓️ + Datum/Zeit/Ort-Kern, immer wortwörtlich und vollständig erhalten. Postleitzahl und "Zürich" dürfen weggelassen werden, wenn sie redundant sind (Standardfall, da alles in Zürich stattfindet) — z.B. "Neue Hard 10, 8005 Zürich" → "🗓️ Neue Hard 10". Max. 80 Zeichen.
 
