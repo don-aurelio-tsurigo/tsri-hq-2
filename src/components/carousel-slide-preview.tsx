@@ -24,11 +24,15 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   DEFAULT_BG,
+  TIPP_LOGO_TEAL_SRC,
+  TIPP_LOGO_WHITE_SRC,
+  TIPP_TEAL,
   type EditableLayer,
   type ImageOverlay,
   type LayerTransform,
   type Slide,
 } from "@/lib/carousel/types";
+import type { CarouselFormat } from "@/lib/carousel/format";
 
 const CAROUSEL_FONT =
   "var(--font-carousel), 'Roboto', system-ui, sans-serif";
@@ -67,6 +71,45 @@ function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
       {text || "STADTLEBEN"}
     </p>
   );
+}
+
+function TippMark({ color }: { color: "teal" | "white" }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={color === "teal" ? TIPP_LOGO_TEAL_SRC : TIPP_LOGO_WHITE_SRC}
+      alt=""
+      width={240}
+      height={132}
+      className="pointer-events-none absolute z-20 object-contain object-left"
+      style={{ left: 80, top: 52, width: 240, height: 132 }}
+      aria-hidden
+    />
+  );
+}
+
+function SlideChrome({
+  format,
+  slideType,
+  category,
+  ink,
+}: {
+  format?: CarouselFormat;
+  slideType: Slide["type"];
+  category: string;
+  ink: SlideInk;
+}) {
+  if (format === "tsueritipp") {
+    return <TippMark color={slideType === "cover" ? "teal" : "white"} />;
+  }
+  return <Category text={category} ink={ink} />;
+}
+
+function withCalendarEmoji(meta: string): string {
+  const trimmed = meta.trim();
+  if (!trimmed) return "";
+  if (/^(\u{1F4C5}|\u{1F5D3}|🗓️|📅)/u.test(trimmed)) return trimmed;
+  return `🗓️ ${trimmed}`;
 }
 
 function BrandMark({ ink = "light" }: { ink?: SlideInk }) {
@@ -209,6 +252,7 @@ type InteractiveProps = {
   onImageTransform?: (transform: LayerTransform) => void;
   onTextTransform?: (transform: LayerTransform) => void;
   previewScale?: number;
+  format?: CarouselFormat;
 };
 
 function useLayerDrag({
@@ -293,6 +337,7 @@ function CoverPreview({
   onImageTransform,
   onTextTransform,
   previewScale = 1,
+  format,
   onGuides,
 }: {
   slide: Extract<Slide, { type: "cover" }>;
@@ -301,6 +346,7 @@ function CoverPreview({
   }) {
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
+  const isTipp = format === "tsueritipp";
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && slide.backgroundImageUrl),
     layer: "image",
@@ -341,7 +387,12 @@ function CoverPreview({
         hasImage={Boolean(slide.backgroundImageUrl)}
         overlay={slide.imageOverlay}
       />
-      <Category text={slide.category} ink="light" />
+      <SlideChrome
+        format={format}
+        slideType="cover"
+        category={slide.category}
+        ink="light"
+      />
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
@@ -357,14 +408,37 @@ function CoverPreview({
         onPointerUp={textDrag.onPointerUp}
       >
         {slide.overline ? (
-          <p
-            className="font-normal"
-            style={{ fontSize: 35, lineHeight: 1.2, marginBottom: 40 }}
-          >
-            {slide.overline}
-          </p>
+          isTipp ? (
+            <p
+              className="inline-block font-medium"
+              style={{
+                fontSize: 28,
+                lineHeight: 1.2,
+                marginBottom: 28,
+                backgroundColor: "#ffffff",
+                color: TIPP_TEAL,
+                padding: "10px 18px",
+              }}
+            >
+              {slide.overline}
+            </p>
+          ) : (
+            <p
+              className="font-normal"
+              style={{ fontSize: 35, lineHeight: 1.2, marginBottom: 40 }}
+            >
+              {slide.overline}
+            </p>
+          )
         ) : null}
-        <p className="font-bold" style={{ fontSize: 68, lineHeight: 1.12 }}>
+        <p
+          className="font-bold"
+          style={{
+            fontSize: 68,
+            lineHeight: 1.12,
+            whiteSpace: isTipp ? "pre-wrap" : undefined,
+          }}
+        >
           {slide.headline || "Headline…"}
         </p>
       </div>
@@ -381,6 +455,7 @@ function TextPreview({
   onImageTransform,
   onTextTransform,
   previewScale = 1,
+  format,
   onGuides,
 }: {
   slide: Extract<Slide, { type: "text" }>;
@@ -443,7 +518,12 @@ function TextPreview({
           style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
         />
       )}
-      <Category text={slide.category} ink={ink} />
+      <SlideChrome
+        format={format}
+        slideType="text"
+        category={slide.category}
+        ink={ink}
+      />
       <div
         className={`carousel-slide-text absolute z-30 overflow-hidden ${textDrag.className}`}
         style={{
@@ -481,6 +561,7 @@ function QuotePreview({
   onImageTransform,
   onTextTransform,
   previewScale = 1,
+  format,
   onGuides,
 }: {
   slide: Extract<Slide, { type: "quote" }>;
@@ -543,7 +624,12 @@ function QuotePreview({
           style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
         />
       )}
-      <Category text={slide.category} ink={ink} />
+      <SlideChrome
+        format={format}
+        slideType="quote"
+        category={slide.category}
+        ink={ink}
+      />
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
@@ -604,9 +690,10 @@ function QuotePreview({
 
 function TippItemPreview({
   slide,
+  format,
 }: {
   slide: Extract<Slide, { type: "tipp-item" }>;
-}) {
+} & Pick<InteractiveProps, "format">) {
   const ink = resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
   return (
@@ -615,12 +702,18 @@ function TippItemPreview({
         className="absolute inset-0"
         style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
       />
+      <SlideChrome
+        format={format}
+        slideType="tipp-item"
+        category={slide.category}
+        ink={ink}
+      />
       <div
         className="carousel-slide-text absolute z-30 overflow-hidden"
         style={{
-          left: 100,
-          right: 100,
-          top: 160,
+          left: 88,
+          right: 88,
+          top: 210,
           bottom: 180,
           fontFamily: CAROUSEL_FONT,
           color: inkColor,
@@ -630,23 +723,23 @@ function TippItemPreview({
         {slide.items.map((item, index) => (
           <div
             key={`${item.title}-${index}`}
-            style={{ marginBottom: index === slide.items.length - 1 ? 0 : 48 }}
+            style={{ marginBottom: index === slide.items.length - 1 ? 0 : 56 }}
           >
-            <p className="font-bold" style={{ fontSize: 48, lineHeight: 1.15 }}>
+            <p className="font-bold" style={{ fontSize: 52, lineHeight: 1.15 }}>
               {item.title || "Wochentag: Thema."}
             </p>
             <p
               className="font-normal"
-              style={{ fontSize: 36, lineHeight: 1.25, marginTop: 16 }}
+              style={{ fontSize: 40, lineHeight: 1.25, marginTop: 16 }}
             >
               {item.body || "Termintext…"}
             </p>
             {item.meta ? (
               <p
-                className="font-normal opacity-90"
-                style={{ fontSize: 32, lineHeight: 1.2, marginTop: 16 }}
+                className="font-normal"
+                style={{ fontSize: 36, lineHeight: 1.2, marginTop: 16 }}
               >
-                {item.meta}
+                {withCalendarEmoji(item.meta)}
               </p>
             ) : null}
           </div>
@@ -664,6 +757,7 @@ function OutroPreview({
   onSelectLayer,
   onTextTransform,
   previewScale = 1,
+  format,
   onGuides,
 }: {
   slide: Extract<Slide, { type: "outro" }>;
@@ -692,7 +786,12 @@ function OutroPreview({
         className="absolute inset-0"
         style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
       />
-      <Category text={slide.category} ink={ink} />
+      <SlideChrome
+        format={format}
+        slideType="outro"
+        category={slide.category}
+        ink={ink}
+      />
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
@@ -745,6 +844,7 @@ export function CarouselSlidePreview({
   onSelectLayer,
   onImageTransform,
   onTextTransform,
+  format,
 }: {
   slide: Slide;
   scale?: number;
@@ -762,6 +862,7 @@ export function CarouselSlidePreview({
     onImageTransform,
     onTextTransform,
     previewScale: scale,
+    format,
     onGuides: setGuides,
   };
 
@@ -799,7 +900,7 @@ export function CarouselSlidePreview({
           <QuotePreview slide={slide} {...shared} />
         ) : null}
         {slide.type === "tipp-item" ? (
-          <TippItemPreview slide={slide} />
+          <TippItemPreview slide={slide} format={format} />
         ) : null}
         {slide.type === "outro" ? (
           <OutroPreview slide={slide} {...shared} />

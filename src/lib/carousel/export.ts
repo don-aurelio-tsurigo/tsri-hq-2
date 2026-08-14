@@ -10,8 +10,11 @@ import {
   BRAND_LOGO_SRC,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
+  TIPP_LOGO_TEAL_SRC,
+  TIPP_LOGO_WHITE_SRC,
   type Slide,
 } from "@/lib/carousel/types";
+import type { CarouselFormat } from "@/lib/carousel/format";
 
 function slugify(value: string) {
   const slug = value
@@ -71,8 +74,11 @@ async function prepareSlideForExport(slide: Slide): Promise<Slide> {
   return { ...slide, backgroundImageUrl };
 }
 
-function slideImageUrls(slide: Slide): string[] {
+function slideImageUrls(slide: Slide, format: CarouselFormat): string[] {
   const urls = [BRAND_LOGO_SRC];
+  if (format === "tsueritipp") {
+    urls.push(TIPP_LOGO_WHITE_SRC, TIPP_LOGO_TEAL_SRC);
+  }
   if (
     (slide.type === "cover" ||
       slide.type === "text" ||
@@ -96,9 +102,9 @@ function preloadImage(src: string) {
   });
 }
 
-async function waitForAssets(slide: Slide) {
+async function waitForAssets(slide: Slide, format: CarouselFormat) {
   await document.fonts.ready;
-  await Promise.all(slideImageUrls(slide).map(preloadImage));
+  await Promise.all(slideImageUrls(slide, format).map(preloadImage));
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
@@ -120,6 +126,7 @@ export async function exportAllCarouselSlides(
   slides: Slide[],
   title: string,
   onProgress?: (done: number, total: number) => void,
+  format: CarouselFormat = "standard",
 ) {
   if (slides.length === 0) {
     throw new Error("Keine Slides zum Exportieren.");
@@ -143,6 +150,7 @@ export async function exportAllCarouselSlides(
             slide,
             scale: 1,
             forExport: true,
+            format,
           }),
         );
       });
@@ -154,7 +162,7 @@ export async function exportAllCarouselSlides(
         throw new Error(`Slide ${i + 1} konnte nicht gerendert werden.`);
       }
 
-      await waitForAssets(slide);
+      await waitForAssets(slide, format);
 
       const dataUrl = await toPng(node, {
         width: CANVAS_WIDTH,

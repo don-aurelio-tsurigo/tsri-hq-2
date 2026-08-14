@@ -4,6 +4,7 @@ import {
   DEFAULT_CATEGORY,
   type SlideInk,
 } from "@/lib/carousel/categories";
+import type { CarouselFormat } from "@/lib/carousel/format";
 import { defaultImageOverlayForSlideType } from "@/lib/carousel/overlay";
 import {
   DEFAULT_OUTRO_CTA,
@@ -18,6 +19,10 @@ import {
 
 function newId() {
   return globalThis.crypto.randomUUID();
+}
+
+export function defaultCategoryForFormat(format: CarouselFormat): string {
+  return format === "tsueritipp" ? "TIPP" : DEFAULT_CATEGORY;
 }
 
 export function createEmptyCoverSlide(

@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { AiGenerationError, generateSlidesFromArticle } from "@/lib/ai/anthropic";
 import { prisma } from "@/lib/db";
-import { createEmptyCoverSlide } from "@/lib/carousel/slides";
+import { createEmptyCoverSlide, defaultCategoryForFormat } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
 import { parseCarouselFormat } from "@/lib/carousel/format";
@@ -40,7 +40,9 @@ export async function createCarouselPost(
     data: {
       title: resolvedTitle,
       format: resolvedFormat,
-      slides: [createEmptyCoverSlide()] as unknown as Prisma.InputJsonValue,
+      slides: [
+        createEmptyCoverSlide(defaultCategoryForFormat(resolvedFormat)),
+      ] as unknown as Prisma.InputJsonValue,
       createdById: session.user.id,
     },
   });

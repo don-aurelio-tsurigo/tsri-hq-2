@@ -7,6 +7,7 @@ import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
+import type { CarouselFormat } from "@/lib/carousel/format";
 import { fileToCompressedDataUrl } from "@/lib/carousel/image";
 import {
   DEFAULT_IMAGE_OVERLAY,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/carousel/overlay";
 import {
   createEmptySlide,
+  defaultCategoryForFormat,
   lastCategory,
   themeFieldsForCategory,
 } from "@/lib/carousel/slides";
@@ -40,6 +42,8 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
   "tipp-item": "Tipp",
   outro: "Outro",
 };
+
+const ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "quote", "outro"];
 
 const PREVIEW_SCALE = 0.42;
 
@@ -75,6 +79,7 @@ export function CarouselEditor({
   createdByName,
   canEdit,
   sourceArticle = null,
+  format = "standard",
 }: {
   postId: string;
   initialTitle: string;
@@ -82,10 +87,13 @@ export function CarouselEditor({
   createdByName: string;
   canEdit: boolean;
   sourceArticle?: CarouselSourceArticle | null;
+  format?: CarouselFormat;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [slides, setSlides] = useState<Slide[]>(
-    initialSlides.length > 0 ? initialSlides : [createEmptySlide("cover")],
+    initialSlides.length > 0
+      ? initialSlides
+      : [createEmptySlide("cover", defaultCategoryForFormat(format))],
   );
   const [activeId, setActiveId] = useState(slides[0]?.id ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -230,7 +238,7 @@ export function CarouselEditor({
     try {
       await exportAllCarouselSlides(slides, title, (done, total) => {
         setExportProgress(`${done} / ${total}`);
-      });
+      }, format);
       setExportProgress(null);
     } catch (err) {
       setError(
@@ -348,6 +356,7 @@ export function CarouselEditor({
               onSelectLayer={setSelectedLayer}
               onImageTransform={(t) => setLayerTransform("image", t)}
               onTextTransform={(t) => setLayerTransform("text", t)}
+              format={format}
             />
           ) : null}
 
@@ -366,7 +375,7 @@ export function CarouselEditor({
                   ].join(" ")}
                   title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
                 >
-                  <CarouselSlidePreview slide={slide} scale={0.08} />
+                  <CarouselSlidePreview slide={slide} scale={0.08} format={format} />
                 </button>
               ))}
             </div>
@@ -399,7 +408,7 @@ export function CarouselEditor({
 
           {canEdit ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
-              {(Object.keys(SLIDE_TYPE_LABEL) as SlideType[]).map((type) => (
+              {ADDABLE_SLIDE_TYPES.map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -561,56 +570,6 @@ export function CarouselEditor({
                       placeholder="Name, Rolle"
                     />
                   </Field>
-                </>
-              ) : null}
-
-              {active.type === "tipp-item" ? (
-                <>
-                  {active.items.map((item, index) => (
-                    <div key={index} className="space-y-3">
-                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
-                        Termin {index + 1}
-                      </p>
-                      <Field label="Titel">
-                        <input
-                          className="w-full"
-                          disabled={!canEdit}
-                          value={item.title}
-                          onChange={(e) => {
-                            const items = [...active.items];
-                            items[index] = { ...item, title: e.target.value };
-                            updateActive({ items });
-                          }}
-                          placeholder="Donnerstag: Konzert."
-                        />
-                      </Field>
-                      <Field label="Text">
-                        <textarea
-                          className="min-h-28 w-full"
-                          disabled={!canEdit}
-                          value={item.body}
-                          onChange={(e) => {
-                            const items = [...active.items];
-                            items[index] = { ...item, body: e.target.value };
-                            updateActive({ items });
-                          }}
-                        />
-                      </Field>
-                      <Field label="Datum / Ort">
-                        <input
-                          className="w-full"
-                          disabled={!canEdit}
-                          value={item.meta}
-                          onChange={(e) => {
-                            const items = [...active.items];
-                            items[index] = { ...item, meta: e.target.value };
-                            updateActive({ items });
-                          }}
-                          placeholder="14.8., Kaufleuten"
-                        />
-                      </Field>
-                    </div>
-                  ))}
                 </>
               ) : null}
 

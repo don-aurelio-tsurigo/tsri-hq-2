@@ -126,35 +126,36 @@ ALLGEMEIN:
 
 export const TSUERITIPP_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst ein Instagram-Karussell (1080×1350) im Tsüritipp-Format.
 
-Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext liegt bereits als Liste einzelner Termine vor, im Format:
-#### Wochentag: Thema.
-[Fliesstext-Absatz]
-*Datum, Ort* (kursiv)
+Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext liegt bereits als Liste einzelner Termine vor, oft schon mit Fettung, Zeilenumbrüchen und Emojis (z. B. 🗓️).
 
 Deine Aufgabe ist primär Übertragung und sinnvolle Aufteilung auf Slides — NICHT Verdichten oder Umschreiben wie bei einem normalen Artikel.
 
 STRUKTUR:
-Cover-Slide → mehrere "tipp-item"-Slides (einer pro 1–2 Termine) → Outro-Slide.
+- Erster Slide: "cover". Letzter Slide: "outro".
+- Dazwischen nur "text"-Slides (gleiche Struktur wie im Standardformat: ein bodyHtml-Feld). Keine separaten Titel-, Datum- oder Slot-Felder.
+- 1–2 Termine pro Text-Slide, nie mehr als 2.
+- Keine feste Slide-Ober-/Untergrenze — die Anzahl ergibt sich aus der Terminanzahl im Artikel.
 
 KATEGORIE:
-${categoryColorPromptBlock()}
-Setze category auf genau einen Namen (GROSSBUCHSTABEN). Hinweis: Für das Tsüritipp-Layout wird category intern gespeichert, aber NICHT visuell angezeigt (kein Kategorie-Kicker im Slide) — das Layout zeigt stattdessen das Tsüri-Logo oben links.
+Setze category immer auf TIPP (türkiser Hintergrund, weisser Text). Das Layout zeigt kein Kategorie-Kicker — oben links steht das tipp-Logo.
 
 FELD-REGELN:
 
 Cover:
+- overline: aus Pre-Title übernehmen, z. B. "Immer am Mittwoch: Tsüritipp #82". Falls kein Pre-Title vorhanden ist, leer lassen.
 - headline = Artikel-Titel wortwörtlich (darf \\n enthalten für Zeilenumbrüche).
-- Kein overline-Feld nötig/anzuzeigen.
 
-Pro Tipp-Item-Slide:
-- 1–2 Termine pro Slide, nie mehr als 2.
-- Pro Termin drei Felder:
-  - title = "Wochentag: Thema." wortwörtlich aus der jeweiligen ####-Überschrift übernommen (inkl. Punkt am Ende, falls im Original vorhanden).
-  - body = der zugehörige Fliesstext-Absatz wortwörtlich übernommen. Nur bei Bedarf kürzen (durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze), max. 280 Zeichen.
-  - meta = die kursive Datum/Ort-Zeile wortwörtlich übernehmen, inkl. Emoji falls im Original vorhanden. NIE kürzen — max. 80 Zeichen; falls eine meta-Zeile diese Länge überschreitet, passe stattdessen die Slide-Aufteilung an (z. B. nur 1 statt 2 Termine auf diesem Slide), aber verändere den meta-Text nicht.
+Text-Slides:
+- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags.
+- Übernimm den Termintext wortwörtlich inkl. vorhandener Formatierung und Emojis. Nicht in strukturierte Felder aufteilen.
+- Typische Anordnung innerhalb von bodyHtml: fett gesetzte Überschrift (Wochentag: Thema.), dann Fliesstext, dann die Datum/Ort-Zeile (inkl. Emoji falls vorhanden). Zwei Termine auf einem Slide durch Absatzumbruch trennen.
+- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
+- LÄNGENLIMIT (abhängig von Absatzstruktur, wie Standard):
+  - Ohne Absatzumbruch: max. 450 Zeichen.
+  - Mit 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen.
+  - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide — splitte stattdessen auf einen weiteren Slide auf.
 - Reihenfolge der Termine exakt wie im Original-Artikel, nicht umsortieren.
-- ALLE im Artikel genannten Termine müssen vorkommen — keiner darf weggelassen werden, auch wenn das mehr Slides bedeutet.
-- Keine feste Slide-Ober-/Untergrenze (anders als bei anderen Formaten) — die Anzahl ergibt sich aus der Terminanzahl im Artikel.
+- ALLE im Artikel genannten Termine müssen vorkommen — keiner darf weggelassen werden.
 
 Outro:
 - headline = Artikel-Titel wortwörtlich.

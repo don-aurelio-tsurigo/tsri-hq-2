@@ -11,7 +11,6 @@ import {
   createEmptyOutroSlide,
   createEmptyQuoteSlide,
   createEmptyTextSlide,
-  createEmptyTippItemSlide,
 } from "@/lib/carousel/slides";
 import { DEFAULT_OUTRO_CTA, type Slide } from "@/lib/carousel/types";
 
@@ -38,17 +37,6 @@ const outroDraft = z.object({
   ctaText: z.string().optional(),
 });
 
-const tippEventDraft = z.object({
-  title: z.string().min(1),
-  body: z.string().min(1),
-  meta: z.string().default(""),
-});
-
-const tippItemDraft = z.object({
-  type: z.literal("tipp-item"),
-  items: z.array(tippEventDraft).min(1).max(2),
-});
-
 export const llmCarouselSchema = z.object({
   category: z.string().min(1).default(DEFAULT_CATEGORY),
   slides: z
@@ -62,7 +50,7 @@ export const llmCarouselSchema = z.object({
 export const llmTsueritippSchema = z.object({
   category: z.string().min(1).default(DEFAULT_CATEGORY),
   slides: z
-    .array(z.discriminatedUnion("type", [coverDraft, tippItemDraft, outroDraft]))
+    .array(z.discriminatedUnion("type", [coverDraft, textDraft, outroDraft]))
     .min(3)
     .max(30),
 });
@@ -76,7 +64,8 @@ export function parseLlmCarouselDraft(
   format: CarouselFormat,
 ): LlmCarouselDraft {
   if (format === "tsueritipp") {
-    return llmTsueritippSchema.parse(input);
+    const parsed = llmTsueritippSchema.parse(input);
+    return { ...parsed, category: "TIPP" };
   }
   return llmCarouselSchema.parse(input);
 }
@@ -127,19 +116,6 @@ export function llmDraftToSlides(
           ink,
           quoteText: slide.quoteText.trim(),
           attribution: slide.attribution.trim(),
-        };
-      }
-      case "tipp-item": {
-        const tipp = createEmptyTippItemSlide(category);
-        return {
-          ...tipp,
-          backgroundColor,
-          ink,
-          items: slide.items.map((item) => ({
-            title: item.title.trim(),
-            body: item.body.trim(),
-            meta: item.meta.trim(),
-          })),
         };
       }
       case "outro": {

@@ -69,26 +69,12 @@ const tsueritippToolInputSchema = {
         properties: {
           type: {
             type: "string" as const,
-            enum: ["cover", "tipp-item", "outro"],
+            enum: ["cover", "text", "outro"],
           },
           overline: { type: "string" as const },
           headline: { type: "string" as const },
+          bodyHtml: { type: "string" as const },
           ctaText: { type: "string" as const },
-          items: {
-            type: "array" as const,
-            minItems: 1,
-            maxItems: 2,
-            items: {
-              type: "object" as const,
-              additionalProperties: false,
-              required: ["title", "body", "meta"],
-              properties: {
-                title: { type: "string" as const },
-                body: { type: "string" as const },
-                meta: { type: "string" as const },
-              },
-            },
-          },
         },
       },
     },

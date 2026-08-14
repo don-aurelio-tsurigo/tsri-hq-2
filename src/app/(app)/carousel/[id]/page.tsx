@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CarouselEditor } from "@/components/carousel-editor";
 import { getCarouselPost, parseSlides } from "@/lib/carousel";
+import { parseCarouselFormat } from "@/lib/carousel/format";
 import { requireMembership } from "@/lib/session";
 import { stripArticleHeaderFromBody, recoverPreTitleFromBody } from "@/lib/wepublish/article";
 
@@ -50,6 +51,7 @@ export default async function CarouselEditorPage({
       createdByName={post.createdBy.name}
       canEdit={post.createdById === session.user.id}
       sourceArticle={sourceArticle}
+      format={parseCarouselFormat(post.format)}
     />
   );
 }

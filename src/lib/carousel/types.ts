@@ -9,6 +9,10 @@ export {
 export const DEFAULT_OUTRO_CTA = "LINK IN DER BIO";
 export const BRAND_MARK = "TSÜRI";
 export const BRAND_LOGO_SRC = "/brand/tsuri-logo.png";
+export const TIPP_LOGO_SRC = "/brand/tsuri-tipp-logo.png";
+export const TIPP_LOGO_WHITE_SRC = "/brand/tsuri-tipp-logo-white.png";
+export const TIPP_LOGO_TEAL_SRC = "/brand/tsuri-tipp-logo-teal.png";
+export const TIPP_TEAL = "#00b8b6";
 
 export const CANVAS_WIDTH = 1080;
 export const CANVAS_HEIGHT = 1350;
@@ -97,7 +101,7 @@ export type TippEvent = {
   meta: string;
 };
 
-/** Tsüritipp weekday item; 1–2 events per slide. Layout still pending. */
+/** Tsüritipp weekday item; 1–2 events per slide. */
 export type TippItemSlide = SlideBase & {
   type: "tipp-item";
   backgroundColor: string;
