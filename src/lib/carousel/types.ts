@@ -91,6 +91,26 @@ export type OutroSlide = SlideBase & {
   textTransform?: LayerTransform;
 };
 
-export type Slide = CoverSlide | TextSlide | QuoteSlide | OutroSlide;
+export type TippEvent = {
+  title: string;
+  body: string;
+  meta: string;
+};
+
+/** Tsüritipp weekday item; 1–2 events per slide. Layout still pending. */
+export type TippItemSlide = SlideBase & {
+  type: "tipp-item";
+  backgroundColor: string;
+  ink?: SlideInk;
+  items: TippEvent[];
+  textTransform?: LayerTransform;
+};
+
+export type Slide =
+  | CoverSlide
+  | TextSlide
+  | QuoteSlide
+  | OutroSlide
+  | TippItemSlide;
 export type SlideType = Slide["type"];
 export type EditableLayer = "image" | "text";

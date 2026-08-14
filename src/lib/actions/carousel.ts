@@ -62,8 +62,9 @@ export async function importCarouselFromArticleUrl(
 
   try {
     const article = await fetchTsriArticleByUrl(parsedUrl.data);
-    const slides = await generateSlidesFromArticle(article);
-    if (slides.length < 6) {
+    const slides = await generateSlidesFromArticle(article, resolvedFormat);
+    const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
+    if (slides.length < minSlides) {
       return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
     }
 

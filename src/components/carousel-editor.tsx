@@ -37,6 +37,7 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
   cover: "Cover",
   text: "Text",
   quote: "Zitat",
+  "tipp-item": "Tipp",
   outro: "Outro",
 };
 
@@ -563,6 +564,56 @@ export function CarouselEditor({
                 </>
               ) : null}
 
+              {active.type === "tipp-item" ? (
+                <>
+                  {active.items.map((item, index) => (
+                    <div key={index} className="space-y-3">
+                      <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
+                        Termin {index + 1}
+                      </p>
+                      <Field label="Titel">
+                        <input
+                          className="w-full"
+                          disabled={!canEdit}
+                          value={item.title}
+                          onChange={(e) => {
+                            const items = [...active.items];
+                            items[index] = { ...item, title: e.target.value };
+                            updateActive({ items });
+                          }}
+                          placeholder="Donnerstag: Konzert."
+                        />
+                      </Field>
+                      <Field label="Text">
+                        <textarea
+                          className="min-h-28 w-full"
+                          disabled={!canEdit}
+                          value={item.body}
+                          onChange={(e) => {
+                            const items = [...active.items];
+                            items[index] = { ...item, body: e.target.value };
+                            updateActive({ items });
+                          }}
+                        />
+                      </Field>
+                      <Field label="Datum / Ort">
+                        <input
+                          className="w-full"
+                          disabled={!canEdit}
+                          value={item.meta}
+                          onChange={(e) => {
+                            const items = [...active.items];
+                            items[index] = { ...item, meta: e.target.value };
+                            updateActive({ items });
+                          }}
+                          placeholder="14.8., Kaufleuten"
+                        />
+                      </Field>
+                    </div>
+                  ))}
+                </>
+              ) : null}
+
               {active.type === "outro" ? (
                 <>
                   <Field label="Headline">
@@ -654,7 +705,8 @@ export function CarouselEditor({
 
               {active.type === "text" ||
               active.type === "quote" ||
-              active.type === "outro" ? (
+              active.type === "outro" ||
+              active.type === "tipp-item" ? (
                 <Field label="Textfarbe">
                   <div className="flex gap-2">
                     {(
@@ -823,7 +875,8 @@ export function CarouselEditor({
                     if (
                       active.type === "text" ||
                       active.type === "quote" ||
-                      active.type === "outro"
+                      active.type === "outro" ||
+                      active.type === "tipp-item"
                     ) {
                       updateActive({
                         category,
@@ -838,7 +891,8 @@ export function CarouselEditor({
 
               {active.type === "text" ||
               active.type === "quote" ||
-              active.type === "outro" ? (
+              active.type === "outro" ||
+              active.type === "tipp-item" ? (
                 <Field label="Hintergrundfarbe">
                   <div className="flex gap-2">
                     <input

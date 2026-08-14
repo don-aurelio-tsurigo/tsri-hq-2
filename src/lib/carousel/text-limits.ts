@@ -4,6 +4,7 @@ export const TEXT_LIMIT_NO_BREAK = 500;
 export const TEXT_LIMIT_ONE_BREAK = 380;
 export const TEXT_LIMIT_TWO_BREAKS = 300;
 export const QUOTE_TEXT_LIMIT = 300;
+export const TIPP_ITEM_BODY_LIMIT = 280;
 /** Drop role/institution from quote attribution when the full line exceeds this. */
 export const ATTRIBUTION_MAX_LENGTH = 43;
 /** Sentence-end cut is used only if it falls in [ratio * limit, limit]. */
@@ -119,6 +120,17 @@ export function enforceSlideTextLimits(slides: Slide[]): Slide[] {
         ...slide,
         bodyHtml: truncateHtmlToVisibleChars(slide.bodyHtml, limit),
       };
+    }
+    if (slide.type === "tipp-item") {
+      const items = slide.items.map((item) => {
+        const body =
+          visibleTextLength(item.body) <= TIPP_ITEM_BODY_LIMIT
+            ? item.body
+            : truncateHtmlToVisibleChars(item.body, TIPP_ITEM_BODY_LIMIT);
+        return body === item.body ? item : { ...item, body };
+      });
+      if (items.every((item, i) => item === slide.items[i])) return slide;
+      return { ...slide, items };
     }
     if (slide.type === "quote") {
       const quoteText =

@@ -13,6 +13,7 @@ import {
   type Slide,
   type SlideType,
   type TextSlide,
+  type TippItemSlide,
 } from "@/lib/carousel/types";
 
 function newId() {
@@ -78,6 +79,19 @@ export function createEmptyOutroSlide(
   };
 }
 
+export function createEmptyTippItemSlide(
+  category: string = DEFAULT_CATEGORY,
+): TippItemSlide {
+  return {
+    id: newId(),
+    type: "tipp-item",
+    category,
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
+    items: [{ title: "", body: "", meta: "" }],
+  };
+}
+
 export function createEmptySlide(
   type: SlideType,
   category: string = DEFAULT_CATEGORY,
@@ -91,6 +105,8 @@ export function createEmptySlide(
       return createEmptyQuoteSlide(category);
     case "outro":
       return createEmptyOutroSlide(category);
+    case "tipp-item":
+      return createEmptyTippItemSlide(category);
   }
 }
 

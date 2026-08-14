@@ -23,6 +23,7 @@ export const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   MOBILITÄT: { backgroundColor: "#545454", ink: "light" },
   KLIMA: { backgroundColor: "#99ce00", ink: "dark" },
   WOHNEN: { backgroundColor: "#643a7c", ink: "light" },
+  POLITIK: { backgroundColor: "#e8b643", ink: "dark" },
   TIPP: { backgroundColor: "#00b8b6", ink: "light" },
 };
 
@@ -70,8 +71,7 @@ export function categoryColorPromptBlock(): string {
     return `- ${name} → ${theme.backgroundColor}${inkNote}`;
   });
   return [
-    "Kategorie & Hintergrundfarbe (wähle genau eine category aus dieser Liste; unbekannte → STADTLEBEN):",
+    "Wähle genau eine category aus dieser Liste (unbekannt → STADTLEBEN):",
     ...lines,
-    `Fallback: ${DEFAULT_CATEGORY} → ${DEFAULT_BG}`,
   ].join("\n");
 }

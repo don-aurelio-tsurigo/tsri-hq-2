@@ -602,6 +602,61 @@ function QuotePreview({
   );
 }
 
+function TippItemPreview({
+  slide,
+}: {
+  slide: Extract<Slide, { type: "tipp-item" }>;
+}) {
+  const ink = resolveSlideInk(slide);
+  const inkColor = inkCssColor(ink);
+  return (
+    <>
+      <div
+        className="absolute inset-0"
+        style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
+      />
+      <div
+        className="carousel-slide-text absolute z-30 overflow-hidden"
+        style={{
+          left: 100,
+          right: 100,
+          top: 160,
+          bottom: 180,
+          fontFamily: CAROUSEL_FONT,
+          color: inkColor,
+          ...SLIDE_TEXT_HYPHENS,
+        }}
+      >
+        {slide.items.map((item, index) => (
+          <div
+            key={`${item.title}-${index}`}
+            style={{ marginBottom: index === slide.items.length - 1 ? 0 : 48 }}
+          >
+            <p className="font-bold" style={{ fontSize: 48, lineHeight: 1.15 }}>
+              {item.title || "Wochentag: Thema."}
+            </p>
+            <p
+              className="font-normal"
+              style={{ fontSize: 36, lineHeight: 1.25, marginTop: 16 }}
+            >
+              {item.body || "Termintext…"}
+            </p>
+            {item.meta ? (
+              <p
+                className="font-normal opacity-90"
+                style={{ fontSize: 32, lineHeight: 1.2, marginTop: 16 }}
+              >
+                {item.meta}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <BrandMark ink={ink} />
+    </>
+  );
+}
+
 function OutroPreview({
   slide,
   interactive,
@@ -742,6 +797,9 @@ export function CarouselSlidePreview({
         ) : null}
         {slide.type === "quote" ? (
           <QuotePreview slide={slide} {...shared} />
+        ) : null}
+        {slide.type === "tipp-item" ? (
+          <TippItemPreview slide={slide} />
         ) : null}
         {slide.type === "outro" ? (
           <OutroPreview slide={slide} {...shared} />
