@@ -70,6 +70,9 @@ const MIGRATION_HEAL: Record<string, HealSpec> = {
   "20260811160000_carousel_source_pre_title": {
     columns: { table: "carousel_post", names: ["sourcePreTitle"] },
   },
+  "20260813180000_carousel_format": {
+    columns: { table: "carousel_post", names: ["format"] },
+  },
   "20260812140000_add_ads": {
     tables: ["campaign", "creative", "ad_event"],
     enums: ["CampaignStatus", "CreativeType", "AdEventType"],

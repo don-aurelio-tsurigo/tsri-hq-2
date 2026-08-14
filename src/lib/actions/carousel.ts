@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { createEmptyCoverSlide } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
 import { requireMembership } from "@/lib/session";
+import { parseCarouselFormat } from "@/lib/carousel/format";
 import { fetchTsriArticleByUrl } from "@/lib/wepublish/article";
 import { WepublishApiError } from "@/lib/wepublish/client";
 
@@ -16,7 +17,10 @@ const idSchema = z.string().min(1);
 const titleSchema = z.string().min(1).max(200);
 const urlSchema = z.string().min(8).max(500);
 
-export async function createCarouselPost(title?: string | FormData) {
+export async function createCarouselPost(
+  title?: string | FormData,
+  format?: string,
+) {
   const { session } = await requireMembership();
   const rawTitle =
     typeof title === "string"
@@ -28,10 +32,14 @@ export async function createCarouselPost(title?: string | FormData) {
     rawTitle && titleSchema.safeParse(rawTitle).success
       ? rawTitle.trim()
       : "Neues Carousel";
+  const resolvedFormat = parseCarouselFormat(
+    title instanceof FormData ? title.get("format") : format,
+  );
 
   const post = await prisma.carouselPost.create({
     data: {
       title: resolvedTitle,
+      format: resolvedFormat,
       slides: [createEmptyCoverSlide()] as unknown as Prisma.InputJsonValue,
       createdById: session.user.id,
     },
@@ -43,12 +51,14 @@ export async function createCarouselPost(title?: string | FormData) {
 
 export async function importCarouselFromArticleUrl(
   articleUrl: string,
+  format?: string,
 ): Promise<{ error: string }> {
   const { session } = await requireMembership();
   const parsedUrl = urlSchema.safeParse(articleUrl?.trim() ?? "");
   if (!parsedUrl.success) {
     return { error: "Bitte eine gültige Artikel-URL einfügen." };
   }
+  const resolvedFormat = parseCarouselFormat(format);
 
   try {
     const article = await fetchTsriArticleByUrl(parsedUrl.data);
@@ -65,6 +75,7 @@ export async function importCarouselFromArticleUrl(
     const post = await prisma.carouselPost.create({
       data: {
         title,
+        format: resolvedFormat,
         slides: slides as unknown as Prisma.InputJsonValue,
         sourceUrl: article.url,
         sourcePreTitle: article.preTitle,

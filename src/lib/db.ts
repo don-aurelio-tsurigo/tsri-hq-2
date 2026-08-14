@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 28; // v28: PayrexxPayout / Line / ChannelRule
+const PRISMA_CLIENT_SCHEMA_VERSION = 29; // v29: CarouselPost.format
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -44,6 +44,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   TimeEntry: ["segments"],
   TimeSegment: ["type", "startTime", "endTime"],
   Campaign: ["impressionLimit"],
+  CarouselPost: ["format"],
 };
 
 const REQUIRED_MODELS = [

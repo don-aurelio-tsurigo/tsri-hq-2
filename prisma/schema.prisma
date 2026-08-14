@@ -760,6 +760,8 @@ model CarouselPost {
   sourceTitle String?
   sourceLead  String?  @db.Text
   sourceBody  String?  @db.Text
+  /// "auto" | "standard" | "kolumne" | "interview" | "tsueritipp" | "6ibrief"
+  format      String   @default("auto")
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

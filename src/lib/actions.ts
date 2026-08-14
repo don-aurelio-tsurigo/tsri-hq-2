@@ -354,8 +354,11 @@ import {
   importCarouselFromArticleUrl as importCarouselFromArticleUrlAction,
 } from "./actions/carousel";
 
-export async function createCarouselPost(title?: string | FormData) {
-  return createCarouselPostAction(title);
+export async function createCarouselPost(
+  title?: string | FormData,
+  format?: string,
+) {
+  return createCarouselPostAction(title, format);
 }
 export async function updateCarouselSlides(
   id: string,
@@ -367,8 +370,11 @@ export async function updateCarouselSlides(
 export async function deleteCarouselPost(formData: FormData) {
   return deleteCarouselPostAction(formData);
 }
-export async function importCarouselFromArticleUrl(articleUrl: string) {
-  return importCarouselFromArticleUrlAction(articleUrl);
+export async function importCarouselFromArticleUrl(
+  articleUrl: string,
+  format?: string,
+) {
+  return importCarouselFromArticleUrlAction(articleUrl, format);
 }
 
 import {
