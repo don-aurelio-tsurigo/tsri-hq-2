@@ -1,23 +1,6 @@
 import { categoryColorPromptBlock } from "@/lib/carousel/categories";
 import type { CarouselFormat } from "@/lib/carousel/format";
 
-const TEXT_SLIDE_RULES = `Text-Slides: bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
-  ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
-  FETT-MARKIERUNG: Markiere pro Text-Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken des Slides tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) mit wenig inhaltlicher Substanz ist eine einzelne Markierung oder der Verzicht darauf akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 Markierungen pro Slide.
-  ABSATZSTRUKTUR: Text-Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten, um lesbar zu bleiben. Setze den Umbruch an einer inhaltlich sinnvollen Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich in der Mitte eines Satzes/Arguments.
-  LÄNGENLIMIT (abhängig von Absatzstruktur, da jeder Absatzumbruch zusätzlichen vertikalen Platz braucht):
-  - Text OHNE Absatzumbruch (ein durchgehender Block): max. 450 Zeichen.
-  - Text MIT 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen gesamt.
-  - Text MIT 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen gesamt. Vermeide grundsätzlich mehr als 2 Absatzumbrüche pro Slide — splitte stattdessen auf einen weiteren Text-Slide auf.
-  - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
-  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.`;
-
-const QUOTE_SLIDE_RULES = `Quote: quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben). attribution max. 43 Zeichen: Name + Rolle (nach Komma) nur wenn die ganze Zeile ≤43 Zeichen ist; sonst nur den Namen (alles nach dem ersten Komma streichen). Namen nie abschneiden.`;
-
-const CATEGORY_STEP = `Kategorie bestimmen (immer zuerst):
-${categoryColorPromptBlock()}
-Setze "category" auf genau einen Namen aus der Liste (GROSSBUCHSTABEN); Farbe und Textkontrast folgen daraus automatisiert.`;
-
 export const STANDARD_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst ein Instagram-Karussell (1080×1350) im Standardformat.
 
 STRUKTUR:
@@ -141,61 +124,6 @@ ALLGEMEIN:
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen.
 - Fülle create_carousel_slides genau einmal.`;
 
-export const AUTO_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst Instagram-Karussells (1080×1350).
-
-SCHRITT 1 — ${CATEGORY_STEP}
-
-SCHRITT 2 — Format bestimmen:
-
-Prüfe zuerst, ob der Artikel ein INTERVIEW ist (unabhängig von der Kategorie — ein Interview kann in jeder Rubrik erscheinen, auch KOLUMNE). Erkennungsmerkmale: der Artikel besteht überwiegend aus Frage-Antwort-Struktur, oder enthält explizite Hinweise wie "im Interview", "im Gespräch mit", eine interviewte Person mit Frage-Antwort-Wechsel, Fragen einer Journalist:in gefolgt von Antworten einer benannten Person.
-
-→ Falls Interview erkannt: FALL C (siehe unten), unabhängig von category.
-→ Falls kein Interview UND category = KOLUMNE: FALL B.
-→ Sonst: FALL A.
-
-FALL A — Standardformat (kein Interview, category ≠ KOLUMNE)
-- Genau 6–10 Slides insgesamt.
-- Erster Slide: "cover". Letzter Slide: "outro".
-- Dazwischen vor allem "text", optional "quote" wenn ein echtes Zitat passt.
-
-FALL B — Zitat-Kaskade (kein Interview, category = KOLUMNE)
-Struktur: Cover → ausschliesslich "quote"-Slides → Outro. KEINE "text"-Slides in diesem Fall.
-- Wähle 5–8 aufeinanderfolgende, wörtliche Zitate direkt aus dem Artikeltext, die zusammen den Argumentationsbogen der Kolumne abbilden (These → Begründung/Beispiele → Fazit/Aufruf).
-- Zitate müssen wortwörtlich aus dem Artikel stammen. Nicht umformulieren, nicht zusammenfassen.
-- quoteText max. 300 Zeichen pro Slide. Ist ein Zitat länger, kürzen (durch Weglassen von Wörtern/Nebensätzen, nie durch Umschreiben der verbleibenden Wörter), bis es passt.
-- Nutze das Zeichenlimit aus: Zitate dürfen und sollen ruhig umfassend sein (mehrere Sätze am Stück), solange sie unter 300 Zeichen bleiben — nicht künstlich auf einen kurzen Einzelsatz verkürzen, wenn mehr vom zusammenhängenden Gedanken noch Platz hätte.
-- Wähle Zitate so, dass sie combined möglichst viel vom eigentlichen Gedankengang/Argument des Artikels abdecken, nicht nur die auffälligsten Einzelsätze.
-- attribution: Name der Autor:in/Kolumnist:in (aus Bylines/Artikelangabe), danach Komma und Rolle als "Kolumnist:in" oder "Kolumnist"/"Kolumnistin" — aber nur, wenn die ganze Zeile max. 43 Zeichen hat. Wird sie länger: alles nach dem ersten Komma weglassen, nur den Namen behalten. Nie mitten im Namen kürzen. Ohne Komma und trotzdem länger als 43 Zeichen: Namen unverändert lassen.
-- quoteText ohne führende Anführungszeichen.
-- backgroundImageUrl: null (solid color aus der Kategorie-Farbe), ausser ein Zitat bezieht sich auf ein konkretes Bildmotiv, das im Artikel mitgeliefert wird — dann darf backgroundImageUrl gesetzt werden.
-- Slide-Anzahl gesamt (inkl. Cover + Outro): 6–10.
-
-FALL C — Interview (Interview erkannt, unabhängig von category)
-Struktur: exakt in dieser Reihenfolge:
-1. Cover-Slide.
-2. EIN "text"-Slide mit dem Artikel-Lead (Teaser/Intro-Absatz vor dem eigentlichen Interview) wortwörtlich übernommen — hier AUSNAHMSWEISE den Lead verwenden, nicht weglassen wie sonst üblich (siehe FALL A/allgemeine Regel). Gleiches Längenlimit wie Standard-Text-Slides (siehe Feld-Regeln unten).
-3. bis max. 9. Slide: 3–7 "quote"-Slides mit wörtlichen Antworten der interviewten Person aus dem Interview. Wähle Antworten, die zusammen den roten Faden des Gesprächs abbilden (nicht nur die pointiertesten Einzelsätze). quoteText wortwörtlich aus den Antworten der interviewten Person, max. 300 Zeichen pro Slide (falls eine Antwort länger ist, kürzen durch Weglassen, nicht Umschreiben). attribution: Name der interviewten Person, optional Komma + Rolle/Funktion aus dem Artikel (z.B. "Matthias von Hartz, Festivalleiter") — NICHT die Journalist:in, die die Fragen stellt. Gesamte attribution max. 43 Zeichen: passt Name+Rolle, beides behalten; wird sie länger, nur den Namen (alles nach dem ersten Komma weglassen). Nie mitten im Namen kürzen.
-10. Outro-Slide.
-- Slide-Anzahl gesamt: 6–10 (also 3–7 Quote-Slides je nach Interviewlänge, plus Cover + Lead-Text + Outro).
-- backgroundImageUrl bei Quote-Slides: null (solid color), ausser ein Zitat bezieht sich auf ein konkretes mitgeliefertes Bildmotiv.
-
-WICHTIGSTE REGEL — Textmenge (gilt für FALL A und den Lead-Slide in FALL C, "text"-Slides):
-- Ziel ist es, so viel wie möglich vom Original-Artikeltext auf die Slides zu bringen, idealerweise praktisch den gesamten Fliesstext.
-- Verwende den Artikeltext wortwörtlich. Nicht umformulieren, nicht zusammenfassen, nicht paraphrasieren.
-- Kürzen ist nur erlaubt, wenn ein Abschnitt sonst nicht auf die Slides passen würde (siehe Längenlimit nach Absatzstruktur unten) — und auch dann nur durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze.
-- Nutze so viele Text-Slides wie nötig (innerhalb der 6–10 Slide-Grenze), um möglichst viel Original-Text unterzubringen, statt früh zusammenzufassen.
-- NUR FÜR FALL A: Den Artikel-Lead (Teaser/Intro-Absatz vor dem Fliesstext) NICHT verwenden — nur der eigentliche Artikeltext ab dem ersten Fliesstext-Absatz zählt. (Für FALL C gilt die Ausnahme aus Schritt 2 oben: dort wird der Lead explizit verwendet.)
-- Ändere den Text keinesfalls in der Aussage.
-
-Allgemeine Feld-Regeln (alle Fälle):
-- Sprache: Deutsch (Schweiz).
-- Cover: overline aus Pre-Title übernehmen, headline: Artikel-Titel wortwörtlich verwenden (darf Zeilenumbrüche als \\n enthalten).
-- ${TEXT_SLIDE_RULES}
-- ${QUOTE_SLIDE_RULES}
-- Outro: Titel (= Artikel-Titel, wortwörtlich) + ctaText "LINK IN DER BIO".
-- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
-- Fülle create_carousel_slides genau einmal.`;
-
 export const TSUERITIPP_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst ein Instagram-Karussell (1080×1350) im Tsüritipp-Format.
 
 Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext liegt bereits als Liste einzelner Termine vor, im Format:
@@ -247,8 +175,6 @@ export function systemPromptForFormat(format: CarouselFormat): string {
       return INTERVIEW_PROMPT;
     case "tsueritipp":
       return TSUERITIPP_PROMPT;
-    case "auto":
-      return AUTO_PROMPT;
     case "6ibrief":
       throw new Error(
         "Für 6iBrief gibt es noch keinen eigenen Prompt. Bitte ein anderes Format wählen.",

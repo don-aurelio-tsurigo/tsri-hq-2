@@ -120,7 +120,7 @@ function articleToPrompt(
       : article.bodyText;
 
   const leadLine =
-    format === "interview" || format === "auto"
+    format === "interview"
       ? article.lead
         ? `Lead (für Interview verwenden): ${article.lead}`
         : null
@@ -148,7 +148,7 @@ function articleToPrompt(
 
 export async function generateSlidesFromArticle(
   article: FetchedArticle,
-  format: CarouselFormat = "auto",
+  format: CarouselFormat = "standard",
 ): Promise<Slide[]> {
   let system: string;
   try {

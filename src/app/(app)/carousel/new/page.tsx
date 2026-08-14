@@ -26,7 +26,7 @@ export default function NewCarouselPage() {
                   type="radio"
                   name="format"
                   value={format}
-                  defaultChecked={format === "auto"}
+                  defaultChecked={format === "standard"}
                 />
                 {CAROUSEL_FORMAT_LABELS[format]}
               </label>

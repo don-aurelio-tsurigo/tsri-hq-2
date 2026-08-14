@@ -73,6 +73,13 @@ const MIGRATION_HEAL: Record<string, HealSpec> = {
   "20260813180000_carousel_format": {
     columns: { table: "carousel_post", names: ["format"] },
   },
+  "20260814110000_carousel_format_no_auto": {
+    columns: { table: "carousel_post", names: ["format"] },
+    ensureSql: [
+      `UPDATE "carousel_post" SET "format" = 'standard' WHERE "format" = 'auto'`,
+      `ALTER TABLE "carousel_post" ALTER COLUMN "format" SET DEFAULT 'standard'`,
+    ],
+  },
   "20260812140000_add_ads": {
     tables: ["campaign", "creative", "ad_event"],
     enums: ["CampaignStatus", "CreativeType", "AdEventType"],

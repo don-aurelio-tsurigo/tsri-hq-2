@@ -9,7 +9,7 @@ import {
 import type { CarouselFormat } from "@/lib/carousel/format";
 
 export function CarouselCreatePanel() {
-  const [format, setFormat] = useState<CarouselFormat>("auto");
+  const [format, setFormat] = useState<CarouselFormat>("standard");
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [creating, startCreate] = useTransition();
