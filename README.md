@@ -40,11 +40,23 @@ Login nach Seed:
 
 ## Deploy (Render)
 
-`npm start` führt Migrationen vor dem Server aus. Die Migration `member_usage` ist idempotent; ein schmales Recover-Skript löst nur den bekannten Failed-State (Enum schon vorhanden / P3009) und ruft danach `prisma migrate deploy` auf.
+**Build Command** (nur Build, kein Schema-Push):
 
-Schema-Änderungen nur über Prisma-Migrationen — kein `db push` gegen Prod.
+```bash
+npm install; npm run build
+```
 
-Seed-Login (`admin@team.local`) ist nur für lokale Entwicklung.
+Nicht `db:push` im Build — das kann Tabellen wie `rag.sync_state` droppen wollen und den Build abbrechen.
+
+**Start Command:**
+
+```bash
+npm start
+```
+
+(`migrate-deploy` → `prisma migrate deploy`, inkl. Recovery für die frühere failed `member_usage`-Migration.)
+
+Schema-Änderungen nur über Prisma-Migrationen. Seed-Login (`admin@team.local`) ist nur für lokale Entwicklung.
 
 ## Kernkonzept
 
