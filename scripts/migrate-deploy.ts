@@ -1,41 +1,13 @@
 /**
  * Production migrate entrypoint.
- * One-shot recovery: if member_usage is stuck failed (partial apply),
- * mark it rolled-back so idempotent SQL can re-apply, then migrate deploy.
+ * One-shot recovery for a stuck failed member_usage migration (partial apply / P3009),
+ * then runs prisma migrate deploy.
  */
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
 import { Client } from "pg";
 
 const FAILED_MIGRATION = "20260816100000_member_usage";
-
-function debugLog(
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-) {
-  // #region agent log
-  const payload = {
-    sessionId: "9b87ec",
-    runId: process.env.DEBUG_RUN_ID ?? "migrate-deploy",
-    hypothesisId,
-    location,
-    message,
-    data,
-    timestamp: Date.now(),
-  };
-  console.log(`[migrate-deploy][${hypothesisId}] ${message}`, JSON.stringify(data));
-  fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "9b87ec",
-    },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-  // #endregion
-}
 
 function prismaResolve(flag: "--rolled-back" | "--applied", name: string) {
   execFileSync("npx", ["prisma", "migrate", "resolve", flag, name], {
@@ -53,8 +25,8 @@ async function recoverFailedMemberUsageIfNeeded() {
   const client = new Client({ connectionString });
   await client.connect();
   try {
-    const failed = await client.query<{ migration_name: string; logs: string | null }>(
-      `SELECT migration_name, logs
+    const failed = await client.query<{ migration_name: string }>(
+      `SELECT migration_name
        FROM "_prisma_migrations"
        WHERE migration_name = $1
          AND finished_at IS NULL
@@ -63,10 +35,7 @@ async function recoverFailedMemberUsageIfNeeded() {
       [FAILED_MIGRATION],
     );
 
-    if (failed.rows.length === 0) {
-      debugLog("A", "migrate-deploy.ts:check", "no failed member_usage migration", {});
-      return;
-    }
+    if (failed.rows.length === 0) return;
 
     const typeRow = await client.query<{ exists: boolean }>(
       `SELECT EXISTS (
@@ -84,20 +53,11 @@ async function recoverFailedMemberUsageIfNeeded() {
 
     const typeExists = Boolean(typeRow.rows[0]?.exists);
     const tableExists = Boolean(tableRow.rows[0]?.exists);
-    debugLog("B", "migrate-deploy.ts:partial", "failed member_usage state", {
-      typeExists,
-      tableExists,
-      logsPreview: (failed.rows[0]?.logs ?? "").slice(0, 300),
-    });
 
-    // Partial or full schema already present → mark applied so deploy is unblocked.
-    // Empty schema → mark rolled-back so idempotent migration can re-run.
     if (typeExists || tableExists) {
-      debugLog("C", "migrate-deploy.ts:resolve", "marking member_usage as applied", {
-        typeExists,
-        tableExists,
-      });
-      // Ensure remaining objects exist before marking applied
+      console.log(
+        `[migrate-deploy] recovering ${FAILED_MIGRATION} as applied (type=${typeExists} table=${tableExists})`,
+      );
       await client.query(`
         DO $$ BEGIN
           CREATE TYPE "MemberUsageKind" AS ENUM ('ai', 'rag_search', 'image_proxy');
@@ -128,7 +88,9 @@ async function recoverFailedMemberUsageIfNeeded() {
       `);
       prismaResolve("--applied", FAILED_MIGRATION);
     } else {
-      debugLog("C", "migrate-deploy.ts:resolve", "marking member_usage as rolled-back", {});
+      console.log(
+        `[migrate-deploy] recovering ${FAILED_MIGRATION} as rolled-back`,
+      );
       prismaResolve("--rolled-back", FAILED_MIGRATION);
     }
   } finally {
@@ -142,7 +104,6 @@ async function main() {
     stdio: "inherit",
     env: process.env,
   });
-  debugLog("D", "migrate-deploy.ts:done", "migrate deploy completed", {});
 }
 
 main().catch((err) => {
