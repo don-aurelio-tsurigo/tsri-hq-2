@@ -39,7 +39,7 @@ export function getRagPool(): Pool {
     max: 3,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 15_000,
-    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+    ssl: isRemote ? { rejectUnauthorized: true } : undefined,
   });
 
   globalForRag.ragPool = pool;

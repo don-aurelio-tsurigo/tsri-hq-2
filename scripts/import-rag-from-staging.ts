@@ -86,7 +86,7 @@ function poolOpts(connectionString: string): pg.PoolConfig {
   return {
     connectionString,
     max: 2,
-    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
+    ssl: isRemote ? { rejectUnauthorized: true } : undefined,
   };
 }
 
