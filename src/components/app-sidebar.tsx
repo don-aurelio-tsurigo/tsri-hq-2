@@ -43,15 +43,7 @@ type WikiPin = {
   spaceId: string;
 };
 
-type NavSectionId =
-  | "redaktion"
-  | "social"
-  | "tasks"
-  | "werbung"
-  | "finance"
-  | "team"
-  | "privat"
-  | "admin";
+type NavSectionId = "redaktion" | "team" | "privat" | "admin";
 
 function NavLink({
   href,
@@ -92,6 +84,43 @@ function NavLink({
           nested ? "size-3.5" : "size-4",
           active ? "opacity-90" : "opacity-70",
         ].join(" ")}
+        strokeWidth={1.75}
+      />
+      <span className="min-w-0 truncate">{children}</span>
+    </Link>
+  );
+}
+
+function NavTopLink({
+  href,
+  active,
+  icon: Icon,
+  children,
+  uppercase = false,
+  onNavigate,
+}: {
+  href: string;
+  active: boolean;
+  icon: LucideIcon;
+  children: ReactNode;
+  uppercase?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={[
+        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold transition-colors",
+        uppercase ? "tracking-wider uppercase" : "",
+        active
+          ? "bg-[var(--highlight)] !text-[#0a0a0a]"
+          : "text-white hover:bg-white/10",
+      ].join(" ")}
+    >
+      <Icon
+        aria-hidden
+        className="size-4 shrink-0 opacity-90"
         strokeWidth={1.75}
       />
       <span className="min-w-0 truncate">{children}</span>
@@ -296,85 +325,59 @@ export function AppSidebar({
           </NavLink>
         </NavSection>
 
-        <NavSection
-          title="Social Media"
+        <NavTopLink
+          href="/carousel"
+          active={
+            pathname === "/carousel" || pathname.startsWith("/carousel/")
+          }
           icon={Images}
-          open={isSectionOpen("social")}
-          onToggle={() => toggleSection("social")}
+          uppercase
+          onNavigate={onMobileClose}
         >
-          <NavLink
-            href="/carousel"
-            active={
-              pathname === "/carousel" ||
-              pathname.startsWith("/carousel/")
-            }
-            icon={Images}
-            onNavigate={onMobileClose}
-          >
-            Insta Posts
-          </NavLink>
-        </NavSection>
+          Social Media
+        </NavTopLink>
 
-        <NavSection
-          title="Tasks"
+        <NavTopLink
+          href="/tasks"
+          active={pathname === "/tasks" || pathname.startsWith("/tasks/")}
           icon={CheckSquare}
-          open={isSectionOpen("tasks")}
-          onToggle={() => toggleSection("tasks")}
+          onNavigate={onMobileClose}
         >
-          <NavLink
-            href="/tasks"
-            active={pathname === "/tasks" || pathname.startsWith("/tasks/")}
-            icon={CheckSquare}
-            onNavigate={onMobileClose}
-          >
-            Meine Tasks
-          </NavLink>
-          <NavLink
-            href="/projects"
-            active={
-              pathname === "/projects" ||
-              pathname.startsWith("/projects/")
-            }
-            icon={FolderKanban}
-            onNavigate={onMobileClose}
-          >
-            Projekte
-          </NavLink>
-        </NavSection>
+          Meine Tasks
+        </NavTopLink>
 
-        <NavSection
-          title="Werbung"
+        <NavTopLink
+          href="/projects"
+          active={
+            pathname === "/projects" || pathname.startsWith("/projects/")
+          }
+          icon={FolderKanban}
+          onNavigate={onMobileClose}
+        >
+          Projekte
+        </NavTopLink>
+
+        <NavTopLink
+          href="/ads"
+          active={pathname === "/ads" || pathname.startsWith("/ads/")}
           icon={Megaphone}
-          open={isSectionOpen("werbung")}
-          onToggle={() => toggleSection("werbung")}
+          uppercase
+          onNavigate={onMobileClose}
         >
-          <NavLink
-            href="/ads"
-            active={pathname === "/ads" || pathname.startsWith("/ads/")}
-            icon={Megaphone}
-            onNavigate={onMobileClose}
-          >
-            Adserver
-          </NavLink>
-        </NavSection>
+          Werbung
+        </NavTopLink>
 
-        <NavSection
-          title="Finance"
+        <NavTopLink
+          href="/payrexx"
+          active={
+            pathname === "/payrexx" || pathname.startsWith("/payrexx/")
+          }
           icon={Wallet}
-          open={isSectionOpen("finance")}
-          onToggle={() => toggleSection("finance")}
+          uppercase
+          onNavigate={onMobileClose}
         >
-          <NavLink
-            href="/payrexx"
-            active={
-              pathname === "/payrexx" || pathname.startsWith("/payrexx/")
-            }
-            icon={Wallet}
-            onNavigate={onMobileClose}
-          >
-            Payrexx-Tool
-          </NavLink>
-        </NavSection>
+          Finance
+        </NavTopLink>
 
         <NavSection
           title="Team"
