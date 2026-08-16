@@ -13,6 +13,7 @@ import { AiGenerationError } from "@/lib/ai/anthropic";
 import { generateKurzmeldungFromFeedItem } from "@/lib/rag/generate-article";
 import { sourceAutoFetchesFulltext } from "@/lib/news-feed-constants";
 import { fetchAutoFulltext } from "@/lib/news-feed-fetch";
+import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
 
 // ─── Newsfeed / Quellen ────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export async function generateNewsArticleAction(
   newsItemId: string,
   pastedSourceText?: string,
 ) {
-  const { membership } = await requireMembership();
+  const { session, membership } = await requireMembership();
   if (!newsItemId?.trim()) {
     return { error: "Kein Feed-Item angegeben." };
   }
@@ -140,19 +141,27 @@ export async function generateNewsArticleAction(
   }
 
   try {
-    const result = await generateKurzmeldungFromFeedItem({
-      title: item.title,
-      summary: item.summary,
-      sourceText,
-      link: item.link,
-      sourceLabel: item.sourceLabel,
-    });
-    return {
-      ok: true as const,
-      draft: result.draft,
-      ragHitCount: result.ragHitCount,
-      ragWarning: result.ragWarning,
-    };
+    const quota = await consumeMemberQuota(session.user.id, "ai");
+    if (!quota.ok) return { error: quota.error };
+
+    try {
+      const result = await generateKurzmeldungFromFeedItem({
+        title: item.title,
+        summary: item.summary,
+        sourceText,
+        link: item.link,
+        sourceLabel: item.sourceLabel,
+      });
+      return {
+        ok: true as const,
+        draft: result.draft,
+        ragHitCount: result.ragHitCount,
+        ragWarning: result.ragWarning,
+      };
+    } catch (err) {
+      await refundMemberQuota(quota.id);
+      throw err;
+    }
   } catch (err) {
     if (err instanceof AiGenerationError) {
       return { error: err.message };

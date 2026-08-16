@@ -6,7 +6,8 @@ import {
   MAX_QUERY_CHARS,
   searchRagChunks,
 } from "@/lib/rag/search";
-import { getSession } from "@/lib/session";
+import { getActiveMembershipContext, getSession } from "@/lib/session";
+import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
 
 export const runtime = "nodejs";
 
@@ -34,11 +35,15 @@ function asOptionalNumber(value: unknown): number | undefined {
 }
 
 export async function POST(request: Request) {
+  const ctx = await getActiveMembershipContext();
   // Cost protection on deployed instances; local curl stays frictionless.
   if (process.env.NODE_ENV === "production") {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    if (!ctx) {
+      const session = await getSession();
+      return NextResponse.json(
+        { error: session ? "forbidden" : "unauthorized" },
+        { status: session ? 403 : 401 },
+      );
     }
   }
 
@@ -79,10 +84,20 @@ export async function POST(request: Request) {
   const author = asOptionalString(body.author);
   const tag = asOptionalString(body.tag);
 
+  let quotaId: string | null = null;
+  if (ctx) {
+    const quota = await consumeMemberQuota(ctx.session.user.id, "rag_search");
+    if (!quota.ok) {
+      return NextResponse.json({ error: quota.error }, { status: 429 });
+    }
+    quotaId = quota.id;
+  }
+
   let embedding: number[];
   try {
     embedding = await embedQuery(query);
   } catch (err) {
+    if (quotaId) await refundMemberQuota(quotaId);
     const message =
       err instanceof VoyageEmbedError
         ? err.message
@@ -100,6 +115,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(results);
   } catch (err) {
+    if (quotaId) await refundMemberQuota(quotaId);
     console.error("[rag/search]", err);
     return NextResponse.json(
       { error: "search query failed" },

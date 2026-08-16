@@ -54,6 +54,15 @@ export const requireMembership = cache(async () => {
   return { session, membership };
 });
 
+/** Session + active membership, or null (for JSON APIs — no redirect). */
+export async function getActiveMembershipContext() {
+  const session = await getSession();
+  if (!session) return null;
+  const membership = await getMembership(session.user.id);
+  if (!membership) return null;
+  return { session, membership };
+}
+
 export async function requireAdmin() {
   const ctx = await requireMembership();
   if (ctx.membership.role !== "admin") {

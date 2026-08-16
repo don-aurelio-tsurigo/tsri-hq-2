@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
+import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -26,6 +28,11 @@ function parseAllowedUrl(raw: string): URL | null {
 
 /** Same-origin proxy so html-to-image can embed WePublish cover images. */
 export async function GET(request: Request) {
+  const ctx = await getActiveMembershipContext();
+  if (!ctx) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const raw = new URL(request.url).searchParams.get("url");
   if (!raw) {
     return NextResponse.json({ error: "url missing" }, { status: 400 });
@@ -34,6 +41,11 @@ export async function GET(request: Request) {
   let target = parseAllowedUrl(raw);
   if (!target) {
     return NextResponse.json({ error: "host not allowed" }, { status: 400 });
+  }
+
+  const quota = await consumeMemberQuota(ctx.session.user.id, "image_proxy");
+  if (!quota.ok) {
+    return NextResponse.json({ error: quota.error }, { status: 429 });
   }
 
   try {
@@ -49,16 +61,19 @@ export async function GET(request: Request) {
 
       const location = upstream.headers.get("location");
       if (!location) {
+        await refundMemberQuota(quota.id);
         return NextResponse.json({ error: "invalid redirect" }, { status: 502 });
       }
       const next = parseAllowedUrl(new URL(location, target).toString());
       if (!next) {
+        await refundMemberQuota(quota.id);
         return NextResponse.json({ error: "host not allowed" }, { status: 400 });
       }
       target = next;
     }
 
     if (!upstream || !upstream.ok) {
+      await refundMemberQuota(quota.id);
       return NextResponse.json(
         { error: `upstream ${upstream?.status ?? 0}` },
         { status: 502 },
@@ -67,11 +82,13 @@ export async function GET(request: Request) {
 
     const contentType = upstream.headers.get("content-type") || "";
     if (!contentType.startsWith("image/")) {
+      await refundMemberQuota(quota.id);
       return NextResponse.json({ error: "not an image" }, { status: 415 });
     }
 
     const buffer = Buffer.from(await upstream.arrayBuffer());
     if (buffer.byteLength === 0 || buffer.byteLength > MAX_BYTES) {
+      await refundMemberQuota(quota.id);
       return NextResponse.json({ error: "image too large" }, { status: 413 });
     }
 
@@ -83,6 +100,7 @@ export async function GET(request: Request) {
       },
     });
   } catch {
+    await refundMemberQuota(quota.id);
     return NextResponse.json({ error: "fetch failed" }, { status: 502 });
   }
 }

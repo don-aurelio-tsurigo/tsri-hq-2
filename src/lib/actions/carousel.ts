@@ -12,6 +12,7 @@ import { requireMembership } from "@/lib/session";
 import { parseCarouselFormat } from "@/lib/carousel/format";
 import { fetchTsriArticleByUrl } from "@/lib/wepublish/article";
 import { WepublishApiError } from "@/lib/wepublish/client";
+import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
 
 const idSchema = z.string().min(1);
 const titleSchema = z.string().min(1).max(200);
@@ -64,33 +65,42 @@ export async function importCarouselFromArticleUrl(
 
   try {
     const article = await fetchTsriArticleByUrl(parsedUrl.data);
-    const slides = await generateSlidesFromArticle(article, resolvedFormat);
-    const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
-    if (slides.length < minSlides) {
-      return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
+    const quota = await consumeMemberQuota(session.user.id, "ai");
+    if (!quota.ok) return { error: quota.error };
+
+    try {
+      const slides = await generateSlidesFromArticle(article, resolvedFormat);
+      const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
+      if (slides.length < minSlides) {
+        return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
+      }
+
+      const title =
+        article.title.length > 200
+          ? `${article.title.slice(0, 197)}…`
+          : article.title;
+
+      const post = await prisma.carouselPost.create({
+        data: {
+          title,
+          format: resolvedFormat,
+          slides: slides as unknown as Prisma.InputJsonValue,
+          sourceUrl: article.url,
+          sourcePreTitle: article.preTitle,
+          sourceTitle: article.title,
+          sourceLead: article.lead,
+          sourceBody: article.bodyText,
+          createdById: session.user.id,
+        },
+      });
+
+      revalidatePath("/carousel");
+      redirect(`/carousel/${post.id}`);
+    } catch (error) {
+      unstable_rethrow(error);
+      await refundMemberQuota(quota.id);
+      throw error;
     }
-
-    const title =
-      article.title.length > 200
-        ? `${article.title.slice(0, 197)}…`
-        : article.title;
-
-    const post = await prisma.carouselPost.create({
-      data: {
-        title,
-        format: resolvedFormat,
-        slides: slides as unknown as Prisma.InputJsonValue,
-        sourceUrl: article.url,
-        sourcePreTitle: article.preTitle,
-        sourceTitle: article.title,
-        sourceLead: article.lead,
-        sourceBody: article.bodyText,
-        createdById: session.user.id,
-      },
-    });
-
-    revalidatePath("/carousel");
-    redirect(`/carousel/${post.id}`);
   } catch (error) {
     unstable_rethrow(error);
     if (error instanceof WepublishApiError || error instanceof AiGenerationError) {

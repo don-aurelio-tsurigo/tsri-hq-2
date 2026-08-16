@@ -48,6 +48,7 @@ model User {
   createdWikiPages      WikiPage[]           @relation("WikiPageCreator")
   updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
   createdCarouselPosts  CarouselPost[]       @relation("CarouselPostCreator")
+  usageEvents           MemberUsage[]
 
   @@schema("public")
   @@map("user")
@@ -912,6 +913,29 @@ model PayrexxChannelRule {
   @@unique([organizationId, channel])
   @@schema("public")
   @@map("payrexx_channel_rule")
+}
+
+// ─── Member quotas (AI / RAG / image proxy) ────────────────────
+
+enum MemberUsageKind {
+  ai
+  rag_search
+  image_proxy
+  @@schema("public")
+}
+
+/// Rolling-window usage for paid APIs (Claude, Voyage, image proxy)
+model MemberUsage {
+  id        String          @id @default(cuid())
+  userId    String
+  kind      MemberUsageKind
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, createdAt])
+  @@schema("public")
+  @@map("member_usage")
 }
 
 // ─── RAG / pgvector (schema: rag) ──────────────────────────────
