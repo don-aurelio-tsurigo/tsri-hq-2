@@ -40,11 +40,11 @@ Login nach Seed:
 
 ## Deploy (Render)
 
-`npm start` führt **`prisma migrate deploy`** vor dem Server aus.
+`npm start` führt Migrationen vor dem Server aus. Die Migration `member_usage` ist idempotent; ein schmales Recover-Skript löst nur den bekannten Failed-State (Enum schon vorhanden / P3009) und ruft danach `prisma migrate deploy` auf.
 
-Nach dem einmaligen Prod-Reset für den Task-Split ist die Migration-History sauber; weitere Schema-Änderungen laufen über normale Prisma-Migrationen + Deploy.
+Schema-Änderungen nur über Prisma-Migrationen — kein `db push` gegen Prod.
 
-Seed-Login (falls nicht überschrieben): `admin@team.local` / `admin1234`.
+Seed-Login (`admin@team.local`) ist nur für lokale Entwicklung.
 
 ## Kernkonzept
 

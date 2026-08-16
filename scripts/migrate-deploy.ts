@@ -1,40 +1,23 @@
 /**
- * Production-safe migrate deploy.
- * Recovers when `db:push` applied schema ahead of migration history
- * (object already exists → failed migration → P3009 on restart).
+ * Production migrate entrypoint.
+ * One-shot recovery: if member_usage is stuck failed (partial apply),
+ * mark it rolled-back so idempotent SQL can re-apply, then migrate deploy.
  */
 import "dotenv/config";
 import { execFileSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
 import { Client } from "pg";
 
-const SESSION_ID = "7614a7";
-const LOG_PATH =
-  "/Users/eliodonauer/Documents/Cursor/neues-verwaltungstool/neuesverwaltungstool/.cursor/debug-7614a7.log";
-const INGEST =
-  "http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274";
-
-type Hypo = "A" | "B" | "C" | "D" | "E";
-
-type HealSpec = {
-  /** Columns that must exist on a table (carousel-style ALTER migrations). */
-  columns?: { table: string; names: string[] };
-  /** Tables that must exist (CREATE TABLE migrations). */
-  tables?: string[];
-  /** Enum type names that must exist (CREATE TYPE migrations). */
-  enums?: string[];
-  /** Idempotent SQL to run before marking applied (e.g. missing indexes). */
-  ensureSql?: string[];
-};
+const FAILED_MIGRATION = "20260816100000_member_usage";
 
 function debugLog(
-  hypothesisId: Hypo,
+  hypothesisId: string,
   location: string,
   message: string,
   data: Record<string, unknown>,
 ) {
+  // #region agent log
   const payload = {
-    sessionId: SESSION_ID,
+    sessionId: "9b87ec",
     runId: process.env.DEBUG_RUN_ID ?? "migrate-deploy",
     hypothesisId,
     location,
@@ -42,61 +25,26 @@ function debugLog(
     data,
     timestamp: Date.now(),
   };
-  // #region agent log
-  try {
-    appendFileSync(LOG_PATH, `${JSON.stringify(payload)}\n`);
-  } catch {
-    /* local path may be missing on Render */
-  }
-  fetch(INGEST, {
+  console.log(`[migrate-deploy][${hypothesisId}] ${message}`, JSON.stringify(data));
+  fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Debug-Session-Id": SESSION_ID,
+      "X-Debug-Session-Id": "9b87ec",
     },
     body: JSON.stringify(payload),
   }).catch(() => {});
   // #endregion
-  console.log(`[migrate-deploy][${hypothesisId}] ${message}`, JSON.stringify(data));
 }
 
-const MIGRATION_HEAL: Record<string, HealSpec> = {
-  "20260811140000_carousel_source_article": {
-    columns: {
-      table: "carousel_post",
-      names: ["sourceUrl", "sourceTitle", "sourceLead", "sourceBody"],
-    },
-  },
-  "20260811160000_carousel_source_pre_title": {
-    columns: { table: "carousel_post", names: ["sourcePreTitle"] },
-  },
-  "20260813180000_carousel_format": {
-    columns: { table: "carousel_post", names: ["format"] },
-  },
-  "20260814110000_carousel_format_no_auto": {
-    columns: { table: "carousel_post", names: ["format"] },
-    ensureSql: [
-      `UPDATE "carousel_post" SET "format" = 'standard' WHERE "format" = 'auto'`,
-      `ALTER TABLE "carousel_post" ALTER COLUMN "format" SET DEFAULT 'standard'`,
-    ],
-  },
-  "20260812140000_add_ads": {
-    tables: ["campaign", "creative", "ad_event"],
-    enums: ["CampaignStatus", "CreativeType", "AdEventType"],
-  },
-  "20260812170000_campaign_impression_limit": {
-    columns: { table: "campaign", names: ["impressionLimit"] },
-  },
-  "20260812183000_task_archived_at": {
-    columns: { table: "task", names: ["archivedAt"] },
-    // ADD COLUMN failed after column already existed → CREATE INDEX never ran
-    ensureSql: [
-      `CREATE INDEX IF NOT EXISTS "task_spaceId_archivedAt_idx" ON "task"("spaceId", "archivedAt")`,
-    ],
-  },
-};
+function prismaResolve(flag: "--rolled-back" | "--applied", name: string) {
+  execFileSync("npx", ["prisma", "migrate", "resolve", flag, name], {
+    stdio: "inherit",
+    env: process.env,
+  });
+}
 
-async function main() {
+async function recoverFailedMemberUsageIfNeeded() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is required");
@@ -104,201 +52,97 @@ async function main() {
 
   const client = new Client({ connectionString });
   await client.connect();
-
   try {
-    const cols = await client.query<{ column_name: string }>(
-      `SELECT column_name
-       FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name = 'carousel_post'
-       ORDER BY 1`,
-    );
-    const columnNames = cols.rows.map((r) => r.column_name);
-    // #region agent log
-    debugLog("A", "migrate-deploy.ts:columns", "carousel_post columns", {
-      columnNames,
-    });
-    // #endregion
-
-    const adsTables = await client.query<{ table_name: string }>(
-      `SELECT table_name
-       FROM information_schema.tables
-       WHERE table_schema = 'public'
-         AND table_name IN ('campaign', 'creative', 'ad_event')
-       ORDER BY 1`,
-    );
-    const adsEnums = await client.query<{ typname: string }>(
-      `SELECT t.typname
-       FROM pg_type t
-       JOIN pg_namespace n ON n.oid = t.typnamespace
-       WHERE n.nspname = 'public'
-         AND t.typname IN ('CampaignStatus', 'CreativeType', 'AdEventType')
-       ORDER BY 1`,
-    );
-    const presentTables = new Set(adsTables.rows.map((r) => r.table_name));
-    const presentEnums = new Set(adsEnums.rows.map((r) => r.typname));
-    // #region agent log
-    debugLog("A", "migrate-deploy.ts:ads-schema", "ads tables/enums present", {
-      tables: [...presentTables],
-      enums: [...presentEnums],
-    });
-    // #endregion
-
-    const taskArchivedCols = await client.query<{ column_name: string }>(
-      `SELECT column_name
-       FROM information_schema.columns
-       WHERE table_schema = 'public'
-         AND table_name = 'task'
-         AND column_name = 'archivedAt'`,
-    );
-    const taskArchivedIdx = await client.query<{ indexname: string }>(
-      `SELECT indexname
-       FROM pg_indexes
-       WHERE schemaname = 'public'
-         AND tablename = 'task'
-         AND indexname = 'task_spaceId_archivedAt_idx'`,
-    );
-    const hasTaskArchivedAt = taskArchivedCols.rows.length > 0;
-    const hasTaskArchivedIdx = taskArchivedIdx.rows.length > 0;
-    // #region agent log
-    debugLog("A", "migrate-deploy.ts:task-archivedAt", "task.archivedAt + index present?", {
-      hasTaskArchivedAt,
-      hasTaskArchivedIdx,
-      healMapHasTaskArchivedMigration: Object.prototype.hasOwnProperty.call(
-        MIGRATION_HEAL,
-        "20260812183000_task_archived_at",
-      ),
-    });
-    // #endregion
-
-    const impressionLimitCols = await client.query<{ column_name: string }>(
-      `SELECT column_name
-       FROM information_schema.columns
-       WHERE table_schema = 'public'
-         AND table_name = 'campaign'
-         AND column_name = 'impressionLimit'`,
-    );
-    const hasImpressionLimit = impressionLimitCols.rows.length > 0;
-    // #region agent log
-    debugLog("A", "migrate-deploy.ts:impressionLimit", "campaign.impressionLimit present?", {
-      hasImpressionLimit,
-      healMapHasImpressionMigration: Object.prototype.hasOwnProperty.call(
-        MIGRATION_HEAL,
-        "20260812170000_campaign_impression_limit",
-      ),
-    });
-    // #endregion
-
-    const failed = await client.query<{
-      migration_name: string;
-      started_at: Date;
-      finished_at: Date | null;
-      rolled_back_at: Date | null;
-      logs: string | null;
-    }>(
-      `SELECT migration_name, started_at, finished_at, rolled_back_at, logs
+    const failed = await client.query<{ migration_name: string; logs: string | null }>(
+      `SELECT migration_name, logs
        FROM "_prisma_migrations"
-       WHERE finished_at IS NULL AND rolled_back_at IS NULL
-       ORDER BY started_at`,
+       WHERE migration_name = $1
+         AND finished_at IS NULL
+         AND rolled_back_at IS NULL
+       LIMIT 1`,
+      [FAILED_MIGRATION],
     );
-    // #region agent log
-    debugLog("B", "migrate-deploy.ts:failed", "unfinished migrations", {
-      failed: failed.rows.map((r) => ({
-        migration: r.migration_name,
-        started_at: r.started_at,
-        logsPreview: (r.logs ?? "").slice(0, 500),
-      })),
+
+    if (failed.rows.length === 0) {
+      debugLog("A", "migrate-deploy.ts:check", "no failed member_usage migration", {});
+      return;
+    }
+
+    const typeRow = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_type t
+         JOIN pg_namespace n ON n.oid = t.typnamespace
+         WHERE n.nspname = 'public' AND t.typname = 'MemberUsageKind'
+       ) AS exists`,
+    );
+    const tableRow = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_name = 'member_usage'
+       ) AS exists`,
+    );
+
+    const typeExists = Boolean(typeRow.rows[0]?.exists);
+    const tableExists = Boolean(tableRow.rows[0]?.exists);
+    debugLog("B", "migrate-deploy.ts:partial", "failed member_usage state", {
+      typeExists,
+      tableExists,
+      logsPreview: (failed.rows[0]?.logs ?? "").slice(0, 300),
     });
-    // #endregion
 
-    for (const row of failed.rows) {
-      const spec = MIGRATION_HEAL[row.migration_name];
-      if (!spec) {
-        // #region agent log
-        debugLog("D", "migrate-deploy.ts:unknown-failed", "failed migration without heal map", {
-          migration: row.migration_name,
-          hasImpressionLimit,
-          hasTaskArchivedAt,
-          logsPreview: (row.logs ?? "").slice(0, 500),
-        });
-        // #endregion
-        continue;
-      }
-
-      let allPresent = true;
-      if (spec.columns) {
-        const tableCols = await client.query<{ column_name: string }>(
-          `SELECT column_name
-           FROM information_schema.columns
-           WHERE table_schema = 'public' AND table_name = $1`,
-          [spec.columns.table],
-        );
-        const names = new Set(tableCols.rows.map((r) => r.column_name));
-        allPresent = spec.columns.names.every((c) => names.has(c));
-      }
-      if (spec.tables) {
-        allPresent = allPresent && spec.tables.every((t) => presentTables.has(t));
-      }
-      if (spec.enums) {
-        allPresent = allPresent && spec.enums.every((e) => presentEnums.has(e));
-      }
-
-      // #region agent log
-      debugLog("C", "migrate-deploy.ts:heal-check", "schema presence for failed migration", {
-        migration: row.migration_name,
-        spec,
-        allPresent,
-        presentTables: [...presentTables],
-        presentEnums: [...presentEnums],
+    // Partial or full schema already present → mark applied so deploy is unblocked.
+    // Empty schema → mark rolled-back so idempotent migration can re-run.
+    if (typeExists || tableExists) {
+      debugLog("C", "migrate-deploy.ts:resolve", "marking member_usage as applied", {
+        typeExists,
+        tableExists,
       });
-      // #endregion
-
-      if (allPresent) {
-        if (spec.ensureSql?.length) {
-          for (const sql of spec.ensureSql) {
-            await client.query(sql);
-          }
-          // #region agent log
-          debugLog("C", "migrate-deploy.ts:ensure-sql", "ran ensureSql before resolve", {
-            migration: row.migration_name,
-            ensureSql: spec.ensureSql,
-          });
-          // #endregion
-        }
-        // #region agent log
-        debugLog("E", "migrate-deploy.ts:resolve", "marking failed migration as applied", {
-          migration: row.migration_name,
-        });
-        // #endregion
-        execFileSync(
-          "npx",
-          ["prisma", "migrate", "resolve", "--applied", row.migration_name],
-          { stdio: "inherit", env: process.env },
+      // Ensure remaining objects exist before marking applied
+      await client.query(`
+        DO $$ BEGIN
+          CREATE TYPE "MemberUsageKind" AS ENUM ('ai', 'rag_search', 'image_proxy');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS "member_usage" (
+          "id" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "kind" "MemberUsageKind" NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "member_usage_pkey" PRIMARY KEY ("id")
         );
-      } else {
-        // Schema missing → allow migrate deploy to retry the SQL.
-        // #region agent log
-        debugLog("E", "migrate-deploy.ts:resolve", "marking failed migration as rolled-back for retry", {
-          migration: row.migration_name,
-        });
-        // #endregion
-        execFileSync(
-          "npx",
-          ["prisma", "migrate", "resolve", "--rolled-back", row.migration_name],
-          { stdio: "inherit", env: process.env },
-        );
-      }
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS "member_usage_userId_kind_createdAt_idx"
+          ON "member_usage"("userId", "kind", "createdAt");
+      `);
+      await client.query(`
+        DO $$ BEGIN
+          ALTER TABLE "member_usage"
+            ADD CONSTRAINT "member_usage_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "user"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+      prismaResolve("--applied", FAILED_MIGRATION);
+    } else {
+      debugLog("C", "migrate-deploy.ts:resolve", "marking member_usage as rolled-back", {});
+      prismaResolve("--rolled-back", FAILED_MIGRATION);
     }
   } finally {
     await client.end();
   }
+}
 
+async function main() {
+  await recoverFailedMemberUsageIfNeeded();
   execFileSync("npx", ["prisma", "migrate", "deploy"], {
     stdio: "inherit",
     env: process.env,
   });
-  // #region agent log
-  debugLog("E", "migrate-deploy.ts:done", "migrate deploy completed", {});
-  // #endregion
+  debugLog("D", "migrate-deploy.ts:done", "migrate deploy completed", {});
 }
 
 main().catch((err) => {
