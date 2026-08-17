@@ -1,0 +1,1 @@
+export const MAX_ARCHIVE_DOWNLOADS = 40;

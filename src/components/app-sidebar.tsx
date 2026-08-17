@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
+  Archive,
   BookOpen,
   CalendarDays,
   CheckSquare,
@@ -14,6 +15,8 @@ import {
   Clock,
   FolderKanban,
   Home,
+  Image,
+  ImagePlus,
   Images,
   Info,
   LogOut,
@@ -42,7 +45,7 @@ type WikiPin = {
   spaceId: string;
 };
 
-type NavSectionId = "redaktion" | "team" | "admin";
+type NavSectionId = "redaktion" | "fotos" | "team" | "admin";
 
 function NavLink({
   href,
@@ -203,7 +206,11 @@ export function AppSidebar({
   >({});
 
   function isSectionOpen(id: NavSectionId) {
-    return openSections[id] === true;
+    if (openSections[id] !== undefined) return openSections[id] === true;
+    if (id === "fotos") {
+      return pathname === "/dam" || pathname.startsWith("/dam/");
+    }
+    return false;
   }
 
   function toggleSection(id: NavSectionId) {
@@ -335,6 +342,37 @@ export function AppSidebar({
         >
           Social Media
         </NavTopLink>
+
+        <NavSection
+          title="Fotos"
+          icon={ImagePlus}
+          open={isSectionOpen("fotos")}
+          onToggle={() => toggleSection("fotos")}
+        >
+          <NavLink
+            href="/dam/personal"
+            active={
+              pathname === "/dam/personal" ||
+              pathname.startsWith("/dam/personal/")
+            }
+            icon={Image}
+            onNavigate={onMobileClose}
+          >
+            Meine Fotos
+          </NavLink>
+          <NavLink
+            href="/dam/archive"
+            active={
+              pathname === "/dam" ||
+              pathname === "/dam/archive" ||
+              pathname.startsWith("/dam/archive/")
+            }
+            icon={Archive}
+            onNavigate={onMobileClose}
+          >
+            Archiv
+          </NavLink>
+        </NavSection>
 
         <NavTopLink
           href="/tasks"

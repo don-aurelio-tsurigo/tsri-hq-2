@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 30; // v30: MemberUsage
+const PRISMA_CLIENT_SCHEMA_VERSION = 33; // v33: drop named statements (42P05)
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -71,16 +71,45 @@ const REQUIRED_MODELS = [
   "PayrexxPayoutLine",
   "PayrexxChannelRule",
   "MemberUsage",
+  "UploadBatch",
+  "Asset",
+  "Collection",
+  "AssetCollection",
+  "ExportLog",
 ] as const;
+
+function pgErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const e = error as {
+    code?: string;
+    message?: string;
+    meta?: { driverAdapterError?: { message?: string } };
+  };
+  const msg = `${e.message ?? ""} ${e.meta?.driverAdapterError?.message ?? ""}`;
+  return msg.match(/Code: `([^`]+)`/)?.[1] ?? e.code ?? null;
+}
 
 function isTransientDbError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
-  const e = error as { code?: string; message?: string };
-  const msg = e.message ?? "";
+  const e = error as {
+    code?: string;
+    message?: string;
+    meta?: { driverAdapterError?: { message?: string } };
+  };
+  const msg = `${e.message ?? ""} ${e.meta?.driverAdapterError?.message ?? ""}`;
+  const pgCode = pgErrorCode(error);
   return (
     e.code === "P1017" ||
     e.code === "ECONNRESET" ||
     e.code === "57P01" ||
+    e.code === "08P01" ||
+    e.code === "42P05" ||
+    pgCode === "08P01" ||
+    pgCode === "42P05" ||
+    /08P01/.test(msg) ||
+    /42P05/.test(msg) ||
+    /bind message supplies \d+ parameters/i.test(msg) ||
+    /prepared statement .* already exists/i.test(msg) ||
     /Server has closed the connection/i.test(msg) ||
     /Connection terminated unexpectedly/i.test(msg) ||
     /read ECONNRESET/i.test(msg)
@@ -159,6 +188,11 @@ function getPrismaClient() {
 
   if (existing && versionOk && clientMatchesSchema(existing)) {
     return existing;
+  }
+
+  if (globalForPrisma.prismaPool) {
+    void globalForPrisma.prismaPool.end().catch(() => {});
+    globalForPrisma.prismaPool = undefined;
   }
 
   const client = createPrismaClient();
