@@ -352,6 +352,7 @@ import {
   updateCarouselSlides as updateCarouselSlidesAction,
   deleteCarouselPost as deleteCarouselPostAction,
   importCarouselFromArticleUrl as importCarouselFromArticleUrlAction,
+  importCarouselFromPastedText as importCarouselFromPastedTextAction,
 } from "./actions/carousel";
 
 export async function createCarouselPost(
@@ -375,6 +376,12 @@ export async function importCarouselFromArticleUrl(
   format?: string,
 ) {
   return importCarouselFromArticleUrlAction(articleUrl, format);
+}
+export async function importCarouselFromPastedText(
+  pastedText: string,
+  format?: string,
+) {
+  return importCarouselFromPastedTextAction(pastedText, format);
 }
 
 import {

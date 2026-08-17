@@ -125,9 +125,39 @@ function getClient(): Anthropic {
   return new Anthropic({ apiKey });
 }
 
+function titleFromPastedText(text: string): string {
+  const first =
+    text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean) ?? "";
+  const cleaned = first.replace(/^#+\s*/, "").replace(/^["«»„“]+|["«»„“]+$/g, "");
+  if (!cleaned) return "6iBrief";
+  return cleaned.length > 200 ? `${cleaned.slice(0, 197)}…` : cleaned;
+}
+
+function pastedTextToArticle(
+  text: string,
+  format: CarouselFormat,
+): FetchedArticle {
+  return {
+    id: "paste",
+    slug: "paste",
+    url: null,
+    title: titleFromPastedText(text),
+    preTitle: format === "6ibrief" ? "6iBRIEF" : null,
+    lead: null,
+    authors: [],
+    tags: [],
+    imageUrl: null,
+    bodyText: text,
+  };
+}
+
 function articleToPrompt(
   article: FetchedArticle,
   format: CarouselFormat,
+  source: "article" | "paste",
 ): string {
   const maxChars = 14_000;
   const body =
@@ -136,13 +166,22 @@ function articleToPrompt(
       : article.bodyText;
 
   const leadLine =
-    format === "interview"
-      ? article.lead
-        ? `Lead (für Interview verwenden): ${article.lead}`
-        : null
-      : article.lead
-        ? `Lead: ${article.lead}`
-        : null;
+    source === "paste"
+      ? null
+      : format === "interview"
+        ? article.lead
+          ? `Lead (für Interview verwenden): ${article.lead}`
+          : null
+        : article.lead
+          ? `Lead: ${article.lead}`
+          : null;
+
+  const bodyLabel =
+    source === "paste"
+      ? "Eingefügter Text:"
+      : format === "tsueritipp"
+        ? "Artikeltext (Termine im Tsüritipp-Format):"
+        : "Artikeltext (Fliesstext, ohne Lead):";
 
   return [
     `EINGABE-PARAMETER format: ${format}`,
@@ -153,18 +192,17 @@ function articleToPrompt(
     article.tags.length ? `Tags: ${article.tags.join(", ")}` : null,
     article.url ? `URL: ${article.url}` : null,
     "",
-    format === "tsueritipp"
-      ? "Artikeltext (Termine im Tsüritipp-Format):"
-      : "Artikeltext (Fliesstext, ohne Lead):",
+    bodyLabel,
     body,
   ]
     .filter((line) => line !== null)
     .join("\n");
 }
 
-export async function generateSlidesFromArticle(
+async function generateSlidesFromSource(
   article: FetchedArticle,
-  format: CarouselFormat = "standard",
+  format: CarouselFormat,
+  source: "article" | "paste",
 ): Promise<Slide[]> {
   let system: string;
   try {
@@ -183,6 +221,10 @@ export async function generateSlidesFromArticle(
         ? kolumneToolInputSchema
         : standardToolInputSchema;
   const maxTokens = format === "tsueritipp" ? 8192 : 4096;
+  const intro =
+    source === "paste"
+      ? "Erstelle ein Instagram-Carousel aus diesem eingefügten Text:"
+      : "Erstelle ein Instagram-Carousel aus diesem Tsüri-Artikel:";
 
   let response: Anthropic.Message;
   try {
@@ -202,7 +244,7 @@ export async function generateSlidesFromArticle(
       messages: [
         {
           role: "user",
-          content: `Erstelle ein Instagram-Carousel aus diesem Tsüri-Artikel:\n\n${articleToPrompt(article, format)}`,
+          content: `${intro}\n\n${articleToPrompt(article, format, source)}`,
         },
       ],
     });
@@ -238,4 +280,20 @@ export async function generateSlidesFromArticle(
       error instanceof Error ? error.message : "Slide-Mapping fehlgeschlagen.",
     );
   }
+}
+
+export async function generateSlidesFromArticle(
+  article: FetchedArticle,
+  format: CarouselFormat = "standard",
+): Promise<Slide[]> {
+  return generateSlidesFromSource(article, format, "article");
+}
+
+export async function generateSlidesFromPastedText(
+  text: string,
+  format: CarouselFormat = "standard",
+): Promise<{ slides: Slide[]; title: string }> {
+  const article = pastedTextToArticle(text.trim(), format);
+  const slides = await generateSlidesFromSource(article, format, "paste");
+  return { slides, title: article.title };
 }

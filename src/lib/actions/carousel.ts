@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { AiGenerationError, generateSlidesFromArticle } from "@/lib/ai/anthropic";
+import {
+  AiGenerationError,
+  generateSlidesFromArticle,
+  generateSlidesFromPastedText,
+} from "@/lib/ai/anthropic";
 import { prisma } from "@/lib/db";
 import { createEmptyCoverSlide, defaultCategoryForFormat } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
@@ -17,6 +21,7 @@ import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
 const idSchema = z.string().min(1);
 const titleSchema = z.string().min(1).max(200);
 const urlSchema = z.string().min(8).max(500);
+const pastedTextSchema = z.string().trim().min(80).max(50_000);
 
 export async function createCarouselPost(
   title?: string | FormData,
@@ -107,6 +112,58 @@ export async function importCarouselFromArticleUrl(
       return { error: error.message };
     }
     console.error("importCarouselFromArticleUrl", error);
+    return { error: "Import fehlgeschlagen. Bitte später erneut versuchen." };
+  }
+}
+
+export async function importCarouselFromPastedText(
+  pastedText: string,
+  format?: string,
+): Promise<{ error: string }> {
+  const { session } = await requireMembership();
+  const parsedText = pastedTextSchema.safeParse(pastedText ?? "");
+  if (!parsedText.success) {
+    return {
+      error: "Bitte mindestens 80 Zeichen Text einfügen.",
+    };
+  }
+  const resolvedFormat = parseCarouselFormat(format);
+
+  const quota = await consumeMemberQuota(session.user.id, "ai");
+  if (!quota.ok) return { error: quota.error };
+
+  try {
+    const { slides, title } = await generateSlidesFromPastedText(
+      parsedText.data,
+      resolvedFormat,
+    );
+    const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
+    if (slides.length < minSlides) {
+      await refundMemberQuota(quota.id);
+      return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
+    }
+
+    const post = await prisma.carouselPost.create({
+      data: {
+        title,
+        format: resolvedFormat,
+        slides: slides as unknown as Prisma.InputJsonValue,
+        sourceBody: parsedText.data,
+        sourceTitle: title,
+        sourcePreTitle: resolvedFormat === "6ibrief" ? "6iBRIEF" : null,
+        createdById: session.user.id,
+      },
+    });
+
+    revalidatePath("/carousel");
+    redirect(`/carousel/${post.id}`);
+  } catch (error) {
+    unstable_rethrow(error);
+    await refundMemberQuota(quota.id);
+    if (error instanceof AiGenerationError) {
+      return { error: error.message };
+    }
+    console.error("importCarouselFromPastedText", error);
     return { error: "Import fehlgeschlagen. Bitte später erneut versuchen." };
   }
 }
