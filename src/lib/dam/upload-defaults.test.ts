@@ -11,7 +11,7 @@ describe("defaultCollectionName", () => {
       "Paul Muster/Tsüri.ch",
       new Date("2026-08-17T10:00:00.000Z"),
     );
-    assert.equal(name, "Paul Muster – 17.08.2026");
+    assert.equal(name, "2026-08-17 – Paul Muster");
   });
 });
 

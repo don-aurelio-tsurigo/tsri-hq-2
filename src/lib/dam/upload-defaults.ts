@@ -3,18 +3,22 @@ export function creditDisplayName(credit: string): string {
 }
 
 export function zurichDateLabel(date = new Date()): string {
-  return new Intl.DateTimeFormat("de-CH", {
+  const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Zurich",
-    day: "2-digit",
-    month: "2-digit",
     year: "numeric",
-  }).format(date);
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return `${year}-${month}-${day}`;
 }
 
 export function defaultCollectionName(credit: string, date = new Date()): string {
   const name = creditDisplayName(credit);
   if (!name) return "";
-  return `${name} – ${zurichDateLabel(date)}`;
+  return `${zurichDateLabel(date)} – ${name}`;
 }
 
 export function suggestedRightsType(

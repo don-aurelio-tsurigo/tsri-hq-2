@@ -240,7 +240,7 @@ function MetaFields({
           autoFocus={autoFocusCollection}
           value={newCollectionName}
           onChange={(e) => onNewCollectionName(e.target.value)}
-          placeholder="Paul Muster – 17.08.2026"
+          placeholder="2026-08-17 – Paul Muster"
         />
       </div>
       <div className="sm:col-span-2 space-y-2">
