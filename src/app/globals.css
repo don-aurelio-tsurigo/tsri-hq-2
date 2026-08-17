@@ -491,9 +491,5 @@ textarea {
 
 .sixibrief-text b {
   font-weight: 700;
-  font-size: 1.2em;
-}
-
-.sixibrief-text > b:first-child {
-  font-size: 1.4em;
+  font-size: 39px;
 }
