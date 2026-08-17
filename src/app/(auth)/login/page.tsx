@@ -6,12 +6,17 @@ import {
   getMembership,
   getSession,
 } from "@/lib/session";
+import { nameIsIncomplete } from "@/lib/user-name";
 
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
     const active = await getMembership(session.user.id);
-    if (active) redirect("/home");
+    if (active) {
+      if (nameIsIncomplete(active.user)) redirect("/complete-profile");
+      redirect("/home");
+    }
+    if (nameIsIncomplete(session.user)) redirect("/complete-profile");
     const archived = await getArchivedMembership(session.user.id);
     if (archived) redirect("/access-revoked");
     redirect("/onboarding");

@@ -49,7 +49,7 @@ export function ResetPasswordForm({
           Neues Passwort
         </h1>
         <p className="mt-2 text-[var(--muted)]">
-          Hallo {userName.split(" ")[0]} — wähle ein neues Passwort (min. 8
+          Hallo {userName} — wähle ein neues Passwort (min. 8
           Zeichen).
         </p>
       </div>

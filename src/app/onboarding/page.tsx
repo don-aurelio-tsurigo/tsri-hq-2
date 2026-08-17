@@ -2,12 +2,23 @@ import { redirect } from "next/navigation";
 import { createBootstrapOrganization } from "@/lib/actions";
 import { getMembership, requireSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
+import { nameIsIncomplete } from "@/lib/user-name";
 
 export default async function OnboardingPage() {
   const session = await requireSession();
   const membership = await getMembership(session.user.id);
   if (membership) {
+    if (nameIsIncomplete(membership.user)) {
+      redirect("/complete-profile");
+    }
     redirect("/home");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { firstName: true, lastName: true },
+  });
+  if (nameIsIncomplete(user ?? {})) {
+    redirect("/complete-profile");
   }
 
   const orgCount = await prisma.organization.count();

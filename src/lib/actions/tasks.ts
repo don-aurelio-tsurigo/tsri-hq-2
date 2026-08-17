@@ -62,13 +62,13 @@ export async function createTask(formData: FormData) {
             userId: requested,
           },
         },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, firstName: true } } },
       });
       if (!member) return { error: "Person nicht im Team." };
       const theirSpace = await ensurePersonalSpace(
         membership.organizationId,
         member.user.id,
-        member.user.name,
+        member.user.firstName?.trim() || member.user.name,
       );
       targetSpaceId = theirSpace.id;
       assigneeId = member.user.id;
@@ -279,13 +279,13 @@ export async function updateTask(formData: FormData) {
             userId: nextAssignee,
           },
         },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, firstName: true } } },
       });
       if (!member) return { error: "Person nicht im Team." };
       const theirSpace = await ensurePersonalSpace(
         membership.organizationId,
         member.user.id,
-        member.user.name,
+        member.user.firstName?.trim() || member.user.name,
       );
       data.spaceId = theirSpace.id;
       data.assigneeId = member.user.id;

@@ -46,7 +46,7 @@ export default async function PersonalTasksPage() {
   const personal = await ensurePersonalSpace(
     membership.organizationId,
     session.user.id,
-    session.user.name,
+    session.user.firstName?.trim() || session.user.name,
   );
 
   const personalSpace = {

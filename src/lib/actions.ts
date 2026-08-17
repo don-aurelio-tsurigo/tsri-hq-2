@@ -129,6 +129,8 @@ export async function updateProjectNotes(formData: FormData) {
 
 import {
   updatePrivateNotes as updatePrivateNotesAction,
+  completeOwnName as completeOwnNameAction,
+  adminUpdateMemberName as adminUpdateMemberNameAction,
   updateMemberProfile as updateMemberProfileAction,
   updateMemberPensum as updateMemberPensumAction,
   archiveMember as archiveMemberAction,
@@ -140,6 +142,12 @@ import {
 
 export async function updatePrivateNotes(formData: FormData) {
   return updatePrivateNotesAction(formData);
+}
+export async function completeOwnName(formData: FormData) {
+  return completeOwnNameAction(formData);
+}
+export async function adminUpdateMemberName(formData: FormData) {
+  return adminUpdateMemberNameAction(formData);
 }
 export async function updateMemberProfile(formData: FormData) {
   return updateMemberProfileAction(formData);

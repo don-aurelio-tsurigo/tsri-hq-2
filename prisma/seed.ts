@@ -3,6 +3,13 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 
+function splitSeedName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "Admin", lastName: "Team" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "Team" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -14,7 +21,11 @@ async function main() {
 
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@team.local").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "admin1234";
-  const name = process.env.SEED_ADMIN_NAME ?? "Admin";
+  const nameEnv = process.env.SEED_ADMIN_NAME ?? "Admin Team";
+  const split = splitSeedName(nameEnv);
+  const firstName = process.env.SEED_ADMIN_FIRST_NAME ?? split.firstName;
+  const lastName = process.env.SEED_ADMIN_LAST_NAME ?? split.lastName;
+  const name = `${firstName} ${lastName}`.trim();
   const orgName = process.env.SEED_ORG_NAME ?? "Tsüri-Team";
   const orgSlug = process.env.SEED_ORG_SLUG ?? "team";
 
@@ -24,6 +35,8 @@ async function main() {
     user = await prisma.user.create({
       data: {
         name,
+        firstName,
+        lastName,
         email,
         emailVerified: true,
         accounts: {
@@ -39,7 +52,7 @@ async function main() {
   } else {
     await prisma.user.update({
       where: { id: user.id },
-      data: { name, emailVerified: true },
+      data: { name, firstName, lastName, emailVerified: true },
     });
     const account = await prisma.account.findFirst({
       where: { userId: user.id, providerId: "credential" },
@@ -161,7 +174,7 @@ async function main() {
       data: {
         organizationId: org.id,
         type: "personal",
-        name: `${name.split(" ")[0]} Privat`,
+        name: `${firstName} Privat`,
         slug: personalSlug,
         description: "Privater Bereich — nur für dich sichtbar",
         visibility: "private",

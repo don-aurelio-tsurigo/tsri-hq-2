@@ -33,6 +33,7 @@ import {
   getCurrentWeekProgress,
   getPastWeekTimeGaps,
 } from "@/lib/time-tracking";
+import { greetingName } from "@/lib/user-name";
 
 function isMidweekChoreReminderDay(date: Date = new Date()) {
   const day = date.getDay(); // 0=So … 3=Mi … 5=Fr
@@ -77,7 +78,7 @@ export default async function HomePage() {
     getCurrentDashboardItems(
       membership.organizationId,
       session.user.id,
-      session.user.name,
+      session.user.firstName?.trim() || session.user.name,
     ),
     listTodaysTsueriArticles(membership.organizationId),
     listMyHomeArticles(membership.organizationId, session.user.id),
@@ -156,7 +157,7 @@ export default async function HomePage() {
           Home
         </h1>
         <p className="mt-2 text-[var(--muted)]">
-          Hallo {session.user.name.split(" ")[0]} — deine aktuellen Aufgaben und
+          Hallo {greetingName(session.user)} — deine aktuellen Aufgaben und
           Artikel.
         </p>
       </header>

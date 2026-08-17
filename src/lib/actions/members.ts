@@ -1,10 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { hashPassword } from "better-auth/crypto";
 import { prisma } from "@/lib/db";
-import { requireAdmin, requireMembership } from "@/lib/session";
+import {
+  getArchivedMembership,
+  getMembership,
+  requireAdmin,
+  requireMembership,
+  requireSession,
+} from "@/lib/session";
+import { ensurePersonalSpace } from "@/lib/spaces";
+import { joinDisplayName } from "@/lib/user-name";
 
 const notesSchema = z.object({
   notes: z.string().max(50000),
@@ -25,6 +34,107 @@ export async function updatePrivateNotes(formData: FormData) {
   });
 
   revalidatePath("/home");
+  return { ok: true as const };
+}
+
+const namePart = z.string().trim().min(1).max(80);
+
+async function applyUserName(
+  userId: string,
+  firstName: string,
+  lastName: string,
+) {
+  const name = joinDisplayName(firstName, lastName);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { firstName, lastName, name },
+  });
+
+  const memberships = await prisma.membership.findMany({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  for (const membership of memberships) {
+    await ensurePersonalSpace(membership.organizationId, userId, firstName);
+  }
+
+  return name;
+}
+
+const completeNameSchema = z.object({
+  firstName: namePart,
+  lastName: namePart,
+});
+
+export async function completeOwnName(formData: FormData) {
+  const session = await requireSession();
+  const parsed = completeNameSchema.safeParse({
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+  });
+  if (!parsed.success) {
+    return { error: "Bitte Vorname und Nachname angeben." };
+  }
+
+  await applyUserName(
+    session.user.id,
+    parsed.data.firstName,
+    parsed.data.lastName,
+  );
+
+  const membership = await getMembership(session.user.id);
+  if (membership) {
+    redirect("/home");
+  }
+  const archived = await getArchivedMembership(session.user.id);
+  if (archived) {
+    redirect("/access-revoked");
+  }
+  redirect("/onboarding");
+}
+
+const adminNameSchema = z.object({
+  userId: z.string().min(1),
+  firstName: namePart,
+  lastName: namePart,
+});
+
+export async function adminUpdateMemberName(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = adminNameSchema.safeParse({
+    userId: formData.get("userId"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+  });
+  if (!parsed.success) {
+    return { error: "Bitte Vorname und Nachname angeben." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId: parsed.data.userId,
+      },
+    },
+  });
+  if (!target) {
+    return { error: "Person ist nicht im Team." };
+  }
+
+  await applyUserName(
+    parsed.data.userId,
+    parsed.data.firstName,
+    parsed.data.lastName,
+  );
+
+  revalidatePath("/settings/members");
+  revalidatePath("/home");
+  const teamInfos = await prisma.space.findFirst({
+    where: { organizationId: membership.organizationId, slug: "team-infos" },
+    select: { id: true },
+  });
+  if (teamInfos) revalidatePath(`/spaces/${teamInfos.id}`);
   return { ok: true as const };
 }
 

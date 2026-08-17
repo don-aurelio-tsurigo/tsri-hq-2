@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { prisma } from "@/lib/db";
+import { greetingName } from "@/lib/user-name";
 
 export default async function ResetPasswordPage({
   params,
@@ -10,7 +11,7 @@ export default async function ResetPasswordPage({
   const { token } = await params;
   const reset = await prisma.passwordResetToken.findUnique({
     where: { token },
-    include: { user: { select: { name: true } } },
+    include: { user: { select: { name: true, firstName: true } } },
   });
 
   if (!reset || reset.usedAt) {
@@ -47,6 +48,6 @@ export default async function ResetPasswordPage({
   }
 
   return (
-    <ResetPasswordForm token={reset.token} userName={reset.user.name} />
+    <ResetPasswordForm token={reset.token} userName={greetingName(reset.user)} />
   );
 }

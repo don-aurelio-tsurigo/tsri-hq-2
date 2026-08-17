@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { nameIsIncomplete } from "@/lib/user-name";
 
 export const getSession = cache(async () => {
   return auth.api.getSession({
@@ -44,14 +45,20 @@ export const getArchivedMembership = cache(async (userId: string) => {
 export const requireMembership = cache(async () => {
   const session = await requireSession();
   const membership = await getMembership(session.user.id);
-  if (!membership) {
-    const archived = await getArchivedMembership(session.user.id);
-    if (archived) {
-      redirect("/access-revoked");
+  if (membership) {
+    if (nameIsIncomplete(membership.user)) {
+      redirect("/complete-profile");
     }
-    redirect("/onboarding");
+    return { session, membership };
   }
-  return { session, membership };
+  if (nameIsIncomplete(session.user)) {
+    redirect("/complete-profile");
+  }
+  const archived = await getArchivedMembership(session.user.id);
+  if (archived) {
+    redirect("/access-revoked");
+  }
+  redirect("/onboarding");
 });
 
 /** Session + active membership, or null (for JSON APIs — no redirect). */

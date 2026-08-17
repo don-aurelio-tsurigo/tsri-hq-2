@@ -7,6 +7,7 @@ import { hashPassword } from "better-auth/crypto";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireSession } from "@/lib/session";
 import { ensurePersonalSpace } from "@/lib/spaces";
+import { joinDisplayName } from "@/lib/user-name";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -70,18 +71,20 @@ export async function createInvitation(formData: FormData) {
 
 const acceptSchema = z.object({
   token: z.string().min(1),
-  name: z.string().min(2).max(80),
+  firstName: z.string().trim().min(1).max(80),
+  lastName: z.string().trim().min(1).max(80),
   password: z.string().min(8).max(128),
 });
 
 export async function acceptInvitation(formData: FormData) {
   const parsed = acceptSchema.safeParse({
     token: formData.get("token"),
-    name: formData.get("name"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return { error: "Bitte Name (min. 2) und Passwort (min. 8) angeben." };
+    return { error: "Bitte Vorname, Nachname und Passwort (min. 8) angeben." };
   }
 
   const invitation = await prisma.invitation.findUnique({
@@ -97,13 +100,18 @@ export async function acceptInvitation(formData: FormData) {
   }
 
   const email = invitation.email.toLowerCase();
+  const firstName = parsed.data.firstName;
+  const lastName = parsed.data.lastName;
+  const name = joinDisplayName(firstName, lastName);
   let user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
     const hashed = await hashPassword(parsed.data.password);
     user = await prisma.user.create({
       data: {
-        name: parsed.data.name.trim(),
+        name,
+        firstName,
+        lastName,
         email,
         emailVerified: true,
         accounts: {
@@ -138,7 +146,7 @@ export async function acceptInvitation(formData: FormData) {
     }
     await prisma.user.update({
       where: { id: user.id },
-      data: { name: parsed.data.name.trim() },
+      data: { name, firstName, lastName },
     });
   }
 
@@ -160,7 +168,7 @@ export async function acceptInvitation(formData: FormData) {
   await ensurePersonalSpace(
     invitation.organizationId,
     user.id,
-    parsed.data.name.trim(),
+    firstName,
   );
 
   await prisma.invitation.update({
@@ -218,7 +226,11 @@ export async function createBootstrapOrganization(formData: FormData): Promise<v
 
   const { ensureDefaultTeamSpaces } = await import("@/lib/spaces");
   await ensureDefaultTeamSpaces(org.id);
-  await ensurePersonalSpace(org.id, session.user.id, session.user.name);
+  await ensurePersonalSpace(
+    org.id,
+    session.user.id,
+    session.user.firstName?.trim() || session.user.name,
+  );
 
   const { ensureWikiStarterPages } = await import("@/lib/wiki");
   await ensureWikiStarterPages(org.id, session.user.id);

@@ -33,7 +33,18 @@ export const auth = betterAuth({
     }),
   ],
   user: {
-    additionalFields: {},
+    additionalFields: {
+      firstName: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+      lastName: {
+        type: "string",
+        required: false,
+        input: false,
+      },
+    },
   },
   trustedOrigins,
 });

@@ -49,9 +49,29 @@ export function AcceptInviteForm({
             {error}
           </p>
         )}
-        <div className="field">
-          <label htmlFor="name">Dein Name</label>
-          <input id="name" name="name" required minLength={2} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="field">
+            <label htmlFor="firstName">Vorname</label>
+            <input
+              id="firstName"
+              name="firstName"
+              autoComplete="given-name"
+              required
+              minLength={1}
+              maxLength={80}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="lastName">Nachname</label>
+            <input
+              id="lastName"
+              name="lastName"
+              autoComplete="family-name"
+              required
+              minLength={1}
+              maxLength={80}
+            />
+          </div>
         </div>
         <div className="field">
           <label htmlFor="password">Passwort wählen</label>

@@ -9,6 +9,7 @@ import {
   RestoreMemberButton,
 } from "@/components/member-archive-buttons";
 import { MemberPasswordHelp } from "@/components/member-password-help";
+import { MemberNameEdit } from "@/components/member-name-edit";
 import { PensumSelect } from "@/components/pensum-select";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
@@ -66,6 +67,11 @@ export default async function MembersSettingsPage() {
               <div>
                 <p className="font-medium">{m.user.name}</p>
                 <p className="text-sm text-[var(--muted)]">{m.user.email}</p>
+                {(!m.user.firstName || !m.user.lastName) && (
+                  <p className="mt-0.5 text-xs font-semibold text-[var(--danger)]">
+                    Vor- oder Nachname fehlt
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <PensumSelect
@@ -73,6 +79,11 @@ export default async function MembersSettingsPage() {
                   pensumPercent={m.pensumPercent}
                 />
                 <span className="badge">{m.role}</span>
+                <MemberNameEdit
+                  userId={m.userId}
+                  firstName={m.user.firstName}
+                  lastName={m.user.lastName}
+                />
                 <MemberPasswordHelp
                   userId={m.userId}
                   name={m.user.name}
@@ -114,6 +125,11 @@ export default async function MembersSettingsPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="badge">{m.role}</span>
+                  <MemberNameEdit
+                    userId={m.userId}
+                    firstName={m.user.firstName}
+                    lastName={m.user.lastName}
+                  />
                   <RestoreMemberButton userId={m.userId} />
                 </div>
               </li>
