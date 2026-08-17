@@ -193,11 +193,10 @@ Der Input ist kein WePublish-Artikel, sondern eingefügter 6iBrief-Text (Newslet
 STRUKTUR:
 - Genau 6–10 Slides insgesamt.
 - Erster Slide: "cover". Letzter Slide: "outro".
-- Dazwischen vor allem "text", optional "quote" wenn ein echtes Zitat gut passt.
+- Dazwischen nur "text"-Slides. KEINE "quote"-Slides.
 
 KATEGORIE:
-${categoryColorPromptBlock()}
-Setze category auf genau einen Namen (GROSSBUCHSTABEN); Farbe und Textkontrast folgen daraus automatisiert.
+category darf ein Platzhalter sein (z.B. STADTLEBEN) — Farbe kommt nicht aus der Kategorie, Text- und Outro-Slides sind weiss mit schwarzer Schrift.
 
 WICHTIGSTE REGEL — Textmenge:
 - Ziel ist es, so viel wie möglich vom eingefügten 6iBrief-Text auf die Slides zu bringen, idealerweise praktisch den gesamten Fliesstext.
@@ -214,8 +213,9 @@ Cover:
 
 Text-Slides:
 - bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
+- ERSTE ZEILE jeder Text-Slide: eine Überschrift in <b>…</b> (Themenzeile des Abschnitts), danach der Fliesstext.
+- Weitere Zwischentitel ebenfalls als eigene Zeile in <b>…</b>. Keine Inline-Fettungen mitten im Satz.
 - ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
-- FETT-MARKIERUNG: Markiere pro Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) ist eine einzelne Markierung oder Verzicht akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 pro Slide.
 - ABSATZSTRUKTUR: Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich mitten in einem Argument.
 - LÄNGENLIMIT (abhängig von Absatzstruktur):
   - Ohne Absatzumbruch: max. 450 Zeichen.
@@ -224,13 +224,9 @@ Text-Slides:
   - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
   - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.
 
-Quote-Slides (falls verwendet):
-- quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben).
-- attribution: Name der Person + Institution/Organisation, wortwörtlich aus dem Text. Falls keine Institution genannt ist, kürzeste im Text genannte Rollenbezeichnung verwenden. Name nie verändern.
-- backgroundImageUrl: null (solid color).
-
-Outro:
-- Titel = Cover-headline wortwörtlich, ctaText = "LINK IN DER BIO".
+Outro (fixiertes Template, NICHT den Cover-Titel wiederholen):
+- headline genau: "🗞️ Up to date bleiben.\\n👉 6iBrief abonnieren."
+- ctaText genau: "→ Link in der Bio"
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).

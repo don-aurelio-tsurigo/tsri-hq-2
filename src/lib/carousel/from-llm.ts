@@ -11,6 +11,7 @@ import {
   createEmptyOutroSlide,
   createEmptyQuoteSlide,
   createEmptyTextSlide,
+  applyFormatSlideDefaults,
 } from "@/lib/carousel/slides";
 import { DEFAULT_OUTRO_CTA, type Slide } from "@/lib/carousel/types";
 
@@ -63,10 +64,19 @@ export const llmTsueritippSchema = z.object({
     .max(30),
 });
 
+export const llmSixibriefSchema = z.object({
+  category: z.string().min(1).default(DEFAULT_CATEGORY),
+  slides: z
+    .array(z.discriminatedUnion("type", [coverDraft, textDraft, outroDraft]))
+    .min(6)
+    .max(10),
+});
+
 export type LlmCarouselDraft =
   | z.infer<typeof llmCarouselSchema>
   | z.infer<typeof llmKolumneSchema>
-  | z.infer<typeof llmTsueritippSchema>;
+  | z.infer<typeof llmTsueritippSchema>
+  | z.infer<typeof llmSixibriefSchema>;
 
 export function parseLlmCarouselDraft(
   input: unknown,
@@ -74,6 +84,9 @@ export function parseLlmCarouselDraft(
 ): LlmCarouselDraft {
   if (format === "tsueritipp") {
     return llmTsueritippSchema.parse(input);
+  }
+  if (format === "6ibrief") {
+    return llmSixibriefSchema.parse(input);
   }
   if (format === "kolumne") {
     return llmKolumneSchema.parse(input);
@@ -83,12 +96,13 @@ export function parseLlmCarouselDraft(
 
 export function llmDraftToSlides(
   draft: LlmCarouselDraft,
-  options?: { coverImageUrl?: string | null },
+  options?: { coverImageUrl?: string | null; format?: CarouselFormat },
 ): Slide[] {
   const category = normalizeCarouselCategory(draft.category);
   const backgroundColor = backgroundColorForCategory(category);
   const ink = defaultInkForCategory(category);
   const slides = draft.slides;
+  const format = options?.format ?? "standard";
 
   if (slides[0]?.type !== "cover") {
     throw new Error("LLM-Antwort: Erster Slide muss Cover sein.");
@@ -103,41 +117,54 @@ export function llmDraftToSlides(
     switch (slide.type) {
       case "cover": {
         const cover = createEmptyCoverSlide(category);
-        return {
-          ...cover,
-          overline: slide.overline.trim(),
-          headline: slide.headline.trim(),
-          backgroundImageUrl: index === 0 ? coverImageUrl : null,
-        };
+        return applyFormatSlideDefaults(
+          {
+            ...cover,
+            overline: slide.overline.trim(),
+            headline: slide.headline.trim(),
+            backgroundImageUrl: index === 0 ? coverImageUrl : null,
+          },
+          format,
+        );
       }
       case "text": {
         const text = createEmptyTextSlide(category);
-        return {
-          ...text,
-          backgroundColor,
-          ink,
-          bodyHtml: sanitizeBodyHtml(slide.bodyHtml),
-        };
+        return applyFormatSlideDefaults(
+          {
+            ...text,
+            backgroundColor,
+            ink,
+            bodyHtml: sanitizeBodyHtml(slide.bodyHtml),
+          },
+          format,
+        );
       }
       case "quote": {
         const quote = createEmptyQuoteSlide(category);
-        return {
-          ...quote,
-          backgroundColor,
-          ink,
-          quoteText: slide.quoteText.trim(),
-          attribution: slide.attribution.trim(),
-        };
+        return applyFormatSlideDefaults(
+          {
+            ...quote,
+            backgroundColor,
+            ink,
+            quoteText: slide.quoteText.trim(),
+            attribution: slide.attribution.trim(),
+          },
+          format,
+        );
       }
       case "outro": {
         const outro = createEmptyOutroSlide(category);
-        return {
-          ...outro,
-          backgroundColor,
-          ink,
-          headline: slide.headline.trim(),
-          ctaText: (slide.ctaText?.trim() || DEFAULT_OUTRO_CTA).toUpperCase(),
-        };
+        const ctaRaw = slide.ctaText?.trim() || DEFAULT_OUTRO_CTA;
+        return applyFormatSlideDefaults(
+          {
+            ...outro,
+            backgroundColor,
+            ink,
+            headline: slide.headline.trim(),
+            ctaText: format === "6ibrief" ? ctaRaw : ctaRaw.toUpperCase(),
+          },
+          format,
+        );
       }
     }
   });

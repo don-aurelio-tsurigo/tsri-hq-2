@@ -44,6 +44,7 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
 };
 
 const ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "quote", "outro"];
+const SIXIBRIEF_ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "outro"];
 
 const PREVIEW_SCALE = 0.42;
 
@@ -93,7 +94,7 @@ export function CarouselEditor({
   const [slides, setSlides] = useState<Slide[]>(
     initialSlides.length > 0
       ? initialSlides
-      : [createEmptySlide("cover", defaultCategoryForFormat(format))],
+      : [createEmptySlide("cover", defaultCategoryForFormat(format), format)],
   );
   const [activeId, setActiveId] = useState(slides[0]?.id ?? "");
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -206,7 +207,7 @@ export function CarouselEditor({
 
   function addSlide(type: SlideType) {
     if (!canEdit) return;
-    const slide = createEmptySlide(type, lastCategory(slides));
+    const slide = createEmptySlide(type, lastCategory(slides), format);
     setSlides((prev) => [...prev, slide]);
     setActiveId(slide.id);
   }
@@ -408,7 +409,10 @@ export function CarouselEditor({
 
           {canEdit ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
-              {ADDABLE_SLIDE_TYPES.map((type) => (
+              {(format === "6ibrief"
+                ? SIXIBRIEF_ADDABLE_SLIDE_TYPES
+                : ADDABLE_SLIDE_TYPES
+              ).map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -832,10 +836,11 @@ export function CarouselEditor({
                   onChange={(e) => {
                     const category = e.target.value;
                     if (
-                      active.type === "text" ||
-                      active.type === "quote" ||
-                      active.type === "outro" ||
-                      active.type === "tipp-item"
+                      format !== "6ibrief" &&
+                      (active.type === "text" ||
+                        active.type === "quote" ||
+                        active.type === "outro" ||
+                        active.type === "tipp-item")
                     ) {
                       updateActive({
                         category,

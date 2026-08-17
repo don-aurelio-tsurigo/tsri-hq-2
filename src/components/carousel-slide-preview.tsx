@@ -6,7 +6,13 @@ import {
   resolveSlideInk,
   type SlideInk,
 } from "@/lib/carousel/categories";
-import { carouselFont } from "@/lib/carousel/fonts";
+import { carouselFont, instrumentSans } from "@/lib/carousel/fonts";
+import {
+  GT_SECTRA_STACK,
+  INSTRUMENT_SANS_STACK,
+  SIXIBRIEF_BAR,
+  SIXIBRIEF_BAR_HEIGHT,
+} from "@/lib/carousel/sixibrief";
 import {
   defaultImageOverlayForSlideType,
   imageDimFilter,
@@ -108,6 +114,16 @@ function TippMark({ color }: { color: "teal" | "white" }) {
   );
 }
 
+function SixiBriefBar() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 z-40"
+      style={{ height: SIXIBRIEF_BAR_HEIGHT, backgroundColor: SIXIBRIEF_BAR }}
+      aria-hidden
+    />
+  );
+}
+
 function SlideChrome({
   format,
   slideType,
@@ -119,6 +135,9 @@ function SlideChrome({
   category: string;
   ink: SlideInk;
 }) {
+  if (format === "6ibrief") {
+    return <SixiBriefBar />;
+  }
   if (format === "tsueritipp") {
     return <TippMark color={slideType === "cover" ? "teal" : "white"} />;
   }
@@ -370,6 +389,8 @@ function CoverPreview({
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
   const isTipp = format === "tsueritipp";
+  const isSixi = format === "6ibrief";
+  const hasPhoto = Boolean(slide.backgroundImageUrl);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && slide.backgroundImageUrl),
     layer: "image",
@@ -407,9 +428,21 @@ function CoverPreview({
         onPointerUp={imageDrag.onPointerUp}
       />
       <ImageScrim
-        hasImage={Boolean(slide.backgroundImageUrl)}
+        hasImage={hasPhoto}
         overlay={slide.imageOverlay}
       />
+      {isSixi && !hasPhoto ? (
+        <p
+          className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center font-medium"
+          style={{
+            fontFamily: INSTRUMENT_SANS_STACK,
+            fontSize: 36,
+            color: "rgba(255,255,255,0.45)",
+          }}
+        >
+          Bild einfügen
+        </p>
+      ) : null}
       <SlideChrome
         format={format}
         slideType="cover"
@@ -419,10 +452,10 @@ function CoverPreview({
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
-          left: 88,
+          left: isSixi ? 80 : 88,
           right: 88,
-          bottom: 220,
-          fontFamily: CAROUSEL_FONT,
+          bottom: isSixi ? 160 : 220,
+          fontFamily: isSixi ? GT_SECTRA_STACK : CAROUSEL_FONT,
           color: inkCssColor("light"),
           ...textTransformStyle(textT, "left bottom"),
         }}
@@ -448,24 +481,31 @@ function CoverPreview({
           ) : (
             <p
               className="font-normal"
-              style={{ fontSize: 35, lineHeight: 1.2, marginBottom: 40 }}
+              style={{
+                fontSize: isSixi ? 32 : 35,
+                lineHeight: 1.2,
+                marginBottom: isSixi ? 18 : 40,
+                fontFamily: isSixi ? INSTRUMENT_SANS_STACK : undefined,
+                fontWeight: isSixi ? 400 : undefined,
+              }}
             >
               {slide.overline}
             </p>
           )
         ) : null}
         <p
-          className="font-bold"
+          className={isSixi ? "font-medium" : "font-bold"}
           style={{
-            fontSize: 68,
-            lineHeight: 1.12,
-            whiteSpace: isTipp ? "pre-wrap" : undefined,
+            fontSize: isSixi ? 64 : 68,
+            lineHeight: isSixi ? 1.08 : 1.12,
+            fontWeight: isSixi ? 500 : undefined,
+            whiteSpace: isTipp || isSixi ? "pre-wrap" : undefined,
           }}
         >
           {slide.headline || "Headline…"}
         </p>
       </div>
-      <BrandMark ink="light" />
+      {isSixi ? null : <BrandMark ink="light" />}
     </>
   );
 }
@@ -486,6 +526,7 @@ function TextPreview({
     onGuides?: (guides: { v: number | null; h: number | null }) => void;
   }) {
   const hasImage = Boolean(slide.backgroundImageUrl);
+  const isSixi = format === "6ibrief";
   const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
@@ -548,19 +589,20 @@ function TextPreview({
         ink={ink}
       />
       <div
-        className={`carousel-slide-text absolute z-30 overflow-hidden ${textDrag.className}`}
+        className={`carousel-slide-text absolute z-30 overflow-hidden ${isSixi ? "sixibrief-text" : ""} ${textDrag.className}`}
         style={{
-          left: 100,
-          right: 100,
-          top: 200,
-          bottom: 180,
-          fontSize: 53.4,
-          lineHeight: 1.05,
-          fontFamily: CAROUSEL_FONT,
+          left: isSixi ? 80 : 100,
+          right: isSixi ? 80 : 100,
+          top: isSixi ? 88 : 200,
+          bottom: isSixi ? 80 : 180,
+          fontSize: isSixi ? 40 : 53.4,
+          lineHeight: isSixi ? 1.38 : 1.05,
+          fontFamily: isSixi ? INSTRUMENT_SANS_STACK : CAROUSEL_FONT,
           fontWeight: 400,
           color: inkColor,
+          textAlign: isSixi ? "left" : undefined,
           ...SLIDE_TEXT_HYPHENS,
-          ...textTransformStyle(textT, "center top"),
+          ...textTransformStyle(textT, isSixi ? "left top" : "center top"),
         }}
         onPointerDown={textDrag.onPointerDown}
         onPointerMove={textDrag.onPointerMove}
@@ -571,7 +613,7 @@ function TextPreview({
             "<span style='opacity:0.55'>Text…</span>",
         }}
       />
-      <BrandMark ink={ink} />
+      {isSixi ? null : <BrandMark ink={ink} />}
     </>
   );
 }
@@ -790,6 +832,7 @@ function OutroPreview({
   }) {
   const ink = resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
+  const isSixi = format === "6ibrief";
   const textT = normalizeTransform(slide.textTransform);
   const textDrag = useLayerDrag({
     enabled: Boolean(interactive),
@@ -819,11 +862,12 @@ function OutroPreview({
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
-          left: 88,
-          right: 88,
-          top: "42%",
-          fontFamily: CAROUSEL_FONT,
+          left: 80,
+          right: 80,
+          top: isSixi ? "38%" : "42%",
+          fontFamily: isSixi ? GT_SECTRA_STACK : CAROUSEL_FONT,
           color: inkColor,
+          textAlign: isSixi ? "left" : undefined,
           ...textTransformStyle(
             {
               ...textT,
@@ -831,7 +875,7 @@ function OutroPreview({
               x: textT.x,
               y: textT.y,
             },
-            "center center",
+            isSixi ? "left center" : "center center",
           ),
           transform: `translateY(-50%) translate(${textT.x}px, ${textT.y}px) scale(${textT.scale})`,
         }}
@@ -839,22 +883,49 @@ function OutroPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        <p className="font-bold" style={{ fontSize: 76, lineHeight: 1.32 }}>
-          {slide.headline || "Headline…"}
-        </p>
         <p
-          className="text-right font-medium tracking-[0.08em] uppercase"
+          className={isSixi ? "font-medium" : "font-bold"}
           style={{
-            fontSize: 40,
-            lineHeight: 1.2,
-            marginTop: 28,
-            fontFamily: CAROUSEL_FONT,
+            fontSize: isSixi ? 58 : 76,
+            lineHeight: isSixi ? 1.28 : 1.32,
+            fontWeight: isSixi ? 500 : undefined,
+            whiteSpace: "pre-wrap",
           }}
         >
-          {slide.ctaText || "LINK IN DER BIO"}
+          {slide.headline || "Headline…"}
         </p>
+        {isSixi ? null : (
+          <p
+            className="text-right font-medium tracking-[0.08em] uppercase"
+            style={{
+              fontSize: 40,
+              lineHeight: 1.2,
+              marginTop: 28,
+              fontFamily: CAROUSEL_FONT,
+            }}
+          >
+            {slide.ctaText || "LINK IN DER BIO"}
+          </p>
+        )}
       </div>
-      <BrandMark ink={ink} />
+      {isSixi ? (
+        <p
+          className="absolute z-30 font-bold"
+          style={{
+            left: 80,
+            bottom: 72,
+            fontSize: 32,
+            lineHeight: 1.2,
+            fontFamily: INSTRUMENT_SANS_STACK,
+            fontWeight: 700,
+            color: inkColor,
+          }}
+        >
+          {slide.ctaText || "→ Link in der Bio"}
+        </p>
+      ) : (
+        <BrandMark ink={ink} />
+      )}
     </>
   );
 }
@@ -897,6 +968,7 @@ export function CarouselSlidePreview({
       className={[
         "relative shrink-0 overflow-hidden",
         carouselFont.variable,
+        instrumentSans.variable,
         forExport ? "" : "shadow-lg ring-1 ring-black/10",
       ].join(" ")}
       style={{

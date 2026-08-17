@@ -488,3 +488,12 @@ textarea {
   hyphens: auto;
   -webkit-hyphens: auto;
 }
+
+.sixibrief-text b {
+  font-weight: 700;
+  font-size: 1.2em;
+}
+
+.sixibrief-text > b:first-child {
+  font-size: 1.4em;
+}
