@@ -1,19 +1,16 @@
 import { AdsAdmin } from "@/components/ads-admin";
 import { AdSlot } from "@/components/ad-slot";
 import { listAdCampaigns } from "@/lib/ads";
-import { requireAdmin } from "@/lib/session";
+import { requireMembership } from "@/lib/session";
 
 export default async function AdsPage() {
-  await requireAdmin();
+  await requireMembership();
   const campaigns = await listAdCampaigns();
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <header>
-        <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
-          Admin
-        </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Werbung
         </h1>
         <p className="mt-2 max-w-2xl text-[var(--muted)]">

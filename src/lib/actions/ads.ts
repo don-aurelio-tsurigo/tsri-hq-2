@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CampaignStatus, CreativeType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireMembership } from "@/lib/session";
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -40,7 +40,7 @@ function parseImpressionLimit(
 }
 
 export async function createAdCampaign(formData: FormData) {
-  await requireAdmin();
+  await requireMembership();
 
   const parsed = createSchema.safeParse({
     name: String(formData.get("name") ?? "").trim(),
@@ -90,7 +90,7 @@ export async function createAdCampaign(formData: FormData) {
 }
 
 export async function toggleAdCampaignStatus(formData: FormData) {
-  await requireAdmin();
+  await requireMembership();
 
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Ungültige ID." };
@@ -124,7 +124,7 @@ const updateSchema = z.object({
 });
 
 export async function updateAdCampaign(formData: FormData) {
-  await requireAdmin();
+  await requireMembership();
 
   const parsed = updateSchema.safeParse({
     id: String(formData.get("id") ?? ""),
