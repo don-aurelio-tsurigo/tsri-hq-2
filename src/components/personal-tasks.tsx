@@ -185,7 +185,12 @@ export function GroupedTasksBoard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState<Set<string>>(
-    () => new Set(["__cancelled__"]),
+    () =>
+      new Set(
+        variant === "inbox"
+          ? ["__done__", "__cancelled__"]
+          : ["__cancelled__"],
+      ),
   );
   const [addingGroup, setAddingGroup] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
