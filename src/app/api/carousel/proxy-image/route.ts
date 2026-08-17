@@ -6,14 +6,17 @@ export const runtime = "nodejs";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_REDIRECTS = 3;
-/** Tsüri WePublish media CDN — the only origin this proxy will fetch. */
-const ALLOWED_HOST = "media-tsri.wepublish.cloud";
+/** Tsüri WePublish media CDN — only these origins this proxy will fetch. */
+const ALLOWED_HOSTS = new Set([
+  "media-tsri.wepublish.cloud",
+  "is-tsri.wepublish.cloud",
+]);
 
 function isAllowedMediaUrl(value: URL): boolean {
   if (value.protocol !== "https:") return false;
   if (value.username || value.password) return false;
   if (value.port && value.port !== "443") return false;
-  return value.hostname.toLowerCase() === ALLOWED_HOST;
+  return ALLOWED_HOSTS.has(value.hostname.toLowerCase());
 }
 
 function parseAllowedUrl(raw: string): URL | null {
