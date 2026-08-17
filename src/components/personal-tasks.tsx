@@ -2,6 +2,7 @@
 
 import {
   useMemo,
+  useOptimistic,
   useState,
   useTransition,
   type DragEvent,
@@ -9,15 +10,24 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
+  addDays,
   endOfWeek,
+  format,
   isBefore,
   isToday,
   startOfDay,
 } from "date-fns";
-import { CreateTaskForm } from "@/components/task-form";
+import {
+  InlineTaskAdd,
+  buildCreateTaskFormData,
+  buildOptimisticTask,
+  type InlineTaskCreateDefaults,
+  type InlineTaskCreateResult,
+} from "@/components/inline-task-add";
 import { TaskList, TASK_DRAG_TYPE, type TaskRow } from "@/components/task-list";
 import { ProjectNotes } from "@/components/project-notes";
 import {
+  createTask,
   createTaskGroup,
   deleteTaskGroup,
   updateTask,
@@ -39,6 +49,23 @@ const DUE_BUCKETS: { key: BucketKey; label: string }[] = [
   { key: "none", label: "Kein Datum" },
 ];
 
+/** Default due date (`yyyy-MM-dd`) when creating into a due bucket. */
+function dueAtForBucket(key: BucketKey): string | null {
+  const today = format(new Date(), "yyyy-MM-dd");
+  switch (key) {
+    case "none":
+      return null;
+    case "overdue":
+      // Not overdue — today's date (user preference)
+      return today;
+    case "today":
+      return today;
+    case "week":
+      return format(endOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
+    case "later":
+      return format(addDays(new Date(), 14), "yyyy-MM-dd");
+  }
+}
 function dueBucket(dueAt: Date | string | null): BucketKey {
   if (!dueAt) return "none";
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
@@ -201,29 +228,64 @@ export function GroupedTasksBoard({
 
   const isInbox = variant === "inbox";
 
+  const [optimisticTasks, addOptimisticTask] = useOptimistic(
+    tasks,
+    (current, newTask: TaskRow) => {
+      if (current.some((t) => t.id === newTask.id)) return current;
+      return [newTask, ...current];
+    },
+  );
+
+  const selfName =
+    members?.find((m) => m.id === currentUserId)?.name ?? "Ich";
+
+  function createInlineTask(
+    title: string,
+    defaults: InlineTaskCreateDefaults,
+  ): Promise<InlineTaskCreateResult> {
+    const optimistic = buildOptimisticTask(title, {
+      ...defaults,
+      assigneeName: defaults.assigneeName ?? selfName,
+    });
+    const fd = buildCreateTaskFormData(title, defaults);
+
+    return new Promise((resolve) => {
+      startTransition(async () => {
+        addOptimisticTask(optimistic);
+        const result = await createTask(fd);
+        if (result && "error" in result && result.error) {
+          resolve({ error: result.error });
+          return;
+        }
+        await router.refresh();
+        resolve({ ok: true });
+      });
+    });
+  }
+
   const scopeCounts = useMemo(() => {
     let personal = 0;
     let project = 0;
-    for (const task of tasks) {
+    for (const task of optimisticTasks) {
       const space = task.space;
       const isPersonal =
         !space || space.type === "personal" || space.id === spaceId;
       if (isPersonal) personal += 1;
       else if (space?.type === "project") project += 1;
     }
-    return { all: tasks.length, personal, project };
-  }, [tasks, spaceId]);
+    return { all: optimisticTasks.length, personal, project };
+  }, [optimisticTasks, spaceId]);
 
   const scopedTasks = useMemo(() => {
-    if (scopeFilter === "all") return tasks;
-    return tasks.filter((task) => {
+    if (scopeFilter === "all") return optimisticTasks;
+    return optimisticTasks.filter((task) => {
       const space = task.space;
       const isPersonal =
         !space || space.type === "personal" || space.id === spaceId;
       if (scopeFilter === "personal") return isPersonal;
       return space?.type === "project";
     });
-  }, [tasks, scopeFilter, spaceId]);
+  }, [optimisticTasks, scopeFilter, spaceId]);
 
   const openTasks = useMemo(
     () =>
@@ -262,7 +324,12 @@ export function GroupedTasksBoard({
   }, [openTasks]);
 
   const openByProject = useMemo(() => {
-    type ProjBucket = { key: string; label: string; tasks: TaskRow[] };
+    type ProjBucket = {
+      key: string;
+      label: string;
+      spaceId: string;
+      tasks: TaskRow[];
+    };
     const map = new Map<string, ProjBucket>();
     for (const task of openTasks) {
       const space = task.space;
@@ -270,8 +337,9 @@ export function GroupedTasksBoard({
         !space || space.type === "personal" || space.id === spaceId;
       const key = isPersonal ? `__personal__:${spaceId}` : space.id;
       const label = isPersonal ? "Privat" : space.name;
+      const targetSpaceId = isPersonal ? spaceId : space.id;
       if (!map.has(key)) {
-        map.set(key, { key, label, tasks: [] });
+        map.set(key, { key, label, spaceId: targetSpaceId, tasks: [] });
       }
       map.get(key)!.tasks.push(task);
     }
@@ -283,6 +351,29 @@ export function GroupedTasksBoard({
     });
   }, [openTasks, spaceId]);
 
+  /** When Filter=Projekt, prefer creating into a project space if unambiguous. */
+  const projectFilterSpaceId = useMemo(() => {
+    if (scopeFilter !== "project") return null;
+    const ids = new Set<string>();
+    for (const task of optimisticTasks) {
+      const space = task.space;
+      if (space?.type === "project") ids.add(space.id);
+    }
+    if (ids.size === 1) return [...ids][0]!;
+    return null;
+  }, [scopeFilter, optimisticTasks]);
+
+  const inboxCreateSpaceId = projectFilterSpaceId ?? spaceId;
+  const inboxCreateSpace =
+    projectFilterSpaceId != null
+      ? ({
+          id: projectFilterSpaceId,
+          name:
+            optimisticTasks.find((t) => t.space?.id === projectFilterSpaceId)
+              ?.space?.name ?? "Projekt",
+          type: "project" as const,
+        })
+      : ({ id: spaceId, name: "Privat", type: "personal" as const });
   function toggle(key: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -383,81 +474,67 @@ export function GroupedTasksBoard({
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
-      {canEdit && (
-        <CreateTaskForm
-          spaceId={spaceId}
-          compact
-          showDueDate={!isTemplate}
-          showDueOffset={isTemplate}
-          members={editMembers}
-          placeholder={
-            isTemplate ? "Neuer Vorlagen-Task…" : "Neue Aufgabe…"
-          }
-        />
-      )}
-
       {isInbox && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-            Filter
-          </span>
-          {(
-            [
-              { id: "all", label: "Alle", count: scopeCounts.all },
-              { id: "personal", label: "Privat", count: scopeCounts.personal },
-              { id: "project", label: "Projekt", count: scopeCounts.project },
-            ] as const
-          ).map((opt) => {
-            const active = scopeFilter === opt.id;
-            return (
-              <button
-                key={opt.id}
-                type="button"
-                aria-pressed={active}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                  active
-                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                ].join(" ")}
-                onClick={() => setScopeFilter(opt.id)}
-              >
-                {opt.label} ({opt.count})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {isInbox && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-            Gruppierung
-          </span>
-          {(
-            [
-              { id: "due", label: "Nach Fälligkeit" },
-              { id: "project", label: "Nach Projekt" },
-            ] as const
-          ).map((mode) => {
-            const active = inboxMode === mode.id;
-            return (
-              <button
-                key={mode.id}
-                type="button"
-                aria-pressed={active}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                  active
-                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                ].join(" ")}
-                onClick={() => setInboxMode(mode.id)}
-              >
-                {mode.label}
-              </button>
-            );
-          })}
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+              Filter
+            </span>
+            {(
+              [
+                { id: "all", label: "Alle", count: scopeCounts.all },
+                { id: "personal", label: "Privat", count: scopeCounts.personal },
+                { id: "project", label: "Projekt", count: scopeCounts.project },
+              ] as const
+            ).map((opt) => {
+              const active = scopeFilter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    active
+                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                  ].join(" ")}
+                  onClick={() => setScopeFilter(opt.id)}
+                >
+                  {opt.label} ({opt.count})
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+              Gruppierung
+            </span>
+            {(
+              [
+                { id: "due", label: "Nach Fälligkeit" },
+                { id: "project", label: "Nach Projekt" },
+              ] as const
+            ).map((mode) => {
+              const active = inboxMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    active
+                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                  ].join(" ")}
+                  onClick={() => setInboxMode(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -465,7 +542,7 @@ export function GroupedTasksBoard({
         <div className="space-y-3">
           {DUE_BUCKETS.map((bucket) => {
             const items = openByDue.get(bucket.key) ?? [];
-            if (items.length === 0) return null;
+            if (items.length === 0 && !canEdit) return null;
             return (
               <CollapsibleSection
                 key={bucket.key}
@@ -483,11 +560,22 @@ export function GroupedTasksBoard({
                   showSpace
                   members={editMembers}
                   currentUserId={currentUserId}
+                  footer={
+                    canEdit ? (
+                      <InlineTaskAdd
+                        spaceId={inboxCreateSpaceId}
+                        dueAt={dueAtForBucket(bucket.key)}
+                        assigneeId={currentUserId}
+                        space={inboxCreateSpace}
+                        onCreate={createInlineTask}
+                      />
+                    ) : undefined
+                  }
                 />
               </CollapsibleSection>
             );
           })}
-          {openTasks.length === 0 && (
+          {openTasks.length === 0 && !canEdit && (
             <div className="card px-4 py-8 text-center text-sm text-[var(--muted)]">
               Keine offenen Tasks.
             </div>
@@ -513,6 +601,21 @@ export function GroupedTasksBoard({
                 showSpace={bucket.label !== "Privat"}
                 members={editMembers}
                 currentUserId={currentUserId}
+                footer={
+                  canEdit ? (
+                    <InlineTaskAdd
+                      spaceId={bucket.spaceId}
+                      assigneeId={currentUserId}
+                      space={{
+                        id: bucket.spaceId,
+                        name: bucket.label,
+                        type:
+                          bucket.label === "Privat" ? "personal" : "project",
+                      }}
+                      onCreate={createInlineTask}
+                    />
+                  ) : undefined
+                }
               />
             </CollapsibleSection>
           ))}
@@ -551,6 +654,21 @@ export function GroupedTasksBoard({
                 dropGroupId={null}
                 onMoveToGroup={canEdit ? moveToGroup : undefined}
                 showDueOffset={isTemplate}
+                footer={
+                  canEdit ? (
+                    <InlineTaskAdd
+                      spaceId={spaceId}
+                      groupId=""
+                      assigneeId={currentUserId}
+                      space={{
+                        id: spaceId,
+                        name: title,
+                        type: "project",
+                      }}
+                      onCreate={createInlineTask}
+                    />
+                  ) : undefined
+                }
               />
             </CollapsibleSection>
 
@@ -650,6 +768,22 @@ export function GroupedTasksBoard({
                       dropGroupId={group.id}
                       onMoveToGroup={canEdit ? moveToGroup : undefined}
                       showDueOffset={isTemplate}
+                      footer={
+                        canEdit ? (
+                          <InlineTaskAdd
+                            spaceId={spaceId}
+                            groupId={group.id}
+                            assigneeId={currentUserId}
+                            space={{
+                              id: spaceId,
+                              name: title,
+                              type: "project",
+                            }}
+                            group={{ id: group.id, name: group.name }}
+                            onCreate={createInlineTask}
+                          />
+                        ) : undefined
+                      }
                     />
                   )}
                 </CollapsibleSection>

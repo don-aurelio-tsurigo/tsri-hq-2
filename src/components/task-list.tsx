@@ -7,6 +7,7 @@ import {
   useState,
   useTransition,
   type DragEvent,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -239,6 +240,8 @@ export function TaskList({
   onMoveToGroup,
   /** Template mode: show/edit relative day offsets instead of absolute dates */
   showDueOffset = false,
+  /** Renders as last row inside the same card (e.g. inline add). */
+  footer,
 }: {
   tasks: TaskRow[];
   showSpace?: boolean;
@@ -254,6 +257,7 @@ export function TaskList({
   dropGroupId?: string | null;
   onMoveToGroup?: (taskId: string, groupId: string | null) => void;
   showDueOffset?: boolean;
+  footer?: ReactNode;
 }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -298,6 +302,41 @@ export function TaskList({
     : "";
 
   if (tasks.length === 0) {
+    if (footer) {
+      return (
+        <>
+          <ul
+            onDragOver={handleDragOver}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            className={[
+              "card divide-y divide-[var(--border)] overflow-hidden transition-colors",
+              compact ? "text-sm" : "",
+              dropClass,
+            ].join(" ")}
+          >
+            <li className={compact ? "px-3 py-1.5" : "px-4 py-3"}>
+              {footer}
+            </li>
+          </ul>
+          {enableDrawer && (
+            <TaskDrawer
+              task={selected}
+              members={members}
+              groups={groups}
+              pending={pending}
+              error={error}
+              showDueOffset={showDueOffset}
+              onClose={() => {
+                setError(null);
+                setSelectedId(null);
+              }}
+              onSave={saveTask}
+            />
+          )}
+        </>
+      );
+    }
     return (
       <>
         <div
@@ -530,6 +569,9 @@ export function TaskList({
             </li>
           );
         })}
+        {footer ? (
+          <li className={compact ? "px-3 py-1.5" : "px-4 py-3"}>{footer}</li>
+        ) : null}
       </ul>
 
       {enableDrawer && (
