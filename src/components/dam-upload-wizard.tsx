@@ -98,6 +98,32 @@ function namesFrom(value: string): string[] {
   return name ? [name] : [];
 }
 
+function MetadataPhotoGrid({ drafts }: { drafts: AssetDraft[] }) {
+  if (drafts.length === 0) return null;
+  return (
+    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+      {drafts.map((draft) => (
+        <li
+          key={draft.r2Key}
+          className="overflow-hidden rounded-lg border-2 border-[var(--border)]"
+        >
+          <div className="flex aspect-[4/3] items-center justify-center bg-[var(--panel-muted)] p-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={draft.previewUrl}
+              alt={draft.originalName || draft.fileName}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+          <p className="truncate px-2 py-1 text-xs font-semibold" title={draft.fileName}>
+            {draft.fileName}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 async function putViaServer(
   r2Key: string,
   file: File,
@@ -1161,15 +1187,7 @@ export function DamUploadWizard({
                 </li>
               ))}
             </ul>
-          ) : (
-            <ul className="flex flex-wrap gap-2">
-              {prepared.map((file) => (
-                <li key={file.r2Key} className="text-xs text-[var(--muted)]">
-                  {file.fileName}
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -1188,6 +1206,7 @@ export function DamUploadWizard({
               {busy ? "Speichert…" : "Batch abschliessen"}
             </button>
           </div>
+          <MetadataPhotoGrid drafts={drafts} />
         </section>
       ) : null}
 

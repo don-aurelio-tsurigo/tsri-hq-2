@@ -397,7 +397,7 @@ export function DamPersonalGrid({
 
       <p className="text-xs text-[var(--muted)]">
         Tastatur: ← → navigieren, 1–5 Rating, Enter oder Doppelklick für Details, X
-        verwerfen. Shift-Klick wählt mehrere.
+        löschen. Shift-Klick wählt mehrere.
       </p>
 
       {error ? (
@@ -504,7 +504,7 @@ export function DamPersonalGrid({
               disabled={pending}
               onClick={() => rejectIds([...selected])}
             >
-              Verwerfen
+              Löschen
             </button>
             <button
               type="button"
