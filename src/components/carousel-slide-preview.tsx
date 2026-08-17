@@ -595,7 +595,7 @@ function TextPreview({
           right: isSixi ? 80 : 100,
           top: isSixi ? 88 : 200,
           bottom: isSixi ? 80 : 180,
-          fontSize: isSixi ? 39 : 53.4,
+          fontSize: isSixi ? 54 : 53.4,
           lineHeight: isSixi ? 1.38 : 1.05,
           fontFamily: isSixi ? INSTRUMENT_SANS_STACK : CAROUSEL_FONT,
           fontWeight: 400,
