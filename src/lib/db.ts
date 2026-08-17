@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 33; // v33: drop named statements (42P05)
+const PRISMA_CLIENT_SCHEMA_VERSION = 34; // v34: Asset deletedAt/deletedBy
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -45,6 +45,9 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   TimeSegment: ["type", "startTime", "endTime"],
   Campaign: ["impressionLimit"],
   CarouselPost: ["format"],
+  UploadBatch: ["credit"],
+  Asset: ["r2Key", "status", "deletedAt", "deletedBy"],
+  Collection: ["isPersonal"],
 };
 
 const REQUIRED_MODELS = [

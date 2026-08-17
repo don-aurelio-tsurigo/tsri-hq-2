@@ -27,6 +27,7 @@ import {
   Pin,
   Rss,
   Settings2,
+  Trash2,
   Users,
   Wallet,
   X,
@@ -371,6 +372,17 @@ export function AppSidebar({
             onNavigate={onMobileClose}
           >
             Archiv
+          </NavLink>
+          <NavLink
+            href="/dam/papierkorb"
+            active={
+              pathname === "/dam/papierkorb" ||
+              pathname.startsWith("/dam/papierkorb/")
+            }
+            icon={Trash2}
+            onNavigate={onMobileClose}
+          >
+            Papierkorb
           </NavLink>
         </NavSection>
 

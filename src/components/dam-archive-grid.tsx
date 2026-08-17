@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Download, Trash2 } from "lucide-react";
 import { DamArchivePreview } from "@/components/dam-archive-preview";
+import { DamConfirmDialog } from "@/components/dam-confirm-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
+import { moveAssetsToTrash } from "@/lib/actions/dam";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import { damRightsLabel } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
 export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const [focused, setFocused] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -17,15 +22,18 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [trashIds, setTrashIds] = useState<string[] | null>(null);
+  const assetKey = assets.map((asset) => asset.id).join(",");
+  const [seenAssets, setSeenAssets] = useState(assetKey);
+  if (assetKey !== seenAssets) {
+    setSeenAssets(assetKey);
     setSelected(new Set());
     setFocused(0);
     setAnchor(0);
     setPreviewIndex(null);
     setError(null);
     setProgress(null);
-  }, [assets]);
+  }
 
   useEffect(() => {
     if (previewIndex !== null) return;
@@ -94,6 +102,28 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
 
   const overLimit = selected.size > MAX_ARCHIVE_DOWNLOADS;
 
+  function confirmTrash(ids: string[]) {
+    if (ids.length === 0) return;
+    setError(null);
+    setTrashIds(ids);
+  }
+
+  function runTrash() {
+    if (!trashIds?.length || pending) return;
+    const ids = trashIds;
+    startTransition(async () => {
+      const result = await moveAssetsToTrash(ids);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setTrashIds(null);
+      setPreviewIndex(null);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -148,6 +178,15 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
               Originale in voller Auflösung, als ZIP.
             </p>
           ) : null}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={pending}
+            onClick={() => confirmTrash([...selected])}
+          >
+            <Trash2 className="size-4" aria-hidden />
+            In den Papierkorb
+          </button>
         </div>
       ) : null}
 
@@ -227,6 +266,22 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
           index={previewIndex}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+          onTrash={(id) => confirmTrash([id])}
+        />
+      ) : null}
+
+      {trashIds ? (
+        <DamConfirmDialog
+          title="In den Papierkorb?"
+          body={
+            trashIds.length === 1
+              ? "Bild in den Papierkorb verschieben? Wird nach 30 Tagen endgültig gelöscht."
+              : `${trashIds.length} Bilder in den Papierkorb verschieben? Sie werden nach 30 Tagen endgültig gelöscht.`
+          }
+          confirmLabel="In den Papierkorb"
+          pending={pending}
+          onClose={() => setTrashIds(null)}
+          onConfirm={runTrash}
         />
       ) : null}
     </div>

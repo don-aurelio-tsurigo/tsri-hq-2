@@ -14,6 +14,8 @@ const ratingSchema = z.number().int().min(1).max(5);
 function revalidateDam() {
   revalidatePath("/dam/personal");
   revalidatePath("/dam");
+  revalidatePath("/dam/archive");
+  revalidatePath("/dam/papierkorb");
 }
 
 async function ownedStagingAssets(userId: string, ids: string[]) {
@@ -291,4 +293,43 @@ export async function publishAssets(
     };
   }
   return result;
+}
+
+export async function moveAssetsToTrash(
+  assetIds: string[],
+): Promise<{ error?: string; ids?: string[] }> {
+  const { session } = await requireMembership();
+  const parsed = idsSchema.safeParse(assetIds);
+  if (!parsed.success) return { error: "Keine Bilder gewählt." };
+  const { movePublishedAssetsToTrash } = await import("@/lib/dam/trash");
+  const result = await movePublishedAssetsToTrash(session.user.id, parsed.data);
+  if (result.error) return { error: result.error };
+  revalidateDam();
+  return { ids: result.ids };
+}
+
+export async function restoreAssetsFromTrash(
+  assetIds: string[],
+): Promise<{ error?: string; ids?: string[] }> {
+  const { session } = await requireMembership();
+  const parsed = idsSchema.safeParse(assetIds);
+  if (!parsed.success) return { error: "Keine Bilder gewählt." };
+  const { restoreTrashedAssets } = await import("@/lib/dam/trash");
+  const result = await restoreTrashedAssets(session.user.id, parsed.data);
+  if (result.error) return { error: result.error };
+  revalidateDam();
+  return { ids: result.ids };
+}
+
+export async function purgeAsset(
+  assetId: string,
+): Promise<{ error?: string }> {
+  const { session } = await requireMembership();
+  const parsedId = z.string().min(1).safeParse(assetId);
+  if (!parsedId.success) return { error: "Bild nicht gefunden." };
+  const { purgeAssetById } = await import("@/lib/dam/trash");
+  const result = await purgeAssetById(session.user.id, parsedId.data);
+  if (result.error) return result;
+  revalidateDam();
+  return {};
 }

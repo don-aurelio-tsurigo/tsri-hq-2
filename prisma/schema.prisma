@@ -51,6 +51,7 @@ model User {
   usageEvents           MemberUsage[]
   uploadBatches         UploadBatch[]
   assets                Asset[]
+  deletedAssets         Asset[]              @relation("AssetDeletedBy")
   collections           Collection[]
   exportLogs            ExportLog[]
 
@@ -1008,6 +1009,9 @@ model Asset {
   uploadedBy  String
   uploader    User        @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   publishedAt DateTime?
+  deletedAt   DateTime?
+  deletedBy   String?
+  deleter     User?       @relation("AssetDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -1017,6 +1021,8 @@ model Asset {
   @@unique([batchId, sequence])
   @@index([status])
   @@index([uploadedBy])
+  @@index([deletedAt])
+  @@index([status, deletedAt])
   @@map("asset")
   @@schema("public")
 }
@@ -1049,8 +1055,8 @@ model AssetCollection {
 
 model ExportLog {
   id         String   @id @default(cuid())
-  assetId    String
-  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId    String?
+  asset      Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   exportedBy String
   exporter   User     @relation(fields: [exportedBy], references: [id], onDelete: Restrict)
   exportedAt DateTime @default(now())

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Trash2, X } from "lucide-react";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { damRightsLabel } from "@/lib/dam/types";
@@ -28,21 +28,24 @@ export function DamArchivePreview({
   index,
   onIndexChange,
   onClose,
+  onTrash,
 }: {
   assets: ArchiveAssetCard[];
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
+  onTrash?: (assetId: string) => void;
 }) {
   const asset = assets[index];
   const count = assets.length;
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-
-  useEffect(() => {
+  const [seenId, setSeenId] = useState(asset?.id);
+  if (asset?.id !== seenId) {
+    setSeenId(asset?.id);
     setDownloadError(null);
     setDownloading(false);
-  }, [asset?.id]);
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -171,6 +174,17 @@ export function DamArchivePreview({
                 Volle Auflösung, direkt von R2. Der Link gilt zwei Minuten.
               </p>
             )}
+
+            {onTrash ? (
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                onClick={() => onTrash(asset.id)}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                In den Papierkorb
+              </button>
+            ) : null}
 
             <MetaBlock label="Credit">{asset.credit}</MetaBlock>
             <MetaBlock label="Rechte">{damRightsLabel(asset.rightsType)}</MetaBlock>

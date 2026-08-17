@@ -39,7 +39,10 @@ export async function GET(
   const asset = await prisma.asset.findFirst({
     where: {
       id: assetId,
-      OR: [{ uploadedBy: auth.session.user.id }, { status: "published" }],
+      OR: [
+        { uploadedBy: auth.session.user.id, status: { in: ["staging", "rejected"] } },
+        { status: { in: ["published", "archived"] } },
+      ],
     },
     select: { r2Key: true },
   });
