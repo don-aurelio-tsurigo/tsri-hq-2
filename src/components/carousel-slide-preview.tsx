@@ -554,7 +554,7 @@ function TextPreview({
           right: 100,
           top: 200,
           bottom: 180,
-          fontSize: 60,
+          fontSize: 53.4,
           lineHeight: 1.05,
           fontFamily: CAROUSEL_FONT,
           fontWeight: 400,
