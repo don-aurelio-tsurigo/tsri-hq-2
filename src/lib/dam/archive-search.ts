@@ -1,14 +1,31 @@
 import type { Prisma } from "@/generated/prisma/client";
 import {
+  ARCHIVE_FACET_LIMIT,
+  ARCHIVE_FACET_SEARCH_LIMIT,
   type ArchiveFilters,
-  archiveFiltersActive,
-  parseArchiveFilters,
 } from "@/lib/dam/archive-filters";
 import { prisma } from "@/lib/db";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
 export type { ArchiveAssetCard, ArchiveFilters };
-export { archiveFiltersActive, parseArchiveFilters };
+export {
+  archiveFilterChipCount,
+  archiveFiltersActive,
+  archiveFiltersToSearchParams,
+  hiddenArchiveFilterCount,
+  parseArchiveFilters,
+  parseArchiveFiltersFromSearchParams,
+} from "@/lib/dam/archive-filters";
+
+export type ArchiveFacetOption = { value: string; label: string };
+
+export type ArchiveFacets = {
+  credits: string[];
+  collections: { id: string; name: string }[];
+  keywords: string[];
+  collectionsTruncated: boolean;
+  keywordsTruncated: boolean;
+};
 
 async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
   const query = q.trim();
@@ -40,7 +57,9 @@ export async function searchPublishedAssets(
   const where: Prisma.AssetWhereInput = {
     status: "published",
     ...(ftsIds ? { id: { in: ftsIds } } : {}),
-    ...(filters.keyword ? { keywords: { has: filters.keyword } } : {}),
+    ...(filters.keywords.length > 0
+      ? { OR: filters.keywords.map((keyword) => ({ keywords: { has: keyword } })) }
+      : {}),
     ...(filters.credit ? { credit: filters.credit } : {}),
     ...(filters.rightsType ? { rightsType: filters.rightsType } : {}),
     ...(filters.collectionId
@@ -97,7 +116,7 @@ export async function countPublishedAssets(): Promise<number> {
   return prisma.asset.count({ where: { status: "published" } });
 }
 
-export async function listArchiveFacets() {
+export async function listArchiveFacets(): Promise<ArchiveFacets> {
   const [credits, collections, keywordRows] = await Promise.all([
     prisma.asset.findMany({
       where: { status: "published" },
@@ -110,7 +129,7 @@ export async function listArchiveFacets() {
       where: { assets: { some: { asset: { status: "published" } } } },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
-      take: 200,
+      take: ARCHIVE_FACET_LIMIT,
     }),
     prisma.$queryRaw<{ keyword: string }[]>`
       SELECT DISTINCT trim(k) AS keyword
@@ -118,7 +137,7 @@ export async function listArchiveFacets() {
       WHERE status = 'published'::"AssetStatus"
         AND trim(k) <> ''
       ORDER BY 1
-      LIMIT 200
+      LIMIT ${ARCHIVE_FACET_LIMIT}
     `,
   ]);
 
@@ -126,5 +145,50 @@ export async function listArchiveFacets() {
     credits: credits.map((row) => row.credit).filter(Boolean),
     collections,
     keywords: keywordRows.map((row) => row.keyword).filter(Boolean),
+    collectionsTruncated: collections.length >= ARCHIVE_FACET_LIMIT,
+    keywordsTruncated: keywordRows.length >= ARCHIVE_FACET_LIMIT,
   };
+}
+
+function likeQuery(q: string): string {
+  return `%${q.replace(/[%_]/g, "")}%`;
+}
+
+export async function searchArchiveKeywords(
+  q: string,
+  take = ARCHIVE_FACET_SEARCH_LIMIT,
+): Promise<ArchiveFacetOption[]> {
+  const query = q.trim().slice(0, 80);
+  if (!query) return [];
+  const rows = await prisma.$queryRaw<{ keyword: string }[]>`
+    SELECT DISTINCT trim(k) AS keyword
+    FROM "asset", unnest(keywords) AS k
+    WHERE status = 'published'::"AssetStatus"
+      AND trim(k) <> ''
+      AND trim(k) ILIKE ${likeQuery(query)}
+    ORDER BY 1
+    LIMIT ${take}
+  `;
+  return rows
+    .map((row) => row.keyword)
+    .filter(Boolean)
+    .map((keyword) => ({ value: keyword, label: keyword }));
+}
+
+export async function searchArchiveCollections(
+  q: string,
+  take = ARCHIVE_FACET_SEARCH_LIMIT,
+): Promise<ArchiveFacetOption[]> {
+  const query = q.trim().slice(0, 80);
+  if (!query) return [];
+  const rows = await prisma.collection.findMany({
+    where: {
+      assets: { some: { asset: { status: "published" } } },
+      name: { contains: query, mode: "insensitive" },
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+    take,
+  });
+  return rows.map((row) => ({ value: row.id, label: row.name }));
 }
