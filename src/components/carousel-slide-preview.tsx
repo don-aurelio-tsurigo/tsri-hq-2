@@ -13,7 +13,6 @@ import {
   SIXIBRIEF_BAR,
   SIXIBRIEF_BAR_HEIGHT,
 } from "@/lib/carousel/sixibrief";
-import { SixiBriefCoverArt } from "@/components/sixibrief-cover-art";
 import {
   defaultImageOverlayForSlideType,
   imageDimFilter,
@@ -419,25 +418,31 @@ function CoverPreview({
 
   return (
     <>
+      <ImageLayer
+        url={slide.backgroundImageUrl}
+        transform={imageT}
+        overlay={slide.imageOverlay}
+        className={imageDrag.className}
+        onPointerDown={imageDrag.onPointerDown}
+        onPointerMove={imageDrag.onPointerMove}
+        onPointerUp={imageDrag.onPointerUp}
+      />
+      <ImageScrim
+        hasImage={hasPhoto}
+        overlay={slide.imageOverlay}
+      />
       {isSixi && !hasPhoto ? (
-        <SixiBriefCoverArt />
-      ) : (
-        <>
-          <ImageLayer
-            url={slide.backgroundImageUrl}
-            transform={imageT}
-            overlay={slide.imageOverlay}
-            className={imageDrag.className}
-            onPointerDown={imageDrag.onPointerDown}
-            onPointerMove={imageDrag.onPointerMove}
-            onPointerUp={imageDrag.onPointerUp}
-          />
-          <ImageScrim
-            hasImage={hasPhoto}
-            overlay={slide.imageOverlay}
-          />
-        </>
-      )}
+        <p
+          className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center font-medium"
+          style={{
+            fontFamily: INSTRUMENT_SANS_STACK,
+            fontSize: 36,
+            color: "rgba(255,255,255,0.45)",
+          }}
+        >
+          Bild einfügen
+        </p>
+      ) : null}
       <SlideChrome
         format={format}
         slideType="cover"

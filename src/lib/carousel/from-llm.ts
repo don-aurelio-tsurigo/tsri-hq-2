@@ -111,8 +111,7 @@ export function llmDraftToSlides(
     throw new Error("LLM-Antwort: Letzter Slide muss Outro sein.");
   }
 
-  const coverImageUrl =
-    format === "6ibrief" ? null : options?.coverImageUrl?.trim() || null;
+  const coverImageUrl = options?.coverImageUrl?.trim() || null;
 
   return slides.map((slide, index) => {
     switch (slide.type) {
