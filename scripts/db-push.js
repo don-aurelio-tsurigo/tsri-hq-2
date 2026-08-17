@@ -9,25 +9,8 @@ const onRender = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID);
 const isProd = process.env.NODE_ENV === "production";
 
 if (onRender || isProd) {
-  // #region agent log
-  fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "9b87ec",
-    },
-    body: JSON.stringify({
-      sessionId: "9b87ec",
-      hypothesisId: "A",
-      location: "scripts/db-push.js:skip",
-      message: "db:push skipped on Render/production",
-      data: { onRender, isProd },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
   console.log(
-    "[db:push] skipped on Render/production — schema is applied via migrate deploy on start. Remove db:push from the Render Build Command.",
+    "[db:push] skipped on Render/production — schema is applied via migrate deploy on start.",
   );
   process.exit(0);
 }
