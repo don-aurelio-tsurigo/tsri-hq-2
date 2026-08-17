@@ -2,11 +2,13 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useTransition,
   type DragEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, isPast, isToday } from "date-fns";
@@ -66,16 +68,46 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
+    null,
+  );
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteWithUndo = useDeleteTaskWithUndo();
 
   const showComplete = task.status !== "done" && task.status !== "cancelled";
   const showCancel = task.status !== "cancelled";
 
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) {
+      setMenuPos(null);
+      return;
+    }
+    function updatePos() {
+      const btn = buttonRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      setMenuPos({
+        top: r.bottom + 4,
+        right: Math.max(8, window.innerWidth - r.right),
+      });
+    }
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function onPointerDown(e: PointerEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -116,9 +148,64 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
     });
   }
 
+  const menu =
+    open && menuPos
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ top: menuPos.top, right: menuPos.right }}
+            className="fixed z-[80] min-w-[9.5rem] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+          >
+            {showComplete && (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
+                disabled={pending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markDone();
+                }}
+              >
+                Erledigen
+              </button>
+            )}
+            {showCancel && (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
+                disabled={pending}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markCancelled();
+                }}
+              >
+                Abbrechen
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-sm text-[var(--danger)] hover:bg-black/5"
+              disabled={pending}
+              onClick={(e) => {
+                e.stopPropagation();
+                markDeleted();
+              }}
+            >
+              Löschen
+            </button>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div ref={menuRef} className="relative shrink-0">
+    <div className="relative shrink-0">
       <button
+        ref={buttonRef}
         type="button"
         className="inline-flex size-7 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
         aria-label="Task-Aktionen"
@@ -133,53 +220,7 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
       >
         <MoreHorizontal className="size-4" strokeWidth={1.75} />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 z-30 mt-1 min-w-[9.5rem] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] py-1 shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
-        >
-          {showComplete && (
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation();
-                markDone();
-              }}
-            >
-              Erledigen
-            </button>
-          )}
-          {showCancel && (
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
-              disabled={pending}
-              onClick={(e) => {
-                e.stopPropagation();
-                markCancelled();
-              }}
-            >
-              Abbrechen
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            className="block w-full px-3 py-1.5 text-left text-sm text-[var(--danger)] hover:bg-black/5"
-            disabled={pending}
-            onClick={(e) => {
-              e.stopPropagation();
-              markDeleted();
-            }}
-          >
-            Löschen
-          </button>
-        </div>
-      )}
+      {menu}
     </div>
   );
 }
