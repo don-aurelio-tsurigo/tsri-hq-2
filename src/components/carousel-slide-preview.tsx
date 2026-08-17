@@ -682,7 +682,7 @@ function QuotePreview({
         <p
           className="carousel-slide-text font-bold"
           style={{
-            fontSize: 60,
+            fontSize: 53.4,
             lineHeight: 1.25,
             whiteSpace: "pre-wrap",
             ...SLIDE_TEXT_HYPHENS,
@@ -700,7 +700,7 @@ function QuotePreview({
         {slide.attribution ? (
           <p
             className="font-normal opacity-95"
-            style={{ fontSize: 45, lineHeight: 1.2, marginTop: 52 }}
+            style={{ fontSize: 40.05, lineHeight: 1.2, marginTop: 52 }}
           >
             {slide.attribution}
           </p>
