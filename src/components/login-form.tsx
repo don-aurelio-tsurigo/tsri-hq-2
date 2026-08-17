@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
@@ -19,8 +19,12 @@ function magicLinkErrorMessage(code: string | null) {
 
 export function LoginForm() {
   const searchParams = useSearchParams();
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(
+    searchParams.get("joined") === "1" || searchParams.get("reset") === "1",
+  );
   const [error, setError] = useState<string | null>(
     magicLinkErrorMessage(searchParams.get("error")),
   );
@@ -29,8 +33,29 @@ export function LoginForm() {
   const joined = searchParams.get("joined") === "1";
   const resetOk = searchParams.get("reset") === "1";
 
-  function onPasswordLogin(e: React.FormEvent) {
+  function revealPassword() {
+    setShowPassword(true);
+    setError(null);
+    setLinkSent(false);
+    requestAnimationFrame(() => passwordRef.current?.focus());
+  }
+
+  function hidePassword() {
+    setShowPassword(false);
+    setPassword("");
+    setError(null);
+  }
+
+  function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (showPassword) {
+      onPasswordLogin();
+      return;
+    }
+    onMagicLink();
+  }
+
+  function onPasswordLogin() {
     setError(null);
     setLinkSent(false);
     startTransition(async () => {
@@ -98,7 +123,7 @@ export function LoginForm() {
           Willkommen zurück
         </h1>
         <p className="mt-2 text-[var(--muted)]">
-          Volle Accounts, private Spaces — kein Gast-Modus.
+          Login-Link per E-Mail — oder mit Passwort, falls du eines hast.
         </p>
       </div>
 
@@ -125,7 +150,7 @@ export function LoginForm() {
           </p>
         )}
 
-        <form onSubmit={onPasswordLogin} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="field">
             <label htmlFor="email">E-Mail</label>
             <input
@@ -137,36 +162,48 @@ export function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <div className="field">
-            <label htmlFor="password">Passwort</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
+          {showPassword ? (
+            <div className="field">
+              <label htmlFor="password">Passwort</label>
+              <input
+                ref={passwordRef}
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          ) : null}
           <button className="btn btn-primary" type="submit" disabled={pending}>
-            {pending ? "…" : "Anmelden"}
+            {pending
+              ? "…"
+              : showPassword
+                ? "Anmelden"
+                : "Login-Link schicken"}
           </button>
         </form>
 
-        <div className="mt-5 flex items-center gap-3 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-          <span className="h-px flex-1 bg-[var(--border)]" />
-          oder
-          <span className="h-px flex-1 bg-[var(--border)]" />
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-ghost mt-4 w-full"
-          disabled={pending}
-          onClick={onMagicLink}
-        >
-          {pending ? "…" : "Login-Link per E-Mail"}
-        </button>
+        {showPassword ? (
+          <button
+            type="button"
+            className="mt-4 w-full text-center text-sm font-semibold text-[var(--muted)] underline decoration-2 underline-offset-2 hover:text-[var(--fg)]"
+            disabled={pending}
+            onClick={hidePassword}
+          >
+            Lieber Login-Link per E-Mail
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="mt-4 w-full text-center text-sm font-semibold text-[var(--muted)] underline decoration-2 underline-offset-2 hover:text-[var(--fg)]"
+            disabled={pending}
+            onClick={revealPassword}
+          >
+            Mit Passwort anmelden
+          </button>
+        )}
       </div>
 
       <p className="relative mt-6 text-center text-sm text-[var(--muted)]">
