@@ -1,10 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { Check, ImagePlus, LoaderCircle, Upload, User, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ImagePlus,
+  LoaderCircle,
+  RotateCw,
+  Upload,
+  User,
+  X,
+} from "lucide-react";
+import { DamCombobox } from "@/components/dam-combobox";
 import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import {
+  defaultCollectionName,
+  suggestedRightsType,
+} from "@/lib/dam/upload-defaults";
 
 type RightsType = "own" | "provided" | "free_use";
 
@@ -60,6 +74,12 @@ type BatchStatusAsset = {
   height: number | null;
 };
 
+type FileUploadState = {
+  status: "waiting" | "uploading" | "done" | "error";
+  progress: number;
+  error?: string;
+};
+
 const RIGHTS_LABELS: { value: RightsType; label: string }[] = [
   { value: "own", label: "Eigenes Foto (own)" },
   { value: "provided", label: "Zur Verfügung gestellt (provided)" },
@@ -71,6 +91,11 @@ function parseKeywordInput(value: string): string[] {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function namesFrom(value: string): string[] {
+  const name = value.trim();
+  return name ? [name] : [];
 }
 
 async function putViaServer(
@@ -131,8 +156,7 @@ async function putFile(
         if (xhr.status >= 200 && xhr.status < 300) resolve();
         else reject(new Error(`R2-Upload fehlgeschlagen (HTTP ${xhr.status}).`));
       };
-      xhr.onerror = () =>
-        reject(new Error("R2_CORS"));
+      xhr.onerror = () => reject(new Error("R2_CORS"));
       xhr.send(file);
     });
   } catch {
@@ -141,6 +165,7 @@ async function putFile(
 }
 
 function MetaFields({
+  fieldId,
   rightsType,
   onRights,
   keywords,
@@ -148,12 +173,15 @@ function MetaFields({
   collectionIds,
   onCollectionIds,
   collections,
-  newCollections,
-  onNewCollections,
+  newCollectionName,
+  onNewCollectionName,
   credit,
   onCredit,
   showCredit,
+  collectionInputRef,
+  autoFocusCollection,
 }: {
+  fieldId: string;
   rightsType: RightsType;
   onRights: (v: RightsType) => void;
   keywords: string;
@@ -161,28 +189,19 @@ function MetaFields({
   collectionIds: string[];
   onCollectionIds: (ids: string[]) => void;
   collections: CollectionOption[];
-  newCollections: string[];
-  onNewCollections: (names: string[]) => void;
+  newCollectionName: string;
+  onNewCollectionName: (name: string) => void;
   credit?: string;
   onCredit?: (v: string) => void;
   showCredit?: boolean;
+  collectionInputRef?: React.Ref<HTMLInputElement>;
+  autoFocusCollection?: boolean;
 }) {
-  const [newName, setNewName] = useState("");
-
-  function toggleCollection(id: string) {
-    onCollectionIds(
-      collectionIds.includes(id)
-        ? collectionIds.filter((x) => x !== id)
-        : [...collectionIds, id],
-    );
-  }
-
-  function addNewCollection() {
-    const name = newName.trim();
-    if (!name || newCollections.includes(name)) return;
-    onNewCollections([...newCollections, name]);
-    setNewName("");
-  }
+  const [existingOpen, setExistingOpen] = useState(collectionIds.length > 0);
+  const collectionOptions = collections.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -214,59 +233,51 @@ function MetaFields({
         </div>
       ) : null}
       <div className="field sm:col-span-2">
-        <label>Collections</label>
-        {collections.length === 0 && newCollections.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">Noch keine Collections.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {collections.map((c) => {
-              const on = collectionIds.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleCollection(c.id)}
-                  className={[
-                    "rounded-full border-2 px-3 py-1 text-sm font-semibold",
-                    on
-                      ? "border-[var(--fg)] bg-[var(--highlight)]"
-                      : "border-[var(--border)] bg-white",
-                  ].join(" ")}
-                >
-                  {c.name}
-                </button>
-              );
-            })}
-            {newCollections.map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() =>
-                  onNewCollections(newCollections.filter((n) => n !== name))
-                }
-                className="inline-flex items-center gap-1 rounded-full border-2 border-[var(--fg)] bg-[var(--accent-soft)] px-3 py-1 text-sm font-semibold"
-              >
-                {name} <X className="size-3.5" aria-hidden />
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="mt-2 flex gap-2">
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addNewCollection();
-              }
-            }}
-            placeholder="Neue Collection"
+        <label htmlFor={`${fieldId}-new-collection`}>Neue Collection</label>
+        <input
+          id={`${fieldId}-new-collection`}
+          ref={collectionInputRef}
+          autoFocus={autoFocusCollection}
+          value={newCollectionName}
+          onChange={(e) => onNewCollectionName(e.target.value)}
+          placeholder="Paul Muster – 17.08.2026"
+        />
+      </div>
+      <div className="sm:col-span-2 space-y-2">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--accent)] hover:underline"
+          aria-expanded={existingOpen}
+          onClick={() => setExistingOpen((prev) => !prev)}
+        >
+          <ChevronDown
+            className={[
+              "size-4 transition-transform",
+              existingOpen ? "rotate-180" : "",
+            ].join(" ")}
+            aria-hidden
           />
-          <button type="button" className="btn btn-ghost shrink-0" onClick={addNewCollection}>
-            Hinzufügen
-          </button>
-        </div>
+          Stattdessen zu bestehender Collection hinzufügen
+        </button>
+        {existingOpen ? (
+          <DamCombobox
+            id={`${fieldId}-existing-collections`}
+            label="Bestehende Collections"
+            emptyLabel="Collections suchen…"
+            placeholder="Collection suchen…"
+            options={collectionOptions}
+            value={collectionIds}
+            multiple
+            onChange={onCollectionIds}
+          />
+        ) : collectionIds.length > 0 ? (
+          <p className="text-sm text-[var(--muted)]">
+            Zusätzlich:{" "}
+            {collectionIds
+              .map((id) => collections.find((c) => c.id === id)?.name ?? id)
+              .join(", ")}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -366,19 +377,25 @@ export function DamUploadWizard({
   collections: CollectionOption[];
 }) {
   const meCredit = `${userName}/Tsüri.ch`;
+  const collectionInputRef = useRef<HTMLInputElement>(null);
+  const uploadStateRef = useRef<Record<string, FileUploadState>>({});
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [credit, setCredit] = useState(recentCredits[0] ?? "");
+  const [reached, setReached] = useState(1);
+  const [credit, setCredit] = useState("");
   const [creditDraft, setCreditDraft] = useState("");
   const [queued, setQueued] = useState<QueuedFile[]>([]);
   const [dropErrors, setDropErrors] = useState<string[]>([]);
   const [prepared, setPrepared] = useState<PreparedFile[]>([]);
   const [batchId, setBatchId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<Record<string, number>>({});
-  const [applyToAll, setApplyToAll] = useState(true);
-  const [rightsType, setRightsType] = useState<RightsType>("own");
+  const [uploadState, setUploadState] = useState<Record<string, FileUploadState>>(
+    {},
+  );
+  const [showPerFile, setShowPerFile] = useState(false);
+  const [rightsType, setRightsType] = useState<RightsType>("provided");
   const [keywords, setKeywords] = useState("");
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
-  const [newCollections, setNewCollections] = useState<string[]>([]);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [collectionAuto, setCollectionAuto] = useState(true);
   const [drafts, setDrafts] = useState<AssetDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -433,6 +450,7 @@ export function DamUploadWizard({
     onDrop,
     multiple: true,
     maxSize: MAX_FILE_BYTES,
+    disabled: busy || prepared.length > 0,
     accept: {
       "image/jpeg": [".jpg", ".jpeg"],
       "image/png": [".png"],
@@ -446,8 +464,15 @@ export function DamUploadWizard({
     },
   });
 
-  const canContinueCredit = credit.trim().length > 0;
   const selectedCredit = credit.trim();
+  const canContinueCredit = selectedCredit.length > 0;
+  const doneCount = prepared.filter(
+    (file) => uploadState[file.localId]?.status === "done",
+  ).length;
+  const failedCount = prepared.filter(
+    (file) => uploadState[file.localId]?.status === "error",
+  ).length;
+  const allUploaded = prepared.length > 0 && doneCount === prepared.length;
 
   const fileNamesPreview = useMemo(() => {
     if (!selectedCredit || queued.length === 0) return [];
@@ -481,6 +506,21 @@ export function DamUploadWizard({
     });
   }, [queued, selectedCredit]);
 
+  function applyCredit(next: string, fromMe: boolean) {
+    const trimmed = next.trim();
+    setCredit(next);
+    setRightsType(suggestedRightsType(trimmed, meCredit));
+    if (collectionAuto) {
+      setNewCollectionName(trimmed ? defaultCollectionName(trimmed) : "");
+    }
+    if (fromMe) setCreditDraft("");
+  }
+
+  function changeNewCollection(name: string) {
+    setCollectionAuto(false);
+    setNewCollectionName(name);
+  }
+
   function removeQueued(id: string) {
     setQueued((prev) => {
       const found = prev.find((q) => q.id === id);
@@ -489,85 +529,175 @@ export function DamUploadWizard({
     });
   }
 
+  function buildDrafts(files: PreparedFile[]): AssetDraft[] {
+    const names = namesFrom(newCollectionName);
+    return files.map((file) => ({
+      r2Key: file.r2Key,
+      sequence: file.sequence,
+      fileName: file.fileName,
+      originalName: file.clientName,
+      contentType: file.contentType,
+      size: file.size,
+      previewUrl: file.previewUrl,
+      rightsType,
+      keywords,
+      credit: selectedCredit,
+      collectionIds,
+      newCollections: names,
+    }));
+  }
+
+  function applyBatchToDrafts() {
+    const names = namesFrom(newCollectionName);
+    setDrafts((prev) =>
+      prev.map((d) => ({
+        ...d,
+        rightsType,
+        keywords,
+        collectionIds,
+        newCollections: names,
+        credit: selectedCredit,
+      })),
+    );
+  }
+
+  function patchUploadState(localId: string, next: FileUploadState) {
+    uploadStateRef.current = { ...uploadStateRef.current, [localId]: next };
+    setUploadState((prev) => ({ ...prev, [localId]: next }));
+  }
+
+  async function uploadOne(file: PreparedFile): Promise<boolean> {
+    patchUploadState(file.localId, {
+      status: "uploading",
+      progress: uploadStateRef.current[file.localId]?.progress ?? 0,
+    });
+    try {
+      await putFile(file.uploadUrl, file.r2Key, file.file, file.contentType, (pct) => {
+        patchUploadState(file.localId, { status: "uploading", progress: pct });
+      });
+      patchUploadState(file.localId, { status: "done", progress: 100 });
+      return true;
+    } catch (err) {
+      patchUploadState(file.localId, {
+        status: "error",
+        progress: uploadStateRef.current[file.localId]?.progress ?? 0,
+        error: err instanceof Error ? err.message : "Upload fehlgeschlagen.",
+      });
+      return false;
+    }
+  }
+
+  function allFilesDone(files: PreparedFile[]): boolean {
+    return (
+      files.length > 0 &&
+      files.every((file) => uploadStateRef.current[file.localId]?.status === "done")
+    );
+  }
+
+  function moveTo(n: 1 | 2 | 3 | 4) {
+    setStep(n);
+    setReached((current) => Math.max(current, n));
+  }
+
+  function goToMetadata(files: PreparedFile[]) {
+    setDrafts((prev) => (prev.length === files.length ? prev : buildDrafts(files)));
+    moveTo(3);
+    window.setTimeout(() => collectionInputRef.current?.focus(), 0);
+  }
+
   async function startUpload() {
     setError(null);
     setBusy(true);
     try {
-      const res = await fetch("/api/dam/upload-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credit: selectedCredit,
-          files: queued.map((q) => ({
-            name: q.file.name,
-            type: q.file.type,
-            size: q.file.size,
-          })),
-        }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        batchId?: string;
-        files?: Array<{
-          clientName: string;
-          sequence: number;
-          fileName: string;
-          r2Key: string;
-          uploadUrl: string;
-          contentType: string;
-        }>;
-      };
-      if (!res.ok || !data.batchId || !data.files) {
-        throw new Error(data.error || "Presigned URLs fehlgeschlagen.");
-      }
-
-      const mapped: PreparedFile[] = data.files.map((item, index) => {
-        const q = queued[index];
-        if (!q) throw new Error("Datei-Zuordnung fehlgeschlagen.");
-        return {
-          localId: q.id,
-          clientName: item.clientName,
-          sequence: item.sequence,
-          fileName: item.fileName,
-          r2Key: item.r2Key,
-          uploadUrl: item.uploadUrl,
-          contentType: item.contentType,
-          size: q.file.size,
-          previewUrl: q.previewUrl,
-          file: q.file,
+      let mapped = prepared;
+      if (mapped.length === 0) {
+        const res = await fetch("/api/dam/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            credit: selectedCredit,
+            files: queued.map((q) => ({
+              name: q.file.name,
+              type: q.file.type,
+              size: q.file.size,
+            })),
+          }),
+        });
+        const data = (await res.json()) as {
+          error?: string;
+          batchId?: string;
+          files?: Array<{
+            clientName: string;
+            sequence: number;
+            fileName: string;
+            r2Key: string;
+            uploadUrl: string;
+            contentType: string;
+          }>;
         };
-      });
-
-      setBatchId(data.batchId);
-      setPrepared(mapped);
-      setProgress(Object.fromEntries(mapped.map((f) => [f.localId, 0])));
+        if (!res.ok || !data.batchId || !data.files) {
+          throw new Error(data.error || "Presigned URLs fehlgeschlagen.");
+        }
+        mapped = data.files.map((item, index) => {
+          const q = queued[index];
+          if (!q) throw new Error("Datei-Zuordnung fehlgeschlagen.");
+          return {
+            localId: q.id,
+            clientName: item.clientName,
+            sequence: item.sequence,
+            fileName: item.fileName,
+            r2Key: item.r2Key,
+            uploadUrl: item.uploadUrl,
+            contentType: item.contentType,
+            size: q.file.size,
+            previewUrl: q.previewUrl,
+            file: q.file,
+          };
+        });
+        setBatchId(data.batchId);
+        setPrepared(mapped);
+        const initial = Object.fromEntries(
+          mapped.map((f) => [f.localId, { status: "waiting" as const, progress: 0 }]),
+        );
+        setUploadState(initial);
+        uploadStateRef.current = initial;
+      }
 
       for (const file of mapped) {
-        await putFile(file.uploadUrl, file.r2Key, file.file, file.contentType, (pct) => {
-          setProgress((prev) => ({ ...prev, [file.localId]: pct }));
-        });
-        setProgress((prev) => ({ ...prev, [file.localId]: 100 }));
+        if (uploadStateRef.current[file.localId]?.status === "done") continue;
+        await uploadOne(file);
       }
 
-      setDrafts(
-        mapped.map((file) => ({
-          r2Key: file.r2Key,
-          sequence: file.sequence,
-          fileName: file.fileName,
-          originalName: file.clientName,
-          contentType: file.contentType,
-          size: file.size,
-          previewUrl: file.previewUrl,
-          rightsType,
-          keywords,
-          credit: selectedCredit,
-          collectionIds,
-          newCollections: [],
-        })),
-      );
-      setStep(3);
+      if (allFilesDone(mapped)) goToMetadata(mapped);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryFile(file: PreparedFile) {
+    setError(null);
+    setBusy(true);
+    try {
+      await uploadOne(file);
+      if (allFilesDone(prepared)) goToMetadata(prepared);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryFailed() {
+    setError(null);
+    setBusy(true);
+    try {
+      const failed = prepared.filter(
+        (file) => uploadStateRef.current[file.localId]?.status === "error",
+      );
+      for (const file of failed) {
+        await uploadOne(file);
+      }
+      if (allFilesDone(prepared)) goToMetadata(prepared);
     } finally {
       setBusy(false);
     }
@@ -578,16 +708,17 @@ export function DamUploadWizard({
     setError(null);
     setBusy(true);
     try {
+      const batchNames = namesFrom(newCollectionName);
       const res = await fetch("/api/dam/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           batchId,
-          applyToAll,
+          applyToAll: !showPerFile,
           rightsType,
           keywords: parseKeywordInput(keywords),
           collectionIds,
-          newCollections,
+          newCollections: batchNames,
           assets: drafts.map((d) => ({
             r2Key: d.r2Key,
             sequence: d.sequence,
@@ -605,7 +736,7 @@ export function DamUploadWizard({
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
-      setStep(4);
+      moveTo(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
     } finally {
@@ -613,28 +744,48 @@ export function DamUploadWizard({
     }
   }
 
+  function goToStep(n: 1 | 2 | 3) {
+    if (n === 1) moveTo(1);
+    else if (n === 2 && canContinueCredit) moveTo(2);
+    else if (n === 3 && allUploaded) {
+      goToMetadata(prepared);
+    }
+  }
+
   const steps = [
-    { n: 1, label: "Credit" },
-    { n: 2, label: "Upload" },
-    { n: 3, label: "Metadaten" },
+    { n: 1 as const, label: "Credit", done: reached > 1 },
+    { n: 2 as const, label: "Upload", done: reached > 2 },
+    { n: 3 as const, label: "Metadaten", done: reached > 3 },
   ];
 
   return (
     <div className="space-y-6">
       <ol className="flex flex-wrap gap-2 text-sm font-semibold">
-        {steps.map((s) => (
-          <li
-            key={s.n}
-            className={[
-              "rounded-full px-3 py-1",
-              step === s.n || (step === 4 && s.n === 3)
-                ? "bg-[var(--fg)] text-white"
-                : "bg-[var(--panel-muted)] text-[var(--muted)]",
-            ].join(" ")}
-          >
-            {s.n}. {s.label}
-          </li>
-        ))}
+        {steps.map((s) => {
+          const active = step === s.n || (step === 4 && s.n === 3);
+          const clickable = s.n === 1 || (s.n === 2 && canContinueCredit) || (s.n === 3 && allUploaded);
+          return (
+            <li key={s.n}>
+              <button
+                type="button"
+                disabled={!clickable || step === 4}
+                onClick={() => goToStep(s.n)}
+                className={[
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1",
+                  active
+                    ? "bg-[var(--fg)] text-white"
+                    : s.done
+                      ? "bg-emerald-100 text-emerald-900"
+                      : "bg-[var(--panel-muted)] text-[var(--muted)]",
+                  clickable && step !== 4 ? "cursor-pointer" : "",
+                ].join(" ")}
+              >
+                {s.done ? <Check className="size-3.5" aria-hidden /> : <span>{s.n}.</span>}
+                {s.label}
+              </button>
+            </li>
+          );
+        })}
       </ol>
 
       {error ? (
@@ -652,6 +803,19 @@ export function DamUploadWizard({
             Wird auf alle Bilder dieses Batches gesetzt und für die Dateinamen
             verwendet.
           </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-highlight"
+              onClick={() => applyCredit(meCredit, true)}
+            >
+              <User className="size-4" aria-hidden />
+              Ich
+            </button>
+            <span className="self-center text-sm text-[var(--muted)]">
+              setzt «{meCredit}»
+            </span>
+          </div>
           {recentCredits.length > 0 ? (
             <div className="field">
               <label htmlFor="recent-credit">Zuletzt genutzt</label>
@@ -659,7 +823,7 @@ export function DamUploadWizard({
                 id="recent-credit"
                 value={recentCredits.includes(credit) ? credit : ""}
                 onChange={(e) => {
-                  setCredit(e.target.value);
+                  applyCredit(e.target.value, e.target.value === meCredit);
                   setCreditDraft("");
                 }}
               >
@@ -672,22 +836,6 @@ export function DamUploadWizard({
               </select>
             </div>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-highlight"
-              onClick={() => {
-                setCredit(meCredit);
-                setCreditDraft("");
-              }}
-            >
-              <User className="size-4" aria-hidden />
-              Ich
-            </button>
-            <span className="self-center text-sm text-[var(--muted)]">
-              setzt «{meCredit}»
-            </span>
-          </div>
           <div className="field">
             <label htmlFor="credit-free">Oder neuer Credit</label>
             <input
@@ -695,7 +843,7 @@ export function DamUploadWizard({
               value={creditDraft}
               onChange={(e) => {
                 setCreditDraft(e.target.value);
-                setCredit(e.target.value);
+                applyCredit(e.target.value, false);
               }}
               placeholder="Paul Muster/Tsüri.ch"
             />
@@ -709,7 +857,7 @@ export function DamUploadWizard({
             type="button"
             className="btn btn-primary"
             disabled={!canContinueCredit}
-            onClick={() => setStep(2)}
+            onClick={() => moveTo(2)}
           >
             Weiter zum Upload
           </button>
@@ -724,24 +872,32 @@ export function DamUploadWizard({
           <p className="text-sm text-[var(--muted)]">
             JPEG, PNG, WebP oder HEIC. RAW-Dateien werden abgelehnt.
           </p>
-          <div
-            {...getRootProps()}
-            className={[
-              "cursor-pointer rounded-xl border-2 border-dashed px-4 py-10 text-center transition-colors",
-              isDragActive
-                ? "border-[var(--accent)] bg-[var(--accent-soft)]"
-                : "border-[var(--border)] bg-white",
-            ].join(" ")}
-          >
-            <input {...getInputProps()} />
-            <Upload className="mx-auto size-8 opacity-70" aria-hidden />
-            <p className="mt-3 font-semibold">
-              {isDragActive ? "Jetzt loslassen" : "Dateien hierher ziehen oder klicken"}
+          {prepared.length > 0 ? (
+            <p className="text-sm font-semibold">
+              {doneCount} von {prepared.length} hochgeladen
+              {failedCount > 0 ? ` · ${failedCount} fehlgeschlagen` : ""}
             </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Mehrfachauswahl, max. {MAX_FILES} Dateien / 40 MB
-            </p>
-          </div>
+          ) : null}
+          {prepared.length === 0 ? (
+            <div
+              {...getRootProps()}
+              className={[
+                "cursor-pointer rounded-xl border-2 border-dashed px-4 py-10 text-center transition-colors",
+                isDragActive
+                  ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                  : "border-[var(--border)] bg-white",
+              ].join(" ")}
+            >
+              <input {...getInputProps()} />
+              <Upload className="mx-auto size-8 opacity-70" aria-hidden />
+              <p className="mt-3 font-semibold">
+                {isDragActive ? "Jetzt loslassen" : "Dateien hierher ziehen oder klicken"}
+              </p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Mehrfachauswahl, max. {MAX_FILES} Dateien / 40 MB
+              </p>
+            </div>
+          ) : null}
           {dropErrors.length > 0 ? (
             <ul className="space-y-1 text-sm text-[var(--danger)]">
               {dropErrors.map((msg) => (
@@ -751,43 +907,77 @@ export function DamUploadWizard({
           ) : null}
           {queued.length > 0 ? (
             <ul className="grid gap-3 sm:grid-cols-2">
-              {queued.map((q, i) => (
-                <li
-                  key={q.id}
-                  className="flex items-center gap-3 rounded-lg border-2 border-[var(--border)] p-2"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={q.previewUrl}
-                    alt=""
-                    className="size-14 rounded-md object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{q.file.name}</p>
-                    <p className="truncate text-xs text-[var(--muted)]">
-                      {fileNamesPreview[i]}
-                    </p>
-                    {progress[q.id] != null ? (
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--panel-muted)]">
-                        <div
-                          className="h-full bg-[var(--accent)]"
-                          style={{ width: `${progress[q.id]}%` }}
-                        />
-                      </div>
+              {queued.map((q, i) => {
+                const state = uploadState[q.id];
+                return (
+                  <li
+                    key={q.id}
+                    className="flex items-center gap-3 rounded-lg border-2 border-[var(--border)] p-2"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={q.previewUrl}
+                      alt=""
+                      className="size-14 rounded-md object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{q.file.name}</p>
+                      <p className="truncate text-xs text-[var(--muted)]">
+                        {fileNamesPreview[i]}
+                      </p>
+                      {state?.status === "waiting" ? (
+                        <p className="mt-1 text-xs text-[var(--muted)]">Wartet</p>
+                      ) : null}
+                      {state?.status === "uploading" ? (
+                        <div className="mt-1 flex items-center gap-2">
+                          <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--panel-muted)]">
+                            <div
+                              className="h-full bg-[var(--accent)]"
+                              style={{ width: `${state.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs tabular-nums">{state.progress}%</span>
+                        </div>
+                      ) : null}
+                      {state?.status === "done" ? (
+                        <p className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                          <Check className="size-3.5" aria-hidden /> hochgeladen
+                        </p>
+                      ) : null}
+                      {state?.status === "error" ? (
+                        <div className="mt-1 space-y-1">
+                          <p className="text-xs text-[var(--danger)]">
+                            ✗ {state.error || "Fehler"}
+                          </p>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
+                            disabled={busy}
+                            onClick={() => {
+                              const file = prepared.find((item) => item.localId === q.id);
+                              if (file) void retryFile(file);
+                            }}
+                          >
+                            <RotateCw className="size-3" aria-hidden />
+                            Erneut versuchen
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    {!busy && !state ? (
+                      <button
+                        type="button"
+                        className="text-[var(--muted)] hover:text-[var(--danger)]"
+                        onClick={() => removeQueued(q.id)}
+                        aria-label="Entfernen"
+                      >
+                        <X className="size-4" />
+                      </button>
                     ) : null}
-                  </div>
-                  {!busy ? (
-                    <button
-                      type="button"
-                      className="text-[var(--muted)] hover:text-[var(--danger)]"
-                      onClick={() => removeQueued(q.id)}
-                      aria-label="Entfernen"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  ) : null}
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
           <div className="flex flex-wrap gap-2">
@@ -795,28 +985,43 @@ export function DamUploadWizard({
               type="button"
               className="btn btn-ghost"
               disabled={busy}
-              onClick={() => setStep(1)}
+              onClick={() => moveTo(1)}
             >
               Zurück
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy || queued.length === 0}
-              onClick={() => void startUpload()}
-            >
-              {busy ? (
-                <>
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                  Lade zu R2…
-                </>
-              ) : (
-                <>
-                  <ImagePlus className="size-4" aria-hidden />
-                  {queued.length} Bild(er) hochladen
-                </>
-              )}
-            </button>
+            {allUploaded ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => goToMetadata(prepared)}
+              >
+                Weiter zu Metadaten
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || queued.length === 0}
+                onClick={() => void (failedCount > 0 ? retryFailed() : startUpload())}
+              >
+                {busy ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                    Lade zu R2…
+                  </>
+                ) : failedCount > 0 ? (
+                  <>
+                    <RotateCw className="size-4" aria-hidden />
+                    Fehlgeschlagene erneut versuchen
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="size-4" aria-hidden />
+                    {queued.length} Bild(er) hochladen
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </section>
       ) : null}
@@ -829,121 +1034,130 @@ export function DamUploadWizard({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className={applyToAll ? "btn btn-primary" : "btn btn-ghost"}
-              onClick={() => setApplyToAll(true)}
+              className="btn btn-primary"
+              onClick={applyBatchToDrafts}
             >
-              Auf alle Bilder anwenden
+              Auf alle anwenden
             </button>
             <button
               type="button"
-              className={!applyToAll ? "btn btn-primary" : "btn btn-ghost"}
+              className={showPerFile ? "btn btn-primary" : "btn btn-ghost"}
               onClick={() => {
-                setDrafts((prev) =>
-                  prev.map((d) => ({
-                    ...d,
-                    rightsType,
-                    keywords,
-                    collectionIds,
-                    newCollections,
-                    credit: selectedCredit,
-                  })),
-                );
-                setApplyToAll(false);
+                if (!showPerFile) applyBatchToDrafts();
+                setShowPerFile(true);
               }}
             >
               Einzeln bearbeiten
             </button>
           </div>
           <MetaFields
+            fieldId="batch"
             rightsType={rightsType}
             onRights={(v) => {
               setRightsType(v);
-              if (applyToAll) {
+              if (!showPerFile) {
                 setDrafts((prev) => prev.map((d) => ({ ...d, rightsType: v })));
               }
             }}
             keywords={keywords}
             onKeywords={(v) => {
               setKeywords(v);
-              if (applyToAll) {
+              if (!showPerFile) {
                 setDrafts((prev) => prev.map((d) => ({ ...d, keywords: v })));
               }
             }}
             collectionIds={collectionIds}
             onCollectionIds={(ids) => {
               setCollectionIds(ids);
-              if (applyToAll) {
+              if (!showPerFile) {
                 setDrafts((prev) => prev.map((d) => ({ ...d, collectionIds: ids })));
               }
             }}
             collections={collections}
-            newCollections={newCollections}
-            onNewCollections={(names) => {
-              setNewCollections(names);
-              if (applyToAll) {
-                setDrafts((prev) => prev.map((d) => ({ ...d, newCollections: names })));
+            newCollectionName={newCollectionName}
+            onNewCollectionName={(name) => {
+              changeNewCollection(name);
+              if (!showPerFile) {
+                setDrafts((prev) =>
+                  prev.map((d) => ({ ...d, newCollections: namesFrom(name) })),
+                );
               }
             }}
+            collectionInputRef={collectionInputRef}
+            autoFocusCollection
           />
-          {!applyToAll ? (
-            <ul className="space-y-4">
+          {showPerFile ? (
+            <ul className="space-y-3">
               {drafts.map((draft, index) => (
-                <li
-                  key={draft.r2Key}
-                  className="rounded-xl border-2 border-[var(--border)] p-4"
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={draft.previewUrl}
-                      alt=""
-                      className="size-14 rounded-md object-cover"
-                    />
-                    <div>
-                      <p className="font-semibold">{draft.fileName}</p>
-                      <p className="text-xs text-[var(--muted)]">
-                        {draft.originalName}
-                      </p>
+                <li key={draft.r2Key}>
+                  <details
+                    open
+                    className="rounded-xl border-2 border-[var(--border)] p-4"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={draft.previewUrl}
+                        alt=""
+                        className="size-14 rounded-md object-cover"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-semibold">{draft.fileName}</p>
+                        <p className="truncate text-xs text-[var(--muted)]">
+                          {draft.originalName}
+                        </p>
+                      </div>
+                    </summary>
+                    <div className="mt-4">
+                      <MetaFields
+                        fieldId={`file-${index}`}
+                        rightsType={draft.rightsType}
+                        onRights={(v) =>
+                          setDrafts((prev) =>
+                            prev.map((d, i) =>
+                              i === index ? { ...d, rightsType: v } : d,
+                            ),
+                          )
+                        }
+                        keywords={draft.keywords}
+                        onKeywords={(v) =>
+                          setDrafts((prev) =>
+                            prev.map((d, i) =>
+                              i === index ? { ...d, keywords: v } : d,
+                            ),
+                          )
+                        }
+                        collectionIds={draft.collectionIds}
+                        onCollectionIds={(ids) =>
+                          setDrafts((prev) =>
+                            prev.map((d, i) =>
+                              i === index ? { ...d, collectionIds: ids } : d,
+                            ),
+                          )
+                        }
+                        collections={collections}
+                        newCollectionName={draft.newCollections[0] ?? ""}
+                        onNewCollectionName={(name) =>
+                          setDrafts((prev) =>
+                            prev.map((d, i) =>
+                              i === index
+                                ? { ...d, newCollections: namesFrom(name) }
+                                : d,
+                            ),
+                          )
+                        }
+                        credit={draft.credit}
+                        onCredit={(v) =>
+                          setDrafts((prev) =>
+                            prev.map((d, i) =>
+                              i === index ? { ...d, credit: v } : d,
+                            ),
+                          )
+                        }
+                        showCredit
+                      />
                     </div>
-                  </div>
-                  <MetaFields
-                    rightsType={draft.rightsType}
-                    onRights={(v) =>
-                      setDrafts((prev) =>
-                        prev.map((d, i) => (i === index ? { ...d, rightsType: v } : d)),
-                      )
-                    }
-                    keywords={draft.keywords}
-                    onKeywords={(v) =>
-                      setDrafts((prev) =>
-                        prev.map((d, i) => (i === index ? { ...d, keywords: v } : d)),
-                      )
-                    }
-                    collectionIds={draft.collectionIds}
-                    onCollectionIds={(ids) =>
-                      setDrafts((prev) =>
-                        prev.map((d, i) =>
-                          i === index ? { ...d, collectionIds: ids } : d,
-                        ),
-                      )
-                    }
-                    collections={collections}
-                    newCollections={draft.newCollections}
-                    onNewCollections={(names) =>
-                      setDrafts((prev) =>
-                        prev.map((d, i) =>
-                          i === index ? { ...d, newCollections: names } : d,
-                        ),
-                      )
-                    }
-                    credit={draft.credit}
-                    onCredit={(v) =>
-                      setDrafts((prev) =>
-                        prev.map((d, i) => (i === index ? { ...d, credit: v } : d)),
-                      )
-                    }
-                    showCredit
-                  />
+                  </details>
                 </li>
               ))}
             </ul>
@@ -957,6 +1171,14 @@ export function DamUploadWizard({
             </ul>
           )}
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => moveTo(2)}
+            >
+              Zurück
+            </button>
             <button
               type="button"
               className="btn btn-primary"
