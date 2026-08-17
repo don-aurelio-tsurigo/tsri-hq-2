@@ -10,6 +10,7 @@ import type { ArchiveAssetCard } from "@/lib/dam/types";
 
 export type { ArchiveAssetCard, ArchiveFilters };
 export {
+  archiveCollectionHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveFiltersToSearchParams,

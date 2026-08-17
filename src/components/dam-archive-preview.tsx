@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download, Send, Trash2, X } from "lucide-react";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
+import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import {
   damRightsLabel,
@@ -264,12 +266,13 @@ export function DamArchivePreview({
               ) : (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {asset.collections.map((c) => (
-                    <span
+                    <Link
                       key={c.id}
-                      className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold"
+                      href={archiveCollectionHref(c.id)}
+                      className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold hover:bg-[var(--accent)] hover:text-white"
                     >
                       {c.name}
-                    </span>
+                    </Link>
                   ))}
                 </div>
               )}

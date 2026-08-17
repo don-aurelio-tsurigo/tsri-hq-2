@@ -268,6 +268,18 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
                       )}
                     </p>
                   ) : null}
+                  {asset.collections.length > 0 ? (
+                    <div className="flex flex-wrap gap-0.5">
+                      {asset.collections.map((collection) => (
+                        <span
+                          key={collection.id}
+                          className="max-w-full truncate rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[0.6rem] font-semibold"
+                        >
+                          {collection.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             </li>

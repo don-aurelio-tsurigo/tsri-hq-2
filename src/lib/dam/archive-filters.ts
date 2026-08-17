@@ -111,6 +111,14 @@ export function archiveFiltersToSearchParams(filters: ArchiveFilters): URLSearch
   return params;
 }
 
+export function archiveCollectionHref(collectionId: string): string {
+  const qs = archiveFiltersToSearchParams({
+    ...EMPTY_ARCHIVE_FILTERS,
+    collectionId,
+  }).toString();
+  return `/dam/archive?${qs}`;
+}
+
 export function parseArchiveFiltersFromSearchParams(
   params: URLSearchParams,
 ): ArchiveFilters {

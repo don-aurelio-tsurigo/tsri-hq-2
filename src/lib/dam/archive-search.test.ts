@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  archiveCollectionHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveFiltersToSearchParams,
@@ -75,5 +76,11 @@ describe("archiveFiltersToSearchParams", () => {
     assert.deepEqual(params.getAll("keyword"), ["zürich", "velo"]);
     assert.equal(params.get("collection"), "col_1");
     assert.deepEqual(parseArchiveFiltersFromSearchParams(params), filters);
+  });
+});
+
+describe("archiveCollectionHref", () => {
+  it("points at the archive filtered to one collection", () => {
+    assert.equal(archiveCollectionHref("col_1"), "/dam/archive?collection=col_1");
   });
 });
