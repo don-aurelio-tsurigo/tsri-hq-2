@@ -33,7 +33,8 @@ export function ProjectListItem({
         href={`/projects/${project.id}`}
         className={[
           "card block px-5 py-4 transition hover:border-[var(--accent)]",
-          event ? "border-l-[3px] border-l-[var(--accent)]" : "",
+          // Inset accent — keeps card width identical for events vs. general projects
+          event ? "shadow-[inset_3px_0_0_0_var(--accent)]" : "",
         ].join(" ")}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
