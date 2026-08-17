@@ -14,10 +14,5 @@ export const SIXIBRIEF_DEFAULT_OUTRO_CTA = "→ Link in der Bio";
 export const INSTRUMENT_SANS_STACK =
   "var(--font-instrument-sans), 'Instrument Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif";
 
-/**
- * GT Sectra is licensed — drop Regular + Bold woff2 into
- * `src/fonts/gt-sectra/` and wire them in `fonts.ts`.
- * Until then this stack keeps the serif layout readable.
- */
 export const GT_SECTRA_STACK =
-  "var(--font-gt-sectra, 'GT Sectra'), 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Apple Color Emoji', 'Segoe UI Emoji', serif";
+  "var(--font-gt-sectra), 'GT Sectra', 'Iowan Old Style', Palatino, Georgia, 'Apple Color Emoji', 'Segoe UI Emoji', serif";

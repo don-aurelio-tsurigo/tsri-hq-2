@@ -6,7 +6,7 @@ import {
   resolveSlideInk,
   type SlideInk,
 } from "@/lib/carousel/categories";
-import { carouselFont, instrumentSans } from "@/lib/carousel/fonts";
+import { carouselFont, gtSectra, instrumentSans } from "@/lib/carousel/fonts";
 import {
   GT_SECTRA_STACK,
   INSTRUMENT_SANS_STACK,
@@ -969,6 +969,7 @@ export function CarouselSlidePreview({
         "relative shrink-0 overflow-hidden",
         carouselFont.variable,
         instrumentSans.variable,
+        gtSectra.variable,
         forExport ? "" : "shadow-lg ring-1 ring-black/10",
       ].join(" ")}
       style={{

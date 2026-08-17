@@ -77,3 +77,17 @@ export const instrumentSans = localFont({
   display: "swap",
   adjustFontFallback: false,
 });
+
+/** Licensed 6iBrief display serif (GT Sectra LC Display Medium). */
+export const gtSectra = localFont({
+  src: [
+    {
+      path: "../../fonts/gt-sectra/GT-Sectra-LC-Display-Medium.otf",
+      weight: "500",
+      style: "normal",
+    },
+  ],
+  variable: "--font-gt-sectra",
+  display: "swap",
+  adjustFontFallback: false,
+});
