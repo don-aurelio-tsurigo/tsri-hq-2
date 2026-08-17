@@ -4,12 +4,27 @@ import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { LOGIN_LINK_EXPIRES_MINUTES } from "@/lib/email-constants";
+
+function magicLinkErrorMessage(code: string | null) {
+  if (!code) return null;
+  if (code === "INVALID_TOKEN") {
+    return "Dieser Login-Link ist ungültig oder abgelaufen.";
+  }
+  if (code === "new_user_signup_disabled") {
+    return "Kein Account für diese E-Mail. Du brauchst eine Einladung.";
+  }
+  return "Login-Link fehlgeschlagen. Bitte noch einmal anfordern.";
+}
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    magicLinkErrorMessage(searchParams.get("error")),
+  );
+  const [linkSent, setLinkSent] = useState(false);
   const [pending, startTransition] = useTransition();
   const joined = searchParams.get("joined") === "1";
   const resetOk = searchParams.get("reset") === "1";
@@ -17,6 +32,7 @@ export function LoginForm() {
   function onPasswordLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setLinkSent(false);
     startTransition(async () => {
       try {
         const { error: err } = await authClient.signIn.email({
@@ -33,6 +49,35 @@ export function LoginForm() {
       } catch (e) {
         setError(
           e instanceof Error ? e.message : "Login fehlgeschlagen (Netzwerk).",
+        );
+      }
+    });
+  }
+
+  function onMagicLink() {
+    setError(null);
+    setLinkSent(false);
+    if (!email.trim()) {
+      setError("Bitte E-Mail angeben.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const { error: err } = await authClient.signIn.magicLink({
+          email,
+          callbackURL: "/home",
+          errorCallbackURL: "/login",
+        });
+        if (err) {
+          setError(err.message ?? "Login-Link konnte nicht gesendet werden.");
+          return;
+        }
+        setLinkSent(true);
+      } catch (e) {
+        setError(
+          e instanceof Error
+            ? e.message
+            : "Login-Link konnte nicht gesendet werden.",
         );
       }
     });
@@ -68,6 +113,12 @@ export function LoginForm() {
             Passwort gespeichert. Bitte melde dich an.
           </p>
         )}
+        {linkSent && (
+          <p className="mb-4 rounded-lg bg-[var(--highlight)] px-3 py-2 text-sm font-semibold text-[var(--fg)]">
+            Falls ein Account existiert, ist der Login-Link unterwegs. Er ist{" "}
+            {LOGIN_LINK_EXPIRES_MINUTES} Minuten gültig.
+          </p>
+        )}
         {error && (
           <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-[var(--danger)]">
             {error}
@@ -101,6 +152,21 @@ export function LoginForm() {
             {pending ? "…" : "Anmelden"}
           </button>
         </form>
+
+        <div className="mt-5 flex items-center gap-3 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          <span className="h-px flex-1 bg-[var(--border)]" />
+          oder
+          <span className="h-px flex-1 bg-[var(--border)]" />
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-ghost mt-4 w-full"
+          disabled={pending}
+          onClick={onMagicLink}
+        >
+          {pending ? "…" : "Login-Link per E-Mail"}
+        </button>
       </div>
 
       <p className="relative mt-6 text-center text-sm text-[var(--muted)]">

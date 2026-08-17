@@ -1,0 +1,1 @@
+export const LOGIN_LINK_EXPIRES_MINUTES = 30;

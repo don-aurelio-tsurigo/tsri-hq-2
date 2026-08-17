@@ -2,6 +2,8 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { magicLink } from "better-auth/plugins";
 import { prisma } from "@/lib/db";
+import { LOGIN_LINK_EXPIRES_MINUTES } from "@/lib/email-constants";
+import { sendLoginLinkEmail } from "@/lib/email";
 
 const trustedOrigins = [
   process.env.BETTER_AUTH_URL,
@@ -26,9 +28,10 @@ export const auth = betterAuth({
   },
   plugins: [
     magicLink({
+      disableSignUp: true,
+      expiresIn: LOGIN_LINK_EXPIRES_MINUTES * 60,
       sendMagicLink: async ({ email, url }) => {
-        // Dev: log link. Replace with real email provider in production.
-        console.log(`[magic-link] ${email}: ${url}`);
+        await sendLoginLinkEmail(email, url);
       },
     }),
   ],
