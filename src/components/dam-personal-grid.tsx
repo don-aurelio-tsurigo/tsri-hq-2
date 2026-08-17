@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { MoreHorizontal, X } from "lucide-react";
 import {
   assignAssetsToCollection,
+  createDamCollection,
   publishAssets,
   rejectAssets,
   removeAssetsFromCollection,
@@ -40,6 +41,7 @@ export function DamPersonalGrid({
   allCollections: CollectionOption[];
 }) {
   const [assets, setAssets] = useState(initialAssets);
+  const [collections, setCollections] = useState(allCollections);
   const [filterId, setFilterId] = useState<string | "all">("all");
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
   const [focused, setFocused] = useState(0);
@@ -87,7 +89,7 @@ export function DamPersonalGrid({
   const publishAssetsForDialog = publishIds
     ? assets.filter((asset) => publishIds.includes(asset.id))
     : [];
-  const collectionOptions = allCollections.map((collection) => ({
+  const collectionOptions = collections.map((collection) => ({
     value: collection.id,
     label: collection.name,
   }));
@@ -187,7 +189,7 @@ export function DamPersonalGrid({
   function assignCollection(ids: string[], collectionId: string) {
     if (ids.length === 0 || !collectionId) return;
     const name =
-      allCollections.find((collection) => collection.id === collectionId)?.name ??
+      collections.find((collection) => collection.id === collectionId)?.name ??
       "Collection";
     setError(null);
     setAssets((prev) =>
@@ -218,6 +220,19 @@ export function DamPersonalGrid({
     const toRemove = prevIds.filter((id) => !nextIds.includes(id));
     for (const id of toAdd) assignCollection([assetId], id);
     for (const id of toRemove) removeFromCollection([assetId], id);
+  }
+
+  async function createCollection(name: string) {
+    const result = await createDamCollection(name);
+    if (result.error || !result.collection) {
+      setError(result.error ?? "Collection konnte nicht angelegt werden.");
+      return null;
+    }
+    const collection = result.collection;
+    setCollections((prev) =>
+      prev.some((item) => item.id === collection.id) ? prev : [...prev, collection],
+    );
+    return { value: collection.id, label: collection.name };
   }
 
   function openPublish(ids: string[]) {
@@ -510,6 +525,7 @@ export function DamPersonalGrid({
                     options={collectionOptions}
                     value={[]}
                     placement="top"
+                    onCreate={createCollection}
                     onChange={(ids) => {
                       const collectionId = ids[0];
                       if (!collectionId) return;
@@ -549,7 +565,7 @@ export function DamPersonalGrid({
         <DamAssetDetail
           assets={visible}
           index={detailIndex}
-          allCollections={allCollections}
+          allCollections={collections}
           onIndexChange={(next) => {
             setDetailIndex(next);
             setFocused(next);
@@ -560,6 +576,7 @@ export function DamPersonalGrid({
           onPatch={patchAsset}
           onEdit={() => setEditorId(visible[detailIndex].id)}
           onSetCollections={setAssetCollections}
+          onCreateCollection={createCollection}
           keyboardEnabled={!editorAsset}
         />
       ) : null}
@@ -589,8 +606,10 @@ export function DamPersonalGrid({
       {publishIds && publishAssetsForDialog.length > 0 ? (
         <DamPublishDialog
           assets={publishAssetsForDialog}
+          allCollections={collections}
           pending={pending}
           onClose={() => setPublishIds(null)}
+          onCreateCollection={createCollection}
           onConfirm={(items) => {
             startTransition(async () => {
               const result = await publishAssets(items);

@@ -135,6 +135,7 @@ export function DamAssetDetail({
   onEdit,
   onPatch,
   onSetCollections,
+  onCreateCollection,
   keyboardEnabled = true,
 }: {
   assets: PersonalAssetCard[];
@@ -146,6 +147,9 @@ export function DamAssetDetail({
   onEdit: () => void;
   onPatch: (assetId: string, patch: AssetMetadataPatch) => void;
   onSetCollections: (assetId: string, collectionIds: string[]) => void;
+  onCreateCollection?: (
+    name: string,
+  ) => Promise<{ value: string; label: string } | null>;
   keyboardEnabled?: boolean;
 }) {
   const asset = assets[index];
@@ -395,6 +399,7 @@ export function DamAssetDetail({
               }))}
               value={asset.collections.map((collection) => collection.id)}
               multiple
+              onCreate={onCreateCollection}
               onChange={(ids) => onSetCollections(asset.id, ids)}
             />
 

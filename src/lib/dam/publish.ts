@@ -26,7 +26,20 @@ async function mapPool<T>(
 export type PublishItem = {
   assetId: string;
   altText: string;
+  collectionIds: string[];
 };
+
+function uniqueIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of ids) {
+    const id = raw.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
 
 export type PublishResult = {
   publishedIds: string[];
@@ -39,6 +52,8 @@ async function publishOne(
 ): Promise<{ error?: string }> {
   const altText = item.altText.trim();
   if (!altText) return { error: "Alt-Text fehlt." };
+  const collectionIds = uniqueIds(item.collectionIds).slice(0, 20);
+  if (collectionIds.length === 0) return { error: "Collection fehlt." };
 
   const asset = await prisma.asset.findFirst({
     where: {
@@ -56,6 +71,14 @@ async function publishOne(
   if (!asset) return { error: "Bild nicht gefunden." };
   if (!asset.r2Key.startsWith("staging/")) {
     return { error: "Nur Staging-Originale können publiziert werden." };
+  }
+
+  const collections = await prisma.collection.findMany({
+    where: { id: { in: collectionIds } },
+    select: { id: true },
+  });
+  if (collections.length !== collectionIds.length) {
+    return { error: "Collection nicht gefunden." };
   }
 
   const original = await getObjectBuffer(asset.r2Key);
@@ -96,6 +119,10 @@ async function publishOne(
       publishedAt: new Date(),
       width: published.width ?? undefined,
       height: published.height ?? undefined,
+      collections: {
+        deleteMany: {},
+        create: collectionIds.map((collectionId) => ({ collectionId })),
+      },
     },
   });
   return {};

@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 
 export type DamComboboxOption = { value: string; label: string };
+
+type ListRow =
+  | { kind: "clear" }
+  | { kind: "option"; option: DamComboboxOption }
+  | { kind: "create" };
 
 export function DamCombobox({
   id,
@@ -16,6 +21,7 @@ export function DamCombobox({
   onChange,
   remote = false,
   onSearch,
+  onCreate,
   placement = "bottom",
 }: {
   id: string;
@@ -28,6 +34,9 @@ export function DamCombobox({
   onChange: (next: string[]) => void;
   remote?: boolean;
   onSearch?: (q: string) => Promise<DamComboboxOption[]>;
+  onCreate?: (
+    name: string,
+  ) => Promise<DamComboboxOption | null> | DamComboboxOption | null;
   placement?: "bottom" | "top";
 }) {
   const listId = useId();
@@ -38,19 +47,29 @@ export function DamCombobox({
   const [remoteOptions, setRemoteOptions] = useState<DamComboboxOption[] | null>(
     null,
   );
+  const [createdOptions, setCreatedOptions] = useState<DamComboboxOption[]>([]);
   const [searching, setSearching] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const typed = query.trim();
+  const typed = query.trim().slice(0, 120);
+
+  const mergedOptions = useMemo(() => {
+    const seen = new Set(options.map((option) => option.value));
+    return [
+      ...options,
+      ...createdOptions.filter((option) => !seen.has(option.value)),
+    ];
+  }, [createdOptions, options]);
 
   const selected = useMemo(() => {
-    const map = new Map(options.map((option) => [option.value, option]));
+    const map = new Map(mergedOptions.map((option) => [option.value, option]));
     return value.map(
       (item) => map.get(item) ?? { value: item, label: item },
     );
-  }, [options, value]);
+  }, [mergedOptions, value]);
 
   const filtered = useMemo(() => {
-    const source = remote && typed ? (remoteOptions ?? []) : options;
+    const source = remote && typed ? (remoteOptions ?? []) : mergedOptions;
     const q = typed.toLocaleLowerCase("de-CH");
     const rows =
       !q || (remote && typed)
@@ -64,13 +83,32 @@ export function DamCombobox({
       (item) => !rows.some((row) => row.value === item.value),
     );
     return [...missing, ...rows];
-  }, [options, remote, remoteOptions, selected, typed]);
+  }, [mergedOptions, remote, remoteOptions, selected, typed]);
+
+  const exactMatch = useMemo(() => {
+    if (!typed) return false;
+    const q = typed.toLocaleLowerCase("de-CH");
+    return mergedOptions.some(
+      (option) => option.label.toLocaleLowerCase("de-CH") === q,
+    );
+  }, [mergedOptions, typed]);
+
+  const canCreate = Boolean(onCreate && typed && !exactMatch && !creating);
+
+  const rows = useMemo((): ListRow[] => {
+    const next: ListRow[] = [];
+    if (!multiple && !typed) next.push({ kind: "clear" });
+    if (canCreate) next.push({ kind: "create" });
+    for (const option of filtered) next.push({ kind: "option", option });
+    return next;
+  }, [canCreate, filtered, multiple]);
 
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
     setRemoteOptions(null);
     setSearching(false);
+    setCreating(false);
     setActiveIndex(0);
   }, []);
 
@@ -97,9 +135,9 @@ export function DamCombobox({
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setSearching(true);
-      void onSearch(typed).then((rows) => {
+      void onSearch(typed).then((next) => {
         if (cancelled) return;
-        setRemoteOptions(rows);
+        setRemoteOptions(next);
         setSearching(false);
         setActiveIndex(0);
       });
@@ -121,6 +159,44 @@ export function DamCombobox({
     }
     onChange(nextValue === value[0] ? [] : [nextValue]);
     close();
+  }
+
+  async function createNamed() {
+    if (!onCreate || !typed || creating) return;
+    setCreating(true);
+    try {
+      const created = await onCreate(typed);
+      if (!created) return;
+      setCreatedOptions((prev) =>
+        prev.some((option) => option.value === created.value)
+          ? prev
+          : [...prev, created],
+      );
+      if (multiple) {
+        onChange(value.includes(created.value) ? value : [...value, created.value]);
+        setQuery("");
+        setActiveIndex(0);
+      } else {
+        onChange([created.value]);
+        close();
+      }
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function activate(row: ListRow | undefined) {
+    if (!row) return;
+    if (row.kind === "clear") {
+      onChange([]);
+      close();
+      return;
+    }
+    if (row.kind === "option") {
+      toggle(row.option.value);
+      return;
+    }
+    void createNamed();
   }
 
   function triggerLabel() {
@@ -207,19 +283,18 @@ export function DamCombobox({
                   if (event.key === "ArrowDown") {
                     event.preventDefault();
                     setActiveIndex((prev) =>
-                      filtered.length === 0 ? 0 : (prev + 1) % filtered.length,
+                      rows.length === 0 ? 0 : (prev + 1) % rows.length,
                     );
                   } else if (event.key === "ArrowUp") {
                     event.preventDefault();
                     setActiveIndex((prev) =>
-                      filtered.length === 0
+                      rows.length === 0
                         ? 0
-                        : (prev - 1 + filtered.length) % filtered.length,
+                        : (prev - 1 + rows.length) % rows.length,
                     );
                   } else if (event.key === "Enter") {
                     event.preventDefault();
-                    const option = filtered[activeIndex];
-                    if (option) toggle(option.value);
+                    activate(rows[activeIndex]);
                   }
                 }}
               />
@@ -230,37 +305,64 @@ export function DamCombobox({
               aria-multiselectable={multiple || undefined}
               className="max-h-56 overflow-y-auto p-1"
             >
-              {!multiple ? (
-                <li>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={value.length === 0}
-                    className={[
-                      "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm",
-                      value.length === 0
-                        ? "bg-[var(--highlight)]"
-                        : "hover:bg-[var(--panel-muted)]",
-                    ].join(" ")}
-                    onClick={() => {
-                      onChange([]);
-                      close();
-                    }}
-                  >
-                    <Check
-                      className={[
-                        "size-3.5 shrink-0",
-                        value.length === 0 ? "opacity-100" : "opacity-0",
-                      ].join(" ")}
-                    />
-                    {emptyLabel}
-                  </button>
-                </li>
-              ) : null}
-              {filtered.map((option, index) => {
-                const isOn = value.includes(option.value);
+              {rows.map((row, index) => {
+                if (row.kind === "clear") {
+                  return (
+                    <li key="clear">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={value.length === 0}
+                        className={[
+                          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm",
+                          value.length === 0 || index === activeIndex
+                            ? value.length === 0
+                              ? "bg-[var(--highlight)]"
+                              : "bg-[var(--accent-soft)]"
+                            : "hover:bg-[var(--panel-muted)]",
+                        ].join(" ")}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => activate(row)}
+                      >
+                        <Check
+                          className={[
+                            "size-3.5 shrink-0",
+                            value.length === 0 ? "opacity-100" : "opacity-0",
+                          ].join(" ")}
+                        />
+                        {emptyLabel}
+                      </button>
+                    </li>
+                  );
+                }
+                if (row.kind === "create") {
+                  return (
+                    <li key="create">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={false}
+                        disabled={creating}
+                        className={[
+                          "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm font-semibold",
+                          index === activeIndex
+                            ? "bg-[var(--accent-soft)]"
+                            : "hover:bg-[var(--panel-muted)]",
+                        ].join(" ")}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => void createNamed()}
+                      >
+                        <Plus className="size-3.5 shrink-0" aria-hidden />
+                        <span className="min-w-0 truncate">
+                          {creating ? "Legt an…" : `«${typed}» anlegen`}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
+                const isOn = value.includes(row.option.value);
                 return (
-                  <li key={option.value}>
+                  <li key={row.option.value}>
                     <button
                       type="button"
                       role="option"
@@ -272,7 +374,7 @@ export function DamCombobox({
                         "hover:bg-[var(--panel-muted)]",
                       ].join(" ")}
                       onMouseEnter={() => setActiveIndex(index)}
-                      onClick={() => toggle(option.value)}
+                      onClick={() => toggle(row.option.value)}
                     >
                       <Check
                         className={[
@@ -280,14 +382,15 @@ export function DamCombobox({
                           isOn ? "opacity-100" : "opacity-0",
                         ].join(" ")}
                       />
-                      <span className="truncate">{option.label}</span>
+                      <span className="truncate">{row.option.label}</span>
                     </button>
                   </li>
                 );
               })}
               {searching && typed ? (
                 <li className="px-3 py-2 text-sm text-[var(--muted)]">Suche…</li>
-              ) : filtered.length === 0 ? (
+              ) : rows.length === 0 ||
+                (rows.length === 1 && rows[0]?.kind === "clear") ? (
                 <li className="px-3 py-2 text-sm text-[var(--muted)]">
                   {remote && typed
                     ? "Keine Treffer. Weiter tippen sucht serverseitig."

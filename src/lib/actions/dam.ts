@@ -117,6 +117,24 @@ export async function saveAssetEditParams(
   return {};
 }
 
+export async function createDamCollection(
+  name: string,
+): Promise<{ error?: string; collection?: { id: string; name: string } }> {
+  const { session } = await requireMembership();
+  const parsed = z.string().trim().min(1).max(120).safeParse(name);
+  if (!parsed.success) return { error: "Collection-Name fehlt." };
+  const collection = await prisma.collection.create({
+    data: {
+      name: parsed.data,
+      createdBy: session.user.id,
+      isPersonal: true,
+    },
+    select: { id: true, name: true },
+  });
+  revalidateDam();
+  return { collection };
+}
+
 export async function assignAssetsToCollection(input: {
   assetIds: string[];
   collectionId?: string;
@@ -262,6 +280,7 @@ export async function updateAssetMetadata(
 const publishItemSchema = z.object({
   assetId: z.string().min(1),
   altText: z.string().trim().min(1).max(240),
+  collectionIds: z.array(z.string().trim().min(1)).min(1).max(20),
 });
 
 export async function publishAssets(
@@ -274,7 +293,7 @@ export async function publishAssets(
   const { session } = await requireMembership();
   const parsed = z.array(publishItemSchema).min(1).max(200).safeParse(items);
   if (!parsed.success) {
-    return { error: "Alt-Text ist Pflicht. Bitte alle Felder ausfüllen." };
+    return { error: "Alt-Text und Collection sind Pflicht." };
   }
   const owned = await ownedStagingAssets(
     session.user.id,
