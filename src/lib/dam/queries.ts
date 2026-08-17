@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 
 export async function listRecentCredits(userId: string): Promise<string[]> {
   const rows = await prisma.uploadBatch.findMany({
@@ -49,6 +50,7 @@ export async function listPersonalStagingAssets(userId: string) {
           collection: { select: { id: true, name: true } },
         },
       },
+      exports: wepublishExportLogSelect,
     },
   });
 }

@@ -15,6 +15,10 @@ export function damRightsLabel(value: string): string {
   return value;
 }
 
+export function damWepublishExportedHint(iso: string): string {
+  return `Bereits exportiert am ${new Date(iso).toLocaleString("de-CH")}`;
+}
+
 export type AssetMetadataPatch = {
   fileName?: string;
   credit?: string;
@@ -37,6 +41,7 @@ export type PersonalAssetCard = {
   width: number | null;
   height: number | null;
   rightsType: DamRightsType;
+  lastWepublishExportedAt: string | null;
 };
 
 export type ArchiveAssetCard = {
@@ -52,4 +57,5 @@ export type ArchiveAssetCard = {
   height: number | null;
   rightsType: DamRightsType;
   collections: { id: string; name: string }[];
+  lastWepublishExportedAt: string | null;
 };

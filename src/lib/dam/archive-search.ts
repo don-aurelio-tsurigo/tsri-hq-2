@@ -5,6 +5,7 @@ import {
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
 import { prisma } from "@/lib/db";
+import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
 export type { ArchiveAssetCard, ArchiveFilters };
@@ -93,6 +94,7 @@ export async function searchPublishedAssets(
       collections: {
         select: { collection: { select: { id: true, name: true } } },
       },
+      exports: wepublishExportLogSelect,
     },
   });
 
@@ -109,6 +111,7 @@ export async function searchPublishedAssets(
     height: row.height,
     rightsType: row.rightsType,
     collections: row.collections.map((link) => link.collection),
+    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
   }));
 }
 

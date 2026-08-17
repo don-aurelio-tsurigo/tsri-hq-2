@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { MoreHorizontal, X } from "lucide-react";
 import {
   assignAssetsToCollection,
   publishAssets,
@@ -13,10 +13,20 @@ import {
 } from "@/lib/actions/dam";
 import { DamAssetDetail } from "@/components/dam-asset-detail";
 import { DamAssetEditor } from "@/components/dam-asset-editor";
+import { DamCombobox } from "@/components/dam-combobox";
 import { DamPublishDialog } from "@/components/dam-publish-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { cssPreviewStyle } from "@/lib/dam/edit-params";
-import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
+import {
+  RATING_FILTERS,
+  matchesRatingFilter,
+  type RatingFilter,
+} from "@/lib/dam/rating-filter";
+import {
+  damWepublishExportedHint,
+  type AssetMetadataPatch,
+  type PersonalAssetCard,
+} from "@/lib/dam/types";
 
 export type { PersonalAssetCard };
 
@@ -31,36 +41,56 @@ export function DamPersonalGrid({
 }) {
   const [assets, setAssets] = useState(initialAssets);
   const [filterId, setFilterId] = useState<string | "all">("all");
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
   const [focused, setFocused] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [detailIndex, setDetailIndex] = useState<number | null>(null);
   const [editorId, setEditorId] = useState<string | null>(null);
-  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishIds, setPublishIds] = useState<string[] | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [assignId, setAssignId] = useState("");
-  const [newCollection, setNewCollection] = useState("");
   const [pending, startTransition] = useTransition();
+  const assignRef = useRef<HTMLDivElement>(null);
+
+  const ratingMatched = useMemo(
+    () => assets.filter((asset) => matchesRatingFilter(asset.rating, ratingFilter)),
+    [assets, ratingFilter],
+  );
 
   const collectionsInUse = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const asset of assets) {
-      for (const c of asset.collections) map.set(c.id, c.name);
+    const map = new Map<string, { name: string; count: number }>();
+    for (const asset of ratingMatched) {
+      for (const collection of asset.collections) {
+        const prev = map.get(collection.id);
+        map.set(collection.id, {
+          name: collection.name,
+          count: (prev?.count ?? 0) + 1,
+        });
+      }
     }
-    return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [assets]);
+    return [...map.entries()].map(([id, item]) => ({ id, ...item }));
+  }, [ratingMatched]);
 
   const visible = useMemo(() => {
-    if (filterId === "all") return assets;
-    return assets.filter((a) => a.collections.some((c) => c.id === filterId));
-  }, [assets, filterId]);
+    if (filterId === "all") return ratingMatched;
+    return ratingMatched.filter((asset) =>
+      asset.collections.some((collection) => collection.id === filterId),
+    );
+  }, [filterId, ratingMatched]);
 
   const focusedAsset = visible[Math.min(focused, Math.max(0, visible.length - 1))];
-  const overlayOpen = detailIndex !== null || editorId !== null || publishOpen;
-  const ratedVisible = visible.filter((a) => (a.rating ?? 0) >= 3);
+  const overlayOpen = detailIndex !== null || editorId !== null || publishIds !== null;
   const editorAsset = editorId
     ? assets.find((a) => a.id === editorId) ?? null
     : null;
+  const publishAssetsForDialog = publishIds
+    ? assets.filter((asset) => publishIds.includes(asset.id))
+    : [];
+  const collectionOptions = allCollections.map((collection) => ({
+    value: collection.id,
+    label: collection.name,
+  }));
 
   function openDetail(index: number) {
     setFocused(index);
@@ -78,6 +108,7 @@ export function DamPersonalGrid({
   }
 
   function toggleSelected(id: string) {
+    setAssignOpen(false);
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -89,6 +120,7 @@ export function DamPersonalGrid({
   function selectRange(toIndex: number) {
     const start = Math.min(anchor, toIndex);
     const end = Math.max(anchor, toIndex);
+    setAssignOpen(false);
     setSelected(new Set(visible.slice(start, end + 1).map((a) => a.id)));
     setFocused(toIndex);
   }
@@ -126,6 +158,7 @@ export function DamPersonalGrid({
     });
     setDetailIndex(null);
     setEditorId(null);
+    setAssignOpen(false);
     startTransition(async () => {
       const result = await rejectAssets(ids);
       if (result.error) setError(result.error);
@@ -150,6 +183,61 @@ export function DamPersonalGrid({
       if (result.error) setError(result.error);
     });
   }
+
+  function assignCollection(ids: string[], collectionId: string) {
+    if (ids.length === 0 || !collectionId) return;
+    const name =
+      allCollections.find((collection) => collection.id === collectionId)?.name ??
+      "Collection";
+    setError(null);
+    setAssets((prev) =>
+      prev.map((asset) =>
+        ids.includes(asset.id) &&
+        !asset.collections.some((collection) => collection.id === collectionId)
+          ? {
+              ...asset,
+              collections: [...asset.collections, { id: collectionId, name }],
+            }
+          : asset,
+      ),
+    );
+    startTransition(async () => {
+      const result = await assignAssetsToCollection({
+        assetIds: ids,
+        collectionId,
+      });
+      if (result.error) setError(result.error);
+    });
+  }
+
+  function setAssetCollections(assetId: string, nextIds: string[]) {
+    const asset = assets.find((item) => item.id === assetId);
+    if (!asset) return;
+    const prevIds = asset.collections.map((collection) => collection.id);
+    const toAdd = nextIds.filter((id) => !prevIds.includes(id));
+    const toRemove = prevIds.filter((id) => !nextIds.includes(id));
+    for (const id of toAdd) assignCollection([assetId], id);
+    for (const id of toRemove) removeFromCollection([assetId], id);
+  }
+
+  function openPublish(ids: string[]) {
+    if (ids.length === 0) return;
+    setDetailIndex(null);
+    setEditorId(null);
+    setAssignOpen(false);
+    setPublishIds(ids);
+  }
+
+  useEffect(() => {
+    if (!assignOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!assignRef.current?.contains(event.target as Node)) {
+        setAssignOpen(false);
+      }
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [assignOpen]);
 
   useEffect(() => {
     if (overlayOpen) return;
@@ -219,7 +307,51 @@ export function DamPersonalGrid({
   }, [detailIndex, visible.length]);
 
   return (
-    <div className="space-y-5">
+    <div className={selected.size > 0 && !overlayOpen ? "space-y-5 pb-24" : "space-y-5"}>
+      <div
+        className="flex flex-wrap items-center gap-3"
+        role="radiogroup"
+        aria-label="Rating-Filter"
+      >
+        <div className="inline-flex flex-wrap rounded-full border-2 border-[var(--border)] bg-white p-0.5">
+          {RATING_FILTERS.map((option) => {
+            const active = ratingFilter === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={[
+                  "rounded-full px-3 py-1.5 text-sm font-semibold",
+                  active
+                    ? "bg-[var(--fg)] text-white"
+                    : "text-[var(--muted)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => {
+                  setRatingFilter(option.value);
+                  setFocused(0);
+                  setAnchor(0);
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={visible.length === 0}
+          onClick={() => {
+            setAssignOpen(false);
+            setSelected(new Set(visible.map((asset) => asset.id)));
+          }}
+        >
+          Alle markieren ({visible.length})
+        </button>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -230,7 +362,7 @@ export function DamPersonalGrid({
             setAnchor(0);
           }}
         >
-          Alle ({assets.length})
+          Alle ({ratingMatched.length})
         </button>
         {collectionsInUse.map((c) => (
           <button
@@ -243,7 +375,7 @@ export function DamPersonalGrid({
               setAnchor(0);
             }}
           >
-            {c.name}
+            {c.name} ({c.count})
           </button>
         ))}
       </div>
@@ -253,122 +385,10 @@ export function DamPersonalGrid({
         verwerfen. Shift-Klick wählt mehrere.
       </p>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={ratedVisible.length === 0}
-          onClick={() =>
-            setSelected(new Set(ratedVisible.map((asset) => asset.id)))
-          }
-        >
-          Rating ≥ 3 wählen ({ratedVisible.length})
-        </button>
-      </div>
-
       {error ? (
         <p className="text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
-      ) : null}
-
-      {selected.size > 0 ? (
-        <div className="card flex flex-wrap items-end gap-3 p-4">
-          <p className="text-sm font-semibold">{selected.size} gewählt</p>
-          <div className="field min-w-[12rem] flex-1">
-            <label htmlFor="bulk-collection">Collection</label>
-            <select
-              id="bulk-collection"
-              value={assignId}
-              onChange={(e) => setAssignId(e.target.value)}
-            >
-              <option value="">— wählen —</option>
-              {allCollections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field min-w-[10rem] flex-1">
-            <label htmlFor="bulk-new">Oder neu</label>
-            <input
-              id="bulk-new"
-              value={newCollection}
-              onChange={(e) => setNewCollection(e.target.value)}
-              placeholder="Name"
-            />
-          </div>
-          <button
-            type="button"
-            className="btn btn-accent"
-            disabled={pending || (!assignId && !newCollection.trim())}
-            onClick={() => {
-              const ids = [...selected];
-              startTransition(async () => {
-                const result = await assignAssetsToCollection({
-                  assetIds: ids,
-                  collectionId: assignId || undefined,
-                  newName: newCollection.trim() || undefined,
-                });
-                if (result.error) {
-                  setError(result.error);
-                  return;
-                }
-                const name =
-                  newCollection.trim() ||
-                  allCollections.find((c) => c.id === assignId)?.name ||
-                  "Collection";
-                const collectionId = result.collectionId ?? assignId;
-                setAssets((prev) =>
-                  prev.map((a) =>
-                    ids.includes(a.id) &&
-                    !a.collections.some((c) => c.id === collectionId)
-                      ? {
-                          ...a,
-                          collections: [...a.collections, { id: collectionId, name }],
-                        }
-                      : a,
-                  ),
-                );
-                setNewCollection("");
-              });
-            }}
-          >
-            Zuweisen
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={pending || (!assignId && filterId === "all")}
-            onClick={() => {
-              const collectionId = assignId || (filterId === "all" ? "" : filterId);
-              removeFromCollection([...selected], collectionId);
-            }}
-          >
-            Aus Collection entfernen
-          </button>
-          <button
-            type="button"
-            className="btn btn-highlight"
-            disabled={pending}
-            onClick={() => {
-              setDetailIndex(null);
-              setEditorId(null);
-              setPublishOpen(true);
-            }}
-          >
-            Ins Archiv verschieben
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={pending}
-            onClick={() => rejectIds([...selected])}
-          >
-            Verwerfen
-          </button>
-        </div>
       ) : null}
 
       {visible.length === 0 ? (
@@ -425,6 +445,11 @@ export function DamPersonalGrid({
                       />
                     </div>
                     <p className="truncate text-[0.65rem] font-semibold">{asset.credit}</p>
+                    {asset.lastWepublishExportedAt ? (
+                      <p className="text-[0.6rem] text-[var(--muted)]">
+                        {damWepublishExportedHint(asset.lastWepublishExportedAt)}
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-0.5">
                       {asset.collections.map((c) => (
                         <span
@@ -454,10 +479,77 @@ export function DamPersonalGrid({
         </ul>
       )}
 
+      {selected.size > 0 && !overlayOpen ? (
+        <div className="fixed inset-x-3 bottom-3 z-30 md:left-[calc(16rem+1.25rem)] md:right-6">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2 rounded-full border-2 border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-[var(--shadow)]">
+            <p className="px-2 text-sm font-semibold">{selected.size} gewählt</p>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={pending}
+              onClick={() => rejectIds([...selected])}
+            >
+              Verwerfen
+            </button>
+            <button
+              type="button"
+              className="btn btn-highlight"
+              disabled={pending}
+              onClick={() => openPublish([...selected])}
+            >
+              Ins Archiv verschieben
+            </button>
+            <div className="relative ml-auto" ref={assignRef}>
+              {assignOpen ? (
+                <div className="absolute right-0 bottom-full mb-2 w-[min(22rem,calc(100vw-2rem))] rounded-[var(--radius)] border-2 border-[var(--border)] bg-[var(--bg-elevated)] p-3 shadow-[var(--shadow)]">
+                  <DamCombobox
+                    id="selection-assign-collection"
+                    label="Anderer Collection zuweisen"
+                    emptyLabel="Collection suchen…"
+                    placeholder="Collection suchen…"
+                    options={collectionOptions}
+                    value={[]}
+                    placement="top"
+                    onChange={(ids) => {
+                      const collectionId = ids[0];
+                      if (!collectionId) return;
+                      assignCollection([...selected], collectionId);
+                      setAssignOpen(false);
+                    }}
+                  />
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-ghost px-3"
+                aria-expanded={assignOpen}
+                aria-haspopup="dialog"
+                aria-label="Weitere Aktionen"
+                onClick={() => setAssignOpen((open) => !open)}
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn btn-ghost px-2"
+              aria-label="Auswahl aufheben"
+              onClick={() => {
+                setAssignOpen(false);
+                setSelected(new Set());
+              }}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {detailIndex !== null && visible[detailIndex] ? (
         <DamAssetDetail
           assets={visible}
           index={detailIndex}
+          allCollections={allCollections}
           onIndexChange={(next) => {
             setDetailIndex(next);
             setFocused(next);
@@ -467,9 +559,7 @@ export function DamPersonalGrid({
           onRate={applyRating}
           onPatch={patchAsset}
           onEdit={() => setEditorId(visible[detailIndex].id)}
-          onRemoveFromCollection={(assetId, collectionId) =>
-            removeFromCollection([assetId], collectionId)
-          }
+          onSetCollections={setAssetCollections}
           keyboardEnabled={!editorAsset}
         />
       ) : null}
@@ -496,11 +586,11 @@ export function DamPersonalGrid({
         />
       ) : null}
 
-      {publishOpen ? (
+      {publishIds && publishAssetsForDialog.length > 0 ? (
         <DamPublishDialog
-          assets={assets.filter((asset) => selected.has(asset.id))}
+          assets={publishAssetsForDialog}
           pending={pending}
-          onClose={() => setPublishOpen(false)}
+          onClose={() => setPublishIds(null)}
           onConfirm={(items) => {
             startTransition(async () => {
               const result = await publishAssets(items);
@@ -515,7 +605,7 @@ export function DamPersonalGrid({
                 done.forEach((id) => next.delete(id));
                 return next;
               });
-              setPublishOpen(false);
+              setPublishIds(null);
               setDetailIndex(null);
               setEditorId(null);
               if (result.errors?.length) {

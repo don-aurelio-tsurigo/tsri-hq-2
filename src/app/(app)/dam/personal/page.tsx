@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DamPersonalGrid } from "@/components/dam-personal-grid";
 import { parseEditParams } from "@/lib/dam/edit-params";
+import { latestWepublishExportedAt } from "@/lib/dam/export-wepublish";
 import { listCollections, listPersonalStagingAssets } from "@/lib/dam/queries";
 import { requireMembership } from "@/lib/session";
 
@@ -24,6 +25,7 @@ export default async function DamPersonalPage() {
     width: row.width,
     height: row.height,
     rightsType: row.rightsType,
+    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
   }));
 
   return (

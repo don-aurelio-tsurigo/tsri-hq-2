@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Send, Trash2, X } from "lucide-react";
 import { DamRatingStars } from "@/components/dam-rating-stars";
+import { useToast } from "@/components/toast";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
-import { damRightsLabel } from "@/lib/dam/types";
-import type { ArchiveAssetCard } from "@/lib/dam/types";
+import {
+  damRightsLabel,
+  damWepublishExportedHint,
+  type ArchiveAssetCard,
+} from "@/lib/dam/types";
 
 function formatTakenAt(iso: string | null): string {
   if (!iso) return "—";
@@ -29,22 +33,31 @@ export function DamArchivePreview({
   onIndexChange,
   onClose,
   onTrash,
+  onWepublishExported,
 }: {
   assets: ArchiveAssetCard[];
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
   onTrash?: (assetId: string) => void;
+  onWepublishExported?: (assetId: string, exportedAt: string) => void;
 }) {
   const asset = assets[index];
   const count = assets.length;
+  const { showToast } = useToast();
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const [seenId, setSeenId] = useState(asset?.id);
   if (asset?.id !== seenId) {
     setSeenId(asset?.id);
     setDownloadError(null);
     setDownloading(false);
+    setExportError(null);
+    setExportSuccess(null);
+    setExporting(false);
   }
 
   useEffect(() => {
@@ -79,6 +92,38 @@ export function DamArchivePreview({
       setDownloadError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function sendToWepublish() {
+    if (!asset || exporting) return;
+    setExportError(null);
+    setExportSuccess(null);
+    setExporting(true);
+    try {
+      const res = await fetch("/api/dam/export-wepublish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId: asset.id }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        exportedAt?: string;
+        imageUrl?: string;
+      };
+      if (!res.ok || !data.exportedAt) {
+        throw new Error(data.error || "Senden an WePublish fehlgeschlagen.");
+      }
+      onWepublishExported?.(asset.id, data.exportedAt);
+      const message = "Bild an WePublish gesendet.";
+      setExportSuccess(message);
+      showToast({ message });
+    } catch (err) {
+      setExportError(
+        err instanceof Error ? err.message : "Senden an WePublish fehlgeschlagen.",
+      );
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -174,6 +219,26 @@ export function DamArchivePreview({
                 Volle Auflösung, direkt von R2. Der Link gilt zwei Minuten.
               </p>
             )}
+
+            <button
+              type="button"
+              className="btn btn-highlight w-full"
+              disabled={exporting}
+              onClick={() => void sendToWepublish()}
+            >
+              <Send className="size-4" aria-hidden />
+              {exporting ? "Sendet…" : "An WePublish senden"}
+            </button>
+            {exportError ? (
+              <p className="text-sm text-red-600">{exportError}</p>
+            ) : exportSuccess ? (
+              <p className="text-sm font-semibold text-emerald-800">{exportSuccess}</p>
+            ) : null}
+            {asset.lastWepublishExportedAt ? (
+              <p className="text-xs text-[var(--muted)]">
+                {damWepublishExportedHint(asset.lastWepublishExportedAt)}
+              </p>
+            ) : null}
 
             {onTrash ? (
               <button

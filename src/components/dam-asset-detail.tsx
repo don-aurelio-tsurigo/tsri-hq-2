@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { Check, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
+import { DamCombobox } from "@/components/dam-combobox";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { cssPreviewStyle } from "@/lib/dam/edit-params";
+import { damWepublishExportedHint } from "@/lib/dam/types";
 import type {
   AssetMetadataPatch,
   DamRightsType,
@@ -126,22 +128,24 @@ function EditControl({
 export function DamAssetDetail({
   assets,
   index,
+  allCollections,
   onIndexChange,
   onClose,
   onRate,
   onEdit,
   onPatch,
-  onRemoveFromCollection,
+  onSetCollections,
   keyboardEnabled = true,
 }: {
   assets: PersonalAssetCard[];
   index: number;
+  allCollections: { id: string; name: string }[];
   onIndexChange: (index: number) => void;
   onClose: () => void;
   onRate: (assetId: string, rating: number) => void;
   onEdit: () => void;
   onPatch: (assetId: string, patch: AssetMetadataPatch) => void;
-  onRemoveFromCollection: (assetId: string, collectionId: string) => void;
+  onSetCollections: (assetId: string, collectionIds: string[]) => void;
   keyboardEnabled?: boolean;
 }) {
   const asset = assets[index];
@@ -374,6 +378,26 @@ export function DamAssetDetail({
               />
             </div>
 
+            {asset.lastWepublishExportedAt ? (
+              <p className="text-sm text-[var(--muted)]">
+                {damWepublishExportedHint(asset.lastWepublishExportedAt)}
+              </p>
+            ) : null}
+
+            <DamCombobox
+              id={`detail-collections-${asset.id}`}
+              label="Collection"
+              emptyLabel="Collection zuweisen…"
+              placeholder="Collection suchen…"
+              options={allCollections.map((collection) => ({
+                value: collection.id,
+                label: collection.name,
+              }))}
+              value={asset.collections.map((collection) => collection.id)}
+              multiple
+              onChange={(ids) => onSetCollections(asset.id, ids)}
+            />
+
             <MetaRow
               label="Credit"
               display={asset.credit}
@@ -417,32 +441,6 @@ export function DamAssetDetail({
                 </select>
               </EditControl>
             </MetaRow>
-
-            <div>
-              <p className="text-xs font-semibold text-[var(--muted)]">Collections</p>
-              {asset.collections.length === 0 ? (
-                <p className="mt-0.5 text-sm text-[var(--muted)]">Keine</p>
-              ) : (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {asset.collections.map((c) => (
-                    <span
-                      key={c.id}
-                      className="inline-flex items-center gap-0.5 rounded-full bg-[var(--accent-soft)] py-0.5 pl-2 pr-0.5 text-xs font-semibold"
-                    >
-                      {c.name}
-                      <button
-                        type="button"
-                        className="rounded-full p-0.5 hover:bg-white/70"
-                        aria-label={`${c.name} entfernen`}
-                        onClick={() => onRemoveFromCollection(asset.id, c.id)}
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {asset.width && asset.height ? (
               <div>

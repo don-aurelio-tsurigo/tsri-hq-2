@@ -16,6 +16,7 @@ export function DamCombobox({
   onChange,
   remote = false,
   onSearch,
+  placement = "bottom",
 }: {
   id: string;
   label: string;
@@ -27,6 +28,7 @@ export function DamCombobox({
   onChange: (next: string[]) => void;
   remote?: boolean;
   onSearch?: (q: string) => Promise<DamComboboxOption[]>;
+  placement?: "bottom" | "top";
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -183,7 +185,12 @@ export function DamCombobox({
         </div>
 
         {open ? (
-          <div className="absolute z-30 mt-1 w-full min-w-[16rem] overflow-hidden rounded-[var(--radius)] border-2 border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow)]">
+          <div
+            className={[
+              "absolute z-30 w-full min-w-[16rem] overflow-hidden rounded-[var(--radius)] border-2 border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow)]",
+              placement === "top" ? "bottom-full mb-1" : "mt-1",
+            ].join(" ")}
+          >
             <div className="border-b-2 border-[var(--border)] p-2">
               <input
                 ref={searchRef}
