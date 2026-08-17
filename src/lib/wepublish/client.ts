@@ -14,6 +14,20 @@ export function getWepublishApiUrl(): string {
   return base.replace(/\/$/, "") + "/v1";
 }
 
+export function getWepublishAdminGraphqlUrl(): string {
+  return `${getWepublishApiUrl()}/admin/graphql`;
+}
+
+export function getWepublishApiToken(): string {
+  const token = process.env.WEPUBLISH_API_TOKEN?.trim();
+  if (!token) {
+    throw new WepublishApiError(
+      "WEPUBLISH_API_TOKEN fehlt. Bitte in der Umgebung setzen.",
+    );
+  }
+  return token;
+}
+
 export async function wepublishGraphql<T>(
   query: string,
   variables?: Record<string, unknown>,

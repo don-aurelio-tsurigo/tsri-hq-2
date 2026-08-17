@@ -49,9 +49,14 @@ model User {
   updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
   createdCarouselPosts  CarouselPost[]       @relation("CarouselPostCreator")
   usageEvents           MemberUsage[]
+  uploadBatches         UploadBatch[]
+  assets                Asset[]
+  deletedAssets         Asset[]              @relation("AssetDeletedBy")
+  collections           Collection[]
+  exportLogs            ExportLog[]
 
-  @@schema("public")
   @@map("user")
+  @@schema("public")
 }
 
 model Session {
@@ -66,8 +71,8 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@schema("public")
   @@map("session")
+  @@schema("public")
 }
 
 model Account {
@@ -87,8 +92,8 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@index([userId])
-  @@schema("public")
   @@map("account")
+  @@schema("public")
 }
 
 model Verification {
@@ -100,8 +105,8 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
-  @@schema("public")
   @@map("verification")
+  @@schema("public")
 }
 
 // ─── Organisation & Membership ─────────────────────────────────
@@ -109,6 +114,7 @@ model Verification {
 enum MembershipRole {
   admin
   member
+
   @@schema("public")
 }
 
@@ -147,8 +153,8 @@ model Organization {
   payrexxPayouts          PayrexxPayout[]
   payrexxChannelRules     PayrexxChannelRule[]
 
-  @@schema("public")
   @@map("organization")
+  @@schema("public")
 }
 
 model Membership {
@@ -169,8 +175,8 @@ model Membership {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId, archivedAt])
-  @@schema("public")
   @@map("membership")
+  @@schema("public")
 }
 
 model Invitation {
@@ -189,8 +195,8 @@ model Invitation {
 
   @@index([email])
   @@index([organizationId])
-  @@schema("public")
   @@map("invitation")
+  @@schema("public")
 }
 
 /// Einmaliger Passwort-Reset-Link (von Admins erzeugt, manuell teilbar)
@@ -207,8 +213,8 @@ model PasswordResetToken {
   createdBy User @relation("PasswordResetCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@schema("public")
   @@map("password_reset_token")
+  @@schema("public")
 }
 
 // ─── Spaces ────────────────────────────────────────────────────
@@ -217,6 +223,7 @@ enum SpaceType {
   personal
   team
   project
+
   @@schema("public")
 }
 
@@ -224,6 +231,7 @@ enum SpaceVisibility {
   private
   team
   restricted
+
   @@schema("public")
 }
 
@@ -231,6 +239,7 @@ enum SpacePermission {
   view
   edit
   admin
+
   @@schema("public")
 }
 
@@ -269,8 +278,8 @@ model Space {
   @@index([organizationId, type])
   @@index([organizationId, type, archivedAt])
   @@index([organizationId, type, isTemplate])
-  @@schema("public")
   @@map("space")
+  @@schema("public")
 }
 
 model SpaceAccess {
@@ -284,8 +293,8 @@ model SpaceAccess {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([spaceId, userId])
-  @@schema("public")
   @@map("space_access")
+  @@schema("public")
 }
 
 // ─── Tasks / Articles / Chores ─────────────────────────────────
@@ -295,6 +304,7 @@ enum TaskStatus {
   doing
   done
   cancelled
+
   @@schema("public")
 }
 
@@ -306,6 +316,7 @@ enum ArticleStage {
   in_arbeit
   bereit
   publiziert
+
   @@schema("public")
 }
 
@@ -326,8 +337,8 @@ model ArticleCategory {
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
-  @@schema("public")
   @@map("article_category")
+  @@schema("public")
 }
 
 /// Eigenleistungs-Rubriken (admin-verwaltbar, org-weit)
@@ -347,8 +358,8 @@ model EigenleistungRubrik {
 
   @@unique([organizationId, name])
   @@index([organizationId, sortOrder])
-  @@schema("public")
   @@map("eigenleistung_rubrik")
+  @@schema("public")
 }
 
 /// Generic / project tasks (Inbox, personal lists, project todos)
@@ -380,8 +391,8 @@ model Task {
   @@index([spaceId, archivedAt])
   @@index([assigneeId])
   @@index([createdById])
-  @@schema("public")
   @@map("task")
+  @@schema("public")
 }
 
 /// Editorial articles (Kanban / Redaktionsprogramm)
@@ -418,8 +429,8 @@ model Article {
   @@index([createdById])
   @@index([categoryId])
   @@index([eigenleistungRubrikId])
-  @@schema("public")
   @@map("article")
+  @@schema("public")
 }
 
 /// User-defined groups/lists for tasks within a space (personal tasks)
@@ -436,8 +447,8 @@ model TaskGroup {
   chores Chore[]
 
   @@index([spaceId, sortOrder])
-  @@schema("public")
   @@map("task_group")
+  @@schema("public")
 }
 
 /// Ämtli / chores with multi-assignee
@@ -461,8 +472,8 @@ model Chore {
   @@index([spaceId, status])
   @@index([spaceId, groupId])
   @@index([createdById])
-  @@schema("public")
   @@map("chore")
+  @@schema("public")
 }
 
 /// Multi-assignee for chores
@@ -477,8 +488,8 @@ model ChoreAssignment {
 
   @@unique([choreId, userId])
   @@index([userId])
-  @@schema("public")
   @@map("chore_assignment")
+  @@schema("public")
 }
 
 /// Kochplan: ein Slot pro Tag (Di–Fr)
@@ -501,8 +512,8 @@ model CookingSlot {
   @@index([userId])
   @@index([assignedById])
   @@index([spaceId, date])
-  @@schema("public")
   @@map("cooking_slot")
+  @@schema("public")
 }
 
 // ─── Newsletter Kampagnen ──────────────────────────────────────
@@ -510,6 +521,7 @@ model CookingSlot {
 enum NewsletterFrequency {
   daily
   weekly
+
   @@schema("public")
 }
 
@@ -518,6 +530,7 @@ enum NewsletterCampaignStatus {
   planned
   published
   skipped
+
   @@schema("public")
 }
 
@@ -541,8 +554,8 @@ model NewsletterType {
 
   @@unique([organizationId, name])
   @@index([organizationId])
-  @@schema("public")
   @@map("newsletter_type")
+  @@schema("public")
 }
 
 /// Sommerpause / geblockte Zeiträume — pro Newsletter-Typ, keine Slots im Kalender
@@ -561,8 +574,8 @@ model NewsletterBlockedRange {
 
   @@index([organizationId, startDate, endDate])
   @@index([newsletterTypeId, startDate, endDate])
-  @@schema("public")
   @@map("newsletter_blocked_range")
+  @@schema("public")
 }
 
 model NewsletterCampaign {
@@ -586,8 +599,8 @@ model NewsletterCampaign {
   @@index([typeId, date])
   @@index([authorId])
   @@index([date])
-  @@schema("public")
   @@map("newsletter_campaign")
+  @@schema("public")
 }
 
 // ─── Ferienplan ────────────────────────────────────────────────
@@ -596,6 +609,7 @@ enum VacationStatus {
   pending
   approved
   rejected
+
   @@schema("public")
 }
 
@@ -619,8 +633,8 @@ model VacationRequest {
   @@index([organizationId, startDate])
   @@index([organizationId, status])
   @@index([userId])
-  @@schema("public")
   @@map("vacation_request")
+  @@schema("public")
 }
 
 // ─── Arbeitszeit ───────────────────────────────────────────────
@@ -630,6 +644,7 @@ enum TimeEntryType {
   sick
   vacation
   holiday
+
   @@schema("public")
 }
 
@@ -651,13 +666,14 @@ model TimeEntry {
   @@unique([organizationId, userId, date])
   @@index([userId, date])
   @@index([organizationId, date])
-  @@schema("public")
   @@map("time_entry")
+  @@schema("public")
 }
 
 enum TimeSegmentType {
   work
   break
+
   @@schema("public")
 }
 
@@ -675,8 +691,8 @@ model TimeSegment {
   timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@index([timeEntryId, sortOrder])
-  @@schema("public")
   @@map("time_segment")
+  @@schema("public")
 }
 
 // ─── Wiki ──────────────────────────────────────────────────────
@@ -709,8 +725,8 @@ model WikiPage {
   @@index([spaceId, parentId, sortOrder])
   @@index([organizationId, pinned])
   @@index([parentId])
-  @@schema("public")
   @@map("wiki_page")
+  @@schema("public")
 }
 
 // ─── Newsfeed / Quellen ────────────────────────────────────────
@@ -720,6 +736,7 @@ enum NewsItemStatus {
   interessant
   beobachten
   verworfen
+
   @@schema("public")
 }
 
@@ -746,32 +763,32 @@ model NewsItem {
   @@index([organizationId, status])
   @@index([organizationId, source])
   @@index([organizationId, publishedAt])
-  @@schema("public")
   @@map("news_item")
+  @@schema("public")
 }
 
 /// Instagram-Carousel (Arbeitstitel + Slide-JSON für den Editor)
 model CarouselPost {
-  id          String   @id @default(cuid())
-  title       String
-  slides      Json
+  id             String   @id @default(cuid())
+  title          String
+  slides         Json
   /// Original Tsüri-Artikel, falls aus URL importiert
-  sourceUrl   String?
+  sourceUrl      String?
   sourcePreTitle String?
-  sourceTitle String?
-  sourceLead  String?  @db.Text
-  sourceBody  String?  @db.Text
+  sourceTitle    String?
+  sourceLead     String?  @db.Text
+  sourceBody     String?  @db.Text
   /// "standard" | "kolumne" | "interview" | "tsueritipp" | "6ibrief"
-  format      String   @default("standard")
-  createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  format         String   @default("standard")
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   createdBy User @relation("CarouselPostCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([createdById])
-  @@schema("public")
   @@map("carousel_post")
+  @@schema("public")
 }
 
 // ─── Direct-Sold Ads (intern) ──────────────────────────────────
@@ -799,20 +816,20 @@ enum AdEventType {
 
 /// Direct-Sold-Kampagne (intern verwaltet, ein Slot: article-top)
 model Campaign {
-  id               String         @id @default(cuid())
-  name             String
-  startDate        DateTime
-  endDate          DateTime
-  status           CampaignStatus @default(ACTIVE)
+  id              String         @id @default(cuid())
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  status          CampaignStatus @default(ACTIVE)
   /// Max. Impressions; null = unbegrenzt
-  impressionLimit  Int?
-  creatives        Creative[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  impressionLimit Int?
+  creatives       Creative[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([status, startDate, endDate])
-  @@schema("public")
   @@map("campaign")
+  @@schema("public")
 }
 
 model Creative {
@@ -828,8 +845,8 @@ model Creative {
   createdAt  DateTime     @default(now())
 
   @@index([campaignId])
-  @@schema("public")
   @@map("creative")
+  @@schema("public")
 }
 
 model AdEvent {
@@ -840,8 +857,8 @@ model AdEvent {
   createdAt  DateTime    @default(now())
 
   @@index([creativeId, type])
-  @@schema("public")
   @@map("ad_event")
+  @@schema("public")
 }
 
 // ─── Payrexx Abrechnung ───────────────────────────────────────
@@ -867,8 +884,8 @@ model PayrexxPayout {
 
   @@unique([organizationId, uuid])
   @@index([organizationId, date])
-  @@schema("public")
   @@map("payrexx_payout")
+  @@schema("public")
 }
 
 model PayrexxPayoutLine {
@@ -896,8 +913,8 @@ model PayrexxPayoutLine {
 
   @@index([payoutId, categoryKey])
   @@index([payoutId, channel])
-  @@schema("public")
   @@map("payrexx_payout_line")
+  @@schema("public")
 }
 
 model PayrexxChannelRule {
@@ -911,8 +928,8 @@ model PayrexxChannelRule {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, channel])
-  @@schema("public")
   @@map("payrexx_channel_rule")
+  @@schema("public")
 }
 
 // ─── Member quotas (AI / RAG / image proxy) ────────────────────
@@ -921,6 +938,7 @@ enum MemberUsageKind {
   ai
   rag_search
   image_proxy
+
   @@schema("public")
 }
 
@@ -934,8 +952,120 @@ model MemberUsage {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, kind, createdAt])
-  @@schema("public")
   @@map("member_usage")
+  @@schema("public")
+}
+
+// ─── DAM / Foto-Archiv ─────────────────────────────────────────
+
+enum AssetStatus {
+  staging
+  published
+  rejected
+  archived
+
+  @@schema("public")
+}
+
+enum RightsType {
+  own
+  provided
+  free_use
+
+  @@schema("public")
+}
+
+model UploadBatch {
+  id         String   @id @default(cuid())
+  uploadedBy String
+  user       User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  credit     String
+  createdAt  DateTime @default(now())
+  assets     Asset[]
+
+  @@index([uploadedBy])
+  @@map("upload_batch")
+  @@schema("public")
+}
+
+model Asset {
+  id          String      @id @default(cuid())
+  batchId     String
+  batch       UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sequence    Int
+  fileName    String
+  r2Key       String      @unique
+  status      AssetStatus @default(staging)
+  rating      Int?
+  credit      String
+  rightsType  RightsType
+  altText     String?
+  keywords    String[]    @default([])
+  exif        Json?
+  takenAt     DateTime?
+  width       Int?
+  height      Int?
+  editParams  Json?
+  uploadedBy  String
+  uploader    User        @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  publishedAt DateTime?
+  deletedAt   DateTime?
+  deletedBy   String?
+  deleter     User?       @relation("AssetDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  collections AssetCollection[]
+  exports     ExportLog[]
+
+  @@unique([batchId, sequence])
+  @@index([status])
+  @@index([uploadedBy])
+  @@index([deletedAt])
+  @@index([status, deletedAt])
+  @@map("asset")
+  @@schema("public")
+}
+
+model Collection {
+  id         String            @id @default(cuid())
+  name       String
+  createdBy  String
+  creator    User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  isPersonal Boolean           @default(true)
+  createdAt  DateTime          @default(now())
+  assets     AssetCollection[]
+
+  @@index([createdBy])
+  @@map("collection")
+  @@schema("public")
+}
+
+model AssetCollection {
+  assetId      String
+  asset        Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([assetId, collectionId])
+  @@index([collectionId])
+  @@map("asset_collection")
+  @@schema("public")
+}
+
+model ExportLog {
+  id         String   @id @default(cuid())
+  assetId    String?
+  asset      Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  exportedBy String
+  exporter   User     @relation(fields: [exportedBy], references: [id], onDelete: Restrict)
+  exportedAt DateTime @default(now())
+  targetUrl  String?
+
+  @@index([assetId])
+  @@index([exportedBy])
+  @@map("export_log")
+  @@schema("public")
 }
 
 // ─── RAG / pgvector (schema: rag) ──────────────────────────────
@@ -962,15 +1092,15 @@ model RagArticle {
 }
 
 model RagArticleChunk {
-  id          String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  articleId   String                       @map("article_id") @db.Uuid
-  chunkIndex  Int                          @map("chunk_index")
-  chunkText   String                       @map("chunk_text")
-  charCount   Int?                         @map("char_count")
-  wordCount   Int?                         @map("word_count")
+  id           String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  articleId    String                       @map("article_id") @db.Uuid
+  chunkIndex   Int                          @map("chunk_index")
+  chunkText    String                       @map("chunk_text")
+  charCount    Int?                         @map("char_count")
+  wordCount    Int?                         @map("word_count")
   /// Voyage embedding; read/write via prisma.$queryRaw / $executeRaw
   embeddingVec Unsupported("vector(1024)")? @map("embedding_vec")
-  updatedAt   DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt    DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   article RagArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
