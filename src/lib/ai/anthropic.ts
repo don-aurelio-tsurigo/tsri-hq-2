@@ -215,7 +215,7 @@ async function generateSlidesFromSource(
 
   const client = getClient();
   const toolInputSchema =
-    format === "tsueritipp"
+    format === "tsueritipp" || format === "6ibrief"
       ? tsueritippToolInputSchema
       : format === "kolumne"
         ? kolumneToolInputSchema
@@ -272,7 +272,7 @@ async function generateSlidesFromSource(
 
   try {
     return enforceSlideTextLimits(
-      llmDraftToSlides(draft, { coverImageUrl: article.imageUrl }),
+      llmDraftToSlides(draft, { coverImageUrl: article.imageUrl, format }),
       format,
     );
   } catch (error) {

@@ -7,6 +7,13 @@ import {
 import type { CarouselFormat } from "@/lib/carousel/format";
 import { defaultImageOverlayForSlideType } from "@/lib/carousel/overlay";
 import {
+  SIXIBRIEF_BG,
+  SIXIBRIEF_DEFAULT_OUTRO_CTA,
+  SIXIBRIEF_DEFAULT_OUTRO_HEADLINE,
+  SIXIBRIEF_DEFAULT_OVERLINE,
+  SIXIBRIEF_INK,
+} from "@/lib/carousel/sixibrief";
+import {
   DEFAULT_OUTRO_CTA,
   type CoverSlide,
   type OutroSlide,
@@ -100,18 +107,57 @@ export function createEmptyTippItemSlide(
 export function createEmptySlide(
   type: SlideType,
   category: string = DEFAULT_CATEGORY,
+  format: CarouselFormat = "standard",
 ): Slide {
+  let slide: Slide;
   switch (type) {
     case "cover":
-      return createEmptyCoverSlide(category);
+      slide = createEmptyCoverSlide(category);
+      break;
     case "text":
-      return createEmptyTextSlide(category);
+      slide = createEmptyTextSlide(category);
+      break;
     case "quote":
-      return createEmptyQuoteSlide(category);
+      slide = createEmptyQuoteSlide(category);
+      break;
     case "outro":
-      return createEmptyOutroSlide(category);
+      slide = createEmptyOutroSlide(category);
+      break;
     case "tipp-item":
-      return createEmptyTippItemSlide(category);
+      slide = createEmptyTippItemSlide(category);
+      break;
+  }
+  return applyFormatSlideDefaults(slide, format);
+}
+
+export function applyFormatSlideDefaults(
+  slide: Slide,
+  format: CarouselFormat,
+): Slide {
+  if (format !== "6ibrief") return slide;
+  switch (slide.type) {
+    case "cover":
+      return {
+        ...slide,
+        overline: slide.overline.trim() || SIXIBRIEF_DEFAULT_OVERLINE,
+      };
+    case "text":
+    case "quote":
+      return {
+        ...slide,
+        backgroundColor: SIXIBRIEF_BG,
+        ink: SIXIBRIEF_INK,
+      };
+    case "outro":
+      return {
+        ...slide,
+        backgroundColor: SIXIBRIEF_BG,
+        ink: SIXIBRIEF_INK,
+        headline: SIXIBRIEF_DEFAULT_OUTRO_HEADLINE,
+        ctaText: SIXIBRIEF_DEFAULT_OUTRO_CTA,
+      };
+    default:
+      return slide;
   }
 }
 
