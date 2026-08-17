@@ -2,25 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { differenceInCalendarDays, format, parseISO, startOfDay } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { de } from "date-fns/locale";
 import { updateProjectEventMeta } from "@/lib/actions";
-import { toDateInputValue } from "@/lib/project-meta";
-
-function countdownLabel(eventAt: Date | string | null) {
-  if (!eventAt) return null;
-  const event =
-    typeof eventAt === "string"
-      ? startOfDay(parseISO(eventAt.slice(0, 10)))
-      : startOfDay(eventAt);
-  const today = startOfDay(new Date());
-  const days = differenceInCalendarDays(event, today);
-  if (days === 0) return "Heute";
-  if (days === 1) return "Morgen";
-  if (days === -1) return "Gestern";
-  if (days > 1) return `in ${days} Tagen`;
-  return `vor ${Math.abs(days)} Tagen`;
-}
+import { eventCountdownLabel, toDateInputValue } from "@/lib/project-meta";
 
 export function ProjectEventMeta({
   spaceId,
@@ -47,7 +32,7 @@ export function ProjectEventMeta({
         { locale: de },
       )
     : null;
-  const countdown = countdownLabel(eventAt);
+  const countdown = eventCountdownLabel(eventAt);
 
   if (isTemplate) {
     return (

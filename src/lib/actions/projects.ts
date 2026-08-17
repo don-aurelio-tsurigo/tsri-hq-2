@@ -25,6 +25,10 @@ const projectCreateSchema = z.object({
     .trim()
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
+  kind: z
+    .string()
+    .optional()
+    .transform((v) => (v === "event" || v === "vorhaben" ? v : undefined)),
 });
 
 export async function createProject(formData: FormData) {
@@ -35,9 +39,15 @@ export async function createProject(formData: FormData) {
     templateId: formData.get("templateId") || undefined,
     eventAt: formData.get("eventAt") || undefined,
     venue: formData.get("venue") || undefined,
+    kind: formData.get("kind") || undefined,
   });
   if (!parsed.success) {
     return { error: "Projektname fehlt oder ist ungültig (min. 2 Zeichen)." };
+  }
+
+  const kind = parsed.data.kind;
+  if (kind === "event" && !parsed.data.eventAt) {
+    return { error: "Für ein Event bitte ein Datum setzen." };
   }
 
   if (parsed.data.eventAt && !/^\d{4}-\d{2}-\d{2}$/.test(parsed.data.eventAt)) {
@@ -75,9 +85,15 @@ export async function createProject(formData: FormData) {
     template?.description?.trim() ||
     null;
 
-  const eventAt = parsed.data.eventAt
-    ? new Date(`${parsed.data.eventAt}T12:00:00.000Z`)
-    : null;
+  const eventAt =
+    kind === "vorhaben"
+      ? null
+      : parsed.data.eventAt
+        ? new Date(`${parsed.data.eventAt}T12:00:00.000Z`)
+        : null;
+
+  const venue =
+    kind === "vorhaben" ? null : parsed.data.venue?.trim() || null;
 
   const project = await prisma.space.create({
     data: {
@@ -90,7 +106,7 @@ export async function createProject(formData: FormData) {
       ownerUserId: session.user.id,
       isTemplate: false,
       eventAt,
-      venue: parsed.data.venue?.trim() || null,
+      venue,
     },
   });
 

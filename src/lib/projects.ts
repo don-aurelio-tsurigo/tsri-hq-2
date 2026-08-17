@@ -5,6 +5,8 @@ export {
   dueAtFromEvent,
   offsetFromEvent,
   toDateInputValue,
+  isProjectEvent,
+  eventCountdownLabel,
 } from "@/lib/project-meta";
 
 function slugify(input: string) {

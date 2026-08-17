@@ -3,8 +3,14 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { ProjectActions } from "@/components/project-actions";
+import {
+  parseProjectKindFilter,
+  ProjectKindFilter,
+} from "@/components/project-kind-filter";
+import { ProjectListItem } from "@/components/project-list-item";
 import { TaskList } from "@/components/task-list";
 import { requireMembership } from "@/lib/session";
+import { isProjectEvent } from "@/lib/project-meta";
 import {
   listArchivedProjects,
   listProjectTemplates,
@@ -13,7 +19,13 @@ import {
 import { listAssignedProjectTasks } from "@/lib/tasks";
 import { prisma } from "@/lib/db";
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  const { kind: kindParam } = await searchParams;
+  const kind = parseProjectKindFilter(kindParam);
   const { session, membership } = await requireMembership();
   const [projects, archived, templates, myTasks] = await Promise.all([
     listProjects(membership.organizationId),
@@ -36,6 +48,36 @@ export default async function ProjectsPage() {
   );
   const openById = Object.fromEntries(openCounts.map((c) => [c.id, c.open]));
 
+  const events = projects
+    .filter((p) => isProjectEvent(p.eventAt))
+    .slice()
+    .sort((a, b) => {
+      const da = a.eventAt ? new Date(a.eventAt).getTime() : 0;
+      const db = b.eventAt ? new Date(b.eventAt).getTime() : 0;
+      return da - db;
+    });
+  const vorhaben = projects
+    .filter((p) => !isProjectEvent(p.eventAt))
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    );
+  const visible =
+    kind === "event" ? events : kind === "vorhaben" ? vorhaben : projects;
+  const sectionTitle =
+    kind === "event"
+      ? "Events"
+      : kind === "vorhaben"
+        ? "Projekte allg."
+        : "Alle Projekte";
+  const emptyLabel =
+    kind === "event"
+      ? "Keine Events. Leg eines mit Datum an."
+      : kind === "vorhaben"
+        ? "Keine allgemeinen Projekte. Leg eines an."
+        : "Noch keine aktiven Projekte. Leg eines an — ggf. aus einer Vorlage.";
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -47,7 +89,7 @@ export default async function ProjectsPage() {
             Projekte
           </h1>
           <p className="mt-2 text-[var(--muted)]">
-            Events und Vorhaben — mit Datum, Phasen und Tasks. Vorlagen
+            Events und allgemeine Projekte — mit Datum, Phasen und Tasks. Vorlagen
             übernehmen Gruppen und relative Fristen.
           </p>
         </div>
@@ -94,61 +136,66 @@ export default async function ProjectsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-          Alle Projekte
-        </h2>
-        {projects.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
+            {sectionTitle}
+          </h2>
+          <ProjectKindFilter
+            kind={kind}
+            counts={{
+              all: projects.length,
+              event: events.length,
+              vorhaben: vorhaben.length,
+            }}
+          />
+        </div>
+        {visible.length === 0 ? (
           <div className="card px-5 py-12 text-center text-[var(--muted)]">
-            Noch keine aktiven Projekte. Leg eines an — ggf. aus einer Vorlage.
+            {emptyLabel}
+          </div>
+        ) : kind === "all" ? (
+          <div className="space-y-6">
+            {events.length > 0 ? (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                  Bevorstehende Events
+                </h3>
+                <ul className="space-y-3">
+                  {events.map((project) => (
+                    <ProjectListItem
+                      key={project.id}
+                      project={project}
+                      openCount={openById[project.id] ?? 0}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {vorhaben.length > 0 ? (
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                  Projekte allg.
+                </h3>
+                <ul className="space-y-3">
+                  {vorhaben.map((project) => (
+                    <ProjectListItem
+                      key={project.id}
+                      project={project}
+                      openCount={openById[project.id] ?? 0}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : (
           <ul className="space-y-3">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <Link
-                  href={`/projects/${project.id}`}
-                  className="card block px-5 py-4 transition hover:border-[var(--accent)]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                        {project.name}
-                      </h2>
-                      {(project.eventAt || project.venue) && (
-                        <p className="mt-1 text-sm text-[var(--muted)]">
-                          {project.eventAt
-                            ? format(project.eventAt, "d. MMM yyyy", {
-                                locale: de,
-                              })
-                            : null}
-                          {project.eventAt && project.venue ? " · " : ""}
-                          {project.venue}
-                        </p>
-                      )}
-                      {project.description && (
-                        <p className="mt-1 line-clamp-2 text-sm text-[var(--muted)]">
-                          {project.description}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-[var(--muted)]">
-                        {project.owner ? `von ${project.owner.name} · ` : ""}
-                        aktualisiert{" "}
-                        {format(project.updatedAt, "d. MMM yyyy", {
-                          locale: de,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <span className="badge">
-                        {openById[project.id] ?? 0} offen
-                      </span>
-                      <span className="badge badge-muted">
-                        {project._count.tasks} total
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              </li>
+            {visible.map((project) => (
+              <ProjectListItem
+                key={project.id}
+                project={project}
+                openCount={openById[project.id] ?? 0}
+              />
             ))}
           </ul>
         )}
