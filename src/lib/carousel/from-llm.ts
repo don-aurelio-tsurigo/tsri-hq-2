@@ -68,8 +68,8 @@ export const llmSixibriefSchema = z.object({
   category: z.string().min(1).default(DEFAULT_CATEGORY),
   slides: z
     .array(z.discriminatedUnion("type", [coverDraft, textDraft, outroDraft]))
-    .min(6)
-    .max(10),
+    .min(3)
+    .max(30),
 });
 
 export type LlmCarouselDraft =

@@ -75,7 +75,8 @@ export async function importCarouselFromArticleUrl(
 
     try {
       const slides = await generateSlidesFromArticle(article, resolvedFormat);
-      const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
+      const minSlides =
+        resolvedFormat === "tsueritipp" || resolvedFormat === "6ibrief" ? 3 : 6;
       if (slides.length < minSlides) {
         return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
       }
@@ -137,7 +138,8 @@ export async function importCarouselFromPastedText(
       parsedText.data,
       resolvedFormat,
     );
-    const minSlides = resolvedFormat === "tsueritipp" ? 3 : 6;
+    const minSlides =
+      resolvedFormat === "tsueritipp" || resolvedFormat === "6ibrief" ? 3 : 6;
     if (slides.length < minSlides) {
       await refundMemberQuota(quota.id);
       return { error: "Zu wenige Slides erzeugt. Bitte erneut versuchen." };
