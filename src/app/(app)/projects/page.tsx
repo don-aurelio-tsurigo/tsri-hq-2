@@ -7,8 +7,8 @@ import {
   parseProjectKindFilter,
   ProjectKindFilter,
 } from "@/components/project-kind-filter";
+import { ExpandableTaskList } from "@/components/expandable-task-list";
 import { ProjectListItem } from "@/components/project-list-item";
-import { TaskList } from "@/components/task-list";
 import { requireMembership } from "@/lib/session";
 import { isProjectEvent } from "@/lib/project-meta";
 import {
@@ -111,27 +111,25 @@ export default async function ProjectsPage({
             Dir sind aktuell keine offenen Tasks in Projekten zugewiesen.
           </div>
         ) : (
-          <div className="space-y-2">
-            <TaskList
-              tasks={myTasks.map((task) => ({
-                id: task.id,
-                title: task.title,
-                description: task.description,
-                status: task.status,
-                dueAt: task.dueAt,
-                assigneeId: task.assigneeId,
-                groupId: task.groupId,
-                createdAt: task.createdAt,
-                space: task.space,
-                assignee: task.assignee,
-                createdBy: task.createdBy,
-                group: task.group,
-              }))}
-              showSpace
-              enableDrawer
-              compact
-            />
-          </div>
+          <ExpandableTaskList
+            tasks={myTasks.map((task) => ({
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              dueAt: task.dueAt,
+              assigneeId: task.assigneeId,
+              groupId: task.groupId,
+              createdAt: task.createdAt,
+              space: task.space,
+              assignee: task.assignee,
+              createdBy: task.createdBy,
+              group: task.group,
+            }))}
+            showSpace
+            enableDrawer
+            compact
+          />
         )}
       </section>
 
