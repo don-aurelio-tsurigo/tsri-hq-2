@@ -24,7 +24,6 @@ import {
   Pin,
   Rss,
   Settings2,
-  User,
   Users,
   Wallet,
   X,
@@ -43,7 +42,7 @@ type WikiPin = {
   spaceId: string;
 };
 
-type NavSectionId = "redaktion" | "team" | "privat" | "admin";
+type NavSectionId = "redaktion" | "team" | "admin";
 
 function NavLink({
   href,
@@ -439,21 +438,14 @@ export function AppSidebar({
           ))}
         </NavSection>
 
-        <NavSection
-          title="Privat"
-          icon={User}
-          open={isSectionOpen("privat")}
-          onToggle={() => toggleSection("privat")}
+        <NavTopLink
+          href="/hours"
+          active={pathname === "/hours" || pathname.startsWith("/hours/")}
+          icon={Clock}
+          onNavigate={onMobileClose}
         >
-          <NavLink
-            href="/hours"
-            active={pathname === "/hours" || pathname.startsWith("/hours/")}
-            icon={Clock}
-            onNavigate={onMobileClose}
-          >
-            Arbeitszeit
-          </NavLink>
-        </NavSection>
+          Meine Arbeitszeit
+        </NavTopLink>
 
         {isAdmin && (
           <NavSection
