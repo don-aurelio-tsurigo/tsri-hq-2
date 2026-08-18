@@ -1,10 +1,11 @@
 import { CarouselCreatePanel } from "@/components/carousel-create-panel";
 import { CarouselList } from "@/components/carousel-list";
 import { listCarouselPosts, parseSlides } from "@/lib/carousel";
+import { isAdmin } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 
 export default async function CarouselIndexPage() {
-  const { session } = await requireMembership();
+  const { session, membership } = await requireMembership();
   const posts = await listCarouselPosts();
 
   return (
@@ -30,7 +31,8 @@ export default async function CarouselIndexPage() {
           slideCount: parseSlides(post.slides).length,
           updatedAt: post.updatedAt,
           createdByName: post.createdBy.name,
-          canDelete: post.createdById === session.user.id,
+          canDelete:
+            post.createdById === session.user.id || isAdmin(membership.role),
         }))}
       />
     </div>

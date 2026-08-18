@@ -10,7 +10,7 @@ export default async function CarouselEditorPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { session } = await requireMembership();
+  await requireMembership();
   const { id } = await params;
   const post = await getCarouselPost(id);
   if (!post) notFound();
@@ -49,7 +49,7 @@ export default async function CarouselEditorPage({
       initialTitle={post.title}
       initialSlides={slides}
       createdByName={post.createdBy.name}
-      canEdit={post.createdById === session.user.id}
+      canEdit
       sourceArticle={sourceArticle}
       format={parseCarouselFormat(post.format)}
     />

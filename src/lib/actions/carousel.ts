@@ -12,6 +12,7 @@ import {
 import { prisma } from "@/lib/db";
 import { createEmptyCoverSlide, defaultCategoryForFormat } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
+import { isAdmin } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { parseCarouselFormat } from "@/lib/carousel/format";
 import { fetchTsriArticleByUrl } from "@/lib/wepublish/article";
@@ -175,7 +176,7 @@ export async function updateCarouselSlides(
   slides: unknown,
   title?: string,
 ) {
-  const { session } = await requireMembership();
+  await requireMembership();
   const parsedId = idSchema.safeParse(id);
   if (!parsedId.success) {
     return { error: "Ungültige ID." };
@@ -183,13 +184,10 @@ export async function updateCarouselSlides(
 
   const existing = await prisma.carouselPost.findUnique({
     where: { id: parsedId.data },
-    select: { createdById: true },
+    select: { id: true },
   });
   if (!existing) {
     return { error: "Carousel nicht gefunden." };
-  }
-  if (existing.createdById !== session.user.id) {
-    return { error: "Nur der Ersteller darf dieses Carousel bearbeiten." };
   }
 
   if (!Array.isArray(slides)) {
@@ -219,7 +217,7 @@ export async function updateCarouselSlides(
 }
 
 export async function deleteCarouselPost(formData: FormData) {
-  const { session } = await requireMembership();
+  const { session, membership } = await requireMembership();
   const parsedId = idSchema.safeParse(formData.get("id"));
   if (!parsedId.success) {
     return { error: "Ungültige ID." };
@@ -232,8 +230,11 @@ export async function deleteCarouselPost(formData: FormData) {
   if (!existing) {
     return { error: "Carousel nicht gefunden." };
   }
-  if (existing.createdById !== session.user.id) {
-    return { error: "Nur der Ersteller darf dieses Carousel löschen." };
+  if (
+    existing.createdById !== session.user.id &&
+    !isAdmin(membership.role)
+  ) {
+    return { error: "Nur der Ersteller oder ein Admin darf dieses Carousel löschen." };
   }
 
   await prisma.carouselPost.delete({ where: { id: parsedId.data } });
