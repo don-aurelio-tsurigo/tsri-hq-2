@@ -152,13 +152,13 @@ export default async function ProjectsPage({
             {emptyLabel}
           </div>
         ) : kind === "all" ? (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {events.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
                   Bevorstehende Events
                 </h3>
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {events.map((project) => (
                     <ProjectListItem
                       key={project.id}
@@ -170,11 +170,11 @@ export default async function ProjectsPage({
               </div>
             ) : null}
             {vorhaben.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
                   Projekte allg.
                 </h3>
-                <ul className="space-y-3">
+                <ul className="space-y-2">
                   {vorhaben.map((project) => (
                     <ProjectListItem
                       key={project.id}
@@ -187,7 +187,7 @@ export default async function ProjectsPage({
             ) : null}
           </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {visible.map((project) => (
               <ProjectListItem
                 key={project.id}
