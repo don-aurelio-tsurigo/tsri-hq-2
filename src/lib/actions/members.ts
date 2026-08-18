@@ -100,6 +100,9 @@ const adminNameSchema = z.object({
   userId: z.string().min(1),
   firstName: namePart,
   lastName: namePart,
+  birthDate: z
+    .string()
+    .regex(/^$|^\d{4}-\d{2}-\d{2}$/, "Ungültiges Datum"),
 });
 
 export async function adminUpdateMemberName(formData: FormData) {
@@ -108,6 +111,7 @@ export async function adminUpdateMemberName(formData: FormData) {
     userId: formData.get("userId"),
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
+    birthDate: String(formData.get("birthDate") ?? ""),
   });
   if (!parsed.success) {
     return { error: "Bitte Vorname und Nachname angeben." };
@@ -130,6 +134,14 @@ export async function adminUpdateMemberName(formData: FormData) {
     parsed.data.firstName,
     parsed.data.lastName,
   );
+  await prisma.user.update({
+    where: { id: parsed.data.userId },
+    data: {
+      birthDate: parsed.data.birthDate
+        ? new Date(`${parsed.data.birthDate}T12:00:00.000Z`)
+        : null,
+    },
+  });
 
   revalidatePath("/settings/members");
   revalidatePath("/home");
@@ -297,7 +309,7 @@ export async function setMemberCapability(formData: FormData) {
     (c) => c.key === parsed.data.capability,
   );
   if (target.role === "admin" && tag?.kind === "access") {
-    return { error: "Admins haben Zugangs-Tags wie Finance automatisch." };
+    return { error: "Admins haben Zugangs-Rollen wie Finance automatisch." };
   }
 
   if (parsed.data.enabled === "true") {

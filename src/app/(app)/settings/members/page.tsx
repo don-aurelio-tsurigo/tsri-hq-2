@@ -62,6 +62,9 @@ export default async function MembersSettingsPage() {
             email: m.user.email,
             firstName: m.user.firstName,
             lastName: m.user.lastName,
+            birthDate: m.user.birthDate
+              ? m.user.birthDate.toISOString().slice(0, 10)
+              : null,
           },
           grants: m.grants.map((g) => g.capability),
         }))}
@@ -76,6 +79,9 @@ export default async function MembersSettingsPage() {
             email: m.user.email,
             firstName: m.user.firstName,
             lastName: m.user.lastName,
+            birthDate: m.user.birthDate
+              ? m.user.birthDate.toISOString().slice(0, 10)
+              : null,
           },
           grants: m.grants.map((g) => g.capability),
         }))}

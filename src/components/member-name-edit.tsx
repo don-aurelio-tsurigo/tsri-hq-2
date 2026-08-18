@@ -9,10 +9,12 @@ export function MemberNameEdit({
   userId,
   firstName,
   lastName,
+  birthDate,
 }: {
   userId: string;
   firstName: string | null;
   lastName: string | null;
+  birthDate: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function MemberNameEdit({
 
   return (
     <form
-      key={`${userId}-${firstName ?? ""}-${lastName ?? ""}`}
+      key={`${userId}-${firstName ?? ""}-${lastName ?? ""}-${birthDate ?? ""}`}
       onSubmit={onSubmit}
       className="space-y-2"
     >
@@ -67,13 +69,21 @@ export function MemberNameEdit({
           defaultValue={lastName ?? ""}
         />
       </label>
+      <label className="field text-xs font-semibold text-[var(--muted)]">
+        Geburtsdatum
+        <input
+          name="birthDate"
+          type="date"
+          defaultValue={birthDate ?? ""}
+        />
+      </label>
       {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
       <button
         type="submit"
         className="btn btn-primary w-full text-sm"
         disabled={pending}
       >
-        {pending ? "…" : "Name speichern"}
+        {pending ? "…" : "Speichern"}
       </button>
     </form>
   );

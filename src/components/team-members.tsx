@@ -26,6 +26,7 @@ export type TeamMember = {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    birthDate: string | null;
   };
   grants: AppCapability[];
 };
@@ -282,12 +283,13 @@ function MemberDrawer({
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4">
           <section className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Name
+              Person
             </h3>
             <MemberNameEdit
               userId={panelMember.userId}
               firstName={panelMember.user.firstName}
               lastName={panelMember.user.lastName}
+              birthDate={panelMember.user.birthDate}
             />
           </section>
 
