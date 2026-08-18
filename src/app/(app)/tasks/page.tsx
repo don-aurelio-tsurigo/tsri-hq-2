@@ -5,6 +5,7 @@ import { ensurePersonalSpace } from "@/lib/spaces";
 import {
   listAssignedProjectTasks,
   listSpaceTasks,
+  listTaskGroups,
 } from "@/lib/tasks";
 
 function toTaskRow(
@@ -55,18 +56,20 @@ export default async function PersonalTasksPage() {
     type: personal.type,
   };
 
-  const [personalTasks, assignedProjectTasks, members] = await Promise.all([
-    listSpaceTasks(personal.id),
-    listAssignedProjectTasks(membership.organizationId, session.user.id),
-    prisma.membership.findMany({
-      where: {
-        organizationId: membership.organizationId,
-        archivedAt: null,
-      },
-      include: { user: { select: { id: true, name: true } } },
-      orderBy: { user: { name: "asc" } },
-    }),
-  ]);
+  const [personalTasks, assignedProjectTasks, members, groups] =
+    await Promise.all([
+      listSpaceTasks(personal.id),
+      listAssignedProjectTasks(membership.organizationId, session.user.id),
+      prisma.membership.findMany({
+        where: {
+          organizationId: membership.organizationId,
+          archivedAt: null,
+        },
+        include: { user: { select: { id: true, name: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+      listTaskGroups(personal.id),
+    ]);
 
   const byId = new Map<string, ReturnType<typeof toTaskRow>>();
   for (const t of personalTasks) {
@@ -95,7 +98,7 @@ export default async function PersonalTasksPage() {
       title="Meine Tasks"
       currentUserId={session.user.id}
       members={members.map((m) => m.user)}
-      groups={[]}
+      groups={groups.map((g) => ({ id: g.id, name: g.name }))}
       tasks={tasks}
     />
   );

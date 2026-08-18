@@ -36,10 +36,18 @@ import {
 
 type Group = { id: string; name: string };
 type Member = { id: string; name: string };
-type InboxMode = "due" | "project";
+type InboxMode = "due" | "project" | "list";
 type ScopeFilter = "all" | "personal" | "project";
 
 type BucketKey = "overdue" | "today" | "week" | "later" | "none";
+
+function isPersonalSpaceTask(
+  task: TaskRow,
+  personalSpaceId: string,
+): boolean {
+  const space = task.space;
+  return !space || space.type === "personal" || space.id === personalSpaceId;
+}
 
 const DUE_BUCKETS: { key: BucketKey; label: string }[] = [
   { key: "overdue", label: "Überfällig" },
@@ -205,7 +213,7 @@ export function GroupedTasksBoard({
   isTemplate?: boolean;
   /**
    * `space` = TaskGroup sections (project detail / single space).
-   * `inbox` = merged personal + assigned project tasks with due/project modes.
+   * `inbox` = merged personal + assigned project tasks with due/project/list modes.
    */
   variant?: "space" | "inbox";
 }) {
@@ -302,16 +310,21 @@ export function GroupedTasksBoard({
   );
 
   const openByTaskGroup = useMemo(() => {
+    const source =
+      isInbox
+        ? openTasks.filter((t) => isPersonalSpaceTask(t, spaceId))
+        : openTasks;
     const map = new Map<string | null, TaskRow[]>();
     map.set(null, []);
     for (const g of groups) map.set(g.id, []);
-    for (const task of openTasks) {
+    for (const task of source) {
       const key = task.groupId ?? task.group?.id ?? null;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(task);
+      // Only place into known personal/project groups; unknown ids → ohne Liste
+      const bucket = key != null && map.has(key) ? key : null;
+      map.get(bucket)!.push(task);
     }
     return map;
-  }, [openTasks, groups]);
+  }, [openTasks, groups, isInbox, spaceId]);
 
   const openByDue = useMemo(() => {
     const map = new Map<BucketKey, TaskRow[]>();
@@ -398,9 +411,10 @@ export function GroupedTasksBoard({
   }
 
   function moveToGroup(taskId: string, groupId: string | null) {
-    if (!canEdit || isInbox) return;
-    const task = tasks.find((t) => t.id === taskId);
+    if (!canManageGroups) return;
+    const task = optimisticTasks.find((t) => t.id === taskId);
     if (!task) return;
+    if (isInbox && !isPersonalSpaceTask(task, spaceId)) return;
     const current = task.groupId ?? task.group?.id ?? null;
     if (current === groupId) return;
 
@@ -413,7 +427,7 @@ export function GroupedTasksBoard({
   }
 
   function onHeaderDragOver(e: DragEvent, key: string) {
-    if (!canEdit || isInbox) return;
+    if (!canManageGroups) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOverKey(key);
@@ -427,7 +441,7 @@ export function GroupedTasksBoard({
   }
 
   function onHeaderDrop(e: DragEvent, groupId: string | null) {
-    if (!canEdit || isInbox) return;
+    if (!canManageGroups) return;
     e.preventDefault();
     setDragOverKey(null);
     const id = e.dataTransfer.getData(TASK_DRAG_TYPE);
@@ -435,8 +449,15 @@ export function GroupedTasksBoard({
     moveToGroup(id, groupId);
   }
 
+  const canManageGroups = canEdit && (!isInbox || inboxMode === "list");
   const editMembers = canEdit ? members : undefined;
-  const listGroups = isInbox ? undefined : groups;
+  const listGroups = canManageGroups ? groups : undefined;
+  const groupNoun = isInbox ? "Liste" : "Gruppe";
+  const personalSpaceMeta = {
+    id: spaceId,
+    name: isInbox ? "Privat" : title,
+    type: isInbox ? ("personal" as const) : ("project" as const),
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -514,6 +535,7 @@ export function GroupedTasksBoard({
               [
                 { id: "due", label: "Nach Fälligkeit" },
                 { id: "project", label: "Nach Projekt" },
+                { id: "list", label: "Nach Liste" },
               ] as const
             ).map((mode) => {
               const active = inboxMode === mode.id;
@@ -528,7 +550,12 @@ export function GroupedTasksBoard({
                       ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                       : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
                   ].join(" ")}
-                  onClick={() => setInboxMode(mode.id)}
+                  onClick={() => {
+                    setInboxMode(mode.id);
+                    if (mode.id === "list" && scopeFilter === "project") {
+                      setScopeFilter("personal");
+                    }
+                  }}
                 >
                   {mode.label}
                 </button>
@@ -627,12 +654,19 @@ export function GroupedTasksBoard({
         </div>
       )}
 
-      {!isInbox && (
+      {(!isInbox || inboxMode === "list") && (
         <>
+          {isInbox && scopeFilter === "project" ? (
+            <div className="card px-4 py-6 text-center text-sm text-[var(--muted)]">
+              Private Listen gelten für Privat-Tasks. Filter auf Privat oder Alle
+              stellen.
+            </div>
+          ) : (
+            <>
           <div className="space-y-3">
             <CollapsibleSection
               sectionKey="__none__"
-              label="Ohne Gruppe"
+              label={isInbox ? "Ohne Liste" : "Ohne Gruppe"}
               count={(openByTaskGroup.get(null) ?? []).length}
               collapsed={collapsed}
               onToggle={toggle}
@@ -650,9 +684,9 @@ export function GroupedTasksBoard({
                 groups={listGroups}
                 members={editMembers}
                 currentUserId={currentUserId}
-                enableDrag={canEdit}
+                enableDrag={canManageGroups}
                 dropGroupId={null}
-                onMoveToGroup={canEdit ? moveToGroup : undefined}
+                onMoveToGroup={canManageGroups ? moveToGroup : undefined}
                 showDueOffset={isTemplate}
                 footer={
                   canEdit ? (
@@ -660,11 +694,7 @@ export function GroupedTasksBoard({
                       spaceId={spaceId}
                       groupId=""
                       assigneeId={currentUserId}
-                      space={{
-                        id: spaceId,
-                        name: title,
-                        type: "project",
-                      }}
+                      space={personalSpaceMeta}
                       onCreate={createInlineTask}
                     />
                   ) : undefined
@@ -690,7 +720,7 @@ export function GroupedTasksBoard({
                   }
                   onDrop={(e) => onHeaderDrop(e, group.id)}
                   headerExtra={
-                    canEdit && !renaming ? (
+                    canManageGroups && !renaming ? (
                       <div className="flex shrink-0 gap-0.5">
                         <button
                           type="button"
@@ -707,7 +737,7 @@ export function GroupedTasksBoard({
                           onClick={() => {
                             if (
                               !confirm(
-                                `Gruppe «${group.name}» löschen? Tasks bleiben ohne Gruppe.`,
+                                `${groupNoun} «${group.name}» löschen? Tasks bleiben ohne ${groupNoun.toLowerCase()}.`,
                               )
                             ) {
                               return;
@@ -764,9 +794,9 @@ export function GroupedTasksBoard({
                       groups={listGroups}
                       members={editMembers}
                       currentUserId={currentUserId}
-                      enableDrag={canEdit}
+                      enableDrag={canManageGroups}
                       dropGroupId={group.id}
-                      onMoveToGroup={canEdit ? moveToGroup : undefined}
+                      onMoveToGroup={canManageGroups ? moveToGroup : undefined}
                       showDueOffset={isTemplate}
                       footer={
                         canEdit ? (
@@ -774,11 +804,7 @@ export function GroupedTasksBoard({
                             spaceId={spaceId}
                             groupId={group.id}
                             assigneeId={currentUserId}
-                            space={{
-                              id: spaceId,
-                              name: title,
-                              type: "project",
-                            }}
+                            space={personalSpaceMeta}
                             group={{ id: group.id, name: group.name }}
                             onCreate={createInlineTask}
                           />
@@ -791,7 +817,7 @@ export function GroupedTasksBoard({
             })}
           </div>
 
-          {canEdit &&
+          {canManageGroups &&
             (addingGroup ? (
               <form
                 className="flex gap-2"
@@ -803,7 +829,7 @@ export function GroupedTasksBoard({
                 <input
                   name="name"
                   required
-                  placeholder="Name der Gruppe…"
+                  placeholder={`Name der ${groupNoun}…`}
                   className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm"
                   autoFocus
                 />
@@ -828,9 +854,11 @@ export function GroupedTasksBoard({
                 className="text-sm font-medium text-[var(--accent)] hover:underline"
                 onClick={() => setAddingGroup(true)}
               >
-                + Neue Gruppe
+                + Neue {groupNoun}
               </button>
             ))}
+            </>
+          )}
         </>
       )}
 
