@@ -508,11 +508,15 @@ export default async function SpacePage({
 
   if (space.slug === "ferienplan") {
     const isAdmin = membership.role === "admin";
-    const requests = await listVisibleVacationRequests(
-      membership.organizationId,
-      session.user.id,
-      isAdmin,
-    );
+    const [requests, editorialMembers, civicMediaMembers] = await Promise.all([
+      listVisibleVacationRequests(
+        membership.organizationId,
+        session.user.id,
+        isAdmin,
+      ),
+      listMembersInTagPool(membership.organizationId, "editorial"),
+      listMembersInTagPool(membership.organizationId, "civic_media"),
+    ]);
 
     return (
       <div className="mx-auto max-w-6xl space-y-6">
@@ -528,6 +532,8 @@ export default async function SpacePage({
         <VacationPlan
           currentUserId={session.user.id}
           isAdmin={isAdmin}
+          editorialUserIds={editorialMembers.map((m) => m.user.id)}
+          civicMediaUserIds={civicMediaMembers.map((m) => m.user.id)}
           requests={requests.map((r) => ({
             id: r.id,
             startDate: vacationDateKey(r.startDate),

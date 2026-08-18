@@ -204,14 +204,20 @@ function barsForWeek(week: CalDay[], vacations: VacationRow[]): WeekBar[] {
   return bars;
 }
 
+type RoleFilter = "all" | "editorial" | "civic_media";
+
 export function VacationPlan({
   requests,
   currentUserId,
   isAdmin,
+  editorialUserIds,
+  civicMediaUserIds,
 }: {
   requests: VacationRow[];
   currentUserId: string;
   isAdmin: boolean;
+  editorialUserIds: string[];
+  civicMediaUserIds: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -220,6 +226,16 @@ export function VacationPlan({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<VacationRow | null>(null);
   const [mineOnly, setMineOnly] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+
+  const editorialSet = useMemo(
+    () => new Set(editorialUserIds),
+    [editorialUserIds],
+  );
+  const civicMediaSet = useMemo(
+    () => new Set(civicMediaUserIds),
+    [civicMediaUserIds],
+  );
 
   const now = new Date();
   const [cursor, setCursor] = useState(() => ({
@@ -232,12 +248,25 @@ export function VacationPlan({
   const approved = requests.filter((r) => r.status === "approved");
   const calendarApproved = useMemo(
     () =>
-      requests.filter(
-        (r) =>
-          r.status === "approved" &&
-          (!mineOnly || r.user.id === currentUserId),
-      ),
-    [requests, mineOnly, currentUserId],
+      requests.filter((r) => {
+        if (r.status !== "approved") return false;
+        if (mineOnly && r.user.id !== currentUserId) return false;
+        if (roleFilter === "editorial" && !editorialSet.has(r.user.id)) {
+          return false;
+        }
+        if (roleFilter === "civic_media" && !civicMediaSet.has(r.user.id)) {
+          return false;
+        }
+        return true;
+      }),
+    [
+      requests,
+      mineOnly,
+      currentUserId,
+      roleFilter,
+      editorialSet,
+      civicMediaSet,
+    ],
   );
 
   const weeks = useMemo(
@@ -317,7 +346,11 @@ export function VacationPlan({
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {mineOnly
                   ? "Nur deine genehmigten Ferien."
-                  : "Genehmigte Ferien des gesamten Teams."}
+                  : roleFilter === "editorial"
+                    ? "Genehmigte Ferien der Redaktion."
+                    : roleFilter === "civic_media"
+                      ? "Genehmigte Ferien von Civic Media."
+                      : "Genehmigte Ferien des gesamten Teams."}
               </p>
             </div>
             <button
@@ -343,6 +376,34 @@ export function VacationPlan({
             >
               Meine Ferien
             </button>
+            {(
+              [
+                { id: "editorial", label: "Redaktion" },
+                { id: "civic_media", label: "Civic Media" },
+              ] as const
+            ).map((opt) => {
+              const active = roleFilter === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    active
+                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                  ].join(" ")}
+                  onClick={() =>
+                    setRoleFilter((current) =>
+                      current === opt.id ? "all" : opt.id,
+                    )
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
             <button
               type="button"
               className="btn btn-ghost px-3 py-1.5 text-sm"
