@@ -1,4 +1,4 @@
-const INTERVAL_MS = 5 * 60 * 1000;
+const INTERVAL_MS = 30 * 60 * 1000;
 const INITIAL_DELAY_MS = 30 * 1000;
 
 const globalForScheduler = globalThis as unknown as {
@@ -50,7 +50,7 @@ export function startNewsFeedScheduler() {
       const { runNewsFeedFetchForAllOrgs } = await import("@/lib/news-feed");
       const summary = await runNewsFeedFetchForAllOrgs();
       console.log(
-        `[news-feed] scheduled fetch: orgs=${summary.orgs} inserted=${summary.inserted} fetched=${summary.fetched} missing=${summary.missing} enriched=${summary.enriched} rssMb=${memSnap().rssMb} heapMb=${memSnap().heapMb}`,
+        `[news-feed] scheduled fetch: orgs=${summary.orgs} inserted=${summary.inserted} fetched=${summary.fetched} missing=${summary.missing} enriched=${summary.enriched} purged=${summary.purged} rssMb=${memSnap().rssMb} heapMb=${memSnap().heapMb}`,
       );
       // #region agent log
       fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
@@ -72,6 +72,7 @@ export function startNewsFeedScheduler() {
             fetched: summary.fetched,
             missing: summary.missing,
             enriched: summary.enriched,
+            purged: summary.purged,
             results: summary.results,
             mem: memSnap(),
           },

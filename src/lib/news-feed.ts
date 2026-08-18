@@ -4,6 +4,7 @@ import {
   allFeedSources,
   sourceAutoFetchesFulltext,
   BAUGESUCHE_SOURCE,
+  NEWS_ITEM_RETENTION_DAYS,
   TAGBLATT_SOURCE,
 } from "@/lib/news-feed-constants";
 import {
@@ -71,10 +72,40 @@ export function listConfiguredSources() {
   return allFeedSources();
 }
 
+function retentionCutoff(now = new Date()) {
+  return new Date(
+    now.getTime() - NEWS_ITEM_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+}
+
+export function isNewsItemWithinRetention(
+  item: { publishedAt: Date | null },
+  now = new Date(),
+) {
+  if (!item.publishedAt) return true;
+  return item.publishedAt.getTime() >= retentionCutoff(now).getTime();
+}
+
+/** Drop neu/verworfen rows past the retention window. Tracked items stay. */
+export async function purgeExpiredNewsItems() {
+  const cutoff = retentionCutoff();
+  const result = await prisma.newsItem.deleteMany({
+    where: {
+      status: { in: ["neu", "verworfen"] },
+      OR: [
+        { publishedAt: { lt: cutoff } },
+        { AND: [{ publishedAt: null }, { fetchedAt: { lt: cutoff } }] },
+      ],
+    },
+  });
+  return result.count;
+}
+
 export async function upsertNewsItems(
   organizationId: string,
   items: ParsedNewsItem[],
 ) {
+  items = items.filter((item) => isNewsItemWithinRetention(item));
   if (items.length === 0) return 0;
   const fetchedAt = new Date();
   const batchSize = 50;
@@ -146,7 +177,10 @@ export async function runNewsFeedFetchForAllOrgs() {
       })
     : [];
   const existingIds = new Set(existingRows.map((row) => row.externalId));
-  const missing = cheapItems.filter((item) => !existingIds.has(item.externalId));
+  const missing = cheapItems.filter(
+    (item) =>
+      !existingIds.has(item.externalId) && isNewsItemWithinRetention(item),
+  );
   const needsEnrich = missing.filter(
     (item) =>
       sourceAutoFetchesFulltext(item.source) ||
@@ -175,12 +209,15 @@ export async function runNewsFeedFetchForAllOrgs() {
     inserted += await upsertNewsItems(org.id, toUpsert);
   }
 
+  const purged = await purgeExpiredNewsItems();
+
   return {
     orgs: orgs.length,
     fetched: cheapItems.length,
     inserted,
     missing: missing.length,
     enriched: enrichedNew.length,
+    purged,
     results,
   };
 }

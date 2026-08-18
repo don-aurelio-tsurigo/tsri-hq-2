@@ -77,6 +77,8 @@ export const BAUGESUCHE_SOURCE = {
 export const BAUGESUCHE_MAX_AGE_DAYS = 30;
 export const BAUGESUCHE_TOWN = "Zürich";
 export const GEMEINDERAT_MAX_AGE_DAYS = 45;
+/** Inbox rows with status neu/verworfen older than this are deleted. */
+export const NEWS_ITEM_RETENTION_DAYS = 14;
 
 export const FEED_USER_AGENT = "TsueriNewsFeed/1.0 (+https://tsri.ch)";
 
