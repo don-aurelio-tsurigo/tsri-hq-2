@@ -482,7 +482,7 @@ function CoverPreview({
             <p
               className="font-normal"
               style={{
-                fontSize: isSixi ? 32 : 35,
+                fontSize: isSixi ? 41 : 35,
                 lineHeight: 1.2,
                 marginBottom: isSixi ? 18 : 40,
                 fontFamily: isSixi ? INSTRUMENT_SANS_STACK : undefined,
@@ -496,7 +496,7 @@ function CoverPreview({
         <p
           className={isSixi ? "font-medium" : "font-bold"}
           style={{
-            fontSize: isSixi ? 64 : 68,
+            fontSize: isSixi ? 81 : 68,
             lineHeight: isSixi ? 1.08 : 1.12,
             fontWeight: isSixi ? 500 : undefined,
             whiteSpace: isTipp || isSixi ? "pre-wrap" : undefined,
@@ -886,7 +886,7 @@ function OutroPreview({
         <p
           className={isSixi ? "font-medium" : "font-bold"}
           style={{
-            fontSize: isSixi ? 58 : 76,
+            fontSize: isSixi ? 74 : 76,
             lineHeight: isSixi ? 1.28 : 1.32,
             fontWeight: isSixi ? 500 : undefined,
             whiteSpace: "pre-wrap",
@@ -914,7 +914,7 @@ function OutroPreview({
           style={{
             left: 80,
             bottom: 72,
-            fontSize: 32,
+            fontSize: 41,
             lineHeight: 1.2,
             fontFamily: INSTRUMENT_SANS_STACK,
             fontWeight: 700,
