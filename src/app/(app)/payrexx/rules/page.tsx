@@ -31,10 +31,6 @@ export default async function PayrexxRulesPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Gelernte Kanal-Regeln
           </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Exakte Zahlungskanal-Namen, die beim Review mit «Kanal merken»
-            gespeichert wurden. Gelten org-weit für neue Imports.
-          </p>
         </header>
       </div>
 

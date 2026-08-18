@@ -18,10 +18,6 @@ export default async function DamUploadPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Upload
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Credit setzen, Bilder nach R2 laden, Rechte und Collections zuweisen.
-          Alles landet zuerst im Staging.
-        </p>
       </header>
       <DamUploadWizard
         userName={session.user.name}

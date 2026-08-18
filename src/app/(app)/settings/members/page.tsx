@@ -47,12 +47,6 @@ export default async function MembersSettingsPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Teamverwaltung
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Jede eingeladene Person bekommt einen vollen Account und automatisch
-          einen privaten Space. Archivierte verlieren den Zugang — Historie
-          (Artikel, Stunden) bleibt erhalten. Tags steuern Zugang (Finance,
-          Werbung) und Vorschläge (Autor:in in der Redaktion).
-        </p>
       </header>
 
       <InviteMemberForm appUrl={appUrl} />

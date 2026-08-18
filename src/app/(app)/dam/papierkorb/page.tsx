@@ -25,10 +25,6 @@ export default async function DamTrashPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Papierkorb
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Gelöschte Archiv-Bilder. Nach 30 Tagen werden Datei und Eintrag endgültig
-          entfernt.
-        </p>
       </header>
 
       {assets.length === 0 ? (

@@ -354,10 +354,6 @@ export function WikiSpace({
               <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
                 Wiki
               </h1>
-              <p className="mt-2 max-w-2xl text-[var(--muted)]">
-                Onboarding, Prozesse und Regeln — von allen editierbar, in einem
-                klaren Themenbaum.
-              </p>
             </header>
 
             {pinned.length > 0 && (

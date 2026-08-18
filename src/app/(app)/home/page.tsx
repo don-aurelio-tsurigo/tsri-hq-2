@@ -33,8 +33,6 @@ import {
   getCurrentWeekProgress,
   getPastWeekTimeGaps,
 } from "@/lib/time-tracking";
-import { greetingName } from "@/lib/user-name";
-
 function isMidweekChoreReminderDay(date: Date = new Date()) {
   const day = date.getDay(); // 0=So … 3=Mi … 5=Fr
   return day >= 3 && day <= 5;
@@ -156,10 +154,6 @@ export default async function HomePage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Home
         </h1>
-        <p className="mt-2 text-[var(--muted)]">
-          Hallo {greetingName(session.user)} — deine aktuellen Aufgaben und
-          Artikel.
-        </p>
       </header>
 
       {isAdmin && pendingVacations.length > 0 && (

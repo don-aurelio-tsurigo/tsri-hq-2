@@ -32,10 +32,6 @@ export default async function DamArchivePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Archiv
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Publizierte Bilder für alle eingeloggten User. Suche und Filter, Doppelklick
-            öffnet die Vorschau.
-          </p>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">
           Upload

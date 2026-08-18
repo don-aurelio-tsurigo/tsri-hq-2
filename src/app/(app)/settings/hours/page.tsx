@@ -31,11 +31,6 @@ export default async function AdminHoursPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Arbeitszeit Team
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Übersicht Ist/Soll und Plus-/Minusstunden für alle Accounts.
-          Saldo Jahr = Jan bis heute · Monat = ganzer Kalendermonat · Woche =
-          Mo bis heute.
-        </p>
       </header>
 
       <div className="card overflow-x-auto">

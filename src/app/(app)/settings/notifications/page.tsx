@@ -25,10 +25,6 @@ export default async function NotificationsSettingsPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Benachrichtigungen
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Slack-Kanalnachrichten für den Kochplan steuern. Pro Notification
-          eigenen Webhook setzen — weitere Kanäle können später ergänzt werden.
-        </p>
       </header>
 
       <SlackCookingNotificationSettings

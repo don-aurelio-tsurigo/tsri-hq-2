@@ -88,10 +88,6 @@ export default async function ProjectsPage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Projekte
           </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Events und allgemeine Projekte — mit Datum, Phasen und Tasks. Vorlagen
-            übernehmen Gruppen und relative Fristen.
-          </p>
         </div>
         <CreateProjectForm
           templates={templates.map((t) => ({

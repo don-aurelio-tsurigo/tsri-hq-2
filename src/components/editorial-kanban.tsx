@@ -21,7 +21,6 @@ import {
   DEFAULT_ARTICLE_STAGE,
   DEFAULT_KANBAN_VIEW,
   isArticleStage,
-  KANBAN_VIEW_DESCRIPTIONS,
   KANBAN_VIEW_LABELS,
   KANBAN_VIEW_STAGES,
   KANBAN_VIEWS,
@@ -268,10 +267,6 @@ export function EditorialKanban({
           onClose={() => setManageRubriken(false)}
         />
       )}
-
-      <p className="text-sm text-[var(--muted)]">
-        {KANBAN_VIEW_DESCRIPTIONS[view]}
-      </p>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="field min-w-[180px] flex-1">

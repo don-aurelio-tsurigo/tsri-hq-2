@@ -8,9 +8,6 @@ import {
 export default function NewCarouselPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-16">
-      <div className="space-y-2 text-center">
-        <p className="text-[var(--muted)]">Neues Carousel anlegen</p>
-      </div>
       <form action={createCarouselPost} className="space-y-4">
         <fieldset className="field">
           <legend className="text-sm font-bold text-[var(--muted)]">

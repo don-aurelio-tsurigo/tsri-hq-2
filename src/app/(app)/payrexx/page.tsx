@@ -20,10 +20,6 @@ export default async function PayrexxPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Payrexx-Tool
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Payout-Exports aus Payrexx nach Buchhaltungs-Kategorien aufschlüsseln,
-          offene Zeilen reviewen und als CSV exportieren.
-        </p>
       </header>
 
       {unmappedTotal > 0 ? (

@@ -4,7 +4,6 @@ import { TimeTrackingWeek } from "@/components/time-tracking-week";
 import { requireMembership } from "@/lib/session";
 import {
   dailyTargetHours,
-  formatHours,
   toTimeDateKey,
 } from "@/lib/time-tracking-constants";
 import {
@@ -101,10 +100,6 @@ export default async function HoursPage({
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Arbeitszeit
         </h1>
-        <p className="mt-2 text-[var(--muted)]">
-          Arbeits- und Pause-Segmente erfassen — Ist vs. Soll bei {pensum}%
-          Pensum ({formatHours(dailyTargetHours(pensum))} h/Tag, 40-h-Vollzeit).
-        </p>
       </header>
 
       <TimeTrackingWeek week={weekData} />

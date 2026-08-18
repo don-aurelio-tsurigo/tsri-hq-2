@@ -205,10 +205,6 @@ export default async function SpacePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             {space.name}
           </h1>
-          <p className="mt-2 max-w-3xl text-[var(--muted)]">
-            Artikel-Kanban oben — mit Publikationsdatum erscheinen Beiträge
-            automatisch im Programm darunter.
-          </p>
         </header>
 
         <section className="space-y-4">
@@ -310,9 +306,6 @@ export default async function SpacePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Team Infos
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Kontaktdaten, Pensum und Geburtstage aller Teammitglieder.
-          </p>
         </header>
 
         <OfficeDirectory
@@ -347,9 +340,6 @@ export default async function SpacePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Ämtliplan
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Büro-Ämtli mit Beschreibung und Zuweisung an mehrere Personen.
-          </p>
         </header>
 
         <ChorePlan
@@ -457,9 +447,6 @@ export default async function SpacePage({
           <h1 className="mt-0.5 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
             Kochplan
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Woche Mo–So — eintragen nur Dienstag bis Freitag.
-          </p>
         </header>
 
         <CookingPlan
@@ -506,10 +493,6 @@ export default async function SpacePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Newsfeed
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Lokale Zürich-Quellen alle paar Minuten einlesen und reviewen —
-            getrennt vom Redaktions-Kanban.
-          </p>
         </header>
 
         <NewsFeed
@@ -540,10 +523,6 @@ export default async function SpacePage({
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Ferienplan
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Trage deine Ferien ein. Admins freigeben die Anfragen — genehmigte
-            Einträge sieht das ganze Team im Monatskalender.
-          </p>
         </header>
 
         <VacationPlan
@@ -574,9 +553,6 @@ export default async function SpacePage({
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           {space.name}
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          {space.description ?? "Geteilter Space für euer Team."}
-        </p>
       </header>
 
       {canEdit && <CreateTaskForm spaceId={space.id} />}

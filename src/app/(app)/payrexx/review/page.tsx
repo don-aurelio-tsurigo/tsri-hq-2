@@ -23,11 +23,6 @@ export default async function PayrexxReviewPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Review-Queue
           </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            {lines.length === 0
-              ? "Alles zugeordnet — keine offenen Zeilen."
-              : `${lines.length} Zeile(n) ohne Kategorie.`}
-          </p>
         </header>
       </div>
 

@@ -17,9 +17,6 @@ export default async function CarouselIndexPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Instagram Carousel
         </h1>
-        <p className="mt-2 text-[var(--muted)]">
-          Carousels anlegen, bearbeiten und als PNG exportieren.
-        </p>
       </header>
 
       <CarouselCreatePanel />

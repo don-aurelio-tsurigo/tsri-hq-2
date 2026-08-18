@@ -25,10 +25,6 @@ export default async function NewsletterSettingsPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Newsletter Einstellungen
         </h1>
-        <p className="mt-2 max-w-2xl text-[var(--muted)]">
-          Typen, Rhythmus sowie Feiertage und typbezogene Pausen festlegen. Die
-          Planung bleibt unter Newsletter-Plan in der Redaktion.
-        </p>
       </header>
 
       <NewsletterTypeManager

@@ -28,10 +28,6 @@ export default async function DamPersonalPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Meine Fotos
           </h1>
-          <p className="mt-2 max-w-2xl text-[var(--muted)]">
-            Deine Staging-Bilder: bewerten, schneiden, Collections zuweisen oder ins
-            Archiv verschieben.
-          </p>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">
           Upload
