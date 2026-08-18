@@ -1,7 +1,8 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { RightsType } from "@/generated/prisma/client";
-import { MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import { MAX_FILES, rejectReason, normalizedContentType, outputExtension } from "@/lib/dam/accept";
+import { buildFileName } from "@/lib/dam/filename";
 import { processDamAssets } from "@/lib/dam/process";
 import { prisma } from "@/lib/db";
 import { getActiveMembershipContext } from "@/lib/session";
@@ -140,6 +141,20 @@ export async function POST(request: Request) {
         body.newCollections,
       );
 
+      async function titleFor(collectionIds: string[], fallback: string) {
+        const id = collectionIds[0];
+        if (!id) return fallback;
+        const collection = await tx.collection.findUnique({
+          where: { id },
+          select: { name: true },
+        });
+        return collection?.name.trim() || fallback;
+      }
+
+      const batchTitle = body.applyToAll
+        ? await titleFor(batchCollectionIds, batch.credit)
+        : null;
+
       const ids: string[] = [];
       for (const asset of body.assets) {
         const rightsType = (
@@ -160,12 +175,24 @@ export async function POST(request: Request) {
               asset.collectionIds ?? body.collectionIds,
               asset.newCollections ?? [],
             );
+        const contentType = normalizedContentType(
+          asset.originalName,
+          asset.contentType,
+        );
+        const ext = outputExtension(contentType, asset.originalName);
+        const fileName = buildFileName(
+          body.applyToAll
+            ? (batchTitle ?? credit)
+            : await titleFor(collectionIds, credit),
+          asset.sequence,
+          ext,
+        );
 
         const row = await tx.asset.create({
           data: {
             batchId: batch.id,
             sequence: asset.sequence,
-            fileName: asset.fileName,
+            fileName,
             r2Key: asset.r2Key,
             status: "staging",
             credit,

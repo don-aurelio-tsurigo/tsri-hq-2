@@ -17,8 +17,10 @@ import { DamCombobox } from "@/components/dam-combobox";
 import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
 import {
   defaultCollectionName,
+  creditDisplayName,
   suggestedRightsType,
 } from "@/lib/dam/upload-defaults";
+import { buildFileName } from "@/lib/dam/filename";
 
 type RightsType = "own" | "provided" | "free_use";
 
@@ -499,36 +501,18 @@ export function DamUploadWizard({
   const allUploaded = prepared.length > 0 && doneCount === prepared.length;
 
   const fileNamesPreview = useMemo(() => {
-    if (!selectedCredit || queued.length === 0) return [];
-    const date = new Date();
-    const pad = (n: number) => String(n).padStart(3, "0");
-    const slug = selectedCredit
-      .split("/")[0]
-      ?.trim()
-      .replace(/[Ää]/g, "ae")
-      .replace(/[Öö]/g, "oe")
-      .replace(/[Üü]/g, "ue")
-      .replace(/ß/g, "ss")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "foto";
-    const stamp = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Zurich",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-      .format(date)
-      .replace(/-/g, "");
+    const title =
+      newCollectionName.trim() ||
+      collections.find((collection) => collection.id === collectionIds[0])?.name ||
+      creditDisplayName(selectedCredit);
+    if (!title || queued.length === 0) return [];
     return queued.map((q, i) => {
       const ext = q.file.name.includes(".")
         ? q.file.name.slice(q.file.name.lastIndexOf(".") + 1).toLowerCase()
         : "jpg";
-      return `${slug}-${stamp}-${pad(i + 1)}.${ext}`;
+      return buildFileName(title, i + 1, ext);
     });
-  }, [queued, selectedCredit]);
+  }, [queued, selectedCredit, newCollectionName, collectionIds, collections]);
 
   function applyCredit(next: string, fromMe: boolean) {
     const trimmed = next.trim();
@@ -553,12 +537,35 @@ export function DamUploadWizard({
     });
   }
 
+  function collectionTitle(
+    newName = newCollectionName,
+    ids: string[] = collectionIds,
+  ): string {
+    const named = newName.trim();
+    if (named) return named;
+    const match = collections.find((collection) => collection.id === ids[0]);
+    if (match?.name) return match.name;
+    return creditDisplayName(selectedCredit) || "foto";
+  }
+
+  function fileNameFor(
+    sequence: number,
+    sourceName: string,
+    title = collectionTitle(),
+  ): string {
+    const ext = sourceName.includes(".")
+      ? sourceName.slice(sourceName.lastIndexOf(".") + 1).toLowerCase()
+      : "jpg";
+    return buildFileName(title, sequence, ext);
+  }
+
   function buildDrafts(files: PreparedFile[]): AssetDraft[] {
     const names = namesFrom(newCollectionName);
+    const title = collectionTitle();
     return files.map((file) => ({
       r2Key: file.r2Key,
       sequence: file.sequence,
-      fileName: file.fileName,
+      fileName: fileNameFor(file.sequence, file.clientName || file.fileName, title),
       originalName: file.clientName,
       contentType: file.contentType,
       size: file.size,
@@ -573,6 +580,7 @@ export function DamUploadWizard({
 
   function applyBatchToDrafts() {
     const names = namesFrom(newCollectionName);
+    const title = collectionTitle();
     setDrafts((prev) =>
       prev.map((d) => ({
         ...d,
@@ -581,6 +589,7 @@ export function DamUploadWizard({
         collectionIds,
         newCollections: names,
         credit: selectedCredit,
+        fileName: fileNameFor(d.sequence, d.originalName || d.fileName, title),
       })),
     );
   }
@@ -640,6 +649,7 @@ export function DamUploadWizard({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             credit: selectedCredit,
+            titleBase: collectionTitle(),
             files: queued.map((q) => ({
               name: q.file.name,
               type: q.file.type,
@@ -1094,7 +1104,18 @@ export function DamUploadWizard({
             onCollectionIds={(ids) => {
               setCollectionIds(ids);
               if (!showPerFile) {
-                setDrafts((prev) => prev.map((d) => ({ ...d, collectionIds: ids })));
+                const title = collectionTitle(newCollectionName, ids);
+                setDrafts((prev) =>
+                  prev.map((d) => ({
+                    ...d,
+                    collectionIds: ids,
+                    fileName: fileNameFor(
+                      d.sequence,
+                      d.originalName || d.fileName,
+                      title,
+                    ),
+                  })),
+                );
               }
             }}
             collections={collections}
@@ -1102,8 +1123,17 @@ export function DamUploadWizard({
             onNewCollectionName={(name) => {
               changeNewCollection(name);
               if (!showPerFile) {
+                const title = collectionTitle(name, collectionIds);
                 setDrafts((prev) =>
-                  prev.map((d) => ({ ...d, newCollections: namesFrom(name) })),
+                  prev.map((d) => ({
+                    ...d,
+                    newCollections: namesFrom(name),
+                    fileName: fileNameFor(
+                      d.sequence,
+                      d.originalName || d.fileName,
+                      title,
+                    ),
+                  })),
                 );
               }
             }}
@@ -1155,7 +1185,17 @@ export function DamUploadWizard({
                         onCollectionIds={(ids) =>
                           setDrafts((prev) =>
                             prev.map((d, i) =>
-                              i === index ? { ...d, collectionIds: ids } : d,
+                              i === index
+                                ? {
+                                    ...d,
+                                    collectionIds: ids,
+                                    fileName: fileNameFor(
+                                      d.sequence,
+                                      d.originalName || d.fileName,
+                                      collectionTitle(d.newCollections[0] ?? "", ids),
+                                    ),
+                                  }
+                                : d,
                             ),
                           )
                         }
@@ -1165,7 +1205,15 @@ export function DamUploadWizard({
                           setDrafts((prev) =>
                             prev.map((d, i) =>
                               i === index
-                                ? { ...d, newCollections: namesFrom(name) }
+                                ? {
+                                    ...d,
+                                    newCollections: namesFrom(name),
+                                    fileName: fileNameFor(
+                                      d.sequence,
+                                      d.originalName || d.fileName,
+                                      collectionTitle(name, d.collectionIds),
+                                    ),
+                                  }
                                 : d,
                             ),
                           )

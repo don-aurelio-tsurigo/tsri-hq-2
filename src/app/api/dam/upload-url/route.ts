@@ -22,6 +22,7 @@ const fileSchema = z.object({
 
 const bodySchema = z.object({
   credit: z.string().trim().min(1).max(200),
+  titleBase: z.string().trim().max(120).optional(),
   files: z.array(fileSchema).min(1).max(MAX_FILES),
 });
 
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { credit, files } = parsed.data;
+  const { credit, titleBase, files } = parsed.data;
   if (files.length > MAX_FILES) {
     return NextResponse.json(
       { error: `Maximal ${MAX_FILES} Dateien pro Batch.` },
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
         const sequence = index + 1;
         const contentType = normalizedContentType(file.name, file.type);
         const ext = outputExtension(contentType, file.name);
-        const fileName = buildFileName(credit, sequence, ext);
+        const fileName = buildFileName(titleBase || credit, sequence, ext);
         const r2Key = buildR2Key({
           userId: ctx.session.user.id,
           batchId: batch.id,

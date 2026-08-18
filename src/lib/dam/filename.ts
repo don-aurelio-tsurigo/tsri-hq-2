@@ -1,18 +1,3 @@
-export function slugifyCredit(credit: string): string {
-  const name = (credit.split("/")[0] ?? credit).trim();
-  const slug = name
-    .replace(/[Ää]/g, "ae")
-    .replace(/[Öö]/g, "oe")
-    .replace(/[Üü]/g, "ue")
-    .replace(/ß/g, "ss")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug || "foto";
-}
-
 export function zurichDateStamp(date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Zurich",
@@ -30,14 +15,22 @@ export function padSequence(n: number): string {
   return String(n).padStart(3, "0");
 }
 
+export function sanitizeFileTitle(name: string): string {
+  const cleaned = name
+    .replace(/[/\\]/g, "-")
+    .replace(/[\r\n"]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.slice(0, 200) || "foto";
+}
+
 export function buildFileName(
-  credit: string,
+  title: string,
   sequence: number,
   ext: string,
-  date = new Date(),
 ): string {
-  const cleanExt = ext.replace(/^\./, "").toLowerCase();
-  return `${slugifyCredit(credit)}-${zurichDateStamp(date)}-${padSequence(sequence)}.${cleanExt}`;
+  const cleanExt = ext.replace(/^\./, "").toLowerCase() || "jpg";
+  return `${sanitizeFileTitle(title)}-${padSequence(sequence)}.${cleanExt}`;
 }
 
 export function buildR2Key(opts: {
