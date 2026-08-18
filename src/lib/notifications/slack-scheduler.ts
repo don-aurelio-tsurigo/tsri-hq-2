@@ -23,6 +23,31 @@ export function startSlackCookingScheduler() {
       return;
     }
     running = true;
+    const t0 = Date.now();
+    const memSnap = () => {
+      const m = process.memoryUsage();
+      return {
+        rssMb: Math.round(m.rss / 1048576),
+        heapMb: Math.round(m.heapUsed / 1048576),
+      };
+    };
+    // #region agent log
+    fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "53d2ad",
+      },
+      body: JSON.stringify({
+        sessionId: "53d2ad",
+        hypothesisId: "B",
+        location: "slack-scheduler.ts:tick:start",
+        message: "slack tick start",
+        data: { mem: memSnap() },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     try {
       const { runSlackCookingNotificationsForAllOrgs } = await import(
         "@/lib/notifications/cooking-slack"
@@ -37,8 +62,50 @@ export function startSlackCookingScheduler() {
           `[slack-cooking] tick: orgs=${summary.orgs} weekly=${summary.weeklySent} monthly=${summary.monthlySent} skipped=${summary.skipped} errors=${summary.errors}`,
         );
       }
+      // #region agent log
+      fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "53d2ad",
+        },
+        body: JSON.stringify({
+          sessionId: "53d2ad",
+          hypothesisId: "B",
+          location: "slack-scheduler.ts:tick:end",
+          message: "slack tick end",
+          data: {
+            ms: Date.now() - t0,
+            summary,
+            mem: memSnap(),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } catch (err) {
       console.error("[slack-cooking] scheduled run failed", err);
+      // #region agent log
+      fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "53d2ad",
+        },
+        body: JSON.stringify({
+          sessionId: "53d2ad",
+          hypothesisId: "B",
+          location: "slack-scheduler.ts:tick:error",
+          message: "slack tick failed",
+          data: {
+            ms: Date.now() - t0,
+            err: err instanceof Error ? err.message.slice(0, 500) : String(err),
+            mem: memSnap(),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } finally {
       running = false;
     }

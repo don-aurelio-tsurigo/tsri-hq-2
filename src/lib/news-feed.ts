@@ -3,9 +3,12 @@ import { prisma } from "@/lib/db";
 import {
   allFeedSources,
   sourceAutoFetchesFulltext,
+  BAUGESUCHE_SOURCE,
+  TAGBLATT_SOURCE,
 } from "@/lib/news-feed-constants";
 import {
   collectFeedItems,
+  enrichFeedItems,
   type ParsedNewsItem,
 } from "@/lib/news-feed-fetch";
 
@@ -130,17 +133,54 @@ export async function runNewsFeedFetchForAllOrgs() {
     select: { id: true },
   });
 
-  // Collect feeds once — same sources for all orgs — then upsert per org.
-  const { items, results } = await collectFeedItems();
+  // Cheap pass first (no article HTML / Amtsblatt XML) so a 512MB instance
+  // does not re-download hundreds of detail pages when nothing is new.
+  const { items: cheapItems, results } = await collectFeedItems({
+    enrichDetails: false,
+  });
+
+  const existingRows = cheapItems.length
+    ? await prisma.newsItem.findMany({
+        where: { externalId: { in: cheapItems.map((item) => item.externalId) } },
+        select: { externalId: true },
+      })
+    : [];
+  const existingIds = new Set(existingRows.map((row) => row.externalId));
+  const missing = cheapItems.filter((item) => !existingIds.has(item.externalId));
+  const needsEnrich = missing.filter(
+    (item) =>
+      sourceAutoFetchesFulltext(item.source) ||
+      item.source === BAUGESUCHE_SOURCE.key ||
+      item.source === TAGBLATT_SOURCE.key,
+  );
+  const enrichedNew = await enrichFeedItems(needsEnrich);
+  const enrichedById = new Map(
+    enrichedNew.map((item) => [item.externalId, item]),
+  );
+
+  const toUpsert = missing.flatMap((item) => {
+    const needsDetail =
+      sourceAutoFetchesFulltext(item.source) ||
+      item.source === BAUGESUCHE_SOURCE.key ||
+      item.source === TAGBLATT_SOURCE.key;
+    if (!needsDetail) return [item];
+    const enriched = enrichedById.get(item.externalId);
+    if (!enriched) return [];
+    if (item.source === TAGBLATT_SOURCE.key && !enriched.title) return [];
+    return [enriched];
+  });
+
   let inserted = 0;
   for (const org of orgs) {
-    inserted += await upsertNewsItems(org.id, items);
+    inserted += await upsertNewsItems(org.id, toUpsert);
   }
 
   return {
     orgs: orgs.length,
-    fetched: items.length,
+    fetched: cheapItems.length,
     inserted,
+    missing: missing.length,
+    enriched: enrichedNew.length,
     results,
   };
 }

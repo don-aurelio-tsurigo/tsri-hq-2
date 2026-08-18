@@ -32,31 +32,123 @@ function headers() {
   return { "User-Agent": FEED_USER_AGENT };
 }
 
-export async function collectFeedItems(): Promise<{
+function memSnap() {
+  const m = process.memoryUsage();
+  return {
+    rssMb: Math.round(m.rss / 1048576),
+    heapMb: Math.round(m.heapUsed / 1048576),
+    heapTotalMb: Math.round(m.heapTotal / 1048576),
+    externalMb: Math.round(m.external / 1048576),
+  };
+}
+
+function logFeedMem(
+  hypothesisId: string,
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+) {
+  const payload = {
+    sessionId: "53d2ad",
+    hypothesisId,
+    location,
+    message,
+    data: { ...data, mem: memSnap() },
+    timestamp: Date.now(),
+    runId: "mem-probe",
+  };
+  console.log(`[debug-53d2ad] ${JSON.stringify(payload)}`);
+  fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "53d2ad",
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {});
+}
+
+const ENRICH_CONCURRENCY = 3;
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  }
+  const n = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return out;
+}
+
+export type CollectFeedItemsOptions = {
+  /** Fetch article HTML / Amtsblatt XML. Default true (manual refresh). */
+  enrichDetails?: boolean;
+};
+
+export async function collectFeedItems(
+  options?: CollectFeedItemsOptions,
+): Promise<{
   items: ParsedNewsItem[];
   results: FetchResult[];
 }> {
+  const enrichDetails = options?.enrichDetails !== false;
   const results: FetchResult[] = [];
   const collected: ParsedNewsItem[] = [];
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:collect:start", "collectFeedItems start", {
+    collected: 0,
+    enrichDetails,
+  });
+  // #endregion
 
   for (const source of RSS_SOURCES) {
     try {
-      const items = await fetchRssSource(source);
+      const items = await fetchRssSource(source, enrichDetails);
       collected.push(...items);
       results.push({ source: source.key, count: items.length });
+      // #region agent log
+      logFeedMem("A", "news-feed-fetch.ts:collect:source", "source fetched", {
+        source: source.key,
+        count: items.length,
+        collected: collected.length,
+        autoFulltext: Boolean(source.autoFetchFulltext),
+      });
+      // #endregion
     } catch (err) {
       results.push({
         source: source.key,
         count: 0,
         error: err instanceof Error ? err.message : String(err),
       });
+      // #region agent log
+      logFeedMem("A", "news-feed-fetch.ts:collect:source", "source failed", {
+        source: source.key,
+        error: err instanceof Error ? err.message.slice(0, 200) : String(err),
+        collected: collected.length,
+      });
+      // #endregion
     }
   }
 
   try {
-    const items = await fetchBaugesuche();
+    const items = await fetchBaugesuche(enrichDetails);
     collected.push(...items);
     results.push({ source: BAUGESUCHE_SOURCE.key, count: items.length });
+    // #region agent log
+    logFeedMem("A", "news-feed-fetch.ts:collect:baugesuche", "baugesuche fetched", {
+      count: items.length,
+      collected: collected.length,
+    });
+    // #endregion
   } catch (err) {
     results.push({
       source: BAUGESUCHE_SOURCE.key,
@@ -66,9 +158,15 @@ export async function collectFeedItems(): Promise<{
   }
 
   try {
-    const items = await fetchTagblatt();
+    const items = await fetchTagblatt(enrichDetails);
     collected.push(...items);
     results.push({ source: TAGBLATT_SOURCE.key, count: items.length });
+    // #region agent log
+    logFeedMem("A", "news-feed-fetch.ts:collect:tagblatt", "tagblatt fetched", {
+      count: items.length,
+      collected: collected.length,
+    });
+    // #endregion
   } catch (err) {
     results.push({
       source: TAGBLATT_SOURCE.key,
@@ -77,18 +175,32 @@ export async function collectFeedItems(): Promise<{
     });
   }
 
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:collect:end", "collectFeedItems end", {
+    collected: collected.length,
+    results,
+  });
+  // #endregion
   return { items: collected, results };
 }
 
-async function fetchRssSource(source: FeedSource): Promise<ParsedNewsItem[]> {
+async function fetchRssSource(
+  source: FeedSource,
+  enrichDetails: boolean,
+): Promise<ParsedNewsItem[]> {
   const res = await fetch(source.url, { headers: headers() });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const xml = await res.text();
   const items = parseRss(xml, source.key, source.label);
-  if (source.autoFetchFulltext && source.key === STADT_MEDIENMITTEILUNGEN_KEY) {
+  if (
+    enrichDetails &&
+    source.autoFetchFulltext &&
+    source.key === STADT_MEDIENMITTEILUNGEN_KEY
+  ) {
     return enrichStadtMedienmitteilungen(items);
   }
   if (
+    enrichDetails &&
     source.autoFetchFulltext &&
     source.key === FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY
   ) {
@@ -167,7 +279,12 @@ function stripHtml(raw: string): string {
 async function enrichStadtMedienmitteilungen(
   items: ParsedNewsItem[],
 ): Promise<ParsedNewsItem[]> {
-  const concurrency = 4;
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:stadt:enrich", "stadt fulltext start", {
+    items: items.length,
+  });
+  // #endregion
+  const concurrency = ENRICH_CONCURRENCY;
   const out: ParsedNewsItem[] = [];
   for (let i = 0; i < items.length; i += concurrency) {
     const chunk = items.slice(i, i + concurrency);
@@ -218,7 +335,7 @@ export function extractFlughafenMedienmitteilungBody(
 async function enrichFlughafenMedienmitteilungen(
   items: ParsedNewsItem[],
 ): Promise<ParsedNewsItem[]> {
-  const concurrency = 4;
+  const concurrency = ENRICH_CONCURRENCY;
   const out: ParsedNewsItem[] = [];
   for (let i = 0; i < items.length; i += concurrency) {
     const chunk = items.slice(i, i + concurrency);
@@ -313,14 +430,35 @@ export function parseRss(
   return items;
 }
 
-async function fetchTagblatt(): Promise<ParsedNewsItem[]> {
+async function fetchTagblatt(enrichDetails: boolean): Promise<ParsedNewsItem[]> {
   const res = await fetch(TAGBLATT_URL, { headers: headers() });
   if (!res.ok) throw new Error(`Tagblatt HTTP ${res.status}`);
   const html = await res.text();
   const basics = parseTagblattOverview(html);
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:tagblatt:parallel", "tagblatt overview", {
+    htmlChars: html.length,
+    detailPages: basics.length,
+    enrichDetails,
+  });
+  // #endregion
 
-  const enriched = await Promise.all(
-    basics.map(async ({ id, url }): Promise<ParsedNewsItem | null> => {
+  if (!enrichDetails) {
+    return basics.map(({ id, url }) => ({
+      externalId: `${TAGBLATT_SOURCE.key}::${id}`,
+      source: TAGBLATT_SOURCE.key,
+      sourceLabel: TAGBLATT_SOURCE.label,
+      title: "",
+      link: url,
+      summary: "",
+      publishedAt: null,
+    }));
+  }
+
+  const enriched = await mapPool(
+    basics,
+    ENRICH_CONCURRENCY,
+    async ({ id, url }): Promise<ParsedNewsItem | null> => {
       const detail = await fetchTagblattDetail(url);
       if (!detail?.title) return null;
       return {
@@ -332,7 +470,7 @@ async function fetchTagblatt(): Promise<ParsedNewsItem[]> {
         summary: detail.summary,
         publishedAt: detail.publishedAt,
       };
-    }),
+    },
   );
 
   return enriched.filter((item): item is ParsedNewsItem => item !== null);
@@ -411,7 +549,7 @@ async function fetchTagblattDetail(url: string): Promise<{
   }
 }
 
-async function fetchBaugesuche(): Promise<ParsedNewsItem[]> {
+async function fetchBaugesuche(enrichDetails: boolean): Promise<ParsedNewsItem[]> {
   const cutoff = new Date(
     Date.now() - BAUGESUCHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000,
   );
@@ -428,24 +566,78 @@ async function fetchBaugesuche(): Promise<ParsedNewsItem[]> {
   if (!res.ok) throw new Error(`Amtsblattportal API ${res.status}`);
   const csvText = await res.text();
   const baseItems = parseBaugesucheCsv(csvText);
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:baugesuche:parallel", "baugesuche csv parsed", {
+    csvChars: csvText.length,
+    baseItems: baseItems.length,
+    enrichDetails,
+  });
+  // #endregion
 
-  const enriched = await Promise.all(
-    baseItems.map(async (item) => {
-      const publicationId = item.externalId.split("::")[1]!;
-      const details = await fetchBaugesucheDetails(publicationId);
-      if (!details) return item;
-      const parts = [
-        details.projectDescription,
-        details.district ? `Kreis: ${details.district}` : "",
-      ].filter(Boolean);
-      return {
-        ...item,
-        summary: parts.join(" · ") || item.summary,
-      };
-    }),
-  );
+  if (!enrichDetails) return baseItems;
 
-  return enriched;
+  return mapPool(baseItems, ENRICH_CONCURRENCY, enrichBaugesuchItem);
+}
+
+async function enrichBaugesuchItem(item: ParsedNewsItem): Promise<ParsedNewsItem> {
+  const publicationId = item.externalId.split("::")[1]!;
+  const details = await fetchBaugesucheDetails(publicationId);
+  if (!details) return item;
+  const parts = [
+    details.projectDescription,
+    details.district ? `Kreis: ${details.district}` : "",
+  ].filter(Boolean);
+  return {
+    ...item,
+    summary: parts.join(" · ") || item.summary,
+  };
+}
+
+const MAX_SCHEDULED_ENRICH = 15;
+
+/** HTML/XML details for items not yet stored (scheduled path). */
+export async function enrichFeedItems(
+  items: ParsedNewsItem[],
+): Promise<ParsedNewsItem[]> {
+  if (items.length === 0) return items;
+  const limited = items.slice(0, MAX_SCHEDULED_ENRICH);
+  // #region agent log
+  logFeedMem("A", "news-feed-fetch.ts:enrichFeedItems", "enrich new items", {
+    requested: items.length,
+    limited: limited.length,
+  });
+  // #endregion
+  return mapPool(limited, ENRICH_CONCURRENCY, enrichOneItem);
+}
+
+async function enrichOneItem(item: ParsedNewsItem): Promise<ParsedNewsItem> {
+  if (item.source === STADT_MEDIENMITTEILUNGEN_KEY) {
+    const full = await fetchStadtMedienmitteilungFulltext(item.link);
+    if (!full) return item;
+    return { ...item, summary: full.slice(0, 20_000) };
+  }
+  if (item.source === FLUGHAFEN_ZUERICH_MEDIENMITTEILUNGEN_KEY) {
+    if ((item.summary?.length ?? 0) >= 200) {
+      return { ...item, summary: item.summary.slice(0, 20_000) };
+    }
+    const full = await fetchFlughafenMedienmitteilungFulltext(item.link);
+    if (!full) return item;
+    return { ...item, summary: full.slice(0, 20_000) };
+  }
+  if (item.source === BAUGESUCHE_SOURCE.key) {
+    return enrichBaugesuchItem(item);
+  }
+  if (item.source === TAGBLATT_SOURCE.key) {
+    const detail = await fetchTagblattDetail(item.link);
+    if (!detail?.title) return item;
+    return {
+      ...item,
+      title: detail.title,
+      summary: detail.summary,
+      publishedAt: detail.publishedAt,
+    };
+  }
+  return item;
 }
 
 async function fetchBaugesucheDetails(
