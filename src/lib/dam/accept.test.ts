@@ -54,4 +54,16 @@ describe("sniffImageContentType", () => {
     heic.set(Buffer.from("mif1"), 8);
     assert.equal(sniffImageContentType(heic), "image/heic");
   });
+
+  it("detects HEIC when only a compatible brand is heic", () => {
+    const box = Buffer.alloc(24);
+    box[3] = 24;
+    box[4] = 0x66;
+    box[5] = 0x74;
+    box[6] = 0x79;
+    box[7] = 0x70;
+    box.set(Buffer.from("iso8"), 8);
+    box.set(Buffer.from("heic"), 16);
+    assert.equal(sniffImageContentType(box), "image/heic");
+  });
 });

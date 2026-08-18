@@ -1,22 +1,50 @@
 import { createRequire } from "node:module";
+import path from "node:path";
+import sharp from "sharp";
 import { looksLikeHeicBytes } from "./accept";
 
-type HeicConvert = (options: {
-  buffer: Buffer | Uint8Array | ArrayBuffer;
-  format: "JPEG" | "PNG";
-  quality?: number;
-}) => Promise<ArrayBuffer>;
+type HeicDecoded = {
+  width: number;
+  height: number;
+  data: Uint8Array | Uint8ClampedArray;
+};
 
-const require = createRequire(import.meta.url);
-const convert = require("heic-convert") as HeicConvert;
+type HeicDecodeFn = (options: { buffer: Buffer }) => Promise<HeicDecoded>;
 
-export async function jpegBufferFromHeic(input: Buffer): Promise<Buffer> {
-  const output = await convert({
-    buffer: input,
-    format: "JPEG",
-    quality: 0.88,
-  });
-  return Buffer.from(output);
+let decodeFn: HeicDecodeFn | undefined;
+
+function loadDecode(): HeicDecodeFn {
+  if (decodeFn) return decodeFn;
+  // Resolve from the app root so Next's bundled chunks still find node_modules.
+  const require = createRequire(path.join(process.cwd(), "package.json"));
+  decodeFn = require("heic-decode") as HeicDecodeFn;
+  return decodeFn;
+}
+
+export async function jpegBufferFromHeic(
+  input: Buffer,
+  maxEdge = 4000,
+): Promise<Buffer> {
+  const decoded = await loadDecode()({ buffer: input });
+  if (!decoded.width || !decoded.height) {
+    throw new Error("HEIC decode produced empty image");
+  }
+  const raw = Buffer.from(decoded.data);
+  return sharp(raw, {
+    raw: {
+      width: decoded.width,
+      height: decoded.height,
+      channels: 4,
+    },
+  })
+    .resize({
+      width: maxEdge,
+      height: maxEdge,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 82 })
+    .toBuffer();
 }
 
 export async function decodeHeicIfNeeded(input: Buffer): Promise<Buffer> {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { looksLikeHeicBytes } from "@/lib/dam/accept";
+import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
 import { derivativeKey } from "@/lib/dam/filename";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
@@ -7,6 +7,7 @@ import { getObject } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 async function loadVariant(r2Key: string, variant: string) {
   const keys =
@@ -25,6 +26,16 @@ async function loadVariant(r2Key: string, variant: string) {
     }
   }
   throw lastError ?? new Error("not found");
+}
+
+function imageResponse(buffer: Buffer, contentType: string) {
+  return new Response(new Uint8Array(buffer), {
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": String(buffer.length),
+      "Cache-Control": "private, max-age=120",
+    },
+  });
 }
 
 export async function GET(
@@ -56,19 +67,18 @@ export async function GET(
     let { buffer, contentType } = await loadVariant(asset.r2Key, variant);
     if (looksLikeHeicBytes(buffer)) {
       try {
-        buffer = await jpegBufferFromHeic(buffer);
+        const maxEdge =
+          variant === "thumb" ? 640 : variant === "web" ? 2000 : 4000;
+        buffer = await jpegBufferFromHeic(buffer, maxEdge);
         contentType = "image/jpeg";
       } catch (error) {
         console.warn("[dam] HEIC preview convert failed", error);
         contentType = "image/heic";
       }
+    } else {
+      contentType = sniffImageContentType(buffer) ?? contentType;
     }
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "private, max-age=120",
-      },
-    });
+    return imageResponse(buffer, contentType);
   } catch {
     return NextResponse.json({ error: "file missing" }, { status: 404 });
   }

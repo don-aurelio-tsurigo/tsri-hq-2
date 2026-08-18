@@ -118,7 +118,19 @@ const HEIC_BRANDS = new Set([
   "msf1",
   "heim",
   "heis",
+  "hevc",
+  "hevx",
+  "miaf",
 ]);
+
+function ftypBrandAt(bytes: Uint8Array, offset: number): string {
+  return String.fromCharCode(
+    bytes[offset] ?? 0,
+    bytes[offset + 1] ?? 0,
+    bytes[offset + 2] ?? 0,
+    bytes[offset + 3] ?? 0,
+  ).toLowerCase();
+}
 
 export function looksLikeHeicBytes(bytes: Uint8Array): boolean {
   if (bytes.length < 12) return false;
@@ -130,13 +142,20 @@ export function looksLikeHeicBytes(bytes: Uint8Array): boolean {
   ) {
     return false;
   }
-  const brand = String.fromCharCode(
-    bytes[8] ?? 0,
-    bytes[9] ?? 0,
-    bytes[10] ?? 0,
-    bytes[11] ?? 0,
-  ).toLowerCase();
-  return HEIC_BRANDS.has(brand);
+  const boxSize =
+    ((bytes[0] ?? 0) << 24) |
+    ((bytes[1] ?? 0) << 16) |
+    ((bytes[2] ?? 0) << 8) |
+    (bytes[3] ?? 0);
+  const limit = Math.min(
+    bytes.length,
+    boxSize >= 16 && boxSize <= 256 ? boxSize : bytes.length,
+  );
+  if (HEIC_BRANDS.has(ftypBrandAt(bytes, 8))) return true;
+  for (let offset = 16; offset + 4 <= limit; offset += 4) {
+    if (HEIC_BRANDS.has(ftypBrandAt(bytes, offset))) return true;
+  }
+  return false;
 }
 
 export function sniffImageContentType(bytes: Uint8Array): string | null {

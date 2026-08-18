@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sniffImageContentType } from "@/lib/dam/accept";
+import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
+import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { parseUploadObjectRequest } from "@/lib/dam/upload-object-body";
 import { putObject, R2AccessError, R2ConfigError } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
@@ -24,9 +25,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const contentType =
-      sniffImageContentType(parsed.bytes) ?? parsed.contentType;
-    await putObject(parsed.r2Key, parsed.bytes, contentType);
+    let bytes = parsed.bytes;
+    let contentType =
+      sniffImageContentType(bytes) ?? parsed.contentType;
+    if (looksLikeHeicBytes(bytes)) {
+      try {
+        bytes = await jpegBufferFromHeic(bytes);
+        contentType = "image/jpeg";
+      } catch (error) {
+        console.warn("[dam] HEIC convert on upload failed", error);
+        contentType = "image/heic";
+      }
+    }
+    await putObject(parsed.r2Key, bytes, contentType);
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof R2ConfigError || error instanceof R2AccessError) {

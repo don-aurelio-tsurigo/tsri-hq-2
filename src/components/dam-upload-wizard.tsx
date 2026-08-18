@@ -14,13 +14,8 @@ import {
   X,
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
-import {
-  blobUrlForPreview,
-  MAX_FILE_BYTES,
-  MAX_FILES,
-  rejectReason,
-  sniffImageContentType,
-} from "@/lib/dam/accept";
+import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import { previewUrlForFile } from "@/lib/dam/preview-url";
 import {
   defaultCollectionName,
   creditDisplayName,
@@ -463,11 +458,10 @@ export function DamUploadWizard({
           errors.push(reason);
           continue;
         }
-        const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
         additions.push({
           id: crypto.randomUUID(),
           file,
-          previewUrl: blobUrlForPreview(file, sniffImageContentType(head)),
+          previewUrl: await previewUrlForFile(file),
         });
       }
 
