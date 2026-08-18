@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdmin, requireMembership } from "@/lib/session";
+import { membershipInTagPool } from "@/lib/membership-grants";
 import {
   formatWeekdays,
   frequencyFromWeekdays,
@@ -289,6 +290,7 @@ const newsletterCampaignSchema = z.object({
 async function resolveOptionalAuthor(
   organizationId: string,
   authorId: string | null,
+  currentAuthorId?: string | null,
 ) {
   if (!authorId) return { ok: true as const, authorId: null };
   const authorMembership = await prisma.membership.findUnique({
@@ -301,6 +303,17 @@ async function resolveOptionalAuthor(
   });
   if (!authorMembership || authorMembership.archivedAt) {
     return { ok: false as const, error: "Autor:in ist nicht im Team." };
+  }
+  if (currentAuthorId && authorId === currentAuthorId) {
+    return { ok: true as const, authorId };
+  }
+  const inPool = await membershipInTagPool(
+    organizationId,
+    authorId,
+    "editorial",
+  );
+  if (!inPool) {
+    return { ok: false as const, error: "Autor:in ist nicht in der Redaktion." };
   }
   return { ok: true as const, authorId };
 }
@@ -405,6 +418,7 @@ export async function updateNewsletterCampaign(formData: FormData) {
   const author = await resolveOptionalAuthor(
     membership.organizationId,
     parsed.data.authorId,
+    campaign.authorId,
   );
   if (!author.ok) return { error: author.error };
 
@@ -663,9 +677,15 @@ export async function upsertNewsletterSlot(formData: FormData) {
   );
   if (scheduleError) return { error: scheduleError };
 
+  const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
+  const existing = await prisma.newsletterCampaign.findFirst({
+    where: { typeId: type.id, date },
+  });
+
   const author = await resolveOptionalAuthor(
     membership.organizationId,
     parsed.data.authorId,
+    existing?.authorId,
   );
   if (!author.ok) return { error: author.error };
 
@@ -674,11 +694,6 @@ export async function upsertNewsletterSlot(formData: FormData) {
 
   const status =
     parsed.data.campaignUrl || author.authorId ? "published" : "planned";
-
-  const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
-  const existing = await prisma.newsletterCampaign.findFirst({
-    where: { typeId: type.id, date },
-  });
 
   if (existing) {
     await prisma.newsletterCampaign.update({

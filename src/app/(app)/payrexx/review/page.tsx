@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { PayrexxAssignForm } from "@/components/payrexx-assign-form";
 import { formatMoney, listUnmappedLines } from "@/lib/payrexx";
-import { requireMembership } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 
 export default async function PayrexxReviewPage() {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const lines = await listUnmappedLines(membership.organizationId);
 
   return (

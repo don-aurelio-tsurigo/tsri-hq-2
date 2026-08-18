@@ -1,5 +1,8 @@
 import { NewsletterDirectory } from "@/components/newsletter-directory";
-import { prisma } from "@/lib/db";
+import {
+  listMembersInTagPool,
+  mergePickerMembers,
+} from "@/lib/membership-grants";
 import {
   ensureDefaultNewsletterTypes,
   listNewsletterCalendarMonth,
@@ -32,21 +35,28 @@ export default async function NewsletterPage({
   const monthAnchor = parseMonthParam(monthParam);
   const typeFilter = parseTypeFilterParam(typeParam);
 
-  const [types, calendar, members] = await Promise.all([
+  const [types, calendar, editorialMembers] = await Promise.all([
     listNewsletterTypes(membership.organizationId),
     listNewsletterCalendarMonth(
       membership.organizationId,
       monthAnchor,
     ),
-    prisma.membership.findMany({
-      where: {
-        organizationId: membership.organizationId,
-        archivedAt: null,
-      },
-      include: { user: { select: { id: true, name: true } } },
-      orderBy: { user: { name: "asc" } },
-    }),
+    listMembersInTagPool(membership.organizationId, "editorial"),
   ]);
+
+  const members = mergePickerMembers(
+    editorialMembers.map((m) => m.user),
+    calendar.days.flatMap((day) =>
+      day.slots.map((slot) =>
+        slot.campaign?.authorId
+          ? {
+              id: slot.campaign.authorId,
+              name: slot.campaign.authorName ?? "Unbekannt",
+            }
+          : null,
+      ),
+    ),
+  );
 
   const typeOptions = types.map((t) => ({ id: t.id, name: t.name }));
   const validFilter = typeFilter.filter((id) =>
@@ -71,7 +81,7 @@ export default async function NewsletterPage({
       <NewsletterDirectory
         types={typeOptions}
         initialTypeIds={validFilter}
-        members={members.map((m) => m.user)}
+        members={members}
         calendar={{
           monthLabel: calendar.monthLabel,
           monthKey: monthParamKey(monthAnchor),

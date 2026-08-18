@@ -191,6 +191,8 @@ export function AppSidebar({
   userName,
   orgName,
   isAdmin,
+  canFinance,
+  canAds,
   spacesBySlug,
   wikiPins = [],
   navProjects = [],
@@ -200,6 +202,8 @@ export function AppSidebar({
   userName: string;
   orgName: string;
   isAdmin: boolean;
+  canFinance: boolean;
+  canAds: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins?: WikiPin[];
   navProjects?: NavProject[];
@@ -435,27 +439,31 @@ export function AppSidebar({
           ))}
         </NavSection>
 
-        <NavTopLink
-          href="/ads"
-          active={pathname === "/ads" || pathname.startsWith("/ads/")}
-          icon={Megaphone}
-          uppercase
-          onNavigate={onMobileClose}
-        >
-          Werbung
-        </NavTopLink>
+        {canAds && (
+          <NavTopLink
+            href="/ads"
+            active={pathname === "/ads" || pathname.startsWith("/ads/")}
+            icon={Megaphone}
+            uppercase
+            onNavigate={onMobileClose}
+          >
+            Werbung
+          </NavTopLink>
+        )}
 
-        <NavTopLink
-          href="/payrexx"
-          active={
-            pathname === "/payrexx" || pathname.startsWith("/payrexx/")
-          }
-          icon={Wallet}
-          uppercase
-          onNavigate={onMobileClose}
-        >
-          Finance
-        </NavTopLink>
+        {canFinance && (
+          <NavTopLink
+            href="/payrexx"
+            active={
+              pathname === "/payrexx" || pathname.startsWith("/payrexx/")
+            }
+            icon={Wallet}
+            uppercase
+            onNavigate={onMobileClose}
+          >
+            Finance
+          </NavTopLink>
+        )}
 
         <NavSection
           title="Team"

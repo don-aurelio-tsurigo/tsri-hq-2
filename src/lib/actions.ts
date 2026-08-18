@@ -137,6 +137,7 @@ import {
   adminUpdateMemberName as adminUpdateMemberNameAction,
   updateMemberProfile as updateMemberProfileAction,
   updateMemberPensum as updateMemberPensumAction,
+  setMemberCapability as setMemberCapabilityAction,
   archiveMember as archiveMemberAction,
   restoreMember as restoreMemberAction,
   adminSetMemberPassword as adminSetMemberPasswordAction,
@@ -158,6 +159,9 @@ export async function updateMemberProfile(formData: FormData) {
 }
 export async function updateMemberPensum(formData: FormData) {
   return updateMemberPensumAction(formData);
+}
+export async function setMemberCapability(formData: FormData) {
+  return setMemberCapabilityAction(formData);
 }
 export async function archiveMember(formData: FormData) {
   return archiveMemberAction(formData);

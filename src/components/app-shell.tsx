@@ -28,6 +28,8 @@ export function AppShell({
   userName,
   orgName,
   isAdmin,
+  canFinance,
+  canAds,
   spacesBySlug,
   wikiPins,
   navProjects = [],
@@ -36,6 +38,8 @@ export function AppShell({
   userName: string;
   orgName: string;
   isAdmin: boolean;
+  canFinance: boolean;
+  canAds: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins: WikiPin[];
   navProjects?: NavProject[];
@@ -107,6 +111,8 @@ export function AppShell({
           userName={userName}
           orgName={orgName}
           isAdmin={isAdmin}
+          canFinance={canFinance}
+          canAds={canAds}
           spacesBySlug={spacesBySlug}
           wikiPins={wikiPins}
           navProjects={navProjects}

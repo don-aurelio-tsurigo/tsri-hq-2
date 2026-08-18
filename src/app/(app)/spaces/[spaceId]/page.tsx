@@ -11,8 +11,12 @@ import { CookingPlan } from "@/components/cooking-plan";
 import { VacationPlan } from "@/components/vacation-plan";
 import { WikiSpace } from "@/components/wiki-space";
 import { NewsFeed } from "@/components/news-feed";
-import { canEditSpace, canViewSpace } from "@/lib/permissions";
+import { canEditSpace, canViewSpace, canManageEditorial } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
+import {
+  listMembersInTagPool,
+  mergePickerMembers,
+} from "@/lib/membership-grants";
 import { listSpaceTasks } from "@/lib/tasks";
 import { listArticles } from "@/lib/articles";
 import {
@@ -168,23 +172,22 @@ export default async function SpacePage({
     const days = weekDays(monday);
     const today = startOfDay(new Date());
 
-    const [allArticles, programArticles, members, rubriken, categories] =
+    const [allArticles, programArticles, editorialMembers, rubriken, categories] =
       await Promise.all([
         listArticles(space.id),
         listProgramArticles(space.id),
-        prisma.membership.findMany({
-          where: {
-            organizationId: membership.organizationId,
-            archivedAt: null,
-          },
-          include: { user: { select: { id: true, name: true } } },
-          orderBy: { user: { name: "asc" } },
-        }),
+        listMembersInTagPool(membership.organizationId, "editorial"),
         listEigenleistungRubriken(membership.organizationId),
         listArticleCategories(membership.organizationId),
       ]);
 
-    const memberUsers = members.map((m) => m.user);
+    const memberUsers = mergePickerMembers(
+      editorialMembers.map((m) => m.user),
+      [
+        ...allArticles.map((a) => a.assignee),
+        ...programArticles.map((a) => a.assignee),
+      ],
+    );
 
     const serialized = allArticles.map((a) => ({
       ...a,
@@ -219,7 +222,7 @@ export default async function SpacePage({
             rubriken={rubriken}
             categories={categories}
             canEdit={canEdit}
-            isAdmin={membership.role === "admin"}
+            isAdmin={canManageEditorial(membership)}
           />
         </section>
 

@@ -9,7 +9,7 @@ import {
   ingestExport,
   upsertChannelRule,
 } from "@/lib/payrexx";
-import { requireMembership } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 
 function revalidatePayrexx(payoutId?: string) {
   revalidatePath("/payrexx");
@@ -22,7 +22,7 @@ function revalidatePayrexx(payoutId?: string) {
 export async function uploadPayrexxExport(
   formData: FormData,
 ): Promise<{ error: string } | void> {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Bitte eine XLSX- oder CSV-Datei wählen." };
@@ -53,7 +53,7 @@ export async function uploadPayrexxExport(
 
 /** Called from client; redirects on success. */
 export async function assignPayrexxLine(formData: FormData): Promise<void> {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const lineId = String(formData.get("lineId") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
   const rememberChannel = formData.get("rememberChannel") === "1";
@@ -74,7 +74,7 @@ export async function assignPayrexxLine(formData: FormData): Promise<void> {
 }
 
 export async function deletePayrexxPayout(formData: FormData): Promise<void> {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const payoutId = String(formData.get("payoutId") ?? "");
   if (payoutId) {
     await deletePayout(membership.organizationId, payoutId);
@@ -84,7 +84,7 @@ export async function deletePayrexxPayout(formData: FormData): Promise<void> {
 }
 
 export async function savePayrexxChannelRule(formData: FormData): Promise<void> {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const channel = String(formData.get("channel") ?? "").trim();
   const categoryKey = String(formData.get("categoryKey") ?? "");
   if (channel && categoryKey) {
@@ -97,7 +97,7 @@ export async function savePayrexxChannelRule(formData: FormData): Promise<void> 
 export async function removePayrexxChannelRule(
   formData: FormData,
 ): Promise<void> {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const ruleId = String(formData.get("ruleId") ?? "");
   if (ruleId) {
     await deleteChannelRule(membership.organizationId, ruleId);

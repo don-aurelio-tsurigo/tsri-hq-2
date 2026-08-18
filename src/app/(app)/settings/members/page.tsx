@@ -10,6 +10,7 @@ import {
 } from "@/components/member-archive-buttons";
 import { MemberPasswordHelp } from "@/components/member-password-help";
 import { MemberNameEdit } from "@/components/member-name-edit";
+import { MemberCapabilityGrants } from "@/components/member-capability-grants";
 import { PensumSelect } from "@/components/pensum-select";
 import { prisma } from "@/lib/db";
 import { getPublicAppOrigin } from "@/lib/app-url";
@@ -22,7 +23,7 @@ export default async function MembersSettingsPage() {
   const [members, invitations] = await Promise.all([
     prisma.membership.findMany({
       where: { organizationId: membership.organizationId },
-      include: { user: true },
+      include: { user: true, grants: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.invitation.findMany({
@@ -49,7 +50,8 @@ export default async function MembersSettingsPage() {
         <p className="mt-2 max-w-2xl text-[var(--muted)]">
           Jede eingeladene Person bekommt einen vollen Account und automatisch
           einen privaten Space. Archivierte verlieren den Zugang — Historie
-          (Artikel, Stunden) bleibt erhalten.
+          (Artikel, Stunden) bleibt erhalten. Tags steuern Zugang (Finance,
+          Werbung) und Vorschläge (Autor:in in der Redaktion).
         </p>
       </header>
 
@@ -63,8 +65,9 @@ export default async function MembersSettingsPage() {
           {active.map((m) => (
             <li
               key={m.id}
-              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 px-4 py-3"
             >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">{m.user.name}</p>
                 <p className="text-sm text-[var(--muted)]">{m.user.email}</p>
@@ -96,6 +99,12 @@ export default async function MembersSettingsPage() {
                   />
                 )}
               </div>
+              </div>
+              <MemberCapabilityGrants
+                userId={m.userId}
+                isAdmin={m.role === "admin"}
+                granted={m.grants.map((g) => g.capability)}
+              />
             </li>
           ))}
         </ul>

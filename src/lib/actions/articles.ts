@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
+import { membershipInTagPool } from "@/lib/membership-grants";
 import {
   DEFAULT_ARTICLE_STAGE,
   isArticleStage,
@@ -51,18 +52,23 @@ export async function createArticle(formData: FormData) {
     return { error: "Kein Zugriff auf diesen Space." };
   }
 
-  let assigneeId: string | null = session.user.id;
+  let assigneeId: string | null = null;
   if (parsed.data.assigneeId && parsed.data.assigneeId.length > 0) {
-    const member = await prisma.membership.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: membership.organizationId,
-          userId: parsed.data.assigneeId,
-        },
-      },
-    });
-    if (!member) return { error: "Person nicht im Team." };
+    const inPool = await membershipInTagPool(
+      membership.organizationId,
+      parsed.data.assigneeId,
+      "editorial",
+    );
+    if (!inPool) return { error: "Person ist nicht in der Redaktion." };
     assigneeId = parsed.data.assigneeId;
+  } else if (
+    await membershipInTagPool(
+      membership.organizationId,
+      session.user.id,
+      "editorial",
+    )
+  ) {
+    assigneeId = session.user.id;
   }
 
   let categoryId: string | null | undefined;
@@ -249,15 +255,15 @@ export async function updateArticle(formData: FormData) {
     const nextAssignee =
       parsed.data.assigneeId === "" ? null : parsed.data.assigneeId;
     if (nextAssignee) {
-      const member = await prisma.membership.findUnique({
-        where: {
-          organizationId_userId: {
-            organizationId: membership.organizationId,
-            userId: nextAssignee,
-          },
-        },
-      });
-      if (!member) return { error: "Person nicht im Team." };
+      const sameAsCurrent = nextAssignee === article.assigneeId;
+      const inPool = await membershipInTagPool(
+        membership.organizationId,
+        nextAssignee,
+        "editorial",
+      );
+      if (!sameAsCurrent && !inPool) {
+        return { error: "Person ist nicht in der Redaktion." };
+      }
     }
     data.assigneeId = nextAssignee;
   }

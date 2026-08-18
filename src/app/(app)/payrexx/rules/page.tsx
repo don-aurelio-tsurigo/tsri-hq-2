@@ -8,10 +8,10 @@ import {
   categoryLabel,
   listChannelRules,
 } from "@/lib/payrexx";
-import { requireMembership } from "@/lib/session";
+import { requireCapability } from "@/lib/session";
 
 export default async function PayrexxRulesPage() {
-  const { membership } = await requireMembership();
+  const { membership } = await requireCapability("finance");
   const rules = await listChannelRules(membership.organizationId);
   const options = assignableCategoryKeys();
 

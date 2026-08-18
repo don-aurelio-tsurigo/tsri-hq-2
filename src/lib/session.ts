@@ -3,7 +3,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { hasCapability, canAccessCivicMedia, canManageEditorial } from "@/lib/permissions";
 import { nameIsIncomplete } from "@/lib/user-name";
+import type { AppCapability } from "@/generated/prisma/client";
 
 export const getSession = cache(async () => {
   return auth.api.getSession({
@@ -26,6 +28,7 @@ export const getMembership = cache(async (userId: string) => {
     include: {
       organization: true,
       user: true,
+      grants: true,
     },
     orderBy: { createdAt: "asc" },
   });
@@ -73,6 +76,30 @@ export async function getActiveMembershipContext() {
 export async function requireAdmin() {
   const ctx = await requireMembership();
   if (ctx.membership.role !== "admin") {
+    redirect("/home");
+  }
+  return ctx;
+}
+
+export async function requireCapability(capability: AppCapability) {
+  const ctx = await requireMembership();
+  if (!hasCapability(ctx.membership, capability)) {
+    redirect("/home");
+  }
+  return ctx;
+}
+
+export async function requireEditorialLead() {
+  const ctx = await requireMembership();
+  if (!canManageEditorial(ctx.membership)) {
+    redirect("/home");
+  }
+  return ctx;
+}
+
+export async function requireCivicMediaAccess() {
+  const ctx = await requireMembership();
+  if (!canAccessCivicMedia(ctx.membership)) {
     redirect("/home");
   }
   return ctx;

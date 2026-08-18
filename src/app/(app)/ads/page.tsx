@@ -1,10 +1,10 @@
 import { AdsAdmin } from "@/components/ads-admin";
 import { AdSlot } from "@/components/ad-slot";
 import { listAdCampaigns } from "@/lib/ads";
-import { requireMembership } from "@/lib/session";
+import { requireCivicMediaAccess } from "@/lib/session";
 
 export default async function AdsPage() {
-  await requireMembership();
+  await requireCivicMediaAccess();
   const campaigns = await listAdCampaigns();
 
   return (

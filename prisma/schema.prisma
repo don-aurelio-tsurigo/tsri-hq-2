@@ -121,6 +121,18 @@ enum MembershipRole {
   @@schema("public")
 }
 
+/// Tags on a membership: access (Finance) and groups (Redaktion, Civic Media).
+/// Admin implies access tags only, not group tags (rosters/filters).
+enum AppCapability {
+  finance
+  editorial
+  editorial_lead
+  civic_media
+  civic_media_lead
+
+  @@schema("public")
+}
+
 model Organization {
   id                            String   @id @default(cuid())
   name                          String
@@ -172,13 +184,27 @@ model Membership {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grants       MembershipGrant[]
 
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId, archivedAt])
   @@map("membership")
+  @@schema("public")
+}
+
+model MembershipGrant {
+  id           String        @id @default(cuid())
+  membershipId String
+  capability   AppCapability
+  createdAt    DateTime      @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, capability])
+  @@map("membership_grant")
   @@schema("public")
 }
 

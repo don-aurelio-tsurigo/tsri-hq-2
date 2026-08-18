@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/session";
+import { requireEditorialLead } from "@/lib/session";
 
 // ─── Eigenleistungs-Rubriken ───────────────────────────────────
 
@@ -25,7 +25,7 @@ async function revalidateRedaktion(organizationId: string) {
 }
 
 export async function createEigenleistungRubrik(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const parsed = rubrikSchema.safeParse({
     name: formData.get("name"),
     color: formData.get("color") || undefined,
@@ -57,7 +57,7 @@ export async function createEigenleistungRubrik(formData: FormData) {
 }
 
 export async function updateEigenleistungRubrik(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -99,7 +99,7 @@ export async function updateEigenleistungRubrik(formData: FormData) {
 }
 
 export async function deleteEigenleistungRubrik(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -116,7 +116,7 @@ export async function deleteEigenleistungRubrik(formData: FormData) {
 // ─── Artikel-Kategorien ────────────────────────────────────────
 
 export async function createArticleCategory(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const parsed = rubrikSchema.safeParse({
     name: formData.get("name"),
     color: formData.get("color") || undefined,
@@ -150,7 +150,7 @@ export async function createArticleCategory(formData: FormData) {
 }
 
 export async function updateArticleCategory(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -194,7 +194,7 @@ export async function updateArticleCategory(formData: FormData) {
 }
 
 export async function deleteArticleCategory(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 

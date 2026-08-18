@@ -13,6 +13,8 @@ import {
   requireMembership,
   requireSession,
 } from "@/lib/session";
+import { ASSIGNABLE_CAPABILITIES } from "@/lib/permissions";
+import type { AppCapability } from "@/generated/prisma/client";
 import { ensurePersonalSpace } from "@/lib/spaces";
 import { joinDisplayName } from "@/lib/user-name";
 
@@ -254,6 +256,83 @@ export async function updateMemberPensum(formData: FormData) {
     select: { id: true },
   });
   if (teamInfos) revalidatePath(`/spaces/${teamInfos.id}`);
+  return { ok: true as const };
+}
+
+const capabilityKeys = ASSIGNABLE_CAPABILITIES.map((c) => c.key) as [
+  AppCapability,
+  ...AppCapability[],
+];
+
+const grantSchema = z.object({
+  userId: z.string().min(1),
+  capability: z.enum(capabilityKeys),
+  enabled: z.enum(["true", "false"]),
+});
+
+export async function setMemberCapability(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = grantSchema.safeParse({
+    userId: formData.get("userId"),
+    capability: formData.get("capability"),
+    enabled: formData.get("enabled"),
+  });
+  if (!parsed.success) {
+    return { error: "Bereichsrecht ungültig." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId: parsed.data.userId,
+      },
+    },
+  });
+  if (!target) return { error: "Person ist nicht im Team." };
+  if (target.archivedAt) {
+    return { error: "Archivierte Mitglieder können keine Rechte ändern." };
+  }
+  const tag = ASSIGNABLE_CAPABILITIES.find(
+    (c) => c.key === parsed.data.capability,
+  );
+  if (target.role === "admin" && tag?.kind === "access") {
+    return { error: "Admins haben Zugangs-Tags wie Finance automatisch." };
+  }
+
+  if (parsed.data.enabled === "true") {
+    await prisma.membershipGrant.upsert({
+      where: {
+        membershipId_capability: {
+          membershipId: target.id,
+          capability: parsed.data.capability,
+        },
+      },
+      create: {
+        membershipId: target.id,
+        capability: parsed.data.capability,
+      },
+      update: {},
+    });
+  } else {
+    await prisma.membershipGrant.deleteMany({
+      where: {
+        membershipId: target.id,
+        capability: parsed.data.capability,
+      },
+    });
+  }
+
+  revalidatePath("/settings/members");
+  revalidatePath("/payrexx");
+  revalidatePath("/ads");
+  revalidatePath("/newsletter");
+  revalidatePath("/home");
+  const redaktion = await prisma.space.findFirst({
+    where: { organizationId: membership.organizationId, slug: "redaktion" },
+    select: { id: true },
+  });
+  if (redaktion) revalidatePath(`/spaces/${redaktion.id}`);
   return { ok: true as const };
 }
 
