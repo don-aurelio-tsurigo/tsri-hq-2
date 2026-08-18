@@ -36,9 +36,7 @@ export function ProjectNotes({
     });
   }
 
-  const preview = committed.trim()
-    ? committed.trim().split(/\n/).find((line) => line.trim()) ?? ""
-    : "";
+  const preview = committed.trim();
 
   if (!open) {
     return (
@@ -50,10 +48,14 @@ export function ProjectNotes({
         <span className="mt-0.5 text-[0.65rem] text-[var(--muted)]" aria-hidden>
           ▸
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">Projektnotizen</span>
-          <span className="mt-0.5 block truncate text-xs text-[var(--muted)]">
-            {preview || (canEdit ? "Klicken zum Bearbeiten…" : "Keine Notizen")}
+        <span
+          className={[
+            "min-w-0 flex-1 whitespace-pre-wrap text-sm leading-snug",
+            preview ? "text-[var(--fg)]" : "text-[var(--muted)]",
+          ].join(" ")}
+        >
+          <span className="line-clamp-4">
+            {preview || (canEdit ? "Notizen hinzufügen…" : "Keine Notizen")}
           </span>
         </span>
       </button>
