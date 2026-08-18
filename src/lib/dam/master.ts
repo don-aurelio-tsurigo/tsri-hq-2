@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { decodeHeicIfNeeded } from "./heic";
 
 export const MASTER_MAX_EDGE = 4000;
 
@@ -21,8 +22,12 @@ function outputFormat(format: string | undefined): "jpeg" | "png" | "webp" {
  * (no upscaling). HEIC/HEIF becomes JPEG. Aspect ratio is preserved.
  */
 export async function createMasterImage(original: Buffer): Promise<MasterImage> {
-  const image = sharp(original, { failOn: "none" }).rotate();
+  const decoded = await decodeHeicIfNeeded(original);
+  const image = sharp(decoded, { failOn: "none" }).rotate();
   const meta = await image.clone().metadata();
+  if (!meta.width || !meta.height) {
+    throw new Error("Bild konnte nicht gelesen werden.");
+  }
   const format = outputFormat(meta.format);
   const pipeline = image.resize({
     width: MASTER_MAX_EDGE,

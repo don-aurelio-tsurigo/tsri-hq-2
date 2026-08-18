@@ -49,6 +49,10 @@ describe("createMasterImage", () => {
     assert.equal(webp.contentType, "image/webp");
     assert.equal(String.fromCharCode(...webp.buffer.subarray(8, 12)), "WEBP");
   });
+
+  it("rejects bytes that sharp cannot decode", async () => {
+    await assert.rejects(() => createMasterImage(Buffer.from("not-an-image")));
+  });
 });
 
 describe("replaceKeyExtension", () => {

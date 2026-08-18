@@ -110,21 +110,50 @@ export function outputExtension(contentType: string, originalName: string): stri
   }
 }
 
-export function looksLikeImageBytes(bytes: Uint8Array): boolean {
+const HEIC_BRANDS = new Set([
+  "heic",
+  "heif",
+  "heix",
+  "mif1",
+  "msf1",
+  "heim",
+  "heis",
+]);
+
+export function looksLikeHeicBytes(bytes: Uint8Array): boolean {
   if (bytes.length < 12) return false;
-  // JPEG
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return true;
-  // PNG
   if (
+    bytes[4] !== 0x66 ||
+    bytes[5] !== 0x74 ||
+    bytes[6] !== 0x79 ||
+    bytes[7] !== 0x70
+  ) {
+    return false;
+  }
+  const brand = String.fromCharCode(
+    bytes[8] ?? 0,
+    bytes[9] ?? 0,
+    bytes[10] ?? 0,
+    bytes[11] ?? 0,
+  ).toLowerCase();
+  return HEIC_BRANDS.has(brand);
+}
+
+export function sniffImageContentType(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8 &&
     bytes[0] === 0x89 &&
     bytes[1] === 0x50 &&
     bytes[2] === 0x4e &&
     bytes[3] === 0x47
   ) {
-    return true;
+    return "image/png";
   }
-  // WEBP: RIFF....WEBP
   if (
+    bytes.length >= 12 &&
     bytes[0] === 0x52 &&
     bytes[1] === 0x49 &&
     bytes[2] === 0x46 &&
@@ -134,24 +163,19 @@ export function looksLikeImageBytes(bytes: Uint8Array): boolean {
     bytes[10] === 0x42 &&
     bytes[11] === 0x50
   ) {
-    return true;
+    return "image/webp";
   }
-  // HEIC/HEIF: ftyp box at offset 4
-  if (
-    bytes[4] === 0x66 &&
-    bytes[5] === 0x74 &&
-    bytes[6] === 0x79 &&
-    bytes[7] === 0x70
-  ) {
-    const brand = String.fromCharCode(
-      bytes[8] ?? 0,
-      bytes[9] ?? 0,
-      bytes[10] ?? 0,
-      bytes[11] ?? 0,
-    );
-    return ["heic", "heif", "heix", "mif1", "msf1", "heim", "heis"].includes(
-      brand,
-    );
-  }
-  return false;
+  if (looksLikeHeicBytes(bytes)) return "image/heic";
+  return null;
+}
+
+/** iOS often sends HEIC as a File with type image/jpeg or empty. */
+export function blobUrlForPreview(file: File, sniffedType: string | null): string {
+  const type = sniffedType ?? normalizedContentType(file.name, file.type);
+  if (file.type === type) return URL.createObjectURL(file);
+  return URL.createObjectURL(file.slice(0, file.size, type));
+}
+
+export function looksLikeImageBytes(bytes: Uint8Array): boolean {
+  return sniffImageContentType(bytes) !== null;
 }

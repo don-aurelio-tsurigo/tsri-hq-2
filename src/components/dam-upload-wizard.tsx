@@ -14,7 +14,13 @@ import {
   X,
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
-import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import {
+  blobUrlForPreview,
+  MAX_FILE_BYTES,
+  MAX_FILES,
+  rejectReason,
+  sniffImageContentType,
+} from "@/lib/dam/accept";
 import {
   defaultCollectionName,
   creditDisplayName,
@@ -449,33 +455,42 @@ export function DamUploadWizard({
       errors.push(reason);
     }
 
-    setQueued((prev) => {
-      const next = [...prev];
+    void (async () => {
+      const additions: QueuedFile[] = [];
       for (const file of accepted) {
         const reason = rejectReason(file.name, file.type, file.size);
         if (reason) {
           errors.push(reason);
           continue;
         }
-        if (next.some((q) => q.file.name === file.name && q.file.size === file.size)) {
-          continue;
-        }
-        next.push({
+        const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+        additions.push({
           id: crypto.randomUUID(),
           file,
-          previewUrl: URL.createObjectURL(file),
+          previewUrl: blobUrlForPreview(file, sniffImageContentType(head)),
         });
       }
-      if (next.length > MAX_FILES) {
-        errors.push(`Maximal ${MAX_FILES} Dateien pro Batch.`);
-        const extra = next.slice(MAX_FILES);
-        extra.forEach((q) => URL.revokeObjectURL(q.previewUrl));
+
+      setQueued((prev) => {
+        const next = [...prev];
+        for (const item of additions) {
+          if (next.some((q) => q.file.name === item.file.name && q.file.size === item.file.size)) {
+            URL.revokeObjectURL(item.previewUrl);
+            continue;
+          }
+          next.push(item);
+        }
+        if (next.length > MAX_FILES) {
+          errors.push(`Maximal ${MAX_FILES} Dateien pro Batch.`);
+          const extra = next.slice(MAX_FILES);
+          extra.forEach((q) => URL.revokeObjectURL(q.previewUrl));
+          setDropErrors(errors);
+          return next.slice(0, MAX_FILES);
+        }
         setDropErrors(errors);
-        return next.slice(0, MAX_FILES);
-      }
-      setDropErrors(errors);
-      return next;
-    });
+        return next;
+      });
+    })();
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

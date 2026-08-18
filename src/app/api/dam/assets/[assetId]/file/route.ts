@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { looksLikeHeicBytes } from "@/lib/dam/accept";
 import { derivativeKey } from "@/lib/dam/filename";
+import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
@@ -51,7 +53,16 @@ export async function GET(
   }
 
   try {
-    const { buffer, contentType } = await loadVariant(asset.r2Key, variant);
+    let { buffer, contentType } = await loadVariant(asset.r2Key, variant);
+    if (looksLikeHeicBytes(buffer)) {
+      try {
+        buffer = await jpegBufferFromHeic(buffer);
+        contentType = "image/jpeg";
+      } catch (error) {
+        console.warn("[dam] HEIC preview convert failed", error);
+        contentType = "image/heic";
+      }
+    }
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": contentType,

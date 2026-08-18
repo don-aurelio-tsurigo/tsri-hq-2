@@ -7,6 +7,7 @@ import {
   temperatureToRgb,
   type DamEditParams,
 } from "@/lib/dam/edit-params";
+import { decodeHeicIfNeeded } from "@/lib/dam/heic";
 
 /**
  * Apply non-destructive editParams for publish (Phase 4).
@@ -17,7 +18,8 @@ export async function applyDamEdits(
   raw: unknown,
 ): Promise<Buffer> {
   const params = parseEditParams(raw);
-  const oriented = await sharp(input).rotate().toBuffer();
+  const decoded = await decodeHeicIfNeeded(input);
+  const oriented = await sharp(decoded).rotate().toBuffer();
   return applyDamEditsToOriented(oriented, params);
 }
 

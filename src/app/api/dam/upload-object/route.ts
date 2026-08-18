@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sniffImageContentType } from "@/lib/dam/accept";
 import { parseUploadObjectRequest } from "@/lib/dam/upload-object-body";
 import { putObject, R2AccessError, R2ConfigError } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
@@ -23,7 +24,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    await putObject(parsed.r2Key, parsed.bytes, parsed.contentType);
+    const contentType =
+      sniffImageContentType(parsed.bytes) ?? parsed.contentType;
+    await putObject(parsed.r2Key, parsed.bytes, contentType);
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof R2ConfigError || error instanceof R2AccessError) {
