@@ -40,29 +40,32 @@ export function MemberCapabilityGrants({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <fieldset
-        className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
-        disabled={pending}
-      >
-        <legend className="sr-only">Tags</legend>
-        {tags.map((cap) => {
-          const checked = granted.includes(cap.key);
-          return (
-            <label
-              key={cap.key}
-              className="flex cursor-pointer items-center gap-1.5 text-sm"
-            >
-              <input
-                type="checkbox"
-                className="size-3.5 accent-[var(--accent)]"
-                checked={checked}
-                onChange={(e) => toggle(cap.key, e.target.checked)}
-              />
-              <span className="text-[var(--muted)]">{cap.label}</span>
-            </label>
-          );
-        })}
+    <div className="flex flex-col gap-1.5">
+      <fieldset disabled={pending}>
+        <legend className="mb-1.5 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          Tags
+        </legend>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tags.map((cap) => {
+            const checked = granted.includes(cap.key);
+            return (
+              <button
+                key={cap.key}
+                type="button"
+                aria-pressed={checked}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  checked
+                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => toggle(cap.key, !checked)}
+              >
+                {cap.label}
+              </button>
+            );
+          })}
+        </div>
       </fieldset>
       {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
     </div>

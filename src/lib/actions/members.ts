@@ -301,24 +301,29 @@ export async function setMemberCapability(formData: FormData) {
   }
 
   if (parsed.data.enabled === "true") {
-    await prisma.membershipGrant.upsert({
+    // Prisma 7 runtimeDataModel.enums is empty, so unique-where enum
+    // inputs (upsert) fail client validation. Filter `{ in: [...] }` and
+    // create writes already work for other AppCapability queries.
+    const existing = await prisma.membershipGrant.findFirst({
       where: {
-        membershipId_capability: {
+        membershipId: target.id,
+        capability: { in: [parsed.data.capability] },
+      },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.membershipGrant.create({
+        data: {
           membershipId: target.id,
           capability: parsed.data.capability,
         },
-      },
-      create: {
-        membershipId: target.id,
-        capability: parsed.data.capability,
-      },
-      update: {},
-    });
+      });
+    }
   } else {
     await prisma.membershipGrant.deleteMany({
       where: {
         membershipId: target.id,
-        capability: parsed.data.capability,
+        capability: { in: [parsed.data.capability] },
       },
     });
   }

@@ -44,13 +44,13 @@ export function MemberNameEdit({
     <div className="relative">
       <button
         type="button"
-        className="btn btn-ghost text-sm"
+        className="btn btn-ghost px-3 py-1.5 text-sm"
         onClick={() => {
           if (open) close();
           else setOpen(true);
         }}
       >
-        Name
+        Name ändern
         {incomplete ? " *" : ""}
       </button>
       {open && (

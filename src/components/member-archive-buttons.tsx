@@ -40,7 +40,7 @@ export function ArchiveMemberButton({
     <div className="flex flex-col items-end gap-1">
       <button
         type="button"
-        className="btn btn-secondary text-sm"
+        className="btn btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"
         disabled={pending}
         onClick={onArchive}
       >
