@@ -1,7 +1,6 @@
 import sharp from "sharp";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
 import { autotagImage } from "@/lib/dam/autotag";
-import { damDebug, damMem } from "@/lib/dam/debug-mem";
 import { extractExif } from "@/lib/dam/exif";
 import { derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
 import { decodeHeicIfNeeded } from "@/lib/dam/heic";
@@ -11,7 +10,6 @@ import { prisma } from "@/lib/db";
 import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
 
 const CONCURRENCY = 1;
-let processInFlight = 0;
 
 sharp.cache(false);
 sharp.concurrency(1);
@@ -42,11 +40,9 @@ async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
 
 async function processOne(assetId: string): Promise<void> {
   if (!beginDamAsset(assetId)) return;
-  processInFlight += 1;
   try {
     await processOneInner(assetId);
   } finally {
-    processInFlight -= 1;
     endDamAsset(assetId);
   }
 }
@@ -96,19 +92,6 @@ async function processOneInner(assetId: string): Promise<void> {
         .resize({ width: 2000, withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer();
-      // #region agent log
-      damDebug("C", "process.ts:derivatives", "master + thumb/web built", {
-        assetId: asset.id,
-        inFlight: processInFlight,
-        origMb: Math.round((original.length / 1048576) * 10) / 10,
-        masterMb: Math.round((master.buffer.length / 1048576) * 10) / 10,
-        thumbMb: Math.round((thumb.length / 1048576) * 10) / 10,
-        webMb: Math.round((web.length / 1048576) * 10) / 10,
-        width: master.width,
-        height: master.height,
-        mem: damMem(),
-      });
-      // #endregion
 
       await Promise.all([
         putObject(nextKey, master.buffer, master.contentType),
@@ -164,24 +147,9 @@ async function processOneInner(assetId: string): Promise<void> {
       status: "staging",
     },
   });
-  // #region agent log
-  damDebug("A", "process.ts:done", "asset processed", {
-    assetId: asset.id,
-    inFlight: processInFlight,
-    skippedMaster: Boolean(asset.width),
-    mem: damMem(),
-  });
-  // #endregion
 }
 
 export async function processDamAssets(assetIds: string[]): Promise<void> {
-  // #region agent log
-  damDebug("A", "process.ts:batch", "processDamAssets start", {
-    count: assetIds.length,
-    concurrency: CONCURRENCY,
-    mem: damMem(),
-  });
-  // #endregion
   await mapPool(assetIds, CONCURRENCY, async (id) => {
     try {
       await processOne(id);

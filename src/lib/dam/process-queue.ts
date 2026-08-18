@@ -57,25 +57,8 @@ async function drainDamProcessing(): Promise<void> {
       }
       g.__damProcessQueue = [];
       if (ids.length === 0) break;
-      const { damDebug, damMem } = await import("@/lib/dam/debug-mem");
-      // #region agent log
-      damDebug("F", "process-queue.ts:drain:start", "DAM process drain start", {
-        count: ids.length,
-        running: true,
-        processing: g.__damProcessingIds!.size,
-        mem: damMem(),
-      });
-      // #endregion
       const { processDamAssets } = await import("@/lib/dam/process");
       await processDamAssets(ids);
-      // #region agent log
-      damDebug("F", "process-queue.ts:drain:end", "DAM process drain end", {
-        count: ids.length,
-        queued: g.__damProcessQueue?.length ?? 0,
-        processing: g.__damProcessingIds!.size,
-        mem: damMem(),
-      });
-      // #endregion
     }
   } catch (error) {
     console.error("[dam] background process failed", error);
