@@ -134,7 +134,10 @@ async function putViaServer(
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/dam/upload-object");
+    xhr.open(
+      "POST",
+      `/api/dam/upload-object?r2Key=${encodeURIComponent(r2Key)}`,
+    );
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         onProgress(Math.round((event.loaded / event.total) * 100));
@@ -155,11 +158,12 @@ async function putViaServer(
       reject(new Error(message));
     };
     xhr.onerror = () => reject(new Error("Server-Upload fehlgeschlagen."));
-    const form = new FormData();
-    form.set("r2Key", r2Key);
-    form.set("contentType", contentType);
-    form.set("file", file);
-    xhr.send(form);
+    // Raw body — iOS PWA FormData often has an empty filename and Next then
+    // rejects the multipart parse as "Ungültiges Formular."
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("x-r2-key", r2Key);
+    xhr.setRequestHeader("x-content-type", contentType || file.type || "image/jpeg");
+    xhr.send(file);
   });
 }
 

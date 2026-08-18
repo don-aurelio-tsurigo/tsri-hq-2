@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   // Allow opening the app via 127.0.0.1 in local dev (HMR / assets).
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   serverExternalPackages: ["sharp", "exifr"],
+  experimental: {
+    // Phone camera JPEGs are often >10 MB; the default proxy/action limit
+    // makes request.formData() / arrayBuffer() throw on the DAM fallback.
+    proxyClientMaxBodySize: "45mb",
+    serverActions: { bodySizeLimit: "45mb" },
+  },
 };
 
 export default nextConfig;
