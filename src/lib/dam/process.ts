@@ -6,6 +6,7 @@ import { extractExif } from "@/lib/dam/exif";
 import { derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
 import { decodeHeicIfNeeded } from "@/lib/dam/heic";
 import { createMasterImage } from "@/lib/dam/master";
+import { beginDamAsset, endDamAsset } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
 import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
 
@@ -40,11 +41,13 @@ async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
 }
 
 async function processOne(assetId: string): Promise<void> {
+  if (!beginDamAsset(assetId)) return;
   processInFlight += 1;
   try {
     await processOneInner(assetId);
   } finally {
     processInFlight -= 1;
+    endDamAsset(assetId);
   }
 }
 
