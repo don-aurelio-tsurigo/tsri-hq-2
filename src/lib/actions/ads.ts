@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { CampaignStatus, CreativeType } from "@/generated/prisma/client";
+import {
+  parseZurichDayEnd,
+  parseZurichDayStart,
+} from "@/lib/ads-shared";
 import { prisma } from "@/lib/db";
 import { requireCivicMediaAccess } from "@/lib/session";
 
@@ -15,16 +19,6 @@ const createSchema = z.object({
   endDate: z.string().min(1),
   impressionLimit: z.string().optional(),
 });
-
-function parseDayStart(isoDate: string): Date {
-  const d = new Date(`${isoDate}T00:00:00.000`);
-  return d;
-}
-
-function parseDayEnd(isoDate: string): Date {
-  const d = new Date(`${isoDate}T23:59:59.999`);
-  return d;
-}
 
 /** Empty → null (unlimited); otherwise positive int. */
 function parseImpressionLimit(
@@ -59,8 +53,8 @@ export async function createAdCampaign(formData: FormData) {
   const limitParsed = parseImpressionLimit(parsed.data.impressionLimit);
   if (!limitParsed.ok) return { error: limitParsed.error };
 
-  const start = parseDayStart(startDate);
-  const end = parseDayEnd(endDate);
+  const start = parseZurichDayStart(startDate);
+  const end = parseZurichDayEnd(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return { error: "Ungültiges Datum." };
   }
@@ -141,8 +135,8 @@ export async function updateAdCampaign(formData: FormData) {
   const limitParsed = parseImpressionLimit(parsed.data.impressionLimit);
   if (!limitParsed.ok) return { error: limitParsed.error };
 
-  const start = parseDayStart(startDate);
-  const end = parseDayEnd(endDate);
+  const start = parseZurichDayStart(startDate);
+  const end = parseZurichDayEnd(endDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return { error: "Ungültiges Datum." };
   }

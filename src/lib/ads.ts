@@ -1,7 +1,10 @@
-import { format } from "date-fns";
 import { CreativeType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import type { AdCampaignRow } from "@/lib/ads-shared";
+import {
+  parseZurichDayEnd,
+  zurichDateKey,
+  type AdCampaignRow,
+} from "@/lib/ads-shared";
 
 export type { AdCampaignRow } from "@/lib/ads-shared";
 export { defaultAdDateRange } from "@/lib/ads-shared";
@@ -54,8 +57,8 @@ export async function listAdCampaigns(): Promise<AdCampaignRow[]> {
       id: c.id,
       creativeId: creative?.id ?? "",
       name: c.name,
-      startDate: format(c.startDate, "yyyy-MM-dd"),
-      endDate: format(c.endDate, "yyyy-MM-dd"),
+      startDate: zurichDateKey(c.startDate),
+      endDate: zurichDateKey(c.endDate),
       status: c.status,
       type: creative?.type ?? CreativeType.IMAGE,
       mediaUrl: creative?.mediaUrl ?? "",
@@ -67,8 +70,8 @@ export async function listAdCampaigns(): Promise<AdCampaignRow[]> {
   });
 
   rows.sort((a, b) => {
-    const aExpired = new Date(`${a.endDate}T23:59:59.999`).getTime() < now;
-    const bExpired = new Date(`${b.endDate}T23:59:59.999`).getTime() < now;
+    const aExpired = parseZurichDayEnd(a.endDate).getTime() < now;
+    const bExpired = parseZurichDayEnd(b.endDate).getTime() < now;
     const aActive = a.status === "ACTIVE" && !aExpired;
     const bActive = b.status === "ACTIVE" && !bExpired;
     if (aActive !== bActive) return aActive ? -1 : 1;

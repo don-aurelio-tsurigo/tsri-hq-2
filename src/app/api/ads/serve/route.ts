@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { AdEventType, CampaignStatus } from "@/generated/prisma/client";
 import { adsCorsPreflight, withAdsCors } from "@/lib/ads-cors";
+import {
+  parseZurichDayEnd,
+  parseZurichDayStart,
+  zurichDateKey,
+} from "@/lib/ads-shared";
 import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -12,12 +17,16 @@ export function OPTIONS(request: Request) {
 
 export async function GET(request: Request) {
   const now = new Date();
+  // Flight dates are calendar days in Europe/Zurich; Render itself is UTC.
+  const today = zurichDateKey(now);
+  const todayStart = parseZurichDayStart(today);
+  const todayEnd = parseZurichDayEnd(today);
 
   const campaigns = await prisma.campaign.findMany({
     where: {
       status: CampaignStatus.ACTIVE,
-      startDate: { lte: now },
-      endDate: { gte: now },
+      startDate: { lte: todayEnd },
+      endDate: { gte: todayStart },
       creatives: { some: {} },
     },
     select: {
