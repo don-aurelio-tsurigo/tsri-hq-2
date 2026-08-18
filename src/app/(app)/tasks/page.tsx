@@ -106,11 +106,9 @@ export default async function PersonalTasksPage({
   const focusListId =
     listParam && groups.some((g) => g.id === listParam) ? listParam : null;
   const focusProjectId = projectParam || null;
-  const initialMode = focusListId
-    ? "list"
-    : focusProjectId
-      ? "project"
-      : undefined;
+  const initialMode = focusProjectId
+    ? "project"
+    : "list";
 
   return (
     <GroupedTasksBoard

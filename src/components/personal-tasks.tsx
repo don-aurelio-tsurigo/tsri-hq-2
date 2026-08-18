@@ -37,8 +37,7 @@ import {
 
 type Group = { id: string; name: string; pinned?: boolean };
 type Member = { id: string; name: string };
-type InboxMode = "due" | "project" | "list";
-type ScopeFilter = "all" | "personal" | "project";
+type InboxMode = "list" | "project" | "due";
 
 type BucketKey = "overdue" | "today" | "week" | "later" | "none";
 
@@ -218,7 +217,7 @@ export function GroupedTasksBoard({
   isTemplate?: boolean;
   /**
    * `space` = TaskGroup sections (project detail / single space).
-   * `inbox` = merged personal + assigned project tasks with due/project/list modes.
+   * `inbox` = Meine Tasks: Listen (privat), Projekte, Fällig (alles).
    */
   variant?: "space" | "inbox";
   pinnedProjectIds?: string[];
@@ -252,9 +251,8 @@ export function GroupedTasksBoard({
   const [error, setError] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [inboxMode, setInboxMode] = useState<InboxMode>(
-    () => initialMode ?? "due",
+    () => initialMode ?? "list",
   );
-  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
 
   const isInbox = variant === "inbox";
 
@@ -293,29 +291,26 @@ export function GroupedTasksBoard({
     });
   }
 
-  const scopeCounts = useMemo(() => {
-    let personal = 0;
+  const viewCounts = useMemo(() => {
+    let list = 0;
     let project = 0;
+    let due = 0;
     for (const task of optimisticTasks) {
-      const space = task.space;
-      const isPersonal =
-        !space || space.type === "personal" || space.id === spaceId;
-      if (isPersonal) personal += 1;
-      else if (space?.type === "project") project += 1;
+      if (task.status !== "todo" && task.status !== "doing") continue;
+      due += 1;
+      if (isPersonalSpaceTask(task, spaceId)) list += 1;
+      else if (task.space?.type === "project") project += 1;
     }
-    return { all: optimisticTasks.length, personal, project };
+    return { list, project, due };
   }, [optimisticTasks, spaceId]);
 
   const scopedTasks = useMemo(() => {
-    if (scopeFilter === "all") return optimisticTasks;
+    if (!isInbox || inboxMode === "due") return optimisticTasks;
     return optimisticTasks.filter((task) => {
-      const space = task.space;
-      const isPersonal =
-        !space || space.type === "personal" || space.id === spaceId;
-      if (scopeFilter === "personal") return isPersonal;
-      return space?.type === "project";
+      if (inboxMode === "list") return isPersonalSpaceTask(task, spaceId);
+      return task.space?.type === "project";
     });
-  }, [optimisticTasks, scopeFilter, spaceId]);
+  }, [optimisticTasks, isInbox, inboxMode, spaceId]);
 
   const openTasks = useMemo(
     () =>
@@ -386,29 +381,11 @@ export function GroupedTasksBoard({
     });
   }, [openTasks, spaceId]);
 
-  /** When Filter=Projekt, prefer creating into a project space if unambiguous. */
-  const projectFilterSpaceId = useMemo(() => {
-    if (scopeFilter !== "project") return null;
-    const ids = new Set<string>();
-    for (const task of optimisticTasks) {
-      const space = task.space;
-      if (space?.type === "project") ids.add(space.id);
-    }
-    if (ids.size === 1) return [...ids][0]!;
-    return null;
-  }, [scopeFilter, optimisticTasks]);
-
-  const inboxCreateSpaceId = projectFilterSpaceId ?? spaceId;
-  const inboxCreateSpace =
-    projectFilterSpaceId != null
-      ? ({
-          id: projectFilterSpaceId,
-          name:
-            optimisticTasks.find((t) => t.space?.id === projectFilterSpaceId)
-              ?.space?.name ?? "Projekt",
-          type: "project" as const,
-        })
-      : ({ id: spaceId, name: "Privat", type: "personal" as const });
+  const inboxCreateSpace = {
+    id: spaceId,
+    name: "Privat",
+    type: "personal" as const,
+  };
   function toggle(key: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -500,9 +477,13 @@ export function GroupedTasksBoard({
         <p className="mt-1.5 text-sm text-[var(--muted)]">
           {openTasks.length} offen
           {doneTasks.length > 0 ? ` · ${doneTasks.length} erledigt` : ""}
-          {isInbox
-            ? " · privat & zugewiesene Projekt-Tasks"
-            : ""}
+          {isInbox && inboxMode === "list"
+            ? " · private Listen"
+            : isInbox && inboxMode === "project"
+              ? " · zugewiesene Projekt-Tasks"
+              : isInbox
+                ? " · privat & Projekte nach Fälligkeit"
+                : ""}
         </p>
       </header>
 
@@ -518,72 +499,32 @@ export function GroupedTasksBoard({
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       {isInbox && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Filter
-            </span>
-            {(
-              [
-                { id: "all", label: "Alle", count: scopeCounts.all },
-                { id: "personal", label: "Privat", count: scopeCounts.personal },
-                { id: "project", label: "Projekt", count: scopeCounts.project },
-              ] as const
-            ).map((opt) => {
-              const active = scopeFilter === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  aria-pressed={active}
-                  className={[
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                    active
-                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                  ].join(" ")}
-                  onClick={() => setScopeFilter(opt.id)}
-                >
-                  {opt.label} ({opt.count})
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Gruppierung
-            </span>
-            {(
-              [
-                { id: "due", label: "Nach Fälligkeit" },
-                { id: "project", label: "Nach Projekt" },
-                { id: "list", label: "Nach Liste" },
-              ] as const
-            ).map((mode) => {
-              const active = inboxMode === mode.id;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  aria-pressed={active}
-                  className={[
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                    active
-                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                  ].join(" ")}
-                  onClick={() => {
-                    setInboxMode(mode.id);
-                    if (mode.id === "list" && scopeFilter === "project") {
-                      setScopeFilter("personal");
-                    }
-                  }}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              { id: "list", label: "Listen", count: viewCounts.list },
+              { id: "project", label: "Projekte", count: viewCounts.project },
+              { id: "due", label: "Fällig", count: viewCounts.due },
+            ] as const
+          ).map((mode) => {
+            const active = inboxMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                type="button"
+                aria-pressed={active}
+                className={[
+                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  active
+                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => setInboxMode(mode.id)}
+              >
+                {mode.label} ({mode.count})
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -612,7 +553,7 @@ export function GroupedTasksBoard({
                   footer={
                     canEdit ? (
                       <InlineTaskAdd
-                        spaceId={inboxCreateSpaceId}
+                        spaceId={spaceId}
                         dueAt={dueAtForBucket(bucket.key)}
                         assigneeId={currentUserId}
                         space={inboxCreateSpace}
@@ -687,13 +628,6 @@ export function GroupedTasksBoard({
 
       {(!isInbox || inboxMode === "list") && (
         <>
-          {isInbox && scopeFilter === "project" ? (
-            <div className="card px-4 py-6 text-center text-sm text-[var(--muted)]">
-              Private Listen gelten für Privat-Tasks. Filter auf Privat oder Alle
-              stellen.
-            </div>
-          ) : (
-            <>
           <div className="space-y-3">
             <CollapsibleSection
               sectionKey="__none__"
@@ -899,8 +833,6 @@ export function GroupedTasksBoard({
                 + Neue {groupNoun}
               </button>
             ))}
-            </>
-          )}
         </>
       )}
 
