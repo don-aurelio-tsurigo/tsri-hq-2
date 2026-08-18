@@ -36,6 +36,7 @@ import {
   createTaskGroup as createTaskGroupAction,
   updateTaskGroup as updateTaskGroupAction,
   deleteTaskGroup as deleteTaskGroupAction,
+  toggleTaskInboxPin as toggleTaskInboxPinAction,
 } from "./actions/tasks";
 
 export async function createTask(formData: FormData) {
@@ -61,6 +62,9 @@ export async function updateTaskGroup(formData: FormData) {
 }
 export async function deleteTaskGroup(formData: FormData) {
   return deleteTaskGroupAction(formData);
+}
+export async function toggleTaskInboxPin(formData: FormData) {
+  return toggleTaskInboxPinAction(formData);
 }
 
 import {

@@ -51,7 +51,13 @@ type NavProject = {
   name: string;
 };
 
-type NavSectionId = "redaktion" | "fotos" | "projekte" | "team" | "admin";
+type NavTaskPin = {
+  kind: "list" | "project";
+  id: string;
+  name: string;
+};
+
+type NavSectionId = "redaktion" | "fotos" | "tasks" | "projekte" | "team" | "admin";
 
 function NavLink({
   href,
@@ -197,6 +203,7 @@ export function AppSidebar({
   spacesBySlug,
   wikiPins = [],
   navProjects = [],
+  navTaskPins = [],
   mobileOpen = false,
   onMobileClose,
 }: {
@@ -209,6 +216,7 @@ export function AppSidebar({
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins?: WikiPin[];
   navProjects?: NavProject[];
+  navTaskPins?: NavTaskPin[];
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
@@ -234,6 +242,9 @@ export function AppSidebar({
     }
     if (id === "fotos") {
       return pathname === "/dam" || pathname.startsWith("/dam/");
+    }
+    if (id === "tasks") {
+      return pathname === "/tasks" || pathname.startsWith("/tasks/");
     }
     if (id === "projekte") {
       return pathname === "/projects" || pathname.startsWith("/projects/");
@@ -426,14 +437,45 @@ export function AppSidebar({
           </NavLink>
         </NavSection>
 
-        <NavTopLink
-          href="/tasks"
-          active={pathname === "/tasks" || pathname.startsWith("/tasks/")}
+        <NavSection
+          title="Meine Tasks"
           icon={CheckSquare}
-          onNavigate={onMobileClose}
+          open={isSectionOpen("tasks")}
+          onToggle={() => toggleSection("tasks")}
         >
-          Meine Tasks
-        </NavTopLink>
+          <NavLink
+            href="/tasks"
+            active={
+              pathname === "/tasks" &&
+              !searchParams.get("list") &&
+              !searchParams.get("project")
+            }
+            icon={CheckSquare}
+            onNavigate={onMobileClose}
+          >
+            Alle Tasks
+          </NavLink>
+          {navTaskPins.map((pin) => (
+            <NavLink
+              key={`${pin.kind}-${pin.id}`}
+              href={
+                pin.kind === "list"
+                  ? `/tasks?list=${encodeURIComponent(pin.id)}`
+                  : `/tasks?project=${encodeURIComponent(pin.id)}`
+              }
+              active={
+                pathname === "/tasks" &&
+                (pin.kind === "list"
+                  ? searchParams.get("list") === pin.id
+                  : searchParams.get("project") === pin.id)
+              }
+              icon={Pin}
+              onNavigate={onMobileClose}
+            >
+              {pin.name}
+            </NavLink>
+          ))}
+        </NavSection>
 
         <NavSection
           title="Projekte"

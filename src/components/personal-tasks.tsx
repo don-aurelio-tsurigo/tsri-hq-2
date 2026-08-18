@@ -26,6 +26,7 @@ import {
 } from "@/components/inline-task-add";
 import { TaskList, TASK_DRAG_TYPE, type TaskRow } from "@/components/task-list";
 import { ProjectNotes } from "@/components/project-notes";
+import { TaskInboxPinButton } from "@/components/task-inbox-pin-button";
 import {
   createTask,
   createTaskGroup,
@@ -34,7 +35,7 @@ import {
   updateTaskGroup,
 } from "@/lib/actions";
 
-type Group = { id: string; name: string };
+type Group = { id: string; name: string; pinned?: boolean };
 type Member = { id: string; name: string };
 type InboxMode = "due" | "project" | "list";
 type ScopeFilter = "all" | "personal" | "project";
@@ -194,6 +195,10 @@ export function GroupedTasksBoard({
   projectNotes,
   isTemplate = false,
   variant = "space",
+  pinnedProjectIds = [],
+  initialMode,
+  focusListId = null,
+  focusProjectId = null,
 }: {
   spaceId: string;
   groups: Group[];
@@ -216,22 +221,39 @@ export function GroupedTasksBoard({
    * `inbox` = merged personal + assigned project tasks with due/project/list modes.
    */
   variant?: "space" | "inbox";
+  pinnedProjectIds?: string[];
+  initialMode?: InboxMode;
+  focusListId?: string | null;
+  focusProjectId?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState<Set<string>>(
-    () =>
-      new Set(
+    () => {
+      const next = new Set(
         variant === "inbox"
           ? ["__done__", "__cancelled__"]
           : ["__cancelled__"],
-      ),
+      );
+      if (focusListId) {
+        next.add("__none__");
+        for (const g of groups) {
+          if (g.id !== focusListId) next.add(g.id);
+        }
+      }
+      if (focusProjectId) {
+        next.add(`proj:__personal__:${spaceId}`);
+      }
+      return next;
+    },
   );
   const [addingGroup, setAddingGroup] = useState(false);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
-  const [inboxMode, setInboxMode] = useState<InboxMode>("due");
+  const [inboxMode, setInboxMode] = useState<InboxMode>(
+    () => initialMode ?? "due",
+  );
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
 
   const isInbox = variant === "inbox";
@@ -620,6 +642,15 @@ export function GroupedTasksBoard({
               count={bucket.tasks.length}
               collapsed={collapsed}
               onToggle={toggle}
+              headerExtra={
+                bucket.label !== "Privat" ? (
+                  <TaskInboxPinButton
+                    kind="project"
+                    targetId={bucket.spaceId}
+                    pinned={pinnedProjectIds.includes(bucket.spaceId)}
+                  />
+                ) : undefined
+              }
             >
               <TaskList
                 tasks={bucket.tasks}
@@ -720,8 +751,17 @@ export function GroupedTasksBoard({
                   }
                   onDrop={(e) => onHeaderDrop(e, group.id)}
                   headerExtra={
-                    canManageGroups && !renaming ? (
-                      <div className="flex shrink-0 gap-0.5">
+                    !renaming ? (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        {isInbox && (
+                          <TaskInboxPinButton
+                            kind="list"
+                            targetId={group.id}
+                            pinned={!!group.pinned}
+                          />
+                        )}
+                        {canManageGroups && (
+                          <>
                         <button
                           type="button"
                           className="rounded px-1.5 py-0.5 text-[0.65rem] text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
@@ -751,6 +791,8 @@ export function GroupedTasksBoard({
                         >
                           Löschen
                         </button>
+                          </>
+                        )}
                       </div>
                     ) : undefined
                   }

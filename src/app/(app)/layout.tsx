@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { listNavProjects } from "@/lib/projects";
+import { listNavTaskPins } from "@/lib/tasks";
 import { canAccessCivicMedia, canManageEditorial, hasCapability } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { listVisibleSpaces } from "@/lib/spaces";
@@ -12,10 +13,11 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { session, membership } = await requireMembership();
-  const [spaces, wikiPins, navProjects] = await Promise.all([
+  const [spaces, wikiPins, navProjects, navTaskPins] = await Promise.all([
     listVisibleSpaces(membership.organizationId, session.user.id),
     listPinnedWikiPages(membership.organizationId, 8).catch(() => []),
     listNavProjects(membership.organizationId).catch(() => []),
+    listNavTaskPins(session.user.id, membership.organizationId).catch(() => []),
   ]);
 
   const spacesBySlug: Record<
@@ -62,6 +64,7 @@ export default async function AppLayout({
         spacesBySlug={spacesBySlug}
         wikiPins={pins}
         navProjects={navProjects}
+        navTaskPins={navTaskPins}
       >
         {children}
       </AppShell>

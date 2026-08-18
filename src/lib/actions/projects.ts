@@ -151,6 +151,12 @@ export async function archiveProject(formData: FormData) {
     where: { id: project.id },
     data: { archivedAt: new Date(), navPinned: false },
   });
+  await prisma.taskInboxPin.deleteMany({
+    where: {
+      kind: { in: ["project"] },
+      targetId: project.id,
+    },
+  });
 
   revalidateProjectNav(project.id);
   return { ok: true as const };

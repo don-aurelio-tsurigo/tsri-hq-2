@@ -502,10 +502,89 @@ export async function deleteTaskGroup(formData: FormData) {
     return { error: "Kein Zugriff." };
   }
 
+  await prisma.taskInboxPin.deleteMany({
+    where: {
+      kind: { in: ["list"] },
+      targetId: group.id,
+    },
+  });
   await prisma.taskGroup.delete({ where: { id: group.id } });
 
   revalidatePath("/tasks");
   revalidatePath(`/spaces/${group.spaceId}`);
   revalidatePath(`/projects/${group.spaceId}`);
+  revalidatePath("/", "layout");
+  return { ok: true as const };
+}
+
+const MAX_TASK_INBOX_PINS = 8;
+
+export async function toggleTaskInboxPin(formData: FormData) {
+  const { session, membership } = await requireMembership();
+  const kindRaw = String(formData.get("kind") ?? "");
+  const targetId = String(formData.get("targetId") ?? "");
+  const kind = kindRaw === "list" || kindRaw === "project" ? kindRaw : null;
+  if (!kind || !targetId) return { error: "Ungültiger Pin." };
+
+  if (kind === "list") {
+    const group = await prisma.taskGroup.findFirst({
+      where: {
+        id: targetId,
+        space: {
+          organizationId: membership.organizationId,
+          type: "personal",
+          ownerUserId: session.user.id,
+        },
+      },
+      select: { id: true },
+    });
+    if (!group) return { error: "Liste nicht gefunden." };
+  } else {
+    const project = await prisma.space.findFirst({
+      where: {
+        id: targetId,
+        organizationId: membership.organizationId,
+        type: "project",
+        isTemplate: false,
+        archivedAt: null,
+      },
+      include: { access: true },
+    });
+    if (!project || !canViewSpace(session.user, project, membership)) {
+      return { error: "Projekt nicht gefunden." };
+    }
+  }
+
+  const existing = await prisma.taskInboxPin.findFirst({
+    where: {
+      userId: session.user.id,
+      kind: { in: [kind] },
+      targetId,
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.taskInboxPin.deleteMany({
+      where: { id: { in: [existing.id] } },
+    });
+  } else {
+    const pinnedCount = await prisma.taskInboxPin.count({
+      where: { userId: session.user.id },
+    });
+    if (pinnedCount >= MAX_TASK_INBOX_PINS) {
+      return { error: "Maximal 8 Pins. Bitte einen anderen lösen." };
+    }
+    await prisma.taskInboxPin.create({
+      data: {
+        userId: session.user.id,
+        kind,
+        targetId,
+      },
+    });
+  }
+
+  revalidatePath("/tasks");
+  revalidatePath("/", "layout");
   return { ok: true as const };
 }

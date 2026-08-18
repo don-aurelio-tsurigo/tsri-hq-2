@@ -106,3 +106,71 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   done: "Erledigt",
   cancelled: "Abgebrochen",
 };
+
+export type NavTaskPin = {
+  kind: "list" | "project";
+  id: string;
+  name: string;
+};
+
+/** Pinned personal lists and project task buckets for the sidebar. */
+export async function listNavTaskPins(
+  userId: string,
+  organizationId: string,
+  limit = 8,
+): Promise<NavTaskPin[]> {
+  const pins = await prisma.taskInboxPin.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  if (pins.length === 0) return [];
+
+  const listIds = pins.filter((p) => p.kind === "list").map((p) => p.targetId);
+  const projectIds = pins
+    .filter((p) => p.kind === "project")
+    .map((p) => p.targetId);
+
+  const [groups, projects] = await Promise.all([
+    listIds.length > 0
+      ? prisma.taskGroup.findMany({
+          where: {
+            id: { in: listIds },
+            space: {
+              organizationId,
+              type: "personal",
+              ownerUserId: userId,
+            },
+          },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    projectIds.length > 0
+      ? prisma.space.findMany({
+          where: {
+            id: { in: projectIds },
+            organizationId,
+            type: "project",
+            isTemplate: false,
+            archivedAt: null,
+          },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const groupById = new Map(groups.map((g) => [g.id, g.name]));
+  const projectById = new Map(projects.map((p) => [p.id, p.name]));
+
+  const resolved: NavTaskPin[] = [];
+  for (const pin of pins) {
+    if (pin.kind === "list") {
+      const name = groupById.get(pin.targetId);
+      if (name) resolved.push({ kind: "list", id: pin.targetId, name });
+    } else {
+      const name = projectById.get(pin.targetId);
+      if (name) resolved.push({ kind: "project", id: pin.targetId, name });
+    }
+  }
+  return resolved;
+}

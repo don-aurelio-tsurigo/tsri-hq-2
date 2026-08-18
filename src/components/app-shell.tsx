@@ -24,6 +24,12 @@ type NavProject = {
   name: string;
 };
 
+type NavTaskPin = {
+  kind: "list" | "project";
+  id: string;
+  name: string;
+};
+
 export function AppShell({
   userName,
   orgName,
@@ -34,6 +40,7 @@ export function AppShell({
   spacesBySlug,
   wikiPins,
   navProjects = [],
+  navTaskPins = [],
   children,
 }: {
   userName: string;
@@ -45,6 +52,7 @@ export function AppShell({
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins: WikiPin[];
   navProjects?: NavProject[];
+  navTaskPins?: NavTaskPin[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -119,6 +127,7 @@ export function AppShell({
           spacesBySlug={spacesBySlug}
           wikiPins={wikiPins}
           navProjects={navProjects}
+          navTaskPins={navTaskPins}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />

@@ -4,6 +4,7 @@ import { requireMembership } from "@/lib/session";
 import { ensurePersonalSpace } from "@/lib/spaces";
 import {
   listAssignedProjectTasks,
+  listNavTaskPins,
   listSpaceTasks,
   listTaskGroups,
 } from "@/lib/tasks";
@@ -41,8 +42,13 @@ function toTaskRow(
   };
 }
 
-export default async function PersonalTasksPage() {
+export default async function PersonalTasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ list?: string; project?: string }>;
+}) {
   const { session, membership } = await requireMembership();
+  const { list: listParam, project: projectParam } = await searchParams;
 
   const personal = await ensurePersonalSpace(
     membership.organizationId,
@@ -56,7 +62,7 @@ export default async function PersonalTasksPage() {
     type: personal.type,
   };
 
-  const [personalTasks, assignedProjectTasks, members, groups] =
+  const [personalTasks, assignedProjectTasks, members, groups, navPins] =
     await Promise.all([
       listSpaceTasks(personal.id),
       listAssignedProjectTasks(membership.organizationId, session.user.id),
@@ -69,6 +75,7 @@ export default async function PersonalTasksPage() {
         orderBy: { user: { name: "asc" } },
       }),
       listTaskGroups(personal.id),
+      listNavTaskPins(session.user.id, membership.organizationId),
     ]);
 
   const byId = new Map<string, ReturnType<typeof toTaskRow>>();
@@ -90,6 +97,21 @@ export default async function PersonalTasksPage() {
     );
   });
 
+  const pinnedListIds = new Set(
+    navPins.filter((p) => p.kind === "list").map((p) => p.id),
+  );
+  const pinnedProjectIds = navPins
+    .filter((p) => p.kind === "project")
+    .map((p) => p.id);
+  const focusListId =
+    listParam && groups.some((g) => g.id === listParam) ? listParam : null;
+  const focusProjectId = projectParam || null;
+  const initialMode = focusListId
+    ? "list"
+    : focusProjectId
+      ? "project"
+      : undefined;
+
   return (
     <GroupedTasksBoard
       spaceId={personal.id}
@@ -98,8 +120,16 @@ export default async function PersonalTasksPage() {
       title="Meine Tasks"
       currentUserId={session.user.id}
       members={members.map((m) => m.user)}
-      groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+      groups={groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        pinned: pinnedListIds.has(g.id),
+      }))}
       tasks={tasks}
+      pinnedProjectIds={pinnedProjectIds}
+      initialMode={initialMode}
+      focusListId={focusListId}
+      focusProjectId={focusProjectId}
     />
   );
 }

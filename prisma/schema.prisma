@@ -57,6 +57,7 @@ model User {
   deletedAssets         Asset[]              @relation("AssetDeletedBy")
   collections           Collection[]
   exportLogs            ExportLog[]
+  taskInboxPins         TaskInboxPin[]
 
   @@map("user")
   @@schema("public")
@@ -480,6 +481,29 @@ model TaskGroup {
 
   @@index([spaceId, sortOrder])
   @@map("task_group")
+  @@schema("public")
+}
+
+enum TaskInboxPinKind {
+  list
+  project
+
+  @@schema("public")
+}
+
+/// Per-user pins for Meine Tasks sidebar (personal lists or project task buckets)
+model TaskInboxPin {
+  id        String           @id @default(cuid())
+  userId    String
+  kind      TaskInboxPinKind
+  targetId  String
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, targetId])
+  @@index([userId])
+  @@map("task_inbox_pin")
   @@schema("public")
 }
 
