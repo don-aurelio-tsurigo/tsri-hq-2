@@ -15,7 +15,6 @@ export function MemberPasswordHelp({
   name: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,16 +22,6 @@ export function MemberPasswordHelp({
   const [resetUrl, setResetUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
-
-  function close() {
-    setOpen(false);
-    setPassword("");
-    setConfirm("");
-    setError(null);
-    setSuccess(null);
-    setResetUrl(null);
-    setCopied(false);
-  }
 
   function onSetPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -73,7 +62,9 @@ export function MemberPasswordHelp({
       }
       if (result?.ok && result.url) {
         setResetUrl(result.url);
-        setSuccess("Reset-Link erzeugt (48 Std. gültig). Link kopieren und teilen.");
+        setSuccess(
+          "Reset-Link erzeugt (48 Std. gültig). Link kopieren und teilen.",
+        );
       }
     });
   }
@@ -89,106 +80,78 @@ export function MemberPasswordHelp({
   }
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className="btn btn-ghost px-3 py-1.5 text-sm"
-        onClick={() => {
-          if (open) close();
-          else setOpen(true);
-        }}
-      >
-        Passwort
-      </button>
-      {open && (
-        <div className="absolute right-0 z-30 mt-1 w-[min(22rem,calc(100vw-2rem))] space-y-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-lg">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">Passwort-Hilfe</p>
-              <p className="text-xs text-[var(--muted)]">{name}</p>
-            </div>
+    <div className="space-y-4">
+      <form onSubmit={onSetPassword} className="space-y-2">
+        <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          Neues Passwort setzen
+        </p>
+        <label className="field text-xs font-semibold text-[var(--muted)]">
+          Passwort
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <label className="field text-xs font-semibold text-[var(--muted)]">
+          Wiederholen
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          className="btn btn-primary w-full text-sm"
+          disabled={pending}
+        >
+          {pending ? "…" : "Passwort speichern"}
+        </button>
+      </form>
+
+      <div className="space-y-2 border-t border-[var(--border)] pt-3">
+        <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          Reset-Link erzeugen
+        </p>
+        <p className="text-xs text-[var(--muted)]">
+          Link an die Person schicken — sie setzt das Passwort selbst.
+        </p>
+        <button
+          type="button"
+          className="btn btn-ghost w-full text-sm"
+          disabled={pending}
+          onClick={onCreateLink}
+        >
+          {pending ? "…" : "Link erzeugen"}
+        </button>
+        {resetUrl && (
+          <div className="space-y-1.5">
+            <code className="block break-all rounded-lg bg-black/[0.04] px-2 py-1.5 text-[0.65rem] text-[var(--fg)]">
+              {resetUrl}
+            </code>
             <button
               type="button"
-              className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--fg)]"
-              onClick={close}
+              className="btn btn-accent w-full text-sm"
+              onClick={copyLink}
             >
-              Schliessen
+              {copied ? "Kopiert" : "Link kopieren"}
             </button>
           </div>
+        )}
+      </div>
 
-          <form onSubmit={onSetPassword} className="space-y-2">
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Neues Passwort setzen
-            </p>
-            <label className="field text-xs font-semibold text-[var(--muted)]">
-              Passwort
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <label className="field text-xs font-semibold text-[var(--muted)]">
-              Wiederholen
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-            </label>
-            <button
-              type="submit"
-              className="btn btn-primary w-full text-sm"
-              disabled={pending}
-            >
-              {pending ? "…" : "Passwort speichern"}
-            </button>
-          </form>
-
-          <div className="space-y-2 border-t border-[var(--border)] pt-3">
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Reset-Link erzeugen
-            </p>
-            <p className="text-xs text-[var(--muted)]">
-              Link an die Person schicken — sie setzt das Passwort selbst.
-            </p>
-            <button
-              type="button"
-              className="btn btn-ghost w-full text-sm"
-              disabled={pending}
-              onClick={onCreateLink}
-            >
-              {pending ? "…" : "Link erzeugen"}
-            </button>
-            {resetUrl && (
-              <div className="space-y-1.5">
-                <code className="block break-all rounded-lg bg-black/[0.04] px-2 py-1.5 text-[0.65rem] text-[var(--fg)]">
-                  {resetUrl}
-                </code>
-                <button
-                  type="button"
-                  className="btn btn-accent w-full text-sm"
-                  onClick={copyLink}
-                >
-                  {copied ? "Kopiert" : "Link kopieren"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
-          {success && (
-            <p className="rounded-lg bg-[var(--highlight)] px-2 py-1.5 text-xs font-semibold">
-              {success}
-            </p>
-          )}
-        </div>
+      {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
+      {success && (
+        <p className="rounded-lg bg-[var(--highlight)] px-2 py-1.5 text-xs font-semibold">
+          {success}
+        </p>
       )}
     </div>
   );

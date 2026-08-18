@@ -74,9 +74,12 @@ export function RestoreMemberButton({ userId }: { userId: string }) {
     <div className="flex flex-col items-end gap-1">
       <button
         type="button"
-        className="btn btn-primary text-sm"
+        className="btn btn-ghost px-3 py-1.5 text-sm"
         disabled={pending}
-        onClick={onRestore}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRestore();
+        }}
       >
         {pending ? "…" : "Wiederherstellen"}
       </button>

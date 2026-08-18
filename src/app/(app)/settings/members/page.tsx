@@ -4,14 +4,7 @@ import {
   InviteMemberForm,
   RevokeInviteButton,
 } from "@/components/invite-form";
-import {
-  ArchiveMemberButton,
-  RestoreMemberButton,
-} from "@/components/member-archive-buttons";
-import { MemberPasswordHelp } from "@/components/member-password-help";
-import { MemberNameEdit } from "@/components/member-name-edit";
-import { MemberCapabilityGrants } from "@/components/member-capability-grants";
-import { PensumSelect } from "@/components/pensum-select";
+import { TeamMembersPanel } from "@/components/team-members";
 import { prisma } from "@/lib/db";
 import { getPublicAppOrigin } from "@/lib/app-url";
 import { requireAdmin } from "@/lib/session";
@@ -56,147 +49,62 @@ export default async function MembersSettingsPage() {
         <InviteMemberForm appUrl={appUrl} />
       </header>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-          Team ({active.length})
-        </h2>
-        <ul className="space-y-3">
-          {active.map((m) => {
-            const incomplete = !m.user.firstName || !m.user.lastName;
-            return (
-              <li key={m.id} className="card space-y-3 px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                        {m.user.name}
-                      </p>
-                      <span
-                        className={
-                          m.role === "admin" ? "badge" : "badge badge-muted"
-                        }
-                      >
-                        {roleLabel(m.role)}
-                      </span>
-                      {incomplete ? (
-                        <span className="text-xs font-semibold text-[var(--danger)]">
-                          Name fehlt
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-sm text-[var(--muted)]">
-                      {m.user.email}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <PensumSelect
-                      userId={m.userId}
-                      pensumPercent={m.pensumPercent}
-                    />
-                    <MemberNameEdit
-                      userId={m.userId}
-                      firstName={m.user.firstName}
-                      lastName={m.user.lastName}
-                    />
-                    <MemberPasswordHelp
-                      userId={m.userId}
-                      name={m.user.name}
-                    />
-                    {m.userId !== session.user.id && (
-                      <ArchiveMemberButton
-                        userId={m.userId}
-                        name={m.user.name}
-                      />
-                    )}
-                  </div>
-                </div>
-                <MemberCapabilityGrants
-                  userId={m.userId}
-                  isAdmin={m.role === "admin"}
-                  granted={m.grants.map((g) => g.capability)}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+      <TeamMembersPanel
+        currentUserId={session.user.id}
+        active={active.map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          pensumPercent: m.pensumPercent,
+          archivedAt: null,
+          user: {
+            name: m.user.name,
+            email: m.user.email,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+          },
+          grants: m.grants.map((g) => g.capability),
+        }))}
+        archived={archived.map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          pensumPercent: m.pensumPercent,
+          archivedAt: m.archivedAt?.toISOString() ?? null,
+          user: {
+            name: m.user.name,
+            email: m.user.email,
+            firstName: m.user.firstName,
+            lastName: m.user.lastName,
+          },
+          grants: m.grants.map((g) => g.capability),
+        }))}
+      />
 
-      {archived.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-            Archiviert ({archived.length})
-          </h2>
-          <ul className="space-y-3">
-            {archived.map((m) => (
-              <li
-                key={m.id}
-                className="card flex flex-wrap items-center justify-between gap-3 px-5 py-4 opacity-80"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                      {m.user.name}
-                    </p>
-                    <span className="badge badge-muted">
-                      {roleLabel(m.role)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-sm text-[var(--muted)]">
-                    {m.user.email}
-                  </p>
-                  {m.archivedAt && (
-                    <p className="mt-0.5 text-xs text-[var(--muted)]">
-                      Archiviert am{" "}
-                      {format(m.archivedAt, "d. MMM yyyy", { locale: de })}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <MemberNameEdit
-                    userId={m.userId}
-                    firstName={m.user.firstName}
-                    lastName={m.user.lastName}
-                  />
-                  <RestoreMemberButton userId={m.userId} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="space-y-3">
+      <section className="space-y-2">
         <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
           Offene Einladungen ({invitations.length})
         </h2>
         {invitations.length === 0 ? (
-          <div className="card px-5 py-8 text-center text-sm text-[var(--muted)]">
+          <div className="card px-4 py-3 text-sm text-[var(--muted)]">
             Keine offenen Einladungen.
           </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="card divide-y divide-[var(--border)] overflow-hidden">
             {invitations.map((inv) => (
               <li
                 key={inv.id}
-                className="card flex flex-wrap items-start justify-between gap-3 px-5 py-4"
+                className="flex items-center gap-3 px-4 py-1.5"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                      {inv.email}
-                    </p>
-                    <span className="badge badge-muted">
-                      {roleLabel(inv.role)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-sm text-[var(--muted)]">
-                    Gültig bis{" "}
-                    {format(inv.expiresAt, "d. MMM yyyy", { locale: de })}
-                  </p>
-                  <code className="mt-1 block break-all text-xs text-[var(--muted)]">
-                    {appUrl}/invite/{inv.token}
-                  </code>
-                </div>
+                <span className="min-w-0 truncate font-medium">
+                  {inv.email}
+                </span>
+                <span className="badge badge-muted shrink-0">
+                  {roleLabel(inv.role)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-[var(--muted)]">
+                  bis {format(inv.expiresAt, "d. MMM yyyy", { locale: de })}
+                </span>
                 <RevokeInviteButton id={inv.id} />
               </li>
             ))}
