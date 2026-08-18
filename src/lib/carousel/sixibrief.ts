@@ -16,3 +16,17 @@ export const INSTRUMENT_SANS_STACK =
 
 export const GT_SECTRA_STACK =
   "var(--font-gt-sectra), 'GT Sectra', 'Iowan Old Style', Palatino, Georgia, 'Apple Color Emoji', 'Segoe UI Emoji', serif";
+
+export const SIXIBRIEF_LOGO_SRC = "/brand/6ibrief-logo-white.png";
+export const SIXIBRIEF_LOGO = {
+  left: 81,
+  top: 99,
+  width: 275,
+  height: 73,
+} as const;
+/** Intrinsic PNG size and opaque glyph box (transparent padding around the wordmark). */
+export const SIXIBRIEF_LOGO_SOURCE = {
+  width: 606,
+  height: 250,
+  glyph: { left: 63, top: 59, width: 479, height: 128 },
+} as const;

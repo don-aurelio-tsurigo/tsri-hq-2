@@ -15,6 +15,7 @@ import {
   type Slide,
 } from "@/lib/carousel/types";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { SIXIBRIEF_LOGO_SRC } from "@/lib/carousel/sixibrief";
 
 function slugify(value: string) {
   const slug = value
@@ -78,6 +79,9 @@ function slideImageUrls(slide: Slide, format: CarouselFormat): string[] {
   const urls = [BRAND_LOGO_SRC];
   if (format === "tsueritipp") {
     urls.push(TIPP_LOGO_WHITE_SRC, TIPP_LOGO_TEAL_SRC);
+  }
+  if (format === "6ibrief") {
+    urls.push(SIXIBRIEF_LOGO_SRC);
   }
   if (
     (slide.type === "cover" ||

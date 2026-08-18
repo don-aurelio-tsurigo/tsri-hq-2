@@ -12,6 +12,9 @@ import {
   INSTRUMENT_SANS_STACK,
   SIXIBRIEF_BAR,
   SIXIBRIEF_BAR_HEIGHT,
+  SIXIBRIEF_LOGO,
+  SIXIBRIEF_LOGO_SOURCE,
+  SIXIBRIEF_LOGO_SRC,
 } from "@/lib/carousel/sixibrief";
 import {
   defaultImageOverlayForSlideType,
@@ -111,6 +114,37 @@ function TippMark({ color }: { color: "teal" | "white" }) {
       style={{ left: 80, top: 52, width: 240, height: 132 }}
       aria-hidden
     />
+  );
+}
+
+function SixiBriefLogo() {
+  const { left, top, width, height } = SIXIBRIEF_LOGO;
+  const { width: srcW, height: srcH, glyph } = SIXIBRIEF_LOGO_SOURCE;
+  const scale = width / glyph.width;
+  const drawnGlyphW = glyph.width * scale;
+  const drawnGlyphH = glyph.height * scale;
+  return (
+    <div
+      className="pointer-events-none absolute z-20 overflow-hidden"
+      style={{ left, top, width, height }}
+      aria-hidden
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={SIXIBRIEF_LOGO_SRC}
+        alt=""
+        width={srcW}
+        height={srcH}
+        className="absolute max-w-none"
+        style={{
+          width: srcW * scale,
+          height: srcH * scale,
+          left: (width - drawnGlyphW) / 2 - glyph.left * scale,
+          top: (height - drawnGlyphH) / 2 - glyph.top * scale,
+          maxWidth: "none",
+        }}
+      />
+    </div>
   );
 }
 
@@ -449,6 +483,7 @@ function CoverPreview({
         category={slide.category}
         ink="light"
       />
+      {isSixi ? <SixiBriefLogo /> : null}
       <div
         className={`absolute z-30 ${textDrag.className}`}
         style={{
