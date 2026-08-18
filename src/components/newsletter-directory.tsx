@@ -795,8 +795,8 @@ export function NewsletterDirectory({
 
         {calendar.days.length === 0 ? (
           <div className="card px-4 py-8 text-sm text-[var(--muted)]">
-            Keine Erscheinungstage in diesem Monat. Admins legen die Typen und
-            Wochentage unter Newslettereinstellungen fest.
+            Keine Erscheinungstage in diesem Monat. Die Redaktionsleitung legt
+            Typen und Wochentage unter Newslettereinstellungen fest.
           </div>
         ) : filteredDays.length === 0 ? (
           <div className="card px-4 py-8 text-sm text-[var(--muted)]">

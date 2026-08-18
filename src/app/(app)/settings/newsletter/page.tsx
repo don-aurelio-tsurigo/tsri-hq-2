@@ -5,10 +5,10 @@ import {
   getNewsletterCalendarSettings,
   listNewsletterTypes,
 } from "@/lib/newsletter";
-import { requireAdmin } from "@/lib/session";
+import { requireEditorialLead } from "@/lib/session";
 
 export default async function NewsletterSettingsPage() {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   await ensureDefaultNewsletterTypes(membership.organizationId);
 
   const [types, calendarSettings] = await Promise.all([
@@ -20,7 +20,7 @@ export default async function NewsletterSettingsPage() {
     <div className="space-y-8">
       <header>
         <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
-          Einstellungen
+          Redaktion
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Newsletter Einstellungen

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin, requireMembership } from "@/lib/session";
+import { requireEditorialLead, requireMembership } from "@/lib/session";
 import { membershipInTagPool } from "@/lib/membership-grants";
 import {
   formatWeekdays,
@@ -35,7 +35,7 @@ function parseNewsletterTypeForm(formData: FormData) {
 }
 
 export async function createNewsletterType(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const parsed = parseNewsletterTypeForm(formData);
   if (!parsed.success) {
     return { error: "Name und mind. ein Wochentag nötig." };
@@ -91,7 +91,7 @@ export async function createNewsletterType(formData: FormData) {
 }
 
 export async function updateNewsletterType(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -131,7 +131,7 @@ export async function updateNewsletterType(formData: FormData) {
 
 /** Soft-delete: Typ wird ausgeblendet, Campaigns bleiben erhalten. */
 export async function deleteNewsletterType(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 
@@ -155,7 +155,7 @@ export async function deleteNewsletterType(formData: FormData) {
 }
 
 export async function updateNewsletterHideHolidays(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const hide = formData.get("hidePublicHolidays") === "on" ||
     formData.get("hidePublicHolidays") === "true";
 
@@ -181,7 +181,7 @@ const blockedRangeSchema = z.object({
 });
 
 export async function createNewsletterBlockedRange(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const parsed = blockedRangeSchema.safeParse({
     newsletterTypeId: formData.get("newsletterTypeId"),
     startDate: formData.get("startDate"),
@@ -220,7 +220,7 @@ export async function createNewsletterBlockedRange(formData: FormData) {
 }
 
 export async function deleteNewsletterBlockedRange(formData: FormData) {
-  const { membership } = await requireAdmin();
+  const { membership } = await requireEditorialLead();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Fehlende ID." };
 

@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { listNavProjects } from "@/lib/projects";
-import { canAccessCivicMedia, hasCapability } from "@/lib/permissions";
+import { canAccessCivicMedia, canManageEditorial, hasCapability } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { listVisibleSpaces } from "@/lib/spaces";
 import { listPinnedWikiPages } from "@/lib/wiki";
@@ -58,6 +58,7 @@ export default async function AppLayout({
         isAdmin={membership.role === "admin"}
         canFinance={hasCapability(membership, "finance")}
         canAds={canAccessCivicMedia(membership)}
+        canManageEditorial={canManageEditorial(membership)}
         spacesBySlug={spacesBySlug}
         wikiPins={pins}
         navProjects={navProjects}

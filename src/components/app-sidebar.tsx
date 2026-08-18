@@ -193,6 +193,7 @@ export function AppSidebar({
   isAdmin,
   canFinance,
   canAds,
+  canManageEditorial = false,
   spacesBySlug,
   wikiPins = [],
   navProjects = [],
@@ -204,6 +205,7 @@ export function AppSidebar({
   isAdmin: boolean;
   canFinance: boolean;
   canAds: boolean;
+  canManageEditorial?: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins?: WikiPin[];
   navProjects?: NavProject[];
@@ -219,6 +221,17 @@ export function AppSidebar({
 
   function isSectionOpen(id: NavSectionId) {
     if (openSections[id] !== undefined) return openSections[id] === true;
+    if (id === "redaktion") {
+      const redaktion = spacesBySlug.redaktion;
+      const quellen = spacesBySlug.quellen;
+      return (
+        pathname === "/newsletter" ||
+        pathname.startsWith("/newsletter/") ||
+        pathname.startsWith("/settings/newsletter") ||
+        (!!redaktion && pathname === `/spaces/${redaktion.id}`) ||
+        (!!quellen && pathname === `/spaces/${quellen.id}`)
+      );
+    }
     if (id === "fotos") {
       return pathname === "/dam" || pathname.startsWith("/dam/");
     }
@@ -344,6 +357,19 @@ export function AppSidebar({
           >
             Newsletter
           </NavLink>
+          {canManageEditorial && (
+            <NavLink
+              href="/settings/newsletter"
+              active={
+                pathname === "/settings/newsletter" ||
+                pathname.startsWith("/settings/newsletter/")
+              }
+              icon={Settings2}
+              onNavigate={onMobileClose}
+            >
+              Newslettereinstellungen
+            </NavLink>
+          )}
         </NavSection>
 
         <NavTopLink
@@ -562,17 +588,6 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Teamarbeitszeit
-            </NavLink>
-            <NavLink
-              href="/settings/newsletter"
-              active={
-                pathname === "/settings/newsletter" ||
-                pathname.startsWith("/settings/newsletter/")
-              }
-              icon={Settings2}
-              onNavigate={onMobileClose}
-            >
-              Newslettereinstellungen
             </NavLink>
             <NavLink
               href="/settings/notifications"
