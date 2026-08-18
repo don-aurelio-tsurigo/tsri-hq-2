@@ -9,8 +9,11 @@ import { createMasterImage } from "@/lib/dam/master";
 import { prisma } from "@/lib/db";
 import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
 
-const CONCURRENCY = 2;
+const CONCURRENCY = 1;
 let processInFlight = 0;
+
+sharp.cache(false);
+sharp.concurrency(1);
 
 async function mapPool<T>(
   items: T[],
@@ -64,6 +67,7 @@ async function processOneInner(assetId: string): Promise<void> {
   let r2Key = asset.r2Key;
   let fileName = asset.fileName;
   let width = asset.width;
+  let autotagSource: Buffer | undefined;
 
   if (!width) {
     const original = await getObjectBuffer(asset.r2Key);
@@ -81,16 +85,14 @@ async function processOneInner(assetId: string): Promise<void> {
       const nextKey = replaceKeyExtension(asset.r2Key, master.extension);
       const nextName = replaceKeyExtension(asset.fileName, master.extension);
 
-      const [thumb, web] = await Promise.all([
-        sharp(master.buffer)
-          .resize({ width: 480, withoutEnlargement: true })
-          .webp({ quality: 72 })
-          .toBuffer(),
-        sharp(master.buffer)
-          .resize({ width: 2000, withoutEnlargement: true })
-          .webp({ quality: 80 })
-          .toBuffer(),
-      ]);
+      const thumb = await sharp(master.buffer)
+        .resize({ width: 480, withoutEnlargement: true })
+        .webp({ quality: 72 })
+        .toBuffer();
+      const web = await sharp(master.buffer)
+        .resize({ width: 2000, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
       // #region agent log
       damDebug("C", "process.ts:derivatives", "master + thumb/web built", {
         assetId: asset.id,
@@ -121,6 +123,7 @@ async function processOneInner(assetId: string): Promise<void> {
       fileName = nextName;
       width = master.width || width;
       height = master.height || height;
+      autotagSource = master.buffer;
     } catch (error) {
       console.warn(`[dam] sharp failed for ${asset.id}`, error);
     }
@@ -139,7 +142,7 @@ async function processOneInner(assetId: string): Promise<void> {
     });
   }
 
-  const source = await getObjectBuffer(r2Key);
+  const source = autotagSource ?? (await getObjectBuffer(r2Key));
   const jpeg = await jpegForAutotag(source);
   const tags = await autotagImage(asset.uploadedBy, jpeg);
   const mergedKeywords = [
