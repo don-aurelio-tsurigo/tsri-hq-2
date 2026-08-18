@@ -790,7 +790,7 @@ function CreateArticleDialog({
           <div className="field">
             <label htmlFor="new-assignee">Zuständig</label>
             <select id="new-assignee" name="assigneeId" defaultValue="">
-              <option value="">— ich / später —</option>
+              <option value="">— niemand —</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}

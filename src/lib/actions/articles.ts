@@ -61,14 +61,6 @@ export async function createArticle(formData: FormData) {
     );
     if (!inPool) return { error: "Person ist nicht in der Redaktion." };
     assigneeId = parsed.data.assigneeId;
-  } else if (
-    await membershipInTagPool(
-      membership.organizationId,
-      session.user.id,
-      "editorial",
-    )
-  ) {
-    assigneeId = session.user.id;
   }
 
   let categoryId: string | null | undefined;
