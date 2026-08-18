@@ -46,7 +46,12 @@ type WikiPin = {
   spaceId: string;
 };
 
-type NavSectionId = "redaktion" | "fotos" | "team" | "admin";
+type NavProject = {
+  id: string;
+  name: string;
+};
+
+type NavSectionId = "redaktion" | "fotos" | "projekte" | "team" | "admin";
 
 function NavLink({
   href,
@@ -188,6 +193,7 @@ export function AppSidebar({
   isAdmin,
   spacesBySlug,
   wikiPins = [],
+  navProjects = [],
   mobileOpen = false,
   onMobileClose,
 }: {
@@ -196,6 +202,7 @@ export function AppSidebar({
   isAdmin: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins?: WikiPin[];
+  navProjects?: NavProject[];
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }) {
@@ -211,11 +218,14 @@ export function AppSidebar({
     if (id === "fotos") {
       return pathname === "/dam" || pathname.startsWith("/dam/");
     }
+    if (id === "projekte") {
+      return pathname === "/projects" || pathname.startsWith("/projects/");
+    }
     return false;
   }
 
   function toggleSection(id: NavSectionId) {
-    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    setOpenSections((prev) => ({ ...prev, [id]: !isSectionOpen(id) }));
   }
 
   function spaceHref(slug: string) {
@@ -395,16 +405,35 @@ export function AppSidebar({
           Meine Tasks
         </NavTopLink>
 
-        <NavTopLink
-          href="/projects"
-          active={
-            pathname === "/projects" || pathname.startsWith("/projects/")
-          }
+        <NavSection
+          title="Projekte"
           icon={FolderKanban}
-          onNavigate={onMobileClose}
+          open={isSectionOpen("projekte")}
+          onToggle={() => toggleSection("projekte")}
         >
-          Projekte
-        </NavTopLink>
+          <NavLink
+            href="/projects"
+            active={pathname === "/projects"}
+            icon={FolderKanban}
+            onNavigate={onMobileClose}
+          >
+            Alle Projekte
+          </NavLink>
+          {navProjects.map((project) => (
+            <NavLink
+              key={project.id}
+              href={`/projects/${project.id}`}
+              active={
+                pathname === `/projects/${project.id}` ||
+                pathname.startsWith(`/projects/${project.id}/`)
+              }
+              icon={Pin}
+              onNavigate={onMobileClose}
+            >
+              {project.name}
+            </NavLink>
+          ))}
+        </NavSection>
 
         <NavTopLink
           href="/ads"

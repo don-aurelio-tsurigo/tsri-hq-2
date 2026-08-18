@@ -19,12 +19,18 @@ type WikiPin = {
   spaceId: string;
 };
 
+type NavProject = {
+  id: string;
+  name: string;
+};
+
 export function AppShell({
   userName,
   orgName,
   isAdmin,
   spacesBySlug,
   wikiPins,
+  navProjects = [],
   children,
 }: {
   userName: string;
@@ -32,6 +38,7 @@ export function AppShell({
   isAdmin: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
   wikiPins: WikiPin[];
+  navProjects?: NavProject[];
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -102,6 +109,7 @@ export function AppShell({
           isAdmin={isAdmin}
           spacesBySlug={spacesBySlug}
           wikiPins={wikiPins}
+          navProjects={navProjects}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />

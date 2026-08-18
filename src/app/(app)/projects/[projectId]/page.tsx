@@ -70,6 +70,7 @@ export default async function ProjectDetailPage({
               projectName={project.name}
               isTemplate={project.isTemplate}
               archived={archived}
+              navPinned={project.navPinned}
               canEdit={canEdit}
             />
           </div>

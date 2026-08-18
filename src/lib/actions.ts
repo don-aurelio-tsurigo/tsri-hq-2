@@ -103,6 +103,7 @@ import {
   updateProjectEventMeta as updateProjectEventMetaAction,
   deleteProjectTemplate as deleteProjectTemplateAction,
   updateProjectNotes as updateProjectNotesAction,
+  toggleProjectNavPin as toggleProjectNavPinAction,
 } from "./actions/projects";
 
 export async function createProject(formData: FormData) {
@@ -125,6 +126,9 @@ export async function deleteProjectTemplate(formData: FormData) {
 }
 export async function updateProjectNotes(formData: FormData) {
   return updateProjectNotesAction(formData);
+}
+export async function toggleProjectNavPin(formData: FormData) {
+  return toggleProjectNavPinAction(formData);
 }
 
 import {

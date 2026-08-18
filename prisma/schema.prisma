@@ -263,6 +263,8 @@ model Space {
   eventAt        DateTime?       @db.Date
   /// Ort / Venue (projects only)
   venue          String?
+  /// Pin this project in the app sidebar
+  navPinned      Boolean         @default(false)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -281,6 +283,7 @@ model Space {
   @@index([organizationId, type])
   @@index([organizationId, type, archivedAt])
   @@index([organizationId, type, isTemplate])
+  @@index([organizationId, type, navPinned])
   @@map("space")
   @@schema("public")
 }

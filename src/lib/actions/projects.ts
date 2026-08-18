@@ -31,6 +31,14 @@ const projectCreateSchema = z.object({
     .transform((v) => (v === "event" || v === "vorhaben" ? v : undefined)),
 });
 
+function revalidateProjectNav(projectId: string) {
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
+  revalidatePath("/home");
+  revalidatePath("/", "layout");
+}
+
 export async function createProject(formData: FormData) {
   const { session, membership } = await requireMembership();
   const parsed = projectCreateSchema.safeParse({
@@ -141,13 +149,10 @@ export async function archiveProject(formData: FormData) {
 
   await prisma.space.update({
     where: { id: project.id },
-    data: { archivedAt: new Date() },
+    data: { archivedAt: new Date(), navPinned: false },
   });
 
-  revalidatePath("/projects");
-  revalidatePath(`/projects/${project.id}`);
-  revalidatePath("/tasks");
-  revalidatePath("/home");
+  revalidateProjectNav(project.id);
   return { ok: true as const };
 }
 
@@ -174,10 +179,54 @@ export async function unarchiveProject(formData: FormData) {
     data: { archivedAt: null },
   });
 
-  revalidatePath("/projects");
-  revalidatePath(`/projects/${project.id}`);
-  revalidatePath("/tasks");
-  revalidatePath("/home");
+  revalidateProjectNav(project.id);
+  return { ok: true as const };
+}
+
+const MAX_NAV_PINS = 8;
+
+export async function toggleProjectNavPin(formData: FormData) {
+  const { session, membership } = await requireMembership();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Fehlende ID." };
+
+  const project = await prisma.space.findFirst({
+    where: {
+      id,
+      organizationId: membership.organizationId,
+      type: "project",
+      isTemplate: false,
+    },
+    include: { access: true },
+  });
+  if (!project || !canEditSpace(session.user, project, membership)) {
+    return { error: "Kein Zugriff." };
+  }
+  if (project.archivedAt) {
+    return { error: "Archivierte Projekte können nicht angepinnt werden." };
+  }
+
+  if (!project.navPinned) {
+    const pinnedCount = await prisma.space.count({
+      where: {
+        organizationId: membership.organizationId,
+        type: "project",
+        isTemplate: false,
+        archivedAt: null,
+        navPinned: true,
+      },
+    });
+    if (pinnedCount >= MAX_NAV_PINS) {
+      return { error: "Maximal 8 Pins. Bitte ein anderes Projekt lösen." };
+    }
+  }
+
+  await prisma.space.update({
+    where: { id: project.id },
+    data: { navPinned: !project.navPinned },
+  });
+
+  revalidateProjectNav(project.id);
   return { ok: true as const };
 }
 

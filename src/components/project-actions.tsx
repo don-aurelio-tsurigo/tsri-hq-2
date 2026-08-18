@@ -6,6 +6,7 @@ import {
   archiveProject,
   deleteProjectTemplate,
   saveProjectAsTemplate,
+  toggleProjectNavPin,
   unarchiveProject,
 } from "@/lib/actions";
 
@@ -14,12 +15,14 @@ export function ProjectActions({
   projectName,
   isTemplate,
   archived,
+  navPinned = false,
   canEdit,
 }: {
   projectId: string;
   projectName: string;
   isTemplate: boolean;
   archived: boolean;
+  navPinned?: boolean;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -54,6 +57,20 @@ export function ProjectActions({
     <div className="flex flex-wrap items-center gap-2">
       {!isTemplate && !archived && (
         <>
+          <button
+            type="button"
+            className="btn btn-ghost px-3 py-1.5 text-sm"
+            disabled={pending}
+            onClick={() => {
+              run(async () => {
+                const fd = new FormData();
+                fd.set("id", projectId);
+                return toggleProjectNavPin(fd);
+              });
+            }}
+          >
+            {navPinned ? "Pin lösen" : "In Seitenleiste pinnen"}
+          </button>
           <button
             type="button"
             className="btn btn-ghost px-3 py-1.5 text-sm"

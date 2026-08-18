@@ -66,6 +66,22 @@ export async function listProjects(organizationId: string) {
   });
 }
 
+/** Slim list of pinned projects for sidebar navigation */
+export async function listNavProjects(organizationId: string, limit = 8) {
+  return prisma.space.findMany({
+    where: {
+      organizationId,
+      type: "project",
+      isTemplate: false,
+      archivedAt: null,
+      navPinned: true,
+    },
+    select: { id: true, name: true },
+    orderBy: [{ eventAt: "asc" }, { name: "asc" }],
+    take: limit,
+  });
+}
+
 export async function listArchivedProjects(organizationId: string) {
   return prisma.space.findMany({
     where: {

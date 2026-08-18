@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { listNavProjects } from "@/lib/projects";
 import { requireMembership } from "@/lib/session";
 import { listVisibleSpaces } from "@/lib/spaces";
 import { listPinnedWikiPages } from "@/lib/wiki";
@@ -10,9 +11,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { session, membership } = await requireMembership();
-  const [spaces, wikiPins] = await Promise.all([
+  const [spaces, wikiPins, navProjects] = await Promise.all([
     listVisibleSpaces(membership.organizationId, session.user.id),
     listPinnedWikiPages(membership.organizationId, 8).catch(() => []),
+    listNavProjects(membership.organizationId).catch(() => []),
   ]);
 
   const spacesBySlug: Record<
@@ -55,6 +57,7 @@ export default async function AppLayout({
         isAdmin={membership.role === "admin"}
         spacesBySlug={spacesBySlug}
         wikiPins={pins}
+        navProjects={navProjects}
       >
         {children}
       </AppShell>
