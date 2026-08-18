@@ -402,6 +402,7 @@ export async function importCarouselFromPastedText(
 
 import {
   createAdCampaign as createAdCampaignAction,
+  deleteAdCampaign as deleteAdCampaignAction,
   toggleAdCampaignStatus as toggleAdCampaignStatusAction,
   updateAdCampaign as updateAdCampaignAction,
 } from "./actions/ads";
@@ -414,4 +415,7 @@ export async function toggleAdCampaignStatus(formData: FormData) {
 }
 export async function updateAdCampaign(formData: FormData) {
   return updateAdCampaignAction(formData);
+}
+export async function deleteAdCampaign(formData: FormData) {
+  return deleteAdCampaignAction(formData);
 }

@@ -4,6 +4,7 @@ import { Fragment, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   createAdCampaign,
+  deleteAdCampaign,
   toggleAdCampaignStatus,
   updateAdCampaign,
 } from "@/lib/actions/ads";
@@ -350,6 +351,31 @@ export function AdsAdmin({ campaigns }: Props) {
                             >
                               Duplizieren
                             </button>
+                            <form
+                              action={(fd) => {
+                                if (
+                                  !confirm(
+                                    `Kampagne «${c.name}» wirklich löschen?`,
+                                  )
+                                ) {
+                                  return;
+                                }
+                                startTransition(async () => {
+                                  await deleteAdCampaign(fd);
+                                  if (editingId === c.id) setEditingId(null);
+                                  router.refresh();
+                                });
+                              }}
+                            >
+                              <input type="hidden" name="id" value={c.id} />
+                              <button
+                                className="btn btn-ghost"
+                                type="submit"
+                                disabled={pending}
+                              >
+                                Löschen
+                              </button>
+                            </form>
                           </div>
                         </td>
                       </tr>

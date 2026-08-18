@@ -174,3 +174,21 @@ export async function updateAdCampaign(formData: FormData) {
   revalidatePath("/ads");
   return { ok: true as const };
 }
+
+export async function deleteAdCampaign(formData: FormData) {
+  await requireCivicMediaAccess();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Ungültige ID." };
+
+  const existing = await prisma.campaign.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) return { error: "Kampagne nicht gefunden." };
+
+  await prisma.campaign.delete({ where: { id } });
+
+  revalidatePath("/ads");
+  return { ok: true as const };
+}
