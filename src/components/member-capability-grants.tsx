@@ -43,7 +43,7 @@ export function MemberCapabilityGrants({
     <div className="flex flex-col gap-1.5">
       <fieldset disabled={pending}>
         <legend className="mb-1.5 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-          Tags
+          Rollen
         </legend>
         <div className="flex flex-wrap items-center gap-1.5">
           {tags.map((cap) => {
