@@ -477,12 +477,10 @@ export function DamUploadWizard({
     multiple: true,
     maxSize: MAX_FILE_BYTES,
     disabled: busy || prepared.length > 0,
+    // iOS PWA file pickers break on a narrow MIME list and often omit extensions.
+    useFsAccessApi: false,
     accept: {
-      "image/jpeg": [".jpg", ".jpeg"],
-      "image/png": [".png"],
-      "image/webp": [".webp"],
-      "image/heic": [".heic", ".heif"],
-      "image/heif": [".heic", ".heif"],
+      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
     },
     validator: (file) => {
       const reason = rejectReason(file.name, file.type, file.size);

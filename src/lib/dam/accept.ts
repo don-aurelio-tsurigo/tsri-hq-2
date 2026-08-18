@@ -1,10 +1,14 @@
 export const ALLOWED_MIME = new Set([
   "image/jpeg",
   "image/jpg",
+  "image/pjpeg",
   "image/png",
+  "image/x-png",
   "image/webp",
   "image/heic",
   "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
 ]);
 
 export const ALLOWED_EXT = new Set([
@@ -61,23 +65,20 @@ export function rejectReason(
   if (RAW_EXT.has(ext)) {
     return `RAW-Dateien (${ext}) werden nicht akzeptiert. Bitte JPEG, PNG, WebP oder HEIC hochladen.`;
   }
-  const mimeOk = !mime || ALLOWED_MIME.has(mime.toLowerCase());
+  const mimeNorm = mime.trim().toLowerCase();
+  const mimeOk = ALLOWED_MIME.has(mimeNorm);
   const extOk = ALLOWED_EXT.has(ext);
-  if (!extOk && !mimeOk) {
-    return `«${name}» hat ein nicht unterstütztes Format. Erlaubt: JPEG, PNG, WebP, HEIC.`;
-  }
-  if (!extOk) {
-    return `«${name}»: Dateiendung ${ext || "(keine)"} ist nicht erlaubt. Erlaubt: JPEG, PNG, WebP, HEIC.`;
-  }
-  if (mime && !mimeOk) {
-    return `«${name}»: MIME-Typ ${mime} ist nicht erlaubt.`;
-  }
-  return null;
+  // Mobile pickers often omit the extension or send an empty/generic MIME.
+  if (extOk || mimeOk) return null;
+  return `«${name || "Foto"}» hat ein nicht unterstütztes Format. Erlaubt: JPEG, PNG, WebP, HEIC.`;
 }
 
 export function normalizedContentType(name: string, mime: string): string {
-  const lower = mime.toLowerCase();
-  if (lower === "image/jpg") return "image/jpeg";
+  const lower = mime.toLowerCase().trim();
+  if (lower === "image/jpg" || lower === "image/pjpeg") return "image/jpeg";
+  if (lower === "image/x-png") return "image/png";
+  if (lower === "image/heic-sequence") return "image/heic";
+  if (lower === "image/heif-sequence") return "image/heif";
   if (ALLOWED_MIME.has(lower)) return lower;
   switch (fileExtension(name)) {
     case ".png":
@@ -148,7 +149,9 @@ export function looksLikeImageBytes(bytes: Uint8Array): boolean {
       bytes[10] ?? 0,
       bytes[11] ?? 0,
     );
-    return ["heic", "heif", "mif1", "msf1", "heim", "heis"].includes(brand);
+    return ["heic", "heif", "heix", "mif1", "msf1", "heim", "heis"].includes(
+      brand,
+    );
   }
   return false;
 }
