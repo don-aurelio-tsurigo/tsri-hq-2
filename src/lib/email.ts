@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { toPublicAppUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { LOGIN_LINK_EXPIRES_MINUTES } from "@/lib/email-constants";
 import { greetingName } from "@/lib/user-name";
@@ -60,6 +61,7 @@ export async function sendLoginLinkEmail(email: string, url: string) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
   const greeting = greetingName(user);
+  const loginUrl = toPublicAppUrl(url);
 
   if (!apiKey || !from) {
     if (process.env.NODE_ENV === "production") {
@@ -67,7 +69,7 @@ export async function sendLoginLinkEmail(email: string, url: string) {
         "Login-Mails sind nicht konfiguriert (RESEND_API_KEY / EMAIL_FROM).",
       );
     }
-    console.log(`[magic-link] ${normalized}: ${url}`);
+    console.log(`[magic-link] ${normalized}: ${loginUrl}`);
     return;
   }
 
@@ -76,8 +78,8 @@ export async function sendLoginLinkEmail(email: string, url: string) {
     from,
     to: normalized,
     subject: "Dein Login-Link für Tsüri HQ",
-    html: loginLinkHtml(greeting, url),
-    text: loginLinkText(greeting, url),
+    html: loginLinkHtml(greeting, loginUrl),
+    text: loginLinkText(greeting, loginUrl),
   });
   if (error) {
     throw new Error(error.message);

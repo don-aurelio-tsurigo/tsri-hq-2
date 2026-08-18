@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { hashPassword } from "better-auth/crypto";
+import { getPublicAppOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import {
   getArchivedMembership,
@@ -435,7 +436,7 @@ export async function adminCreatePasswordResetLink(formData: FormData) {
     },
   });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getPublicAppOrigin();
   return {
     ok: true as const,
     url: `${appUrl}/reset-password/${token}`,

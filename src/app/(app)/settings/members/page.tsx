@@ -12,11 +12,12 @@ import { MemberPasswordHelp } from "@/components/member-password-help";
 import { MemberNameEdit } from "@/components/member-name-edit";
 import { PensumSelect } from "@/components/pensum-select";
 import { prisma } from "@/lib/db";
+import { getPublicAppOrigin } from "@/lib/app-url";
 import { requireAdmin } from "@/lib/session";
 
 export default async function MembersSettingsPage() {
   const { session, membership } = await requireAdmin();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getPublicAppOrigin();
 
   const [members, invitations] = await Promise.all([
     prisma.membership.findMany({
