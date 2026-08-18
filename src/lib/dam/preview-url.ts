@@ -1,4 +1,4 @@
-import { blobUrlForPreview, sniffImageContentType } from "./accept";
+import { sniffImageContentType } from "./accept";
 
 /** Safari PWA often cannot paint HEIC in <img>; draw to a JPEG canvas first. */
 export async function previewUrlForFile(file: File): Promise<string> {
@@ -22,5 +22,7 @@ export async function previewUrlForFile(file: File): Promise<string> {
       console.warn("[dam] HEIC canvas preview failed", error);
     }
   }
-  return blobUrlForPreview(file, sniffed);
+  // Copy bytes so xhr.send(file) cannot detach the blob: URL used in <img>.
+  const type = sniffed ?? file.type || "image/jpeg";
+  return URL.createObjectURL(new Blob([await file.arrayBuffer()], { type }));
 }

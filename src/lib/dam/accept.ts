@@ -188,13 +188,6 @@ export function sniffImageContentType(bytes: Uint8Array): string | null {
   return null;
 }
 
-/** iOS often sends HEIC as a File with type image/jpeg or empty. */
-export function blobUrlForPreview(file: File, sniffedType: string | null): string {
-  const type = sniffedType ?? normalizedContentType(file.name, file.type);
-  if (file.type === type) return URL.createObjectURL(file);
-  return URL.createObjectURL(file.slice(0, file.size, type));
-}
-
 export function looksLikeImageBytes(bytes: Uint8Array): boolean {
   return sniffImageContentType(bytes) !== null;
 }

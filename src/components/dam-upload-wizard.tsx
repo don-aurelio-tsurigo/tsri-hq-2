@@ -164,7 +164,7 @@ async function putViaServer(
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
     xhr.setRequestHeader("x-r2-key", r2Key);
     xhr.setRequestHeader("x-content-type", contentType || file.type || "image/jpeg");
-    xhr.send(file);
+    xhr.send(file.slice(0, file.size, contentType || file.type || "application/octet-stream"));
   });
 }
 
@@ -190,7 +190,7 @@ async function putFile(
         else reject(new Error(`R2-Upload fehlgeschlagen (HTTP ${xhr.status}).`));
       };
       xhr.onerror = () => reject(new Error("R2_CORS"));
-      xhr.send(file);
+      xhr.send(file.slice(0, file.size, contentType || file.type || "application/octet-stream"));
     });
   } catch {
     await putViaServer(r2Key, file, contentType, onProgress);
