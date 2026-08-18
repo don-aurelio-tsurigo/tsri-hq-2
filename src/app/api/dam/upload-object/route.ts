@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
+import { damDebug, damMem } from "@/lib/dam/debug-mem";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { parseUploadObjectRequest } from "@/lib/dam/upload-object-body";
 import { putObject, R2AccessError, R2ConfigError } from "@/lib/r2";
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
         contentType = "image/heic";
       }
     }
+    // #region agent log
+    damDebug("E", "upload-object/route.ts:put", "upload-object about to put R2", {
+      heic: looksLikeHeicBytes(parsed.bytes),
+      inMb: Math.round((parsed.bytes.length / 1048576) * 10) / 10,
+      outMb: Math.round((bytes.length / 1048576) * 10) / 10,
+      mem: damMem(),
+    });
+    // #endregion
     await putObject(parsed.r2Key, bytes, contentType);
     return NextResponse.json({ ok: true });
   } catch (error) {
