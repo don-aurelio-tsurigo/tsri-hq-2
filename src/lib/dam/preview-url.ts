@@ -23,6 +23,6 @@ export async function previewUrlForFile(file: File): Promise<string> {
     }
   }
   // Copy bytes so xhr.send(file) cannot detach the blob: URL used in <img>.
-  const type = sniffed ?? file.type || "image/jpeg";
+  const type = sniffed ?? (file.type || "image/jpeg");
   return URL.createObjectURL(new Blob([await file.arrayBuffer()], { type }));
 }
