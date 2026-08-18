@@ -103,8 +103,8 @@ export async function autotagImage(
         ? input.altText.trim().slice(0, 240)
         : null;
     return { altText, keywords: asStringArray(input.keywords).slice(0, 16) };
-  } catch {
+  } catch (error) {
     await refundMemberQuota(quota.id);
-    return { altText: null, keywords: [] };
+    throw error;
   }
 }

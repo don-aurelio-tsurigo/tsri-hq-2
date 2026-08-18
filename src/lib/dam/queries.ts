@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
-import { wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
+import { parseEditParams } from "@/lib/dam/edit-params";
+import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
+import type { PersonalAssetCard } from "@/lib/dam/types";
 
 export async function listRecentCredits(userId: string): Promise<string[]> {
   const rows = await prisma.uploadBatch.findMany({
@@ -53,4 +55,24 @@ export async function listPersonalStagingAssets(userId: string) {
       exports: wepublishExportLogSelect,
     },
   });
+}
+
+export function toPersonalAssetCard(
+  row: Awaited<ReturnType<typeof listPersonalStagingAssets>>[number],
+): PersonalAssetCard {
+  return {
+    id: row.id,
+    fileName: row.fileName,
+    credit: row.credit,
+    rating: row.rating,
+    editParams: parseEditParams(row.editParams),
+    collections: row.collections.map((link) => link.collection),
+    altText: row.altText,
+    keywords: row.keywords,
+    takenAt: row.takenAt ? row.takenAt.toISOString() : null,
+    width: row.width,
+    height: row.height,
+    rightsType: row.rightsType,
+    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
+  };
 }

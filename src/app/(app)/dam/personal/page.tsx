@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { DamPersonalGrid } from "@/components/dam-personal-grid";
-import { parseEditParams } from "@/lib/dam/edit-params";
-import { latestWepublishExportedAt } from "@/lib/dam/export-wepublish";
-import { listCollections, listPersonalStagingAssets } from "@/lib/dam/queries";
+import { enqueueDamProcessing } from "@/lib/dam/process-queue";
+import { listCollections, listPersonalStagingAssets, toPersonalAssetCard } from "@/lib/dam/queries";
 import { requireMembership } from "@/lib/session";
 
 export default async function DamPersonalPage() {
@@ -12,21 +11,12 @@ export default async function DamPersonalPage() {
     listCollections(),
   ]);
 
-  const assets = rows.map((row) => ({
-    id: row.id,
-    fileName: row.fileName,
-    credit: row.credit,
-    rating: row.rating,
-    editParams: parseEditParams(row.editParams),
-    collections: row.collections.map((link) => link.collection),
-    altText: row.altText,
-    keywords: row.keywords,
-    takenAt: row.takenAt ? row.takenAt.toISOString() : null,
-    width: row.width,
-    height: row.height,
-    rightsType: row.rightsType,
-    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
-  }));
+  const recent = Date.now() - 30 * 60 * 1000;
+  enqueueDamProcessing(
+    rows
+      .filter((row) => !row.altText?.trim() && row.createdAt.getTime() >= recent)
+      .map((row) => row.id),
+  );
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -47,12 +37,15 @@ export default async function DamPersonalPage() {
           Upload
         </Link>
       </header>
-      {assets.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
           Noch keine eigenen Staging-Bilder. Über Upload neue Fotos hinzufügen.
         </p>
       ) : (
-        <DamPersonalGrid initialAssets={assets} allCollections={collections} />
+        <DamPersonalGrid
+          initialAssets={rows.map(toPersonalAssetCard)}
+          allCollections={collections}
+        />
       )}
     </div>
   );

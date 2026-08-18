@@ -1,9 +1,9 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { RightsType } from "@/generated/prisma/client";
 import { MAX_FILES, rejectReason, normalizedContentType, outputExtension } from "@/lib/dam/accept";
 import { buildFileName } from "@/lib/dam/filename";
-import { processDamAssets } from "@/lib/dam/process";
+import { enqueueDamProcessing } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
 import { getActiveMembershipContext } from "@/lib/session";
 
@@ -210,9 +210,7 @@ export async function POST(request: Request) {
       return ids;
     });
 
-    after(async () => {
-      await processDamAssets(createdIds);
-    });
+    enqueueDamProcessing(createdIds);
 
     return NextResponse.json({ batchId: batch.id, assetIds: createdIds });
   } catch (error) {

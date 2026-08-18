@@ -55,6 +55,37 @@ export function DamPersonalGrid({
   const [pending, startTransition] = useTransition();
   const assignRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setAssets(initialAssets);
+  }, [initialAssets]);
+
+  useEffect(() => {
+    if (!initialAssets.some((asset) => !asset.altText?.trim())) return;
+    let ticks = 0;
+    let cancelled = false;
+    const id = window.setInterval(() => {
+      ticks += 1;
+      void (async () => {
+        try {
+          const res = await fetch("/api/dam/personal");
+          if (!res.ok) return;
+          const data = (await res.json()) as { assets?: typeof initialAssets };
+          if (cancelled || !Array.isArray(data.assets)) return;
+          setAssets(data.assets);
+          const stillPending = data.assets.some((asset) => !asset.altText?.trim());
+          if (!stillPending) window.clearInterval(id);
+        } catch {
+          /* keep current cards */
+        }
+      })();
+      if (ticks >= 40) window.clearInterval(id);
+    }, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [initialAssets]);
+
   const ratingMatched = useMemo(
     () => assets.filter((asset) => matchesRatingFilter(asset.rating, ratingFilter)),
     [assets, ratingFilter],
