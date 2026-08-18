@@ -35,6 +35,7 @@ export function NewsletterTypeManager({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editId, setEditId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   function toggleDay(day: Weekday) {
     setWeekdays((prev) =>
@@ -46,6 +47,7 @@ export function NewsletterTypeManager({
 
   function startEdit(type: NewsletterTypeRow) {
     setEditId(type.id);
+    setFormOpen(true);
     setName(type.name);
     setWeekdays(
       type.weekdays.filter((d): d is Weekday =>
@@ -58,6 +60,7 @@ export function NewsletterTypeManager({
 
   function resetForm() {
     setEditId(null);
+    setFormOpen(false);
     setName("");
     setWeekdays(DEFAULT_WEEKDAYS);
     setRequiresWordle(false);
@@ -109,12 +112,26 @@ export function NewsletterTypeManager({
   return (
     <section className="card space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-          Newsletter-Typen
-        </h2>
-        <p className="text-sm text-[var(--muted)]">
-          Erscheinungstage im Kalender
-        </p>
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+            Newsletter-Typen
+          </h2>
+          <p className="text-sm text-[var(--muted)]">
+            Erscheinungstage im Kalender
+          </p>
+        </div>
+        {!formOpen && (
+          <button
+            type="button"
+            className="btn btn-primary text-sm"
+            onClick={() => {
+              resetForm();
+              setFormOpen(true);
+            }}
+          >
+            Neuer Typ
+          </button>
+        )}
       </div>
       <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
         {types.map((t) => (
@@ -151,15 +168,25 @@ export function NewsletterTypeManager({
         ))}
         {types.length === 0 && (
           <li className="px-3 py-4 text-sm text-[var(--muted)]">
-            Noch kein Typ — lege unten einen an.
+            Noch kein Typ.
           </li>
         )}
       </ul>
 
+      {formOpen && (
       <div className="space-y-3 rounded-xl border border-dashed border-[var(--border)] p-3">
-        <p className="text-sm font-semibold">
-          {editId ? "Typ bearbeiten" : "Neuer Typ"}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">
+            {editId ? "Typ bearbeiten" : "Neuer Typ"}
+          </p>
+          <button
+            type="button"
+            className="btn btn-ghost px-3 py-1.5 text-sm"
+            onClick={resetForm}
+          >
+            Abbrechen
+          </button>
+        </div>
         <label className="field text-xs font-semibold text-[var(--muted)]">
           Name
           <input
@@ -206,26 +233,16 @@ export function NewsletterTypeManager({
           </span>
         </label>
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className="btn btn-primary text-sm"
-            disabled={pending || !name.trim() || weekdays.length === 0}
-            onClick={saveType}
-          >
-            {pending ? "…" : editId ? "Speichern" : "Anlegen"}
-          </button>
-          {editId && (
-            <button
-              type="button"
-              className="btn btn-secondary text-sm"
-              onClick={resetForm}
-            >
-              Abbrechen
-            </button>
-          )}
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary text-sm"
+          disabled={pending || !name.trim() || weekdays.length === 0}
+          onClick={saveType}
+        >
+          {pending ? "…" : editId ? "Speichern" : "Anlegen"}
+        </button>
       </div>
+      )}
     </section>
   );
 }
