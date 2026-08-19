@@ -206,11 +206,16 @@ STRUKTUR:
 KATEGORIE:
 category darf ein Platzhalter sein (z.B. STADTLEBEN) — Farbe kommt nicht aus der Kategorie, Text- und Outro-Slides sind weiss mit schwarzer Schrift.
 
-WICHTIGSTE REGEL — Textmenge:
+WICHTIGSTE REGEL — Textmenge und Worttreue:
 - Ziel ist es, so viel wie möglich vom eingefügten 6iBrief-Fliesstext auf die Slides zu bringen, idealerweise den gesamten Text (nach Vorverarbeitung, siehe oben — die Bildunterschrift zählt nicht als Fliesstext, der Rest schon, inklusive der einleitenden ersten Sätze).
-- Verwende den Text wortwörtlich. Nicht umformulieren, nicht zusammenfassen, nicht paraphrasieren.
-- Kürzen ist nur erlaubt, wenn ein Abschnitt sonst nicht auf die Slides passen würde (siehe Längenlimit unten) — und auch dann nur durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze.
+- Verwende den Text 1:1 wortwörtlich, wie er eingefügt wurde. Nicht umformulieren, nicht zusammenfassen, nicht paraphrasieren, keine Wörter oder Satzteile weglassen, die im Original stehen — auch nicht einzelne Nebensätze oder Halbsätze "der Kürze halber".
+- Kürzen ist NUR erlaubt, wenn ein ganzer Abschnitt sonst nicht auf die Slides passen würde (siehe Längenlimit unten) — und auch dann ausschliesslich durch Weglassen von vollständigen Sätzen (nie durch Umschreiben der verbleibenden Sätze, und nie durch Herausschneiden einzelner Wörter oder Satzteile aus der Mitte eines Satzes). Ein gekürzter Satz darf niemals als unvollständiges oder unverständliches Fragment stehen bleiben — wenn ein Satz nicht ganz reinpasst, lass ihn komplett weg, statt ihn mittendrin abzuschneiden.
+- Prüfe nach dem Kürzen jeden verbleibenden Satz einzeln: Ergibt er für sich allein noch grammatikalisch und inhaltlich Sinn? Fehlt ein Subjekt, Verb oder Bezugswort, weil mittendrin etwas gestrichen wurde? Falls ja, korrigieren (ganzen Satz entfernen, nicht partiell kürzen).
 - Ändere den Text keinesfalls in der Aussage.
+
+SATZZEICHEN — VERBINDLICH:
+- Übernimm Satzzeichen (Punkt, Komma, Frage-/Ausrufezeichen, Anführungszeichen) exakt wie im Original, inklusive des Schlusspunkts am Ende des letzten Satzes einer Slide bzw. eines Abschnitts.
+- Kontrolliere vor der finalen Ausgabe jede Slide einzeln: Endet der letzte Satz mit dem im Original vorhandenen Satzzeichen? Fehlt am Ende ein Punkt, Frage- oder Ausrufezeichen, weil beim Kürzen versehentlich mitgekürzt wurde? Falls ja, ergänzen.
 
 FELD-REGELN:
 
@@ -219,10 +224,10 @@ Cover:
 - headline: der Artikeltitel wortwörtlich (die Zeile direkt nach der Rubrik, vor der Bildunterschrift), darf \\n enthalten. Keinen Titel erfinden.
 
 Text-Slides:
-- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut (nach Vorverarbeitung), nur bei Bedarf gekürzt.
-- ERSTE ZEILE jeder Text-Slide (nur beim ersten Text-Slide, nicht bei jedem): eine Überschrift in <b>…</b> mit dem Kernthema, danach der Fliesstext. Bei Folge-Slides ohne neue Überschrift direkt mit Fliesstext weitermachen, ausser der Originaltext selbst enthält einen echten Zwischentitel.
-- Keine Inline-Fettungen mitten im Satz (anders als bei anderen Formaten) — Fettung ist hier nur für die optionale Überschriftszeile reserviert, nicht für Hervorhebungen im Fliesstext.
-- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
+- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut (nach Vorverarbeitung), nur bei Bedarf gekürzt (siehe Regeln oben).
+- KEINE Überschrift/Titelzeile auf den Text-Slides — auch nicht auf dem ersten Text-Slide. Jede Text-Slide beginnt direkt mit dem Fliesstext, ohne eingefügte <b>-Überschrift. Eine <b>-Fettung ist nur zulässig, wenn der Originaltext selbst einen echten Zwischentitel enthält.
+- Keine Inline-Fettungen mitten im Satz (anders als bei anderen Formaten) — der Fliesstext bleibt unformatiert, keine Hervorhebungen einfügen.
+- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze (ganze Sätze, siehe oben) und zähle erneut, bis der Wert sicher unter dem Limit liegt.
 - ABSATZSTRUKTUR: Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich mitten in einem Argument.
 - LÄNGENLIMIT (abhängig von Absatzstruktur):
   - Ohne Absatzumbruch: max. 450 Zeichen.
@@ -237,7 +242,7 @@ Outro (fixiertes Template, NICHT den Cover-Titel wiederholen):
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
-- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen. Ziel ist Textübernahme, nicht Textverdichtung.
+- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen, keine weggelassenen Satzteile innerhalb eines Satzes. Ziel ist Textübernahme, nicht Textverdichtung.
 - Fülle create_carousel_slides genau einmal.`;
 
 export function systemPromptForFormat(format: CarouselFormat): string {
