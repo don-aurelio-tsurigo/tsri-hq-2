@@ -198,11 +198,51 @@ Quote-Slides (Antworten der interviewten Person):
 - backgroundImageUrl: null (solid color), ausser konkretes mitgeliefertes Bildmotiv.
 
 Outro:
-- Titel = Artikel-Titel wortwörtlich, ctaText = "LINK IN DER BIO".
+- headline: der Newsletter-Hook (ersetzt den Artikeltitel vollständig — der Artikeltitel taucht im Outro nicht mehr auf).
+  - 1 kurzer, prägnanter Satz oder zwei sehr kurze Sätze (kein Fliesstext) — funktioniert wie ein Titel, nicht wie ein Absatz.
+  - LÄNGENLIMIT: max. 90 Zeichen. Zähle die Zeichen wie beim Lead-Text explizit durch (in deinen Denkschritten), bevor du die finale Headline in die JSON-Ausgabe schreibst. Überschreitet sie 90 Zeichen, kürze und zähle erneut.
+  - KEINE NEUEN FAKTEN: Die Headline darf frei formuliert werden, aber ausschliesslich mit Fakten, Zahlen und Aussagen, die WÖRTLICH oder SINNGEMÄSS im Interview stehen. Keine zusätzlichen Zahlen, Vergleiche oder Kontext (z.B. Einwohnerzahlen, Statistiken, Vergleichswerte), die nicht explizit genannt sind — auch nicht aus Weltwissen ergänzt. Die Ausnahme "frei formuliert" gilt für die Formulierung, nicht für den Inhalt.
+  - KEINE GEDANKENSTRICHE. Verwende stattdessen Punkte oder Kommas, um Satzteile zu trennen.
+  - AUSWAHL — VERBINDLICH: Wähle aus dem folgenden Beispielpool die Zeile, die inhaltlich am besten zu DIESEM Interview passt, und passe sie so an, dass sie zum konkreten Thema/Kernaussage passt (Platzhalter durch echten Inhalt ersetzen, generische Sätze ggf. unverändert lassen, falls sie bereits allgemein genug sind). Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile — begründe die Wahl in deinen Denkschritten anhand des Interviewinhalts (z.B. vertritt die interviewte Person eine steile/unbequeme These → "Klingt einfach. Ist es nicht."-Typ; geht es um einen klaren Interessenkonflikt oder Gegenposition → "Wer profitiert / Wer verliert"- oder "Zwei Seiten"-Typ; ist es eher ein einordnendes/erklärendes Gespräch ohne klaren Konflikt → ein neutralerer Typ wie "Zürich verstehen" oder "Mehr dazu im Züri Briefing"). Über mehrere Slides/Artikel hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
+
+  Beispielpool (Vorlagen, keine Textbausteine zum wörtlichen Kopieren — Platzhalter/Bezüge auf den konkreten Inhalt anpassen):
+  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Briefing.
+  - Nur was du wirklich wissen musst. Hol dir das Briefing.
+  - Statt endlos scrollen: Züri Briefing in 5 Min.
+  - Über 33'000 Menschen starten mit dem Briefing in den Tag.
+  - Diese Debatte geht weiter. Hol dir das Züri Briefing.
+  - Wer profitiert? Wer verliert? Eingeordnet im Briefing.
+  - Eine Geschichte, viele Fragen. Antworten im Züri Briefing.
+  - Zürich verändert sich täglich. Verpass nichts Wichtiges.
+  - Informiert statt überfordert: Züri Briefing.
+  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Briefing.
+  - Klingt einfach. Ist es nicht. Einordnung im Züri Briefing.
+  - So einfach ist die Geschichte nicht. Die Details im Briefing.
+  - Einzelfall oder Muster? Eingeordnet im Züri Briefing.
+  - Wenig Platz für eine grosse Debatte. Mehr dazu im Briefing.
+  - Manche Zahlen brauchen Kontext. Mehr dazu im Briefing.
+  - Diese Frage beschäftigt gerade ganz Zürich. Mehr dazu im Briefing.
+  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Briefing.
+  - Mehr dazu im Züri Briefing.
+  - So viel Stadt an einem Tag. Wir sortieren sie für dich. Hol dir das Briefing.
+  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Briefing.
+  - Manche Entscheidungen betreffen mehr Leute, als man denkt.
+  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Briefing.
+  - Zürich hat Widersprüche. Wir zeigen sie dir. Hol dir das Briefing.
+  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht.
+  - Wer entscheidet hier eigentlich mit? Eingeordnet im Briefing.
+  - So tickt Zürich gerade wirklich. Mehr dazu im Züri Briefing.
+  - Ein Fakt, viele Meinungen. Die Einordnung im Briefing.
+  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Briefing.
+
+  - Die Social-Proof-Zeile ("Über 33'000 Menschen...") nur wählen, wenn kein anderer Typ besser zum Interview passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
+  - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
+- ctaText = "ZÜRI BRIEFING → LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
-- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen.
+- Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen beim Lead-Text und bei den Quote-Slides. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
+- Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
 
 export const TSUERITIPP_PROMPT = `Du bist Redakteur:in bei Tsüri.ch und erstellst ein Instagram-Karussell (1080×1350) im Tsüritipp-Format.
