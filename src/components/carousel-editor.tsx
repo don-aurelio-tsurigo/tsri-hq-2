@@ -810,6 +810,19 @@ export function CarouselEditor({
                       }
                     />
                   </Field>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      disabled={!canEdit}
+                      checked={Boolean(imageOverlay.gradientFromTop)}
+                      onChange={(e) =>
+                        updateImageOverlay({
+                          gradientFromTop: e.target.checked,
+                        })
+                      }
+                    />
+                    Verlauf von oben
+                  </label>
                   {canEdit ? (
                     <button
                       type="button"

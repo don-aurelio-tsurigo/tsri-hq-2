@@ -5,6 +5,7 @@ export const DEFAULT_IMAGE_OVERLAY: ImageOverlay = {
   dim: 0,
   gradientStrength: 0.5,
   gradientLift: 0.6,
+  gradientFromTop: false,
 };
 
 /** Text/quote photos: no gradient by default. */
@@ -12,6 +13,7 @@ export const DEFAULT_TEXT_QUOTE_IMAGE_OVERLAY: ImageOverlay = {
   dim: 0,
   gradientStrength: 0,
   gradientLift: 0.6,
+  gradientFromTop: false,
 };
 
 function clamp01(value: number) {
@@ -29,6 +31,7 @@ export function normalizeImageOverlay(
       overlay?.gradientStrength ?? defaults.gradientStrength,
     ),
     gradientLift: clamp01(overlay?.gradientLift ?? defaults.gradientLift),
+    gradientFromTop: overlay?.gradientFromTop ?? defaults.gradientFromTop ?? false,
   };
 }
 
@@ -48,11 +51,12 @@ export function imageDimFilter(dim: number): string {
 }
 
 /**
- * Bottom-heavy darken gradient.
- * - gradientStrength (UI: Verlauf Stärke): opacity at the bottom (0–1)
- * - gradientLift (UI: Verlauf Höhe): how far up the ramp reaches (0 = thin bottom edge, 1 = full height)
+ * Darken gradient from one edge.
+ * - gradientStrength (UI: Verlauf Stärke): opacity at the dark edge (0–1)
+ * - gradientLift (UI: Verlauf Höhe): how far the ramp reaches (0 = thin edge, 1 = full height)
+ * - gradientFromTop: dark at top fading down; default is dark at the bottom
  *
- * Always starts at opacity 0 at the top of the ramp (no hard step).
+ * Always starts at opacity 0 at the light end of the ramp (no hard step).
  */
 export function imageOverlayGradient(overlay: ImageOverlay): string {
   const s = clamp01(overlay.gradientStrength);
@@ -62,6 +66,15 @@ export function imageOverlayGradient(overlay: ImageOverlay): string {
   const mid = Math.round(start + span * 0.45);
   const midA = (s * 0.35).toFixed(3);
   const botA = s.toFixed(3);
+
+  if (overlay.gradientFromTop) {
+    const midRev = 100 - mid;
+    const startRev = 100 - start;
+    if (start <= 0) {
+      return `linear-gradient(180deg, rgba(0,0,0,${botA}) 0%, rgba(0,0,0,${midA}) ${midRev}%, rgba(0,0,0,0) 100%)`;
+    }
+    return `linear-gradient(180deg, rgba(0,0,0,${botA}) 0%, rgba(0,0,0,${midA}) ${midRev}%, rgba(0,0,0,0) ${startRev}%, rgba(0,0,0,0) 100%)`;
+  }
 
   if (start <= 0) {
     return `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,${midA}) ${mid}%, rgba(0,0,0,${botA}) 100%)`;

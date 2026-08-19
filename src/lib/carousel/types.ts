@@ -41,10 +41,12 @@ export const DEFAULT_IMAGE_TRANSFORM: LayerTransform = {
 export type ImageOverlay = {
   /** Flat image dim via brightness filter, 0–1 */
   dim: number;
-  /** Verlauf Stärke: opacity at the bottom, 0–1 */
+  /** Verlauf Stärke: opacity at the dark edge, 0–1 */
   gradientStrength: number;
-  /** Verlauf Höhe: how far up the ramp reaches, 0–1 */
+  /** Verlauf Höhe: how far the ramp reaches from the dark edge, 0–1 */
   gradientLift: number;
+  /** When true, dark at the top fading down; default is dark at the bottom. */
+  gradientFromTop?: boolean;
 };
 
 export type SlideBase = {
