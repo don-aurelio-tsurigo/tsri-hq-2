@@ -109,9 +109,13 @@ export async function register() {
     );
     const { startRagSyncScheduler } = await import("./lib/rag/sync-scheduler");
     const { startDamPurgeScheduler } = await import("./lib/dam/purge-scheduler");
+    const { startCarouselPurgeScheduler } = await import(
+      "./lib/carousel/purge-scheduler"
+    );
     startNewsFeedScheduler();
     startSlackCookingScheduler();
     startRagSyncScheduler();
     startDamPurgeScheduler();
+    startCarouselPurgeScheduler();
   }
 }
