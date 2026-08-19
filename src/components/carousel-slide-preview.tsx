@@ -101,7 +101,7 @@ function slideHtml(input: string): string {
 function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
   return (
     <p
-      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.18em] uppercase"
+      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.06em] uppercase"
       style={{
         top: 72,
         fontSize: 30,
@@ -210,12 +210,12 @@ function BrandMark({ ink = "light" }: { ink?: SlideInk }) {
       <img
         src={BRAND_LOGO_SRC}
         alt={BRAND_MARK}
-        width={220}
-        height={72}
+        width={231}
+        height={76}
         className="object-contain object-center"
         style={{
-          width: 220,
-          height: 72,
+          width: 231,
+          height: 76,
           // white on dark slides / black on bright category colors
           filter: ink === "dark" ? "brightness(0)" : "brightness(0) invert(1)",
         }}
