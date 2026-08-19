@@ -217,7 +217,7 @@ export function GroupedTasksBoard({
   isTemplate?: boolean;
   /**
    * `space` = TaskGroup sections (project detail / single space).
-   * `inbox` = Meine Tasks: Listen (privat), Projekte, Fällig (alles).
+   * `inbox` = Meine Tasks: Meine Listen (privat), Projekte, Fällig (alles).
    */
   variant?: "space" | "inbox";
   pinnedProjectIds?: string[];
@@ -502,7 +502,7 @@ export function GroupedTasksBoard({
         <div className="flex flex-wrap items-center gap-1.5">
           {(
             [
-              { id: "list", label: "Listen", count: viewCounts.list },
+              { id: "list", label: "Meine Listen", count: viewCounts.list },
               { id: "project", label: "Projekte", count: viewCounts.project },
               { id: "due", label: "Fällig", count: viewCounts.due },
             ] as const
