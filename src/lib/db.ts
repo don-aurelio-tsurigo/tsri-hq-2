@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 37; // v37: Asset.notes
+const PRISMA_CLIENT_SCHEMA_VERSION = 38; // v38: Asset.mediagraphId + Collection.mediagraphId
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -46,8 +46,8 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   Campaign: ["impressionLimit"],
   CarouselPost: ["format"],
   UploadBatch: ["credit"],
-  Asset: ["r2Key", "status", "deletedAt", "deletedBy", "notes"],
-  Collection: ["isPersonal"],
+  Asset: ["r2Key", "status", "deletedAt", "deletedBy", "notes", "mediagraphId", "importSource"],
+  Collection: ["isPersonal", "mediagraphId"],
 };
 
 const REQUIRED_MODELS = [

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import sharp from "sharp";
 import { createMasterImage, MASTER_MAX_EDGE } from "./master.ts";
-import { buildArchiveKey, contentDispositionAttachment, replaceKeyExtension, uniqueDownloadName } from "./filename.ts";
+import { buildArchiveKey, buildMediagraphArchiveKey, contentDispositionAttachment, replaceKeyExtension, uniqueDownloadName } from "./filename.ts";
 
 async function makeImage(
   width: number,
@@ -88,5 +88,12 @@ describe("buildArchiveKey", () => {
     const key = buildArchiveKey({ userId: "user1", assetId: "asset1", ext: "jpg" });
     assert.match(key, /^archive\/user1\/asset1\/.+\.jpg$/);
     assert.equal(key.startsWith("staging/"), false);
+  });
+});
+
+describe("buildMediagraphArchiveKey", () => {
+  it("keeps imported masters under a dedicated archive prefix", () => {
+    const key = buildMediagraphArchiveKey("guid-123", "jpg");
+    assert.match(key, /^archive\/mediagraph-import\/guid-123-.+\.jpg$/);
   });
 });

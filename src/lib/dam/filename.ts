@@ -54,6 +54,13 @@ export function buildArchiveKey(opts: {
   return `archive/${opts.userId}/${opts.assetId}/${shortUuid}.${cleanExt}`;
 }
 
+export function buildMediagraphArchiveKey(mediagraphId: string, ext: string): string {
+  const cleanExt = ext.replace(/^\./, "").toLowerCase() || "jpg";
+  const id = mediagraphId.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 80) || "unknown";
+  const shortUuid = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  return `archive/mediagraph-import/${id}-${shortUuid}.${cleanExt}`;
+}
+
 export function replaceKeyExtension(key: string, ext: string): string {
   const clean = ext.replace(/^\./, "").toLowerCase();
   const slash = key.lastIndexOf("/");

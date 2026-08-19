@@ -1058,6 +1058,8 @@ model Asset {
   altText     String?
   keywords    String[]    @default([])
   notes       String?
+  mediagraphId String?     @unique
+  importSource String?
   exif        Json?
   takenAt     DateTime?
   width       Int?
@@ -1090,6 +1092,7 @@ model Collection {
   createdBy  String
   creator    User              @relation(fields: [createdBy], references: [id], onDelete: Restrict)
   isPersonal Boolean           @default(true)
+  mediagraphId String?         @unique
   createdAt  DateTime          @default(now())
   assets     AssetCollection[]
 

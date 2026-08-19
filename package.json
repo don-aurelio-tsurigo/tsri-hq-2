@@ -17,6 +17,7 @@
     "db:import-rag": "tsx scripts/import-rag-from-staging.ts",
     "rag:sync": "tsx scripts/rag-sync.ts",
     "dam:purge": "tsx scripts/dam-purge.ts",
+    "dam:mediagraph-import": "tsx scripts/mediagraph-import.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
