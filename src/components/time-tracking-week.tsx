@@ -190,7 +190,7 @@ function DayEditor({
     fd.set("segments", JSON.stringify(type === "work" ? payload : []));
     startTransition(async () => {
       const result = await upsertTimeEntry(fd);
-      if (result?.error) {
+      if (result && "error" in result && result.error) {
         setError(result.error);
         return;
       }
@@ -204,7 +204,7 @@ function DayEditor({
     fd.set("date", day.dateKey);
     startTransition(async () => {
       const result = await deleteTimeEntry(fd);
-      if (result?.error) {
+      if (result && "error" in result && result.error) {
         setError(result.error);
         return;
       }
