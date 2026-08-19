@@ -12,9 +12,10 @@ import {
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format, isPast, isToday } from "date-fns";
+import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { MoreHorizontal } from "lucide-react";
+import { TaskDuePicker } from "@/components/task-due-picker";
 import { TaskAssigneeSelect, TaskDoneCheckbox } from "@/components/task-form";
 import { useDeleteTaskWithUndo } from "@/components/use-delete-task-with-undo";
 import { cancelTask, updateTask } from "@/lib/actions";
@@ -41,15 +42,6 @@ export type TaskRow = {
 
 type Member = { id: string; name: string };
 type TaskGroupOption = { id: string; name: string };
-
-function dueLabel(dueAt: Date | string | null) {
-  if (!dueAt) return null;
-  const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
-  const label = format(date, "d. MMM", { locale: de });
-  if (isToday(date)) return { label: "Heute", tone: "warn" as const };
-  if (isPast(date)) return { label, tone: "late" as const };
-  return { label, tone: "ok" as const };
-}
 
 function offsetLabel(dueOffsetDays: number | null | undefined) {
   if (dueOffsetDays == null) return null;
@@ -383,9 +375,6 @@ export function TaskList({
         ].join(" ")}
       >
         {tasks.map((task) => {
-          const due = showDueOffset
-            ? null
-            : dueLabel(task.dueAt);
           const offset = showDueOffset
             ? offsetLabel(task.dueOffsetDays)
             : null;
@@ -462,19 +451,18 @@ export function TaskList({
                       {task.title}
                     </p>
                   )}
-                  {compact && due && (
-                    <span
-                      className={[
-                        "shrink-0 text-[0.7rem]",
-                        due.tone === "late"
-                          ? "text-[var(--danger)]"
-                          : due.tone === "warn"
-                            ? "text-[var(--warn,#9a6700)]"
-                            : "text-[var(--muted)]",
-                      ].join(" ")}
+                  {compact && !showDueOffset && (
+                    <div
+                      className="shrink-0 self-center"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                     >
-                      {due.label}
-                    </span>
+                      <TaskDuePicker
+                        taskId={task.id}
+                        dueAt={task.dueAt}
+                        compact
+                      />
+                    </div>
                   )}
                   {compact && offset && (
                     <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
@@ -521,18 +509,17 @@ export function TaskList({
                       task.space?.type !== "personal" && (
                         <span>→ {task.assignee.name}</span>
                       )}
-                    {due && (
-                      <span
-                        className={
-                          due.tone === "late"
-                            ? "text-[var(--danger)]"
-                            : due.tone === "warn"
-                              ? "text-[var(--warn,#9a6700)]"
-                              : ""
-                        }
+                    {!showDueOffset && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                       >
-                        Fällig {due.label}
-                      </span>
+                        <TaskDuePicker
+                          taskId={task.id}
+                          dueAt={task.dueAt}
+                          compact={false}
+                        />
+                      </div>
                     )}
                     {offset && <span>Relativ: {offset}</span>}
                   </div>
