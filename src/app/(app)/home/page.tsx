@@ -4,10 +4,12 @@ import { de } from "date-fns/locale";
 import { Check, TriangleAlert } from "lucide-react";
 import { TaskList } from "@/components/task-list";
 import { PrivateNotes } from "@/components/private-notes";
+import { HomeBirthday } from "@/components/home-birthday";
 import {
   ChoreMidweekReminder,
   TimeGapsReminder,
 } from "@/components/home-reminders";
+import { listTodaysBirthdays } from "@/lib/birthdays";
 import { listAssignedChoresForUser } from "@/lib/chores";
 import {
   countUserCookingSlotsInMonth,
@@ -72,6 +74,7 @@ export default async function HomePage() {
     weekHours,
     pastWeekGaps,
     assignedChores,
+    todaysBirthdays,
   ] = await Promise.all([
     getCurrentDashboardItems(
       membership.organizationId,
@@ -130,7 +133,13 @@ export default async function HomePage() {
           session.user.id,
         )
       : Promise.resolve([]),
+    listTodaysBirthdays(membership.organizationId),
   ]);
+
+  const ownBirthday = todaysBirthdays.some((p) => p.id === session.user.id);
+  const otherBirthdayNames = todaysBirthdays
+    .filter((p) => p.id !== session.user.id)
+    .map((p) => p.name);
 
   const kochplanId = cookingMonth.spaceId;
   const cookingMonthCount = cookingMonth.count;
@@ -155,6 +164,11 @@ export default async function HomePage() {
           Home
         </h1>
       </header>
+
+      <HomeBirthday
+        isOwnBirthday={ownBirthday}
+        otherNames={otherBirthdayNames}
+      />
 
       {isAdmin && pendingVacations.length > 0 && (
         <section className="space-y-3">
