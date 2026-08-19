@@ -17,7 +17,7 @@ describe("defaultCollectionName", () => {
 
 describe("suggestedRightsType", () => {
   const me = "Elio Donauer/Tsüri.ch";
-  it("marks the Ich-credit as own", () => {
+  it("marks the own photographer credit as own", () => {
     assert.equal(suggestedRightsType(me, me), "own");
   });
   it("marks any other name as provided", () => {

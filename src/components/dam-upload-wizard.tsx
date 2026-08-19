@@ -10,7 +10,6 @@ import {
   LoaderCircle,
   RotateCw,
   Upload,
-  User,
   X,
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
@@ -414,7 +413,7 @@ export function DamUploadWizard({
   const uploadStateRef = useRef<Record<string, FileUploadState>>({});
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [reached, setReached] = useState(1);
-  const [credit, setCredit] = useState("");
+  const [credit, setCredit] = useState(meCredit);
   const [creditDraft, setCreditDraft] = useState("");
   const [queued, setQueued] = useState<QueuedFile[]>([]);
   const [dropErrors, setDropErrors] = useState<string[]>([]);
@@ -424,10 +423,12 @@ export function DamUploadWizard({
     {},
   );
   const [showPerFile, setShowPerFile] = useState(false);
-  const [rightsType, setRightsType] = useState<RightsType>("provided");
+  const [rightsType, setRightsType] = useState<RightsType>("own");
   const [keywords, setKeywords] = useState("");
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
-  const [newCollectionName, setNewCollectionName] = useState("");
+  const [newCollectionName, setNewCollectionName] = useState(() =>
+    defaultCollectionName(meCredit),
+  );
   const [collectionAuto, setCollectionAuto] = useState(true);
   const [drafts, setDrafts] = useState<AssetDraft[]>([]);
   const [busy, setBusy] = useState(false);
@@ -847,42 +848,34 @@ export function DamUploadWizard({
             Credit / Fotograf:in
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            Wird auf alle Bilder dieses Batches gesetzt und für die Dateinamen
-            verwendet.
+            Standard ist dein Name. Wird auf alle Bilder dieses Batches gesetzt
+            und für die Dateinamen verwendet.
           </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-highlight"
-              onClick={() => applyCredit(meCredit, true)}
+          <div className="field">
+            <label htmlFor="recent-credit">Credit</label>
+            <select
+              id="recent-credit"
+              value={
+                [meCredit, ...recentCredits].includes(credit) ? credit : ""
+              }
+              onChange={(e) => {
+                applyCredit(e.target.value, e.target.value === meCredit);
+                setCreditDraft("");
+              }}
             >
-              <User className="size-4" aria-hidden />
-              Ich
-            </button>
-            <span className="self-center text-sm text-[var(--muted)]">
-              setzt «{meCredit}»
-            </span>
-          </div>
-          {recentCredits.length > 0 ? (
-            <div className="field">
-              <label htmlFor="recent-credit">Zuletzt genutzt</label>
-              <select
-                id="recent-credit"
-                value={recentCredits.includes(credit) ? credit : ""}
-                onChange={(e) => {
-                  applyCredit(e.target.value, e.target.value === meCredit);
-                  setCreditDraft("");
-                }}
-              >
-                <option value="">— wählen —</option>
-                {recentCredits.map((c) => (
+              {[meCredit, ...recentCredits].includes(credit) ? null : (
+                <option value="">— neuer Credit unten —</option>
+              )}
+              <option value={meCredit}>{meCredit}</option>
+              {recentCredits
+                .filter((c) => c !== meCredit)
+                .map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
-            </div>
-          ) : null}
+            </select>
+          </div>
           <div className="field">
             <label htmlFor="credit-free">Oder neuer Credit</label>
             <input
