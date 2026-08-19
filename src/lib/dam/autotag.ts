@@ -48,7 +48,7 @@ export async function autotagImage(
         {
           name: TOOL_NAME,
           description:
-            "Liefert Alt-Text und Keywords für ein journalistisches Archivfoto.",
+            "Liefert Alt-Text und Keywords für ein journalistisches Archivfoto. Kein redaktioneller Kontext, keine Bildunterschrift, keine Notes.",
           input_schema: {
             type: "object",
             additionalProperties: false,
@@ -84,7 +84,7 @@ export async function autotagImage(
             },
             {
               type: "text",
-              text: "Tagge dieses Foto für das Bildarchiv von Tsüri.ch. Sprache: Deutsch. Keine Markennamen erfinden.",
+              text: "Tagge dieses Foto für das Bildarchiv von Tsüri.ch. Sprache: Deutsch. Keine Markennamen erfinden. Nur sichtbares Motiv als Alt-Text und Keywords — keinen Ereignishintergrund oder redaktionellen Kontext.",
             },
           ],
         },

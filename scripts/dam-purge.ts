@@ -1,5 +1,5 @@
 /**
- * Manual DAM trash / rejected purge (same logic as the in-process daily job).
+ * Manual DAM trash / rejected / incomplete-batch purge (same as the daily job).
  *
  *   npm run dam:purge
  */

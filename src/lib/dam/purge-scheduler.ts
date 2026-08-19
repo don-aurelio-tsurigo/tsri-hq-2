@@ -6,7 +6,7 @@ const globalForScheduler = globalThis as unknown as {
 };
 
 /**
- * Daily DAM trash / rejected cleanup. Same in-process pattern as RAG sync.
+ * Daily DAM trash / rejected / incomplete-batch cleanup. Same in-process pattern as RAG sync.
  */
 export function startDamPurgeScheduler() {
   if (globalForScheduler.__damPurgeSchedulerStarted) return;
@@ -24,7 +24,7 @@ export function startDamPurgeScheduler() {
       const { purgeExpiredDamAssets } = await import("@/lib/dam/trash");
       const summary = await purgeExpiredDamAssets();
       console.log(
-        `[dam-purge] tick: archived=${summary.archived} rejected=${summary.rejected} errors=${summary.errors}`,
+        `[dam-purge] tick: archived=${summary.archived} rejected=${summary.rejected} incomplete=${summary.incomplete} errors=${summary.errors}`,
       );
     } catch (err) {
       console.error("[dam-purge] scheduled run failed", err);

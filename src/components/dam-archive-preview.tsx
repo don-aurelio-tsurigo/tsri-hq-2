@@ -258,6 +258,7 @@ export function DamArchivePreview({
             <MetaBlock label="Aufnahmedatum">{formatTakenAt(asset.takenAt)}</MetaBlock>
             <MetaBlock label="Keywords">{asset.keywords.join(", ")}</MetaBlock>
             <MetaBlock label="Alt-Text">{asset.altText ?? ""}</MetaBlock>
+            <MetaBlock label="Kontext">{asset.notes ?? ""}</MetaBlock>
 
             <div>
               <p className="text-xs font-semibold text-[var(--muted)]">Collections</p>

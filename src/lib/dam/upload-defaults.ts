@@ -20,12 +20,3 @@ export function defaultCollectionName(credit: string, date = new Date()): string
   if (!name) return "";
   return `${zurichDateLabel(date)} – ${name}`;
 }
-
-export function suggestedRightsType(
-  credit: string,
-  meCredit: string,
-): "own" | "provided" {
-  const next = credit.trim();
-  if (!next) return "provided";
-  return next === meCredit.trim() ? "own" : "provided";
-}

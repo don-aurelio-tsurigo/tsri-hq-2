@@ -1,17 +1,20 @@
 import { canDeleteAsset } from "@/lib/dam/can-delete";
 import { r2KeysForAsset } from "@/lib/dam/r2-keys";
 import {
+  incompleteBatchCutoffDate,
   rejectedCutoffDate,
   trashCutoffDate,
   TRASH_BATCH_MAX,
 } from "@/lib/dam/trash-policy";
 import { prisma } from "@/lib/db";
-import { deleteObject } from "@/lib/r2";
+import { deleteObject, listObjectKeys } from "@/lib/r2";
 
 export {
+  INCOMPLETE_BATCH_RETENTION_DAYS,
   REJECTED_RETENTION_DAYS,
   TRASH_BATCH_MAX,
   TRASH_RETENTION_DAYS,
+  incompleteBatchCutoffDate,
   rejectedCutoffDate,
   trashCutoffDate,
   trashDaysRemaining,
@@ -104,6 +107,7 @@ export async function purgeAssetById(
 export type DamPurgeSummary = {
   archived: number;
   rejected: number;
+  incomplete: number;
   errors: number;
 };
 
@@ -127,6 +131,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
 
   let archivedCount = 0;
   let rejectedCount = 0;
+  let incompleteCount = 0;
   let errors = 0;
 
   for (const asset of archived) {
@@ -150,7 +155,42 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
     }
   }
 
-  return { archived: archivedCount, rejected: rejectedCount, errors };
+  const incomplete = await prisma.uploadBatch.findMany({
+    where: {
+      createdAt: { lt: incompleteBatchCutoffDate(now) },
+      assets: { none: {} },
+    },
+    select: { id: true, uploadedBy: true },
+    take: 50,
+  });
+  for (const batch of incomplete) {
+    try {
+      const prefix = `staging/${batch.uploadedBy}/${batch.id}/`;
+      const keys = await listObjectKeys(prefix);
+      const results = await Promise.allSettled(keys.map((key) => deleteObject(key)));
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length > 0) {
+        for (const result of failed) {
+          if (result.status === "rejected") {
+            console.warn("[dam] incomplete batch r2 delete skipped", result.reason);
+          }
+        }
+        throw new Error("R2-Dateien konnten nicht vollständig gelöscht werden.");
+      }
+      await prisma.uploadBatch.delete({ where: { id: batch.id } });
+      incompleteCount += 1;
+    } catch (error) {
+      errors += 1;
+      console.error("[dam] incomplete batch purge failed", batch.id, error);
+    }
+  }
+
+  return {
+    archived: archivedCount,
+    rejected: rejectedCount,
+    incomplete: incompleteCount,
+    errors,
+  };
 }
 
 export async function listTrashedAssets() {

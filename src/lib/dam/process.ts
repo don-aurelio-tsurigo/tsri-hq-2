@@ -142,6 +142,7 @@ async function processOneInner(assetId: string): Promise<void> {
   await prisma.asset.update({
     where: { id: asset.id },
     data: {
+      // Journalist notes stay as uploaded — autotag only writes altText + keywords.
       altText: tags.altText,
       keywords: mergedKeywords,
       status: "staging",

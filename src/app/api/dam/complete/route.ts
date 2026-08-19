@@ -21,19 +21,10 @@ const assetSchema = z.object({
   size: z.number().int().nonnegative().optional(),
   rightsType: rightsSchema.optional(),
   keywords: z.array(z.string().trim().max(60)).max(24).optional(),
+  notes: z.string().max(4000).optional(),
   credit: z.string().trim().max(200).optional(),
   collectionIds: z.array(z.string().min(1)).max(20).optional(),
   newCollections: z.array(z.string().trim().min(1).max(120)).max(10).optional(),
-});
-
-const bodySchema = z.object({
-  batchId: z.string().min(1),
-  applyToAll: z.boolean(),
-  rightsType: rightsSchema,
-  keywords: z.array(z.string().trim().max(60)).max(24).default([]),
-  collectionIds: z.array(z.string().min(1)).max(20).default([]),
-  newCollections: z.array(z.string().trim().min(1).max(120)).max(10).default([]),
-  assets: z.array(assetSchema).min(1).max(MAX_FILES),
 });
 
 function parseKeywords(values: string[] | undefined): string[] {
@@ -51,6 +42,71 @@ function parseKeywords(values: string[] | undefined): string[] {
   }
   return out.slice(0, 24);
 }
+
+function parseNotes(value: string | undefined): string | null {
+  const notes = value?.trim() ?? "";
+  return notes ? notes.slice(0, 4000) : null;
+}
+
+function hasNotes(value: string | undefined): boolean {
+  return Boolean(value?.trim());
+}
+
+function hasCollection(
+  ids: string[] | undefined,
+  names: string[] | undefined,
+): boolean {
+  if ((ids ?? []).length > 0) return true;
+  return (names ?? []).some((name) => name.trim().length > 0);
+}
+
+const bodySchema = z
+  .object({
+    batchId: z.string().min(1),
+    applyToAll: z.boolean(),
+    rightsType: rightsSchema,
+    keywords: z.array(z.string().trim().max(60)).max(24).default([]),
+    notes: z.string().max(4000).optional(),
+    collectionIds: z.array(z.string().min(1)).max(20).default([]),
+    newCollections: z.array(z.string().trim().min(1).max(120)).max(10).default([]),
+    assets: z.array(assetSchema).min(1).max(MAX_FILES),
+  })
+  .superRefine((body, ctx) => {
+    if (body.applyToAll) {
+      if (!hasNotes(body.notes)) {
+        ctx.addIssue({ code: "custom", path: ["notes"], message: "notes" });
+      }
+      if (!hasCollection(body.collectionIds, body.newCollections)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["collectionIds"],
+          message: "collection",
+        });
+      }
+      return;
+    }
+    body.assets.forEach((asset, index) => {
+      if (!hasNotes(asset.notes ?? body.notes)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["assets", index, "notes"],
+          message: "notes",
+        });
+      }
+      if (
+        !hasCollection(
+          asset.collectionIds ?? body.collectionIds,
+          asset.newCollections ?? body.newCollections,
+        )
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["assets", index, "collectionIds"],
+          message: "collection",
+        });
+      }
+    });
+  });
 
 export async function POST(request: Request) {
   const ctx = await getActiveMembershipContext();
@@ -165,6 +221,9 @@ export async function POST(request: Request) {
             ? body.keywords
             : (asset.keywords ?? body.keywords),
         );
+        const notes = parseNotes(
+          body.applyToAll ? body.notes : (asset.notes ?? body.notes),
+        );
         const credit =
           !body.applyToAll && asset.credit?.trim()
             ? asset.credit.trim()
@@ -198,6 +257,7 @@ export async function POST(request: Request) {
             credit,
             rightsType,
             keywords,
+            notes,
             uploadedBy: userId,
             collections: {
               create: collectionIds.map((collectionId) => ({ collectionId })),

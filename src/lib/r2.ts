@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
@@ -224,4 +225,27 @@ export async function deleteObject(key: string): Promise<void> {
   } catch (error) {
     throw new R2AccessError(r2ErrorMessage("das Löschen", error));
   }
+}
+
+/** Keys under a staging prefix. Refuses to list the whole bucket. */
+export async function listObjectKeys(prefix: string): Promise<string[]> {
+  if (!prefix.startsWith("staging/") || !prefix.endsWith("/") || prefix.length < 12) {
+    throw new Error("R2-Listing nur für Staging-Prefixes.");
+  }
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+  do {
+    const res = await getClient().send(
+      new ListObjectsV2Command({
+        Bucket: getR2Bucket(),
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+    for (const obj of res.Contents ?? []) {
+      if (obj.Key?.startsWith(prefix)) keys.push(obj.Key);
+    }
+    continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (continuationToken);
+  return keys;
 }

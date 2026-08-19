@@ -208,6 +208,7 @@ const metadataSchema = z
     rightsType: rightsSchema.optional(),
     altText: z.string().trim().max(240).nullable().optional(),
     keywords: z.array(z.string().trim().min(1).max(60)).max(24).optional(),
+    notes: z.string().max(4000).nullable().optional(),
     takenAt: z.string().nullable().optional(),
   })
   .refine((value) => Object.values(value).some((item) => item !== undefined), {
@@ -256,6 +257,10 @@ export async function updateAssetMetadata(
   }
   if (parsed.data.keywords !== undefined) {
     data.keywords = uniqueKeywords(parsed.data.keywords);
+  }
+  if (parsed.data.notes !== undefined) {
+    const notes = parsed.data.notes?.trim() ?? "";
+    data.notes = notes ? notes.slice(0, 4000) : null;
   }
   if (parsed.data.takenAt !== undefined) {
     if (parsed.data.takenAt === null || parsed.data.takenAt.trim() === "") {

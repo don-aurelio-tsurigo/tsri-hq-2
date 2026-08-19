@@ -218,7 +218,7 @@ export function DamArchiveView({
               id="dam-q"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Dateiname, Keywords, Alt-Text, Credit"
+              placeholder="Dateiname, Keywords, Alt-Text, Credit, Kontext"
               autoComplete="off"
             />
           </div>

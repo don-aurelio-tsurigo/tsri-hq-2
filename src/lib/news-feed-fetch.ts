@@ -32,42 +32,6 @@ function headers() {
   return { "User-Agent": FEED_USER_AGENT };
 }
 
-function memSnap() {
-  const m = process.memoryUsage();
-  return {
-    rssMb: Math.round(m.rss / 1048576),
-    heapMb: Math.round(m.heapUsed / 1048576),
-    heapTotalMb: Math.round(m.heapTotal / 1048576),
-    externalMb: Math.round(m.external / 1048576),
-  };
-}
-
-function logFeedMem(
-  hypothesisId: string,
-  location: string,
-  message: string,
-  data: Record<string, unknown>,
-) {
-  const payload = {
-    sessionId: "53d2ad",
-    hypothesisId,
-    location,
-    message,
-    data: { ...data, mem: memSnap() },
-    timestamp: Date.now(),
-    runId: "mem-probe",
-  };
-  console.log(`[debug-53d2ad] ${JSON.stringify(payload)}`);
-  fetch("http://127.0.0.1:7763/ingest/1fb8c4af-59a8-417d-8bad-c18c3a190274", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "53d2ad",
-    },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-}
-
 const ENRICH_CONCURRENCY = 3;
 
 async function mapPool<T, R>(
@@ -103,39 +67,18 @@ export async function collectFeedItems(
   const enrichDetails = options?.enrichDetails !== false;
   const results: FetchResult[] = [];
   const collected: ParsedNewsItem[] = [];
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:collect:start", "collectFeedItems start", {
-    collected: 0,
-    enrichDetails,
-  });
-  // #endregion
 
   for (const source of RSS_SOURCES) {
     try {
       const items = await fetchRssSource(source, enrichDetails);
       collected.push(...items);
       results.push({ source: source.key, count: items.length });
-      // #region agent log
-      logFeedMem("A", "news-feed-fetch.ts:collect:source", "source fetched", {
-        source: source.key,
-        count: items.length,
-        collected: collected.length,
-        autoFulltext: Boolean(source.autoFetchFulltext),
-      });
-      // #endregion
     } catch (err) {
       results.push({
         source: source.key,
         count: 0,
         error: err instanceof Error ? err.message : String(err),
       });
-      // #region agent log
-      logFeedMem("A", "news-feed-fetch.ts:collect:source", "source failed", {
-        source: source.key,
-        error: err instanceof Error ? err.message.slice(0, 200) : String(err),
-        collected: collected.length,
-      });
-      // #endregion
     }
   }
 
@@ -143,12 +86,6 @@ export async function collectFeedItems(
     const items = await fetchBaugesuche(enrichDetails);
     collected.push(...items);
     results.push({ source: BAUGESUCHE_SOURCE.key, count: items.length });
-    // #region agent log
-    logFeedMem("A", "news-feed-fetch.ts:collect:baugesuche", "baugesuche fetched", {
-      count: items.length,
-      collected: collected.length,
-    });
-    // #endregion
   } catch (err) {
     results.push({
       source: BAUGESUCHE_SOURCE.key,
@@ -161,12 +98,6 @@ export async function collectFeedItems(
     const items = await fetchTagblatt(enrichDetails);
     collected.push(...items);
     results.push({ source: TAGBLATT_SOURCE.key, count: items.length });
-    // #region agent log
-    logFeedMem("A", "news-feed-fetch.ts:collect:tagblatt", "tagblatt fetched", {
-      count: items.length,
-      collected: collected.length,
-    });
-    // #endregion
   } catch (err) {
     results.push({
       source: TAGBLATT_SOURCE.key,
@@ -175,12 +106,6 @@ export async function collectFeedItems(
     });
   }
 
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:collect:end", "collectFeedItems end", {
-    collected: collected.length,
-    results,
-  });
-  // #endregion
   return { items: collected, results };
 }
 
@@ -279,11 +204,6 @@ function stripHtml(raw: string): string {
 async function enrichStadtMedienmitteilungen(
   items: ParsedNewsItem[],
 ): Promise<ParsedNewsItem[]> {
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:stadt:enrich", "stadt fulltext start", {
-    items: items.length,
-  });
-  // #endregion
   const concurrency = ENRICH_CONCURRENCY;
   const out: ParsedNewsItem[] = [];
   for (let i = 0; i < items.length; i += concurrency) {
@@ -435,13 +355,6 @@ async function fetchTagblatt(enrichDetails: boolean): Promise<ParsedNewsItem[]> 
   if (!res.ok) throw new Error(`Tagblatt HTTP ${res.status}`);
   const html = await res.text();
   const basics = parseTagblattOverview(html);
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:tagblatt:parallel", "tagblatt overview", {
-    htmlChars: html.length,
-    detailPages: basics.length,
-    enrichDetails,
-  });
-  // #endregion
 
   if (!enrichDetails) {
     return basics.map(({ id, url }) => ({
@@ -566,13 +479,6 @@ async function fetchBaugesuche(enrichDetails: boolean): Promise<ParsedNewsItem[]
   if (!res.ok) throw new Error(`Amtsblattportal API ${res.status}`);
   const csvText = await res.text();
   const baseItems = parseBaugesucheCsv(csvText);
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:baugesuche:parallel", "baugesuche csv parsed", {
-    csvChars: csvText.length,
-    baseItems: baseItems.length,
-    enrichDetails,
-  });
-  // #endregion
 
   if (!enrichDetails) return baseItems;
 
@@ -601,12 +507,6 @@ export async function enrichFeedItems(
 ): Promise<ParsedNewsItem[]> {
   if (items.length === 0) return items;
   const limited = items.slice(0, MAX_SCHEDULED_ENRICH);
-  // #region agent log
-  logFeedMem("A", "news-feed-fetch.ts:enrichFeedItems", "enrich new items", {
-    requested: items.length,
-    limited: limited.length,
-  });
-  // #endregion
   return mapPool(limited, ENRICH_CONCURRENCY, enrichOneItem);
 }
 

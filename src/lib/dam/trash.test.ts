@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import { canDeleteAsset } from "./can-delete.ts";
 import { r2KeysForAsset } from "./r2-keys.ts";
 import {
+  INCOMPLETE_BATCH_RETENTION_DAYS,
   REJECTED_RETENTION_DAYS,
   TRASH_RETENTION_DAYS,
+  incompleteBatchCutoffDate,
   rejectedCutoffDate,
   trashCutoffDate,
   trashDaysRemaining,
@@ -41,6 +43,11 @@ describe("trash retention", () => {
     const now = new Date("2026-08-17T12:00:00.000Z");
     assert.equal(trashCutoffDate(now).toISOString(), "2026-07-18T12:00:00.000Z");
     assert.equal(rejectedCutoffDate(now).toISOString(), "2026-08-03T12:00:00.000Z");
+    assert.equal(
+      incompleteBatchCutoffDate(now).toISOString(),
+      "2026-08-16T12:00:00.000Z",
+    );
+    assert.equal(INCOMPLETE_BATCH_RETENTION_DAYS, 1);
   });
 });
 

@@ -5,18 +5,8 @@ import { Check, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { cssPreviewStyle } from "@/lib/dam/edit-params";
-import { damWepublishExportedHint } from "@/lib/dam/types";
-import type {
-  AssetMetadataPatch,
-  DamRightsType,
-  PersonalAssetCard,
-} from "@/lib/dam/types";
-
-const RIGHTS_OPTIONS: { value: DamRightsType; label: string }[] = [
-  { value: "own", label: "Eigenes Foto" },
-  { value: "provided", label: "Zur Verfügung gestellt" },
-  { value: "free_use", label: "Freie Nutzung" },
-];
+import { DAM_RIGHTS_OPTIONS, damWepublishExportedHint } from "@/lib/dam/types";
+import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
 
 type FieldKey =
   | "fileName"
@@ -24,10 +14,11 @@ type FieldKey =
   | "rightsType"
   | "takenAt"
   | "altText"
-  | "keywords";
+  | "keywords"
+  | "notes";
 
 function rightsLabel(value: string): string {
-  return RIGHTS_OPTIONS.find((opt) => opt.value === value)?.label ?? value;
+  return DAM_RIGHTS_OPTIONS.find((opt) => opt.value === value)?.label ?? value;
 }
 
 function toDatetimeLocal(iso: string | null): string {
@@ -170,6 +161,7 @@ export function DamAssetDetail({
     if (field === "keywords") setDraft(asset.keywords.join(", "));
     else if (field === "takenAt") setDraft(toDatetimeLocal(asset.takenAt));
     else if (field === "altText") setDraft(asset.altText ?? "");
+    else if (field === "notes") setDraft(asset.notes ?? "");
     else if (field === "fileName") setDraft(asset.fileName);
     else if (field === "credit") setDraft(asset.credit);
     else setDraft(asset.rightsType);
@@ -199,6 +191,8 @@ export function DamAssetDetail({
       patch = { altText: value || null };
     } else if (field === "keywords") {
       patch = { keywords: parseKeywords(draft) };
+    } else if (field === "notes") {
+      patch = { notes: value || null };
     } else if (field === "takenAt") {
       patch = { takenAt: value ? new Date(value).toISOString() : null };
     }
@@ -438,7 +432,7 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Rechte"
                 >
-                  {RIGHTS_OPTIONS.map((opt) => (
+                  {DAM_RIGHTS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -514,6 +508,28 @@ export function DamAssetDetail({
                   placeholder="zürich, velo, podium"
                   autoFocus
                   aria-label="Keywords"
+                />
+              </EditControl>
+            </MetaRow>
+
+            <MetaRow
+              label="Kontext"
+              display={asset.notes ?? ""}
+              field="notes"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <EditControl onSave={() => saveField("notes")}>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  rows={4}
+                  maxLength={4000}
+                  placeholder="Ereignis, Hintergrund, beteiligte Personen…"
+                  autoFocus
+                  aria-label="Kontext"
                 />
               </EditControl>
             </MetaRow>

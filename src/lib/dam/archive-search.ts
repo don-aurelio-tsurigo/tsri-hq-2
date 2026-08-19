@@ -33,11 +33,12 @@ async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
   const query = q.trim();
   if (!query) return null;
   try {
+    // Keep in sync with dam_asset_fts() in prisma/migrations (fileName, altText, credit, keywords, notes).
     const rows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id
       FROM "asset"
       WHERE status = 'published'::"AssetStatus"
-        AND dam_asset_fts("fileName", "altText", "credit", keywords)
+        AND dam_asset_fts("fileName", "altText", "credit", keywords, notes)
           @@ websearch_to_tsquery('simple'::regconfig, ${query})
       ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
       LIMIT 500
@@ -87,6 +88,7 @@ export async function searchPublishedAssets(
       rating: true,
       altText: true,
       keywords: true,
+      notes: true,
       takenAt: true,
       publishedAt: true,
       width: true,
@@ -106,6 +108,7 @@ export async function searchPublishedAssets(
     rating: row.rating,
     altText: row.altText,
     keywords: row.keywords,
+    notes: row.notes,
     takenAt: row.takenAt ? row.takenAt.toISOString() : null,
     publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
     width: row.width,

@@ -18,11 +18,9 @@ import { previewUrlForFile } from "@/lib/dam/preview-url";
 import {
   defaultCollectionName,
   creditDisplayName,
-  suggestedRightsType,
 } from "@/lib/dam/upload-defaults";
 import { buildFileName } from "@/lib/dam/filename";
-
-type RightsType = "own" | "provided" | "free_use";
+import { DAM_RIGHTS_OPTIONS, type DamRightsType } from "@/lib/dam/types";
 
 type CollectionOption = {
   id: string;
@@ -57,8 +55,8 @@ type AssetDraft = {
   contentType: string;
   size: number;
   previewUrl: string;
-  rightsType: RightsType;
-  keywords: string;
+  rightsType: DamRightsType | "";
+  notes: string;
   credit: string;
   collectionIds: string[];
   newCollections: string[];
@@ -82,17 +80,20 @@ type FileUploadState = {
   error?: string;
 };
 
-const RIGHTS_LABELS: { value: RightsType; label: string }[] = [
-  { value: "own", label: "Eigenes Foto (own)" },
-  { value: "provided", label: "Zur Verfügung gestellt (provided)" },
-  { value: "free_use", label: "Freie Nutzung (free_use)" },
-];
+const EMPTY_RIGHTS = "" as const;
 
-function parseKeywordInput(value: string): string[] {
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+function isRightsType(value: string): value is DamRightsType {
+  return value === "own" || value === "provided" || value === "free_use";
+}
+
+function hasNotes(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+function hasCollection(ids: string[], newName: string | string[]): boolean {
+  const names = Array.isArray(newName) ? newName : [newName];
+  if (ids.length > 0) return true;
+  return names.some((name) => name.trim().length > 0);
 }
 
 function namesFrom(value: string): string[] {
@@ -200,8 +201,8 @@ function MetaFields({
   fieldId,
   rightsType,
   onRights,
-  keywords,
-  onKeywords,
+  notes,
+  onNotes,
   collectionIds,
   onCollectionIds,
   collections,
@@ -214,10 +215,10 @@ function MetaFields({
   autoFocusCollection,
 }: {
   fieldId: string;
-  rightsType: RightsType;
-  onRights: (v: RightsType) => void;
-  keywords: string;
-  onKeywords: (v: string) => void;
+  rightsType: DamRightsType | "";
+  onRights: (v: DamRightsType | "") => void;
+  notes: string;
+  onNotes: (v: string) => void;
   collectionIds: string[];
   onCollectionIds: (ids: string[]) => void;
   collections: CollectionOption[];
@@ -237,26 +238,46 @@ function MetaFields({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <div className="field">
-        <label>Rechte-Typ</label>
+      <div className="field sm:col-span-2">
+        <label htmlFor={`${fieldId}-notes`}>Beschreibung/Kontext *</label>
+        <textarea
+          id={`${fieldId}-notes`}
+          required
+          value={notes}
+          onChange={(e) => onNotes(e.target.value)}
+          rows={3}
+          maxLength={4000}
+          placeholder="Ereignis, Hintergrund, beteiligte Personen…"
+          autoFocus={autoFocusCollection}
+        />
+      </div>
+      <div className="field sm:col-span-2">
+        <label htmlFor={`${fieldId}-rights`}>Rechte-Typ *</label>
         <select
+          id={`${fieldId}-rights`}
+          required
           value={rightsType}
-          onChange={(e) => onRights(e.target.value as RightsType)}
+          onChange={(e) => {
+            const next = e.target.value;
+            onRights(isRightsType(next) ? next : EMPTY_RIGHTS);
+          }}
         >
-          {RIGHTS_LABELS.map((opt) => (
+          <option value="">Bitte wählen…</option>
+          {DAM_RIGHTS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
-      </div>
-      <div className="field">
-        <label>Keywords (kommagetrennt)</label>
-        <input
-          value={keywords}
-          onChange={(e) => onKeywords(e.target.value)}
-          placeholder="zürich, demo, strasse"
-        />
+        <ul className="space-y-1.5 pt-1 text-xs leading-snug text-[var(--muted)]">
+          {DAM_RIGHTS_OPTIONS.map((opt) => (
+            <li key={opt.value}>
+              <span className="font-semibold text-[var(--fg)]">{opt.label}</span>
+              {" — "}
+              {opt.hint}
+            </li>
+          ))}
+        </ul>
       </div>
       {showCredit && onCredit ? (
         <div className="field sm:col-span-2">
@@ -265,11 +286,10 @@ function MetaFields({
         </div>
       ) : null}
       <div className="field sm:col-span-2">
-        <label htmlFor={`${fieldId}-new-collection`}>Neue Collection</label>
+        <label htmlFor={`${fieldId}-new-collection`}>Collection *</label>
         <input
           id={`${fieldId}-new-collection`}
           ref={collectionInputRef}
-          autoFocus={autoFocusCollection}
           value={newCollectionName}
           onChange={(e) => onNewCollectionName(e.target.value)}
           placeholder="2026-08-17 – Paul Muster"
@@ -423,8 +443,8 @@ export function DamUploadWizard({
     {},
   );
   const [showPerFile, setShowPerFile] = useState(false);
-  const [rightsType, setRightsType] = useState<RightsType>("own");
-  const [keywords, setKeywords] = useState("");
+  const [rightsType, setRightsType] = useState<DamRightsType | "">(EMPTY_RIGHTS);
+  const [notes, setNotes] = useState("");
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [newCollectionName, setNewCollectionName] = useState(() =>
     defaultCollectionName(meCredit),
@@ -513,6 +533,35 @@ export function DamUploadWizard({
     (file) => uploadState[file.localId]?.status === "error",
   ).length;
   const allUploaded = prepared.length > 0 && doneCount === prepared.length;
+  const metadataReady = showPerFile
+    ? drafts.every(
+        (draft) =>
+          isRightsType(draft.rightsType) &&
+          hasNotes(draft.notes) &&
+          hasCollection(draft.collectionIds, draft.newCollections),
+      )
+    : isRightsType(rightsType) &&
+      hasNotes(notes) &&
+      hasCollection(collectionIds, newCollectionName);
+  const metadataHint = (() => {
+    if (metadataReady) return null;
+    const missing: string[] = [];
+    const notesOk = showPerFile
+      ? drafts.every((draft) => hasNotes(draft.notes))
+      : hasNotes(notes);
+    const rightsOk = showPerFile
+      ? drafts.every((draft) => isRightsType(draft.rightsType))
+      : isRightsType(rightsType);
+    const collectionOk = showPerFile
+      ? drafts.every((draft) =>
+          hasCollection(draft.collectionIds, draft.newCollections),
+        )
+      : hasCollection(collectionIds, newCollectionName);
+    if (!notesOk) missing.push("Beschreibung/Kontext");
+    if (!rightsOk) missing.push("Rechte-Typ");
+    if (!collectionOk) missing.push("Collection");
+    return `Bitte ausfüllen: ${missing.join(", ")}.`;
+  })();
 
   const fileNamesPreview = useMemo(() => {
     const title =
@@ -531,7 +580,6 @@ export function DamUploadWizard({
   function applyCredit(next: string, fromMe: boolean) {
     const trimmed = next.trim();
     setCredit(next);
-    setRightsType(suggestedRightsType(trimmed, meCredit));
     if (collectionAuto) {
       setNewCollectionName(trimmed ? defaultCollectionName(trimmed) : "");
     }
@@ -585,7 +633,7 @@ export function DamUploadWizard({
       size: file.size,
       previewUrl: file.previewUrl,
       rightsType,
-      keywords,
+      notes,
       credit: selectedCredit,
       collectionIds,
       newCollections: names,
@@ -599,7 +647,7 @@ export function DamUploadWizard({
       prev.map((d) => ({
         ...d,
         rightsType,
-        keywords,
+        notes,
         collectionIds,
         newCollections: names,
         credit: selectedCredit,
@@ -649,7 +697,7 @@ export function DamUploadWizard({
   function goToMetadata(files: PreparedFile[]) {
     setDrafts((prev) => (prev.length === files.length ? prev : buildDrafts(files)));
     moveTo(3);
-    window.setTimeout(() => collectionInputRef.current?.focus(), 0);
+    window.setTimeout(() => document.getElementById("batch-notes")?.focus(), 0);
   }
 
   async function startUpload() {
@@ -753,6 +801,13 @@ export function DamUploadWizard({
 
   async function completeBatch() {
     if (!batchId) return;
+    const batchRights = isRightsType(rightsType)
+      ? rightsType
+      : drafts.find((d) => isRightsType(d.rightsType))?.rightsType;
+    if (!metadataReady || !batchRights) {
+      setError(metadataHint || "Bitte Pflichtfelder ausfüllen.");
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -763,8 +818,8 @@ export function DamUploadWizard({
         body: JSON.stringify({
           batchId,
           applyToAll: !showPerFile,
-          rightsType,
-          keywords: parseKeywordInput(keywords),
+          rightsType: batchRights,
+          notes: notes.trim(),
           collectionIds,
           newCollections: batchNames,
           assets: drafts.map((d) => ({
@@ -774,8 +829,8 @@ export function DamUploadWizard({
             originalName: d.originalName,
             contentType: d.contentType,
             size: d.size,
-            rightsType: d.rightsType,
-            keywords: parseKeywordInput(d.keywords),
+            rightsType: d.rightsType || batchRights,
+            notes: d.notes.trim(),
             credit: d.credit,
             collectionIds: d.collectionIds,
             newCollections: d.newCollections,
@@ -1047,7 +1102,7 @@ export function DamUploadWizard({
                 {busy ? (
                   <>
                     <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                    Lade zu R2…
+                    Hochladen…
                   </>
                 ) : failedCount > 0 ? (
                   <>
@@ -1099,11 +1154,11 @@ export function DamUploadWizard({
                 setDrafts((prev) => prev.map((d) => ({ ...d, rightsType: v })));
               }
             }}
-            keywords={keywords}
-            onKeywords={(v) => {
-              setKeywords(v);
+            notes={notes}
+            onNotes={(v) => {
+              setNotes(v);
               if (!showPerFile) {
-                setDrafts((prev) => prev.map((d) => ({ ...d, keywords: v })));
+                setDrafts((prev) => prev.map((d) => ({ ...d, notes: v })));
               }
             }}
             collectionIds={collectionIds}
@@ -1179,11 +1234,11 @@ export function DamUploadWizard({
                             ),
                           )
                         }
-                        keywords={draft.keywords}
-                        onKeywords={(v) =>
+                        notes={draft.notes}
+                        onNotes={(v) =>
                           setDrafts((prev) =>
                             prev.map((d, i) =>
-                              i === index ? { ...d, keywords: v } : d,
+                              i === index ? { ...d, notes: v } : d,
                             ),
                           )
                         }
@@ -1252,11 +1307,16 @@ export function DamUploadWizard({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={busy}
+              disabled={busy || !metadataReady}
               onClick={() => void completeBatch()}
             >
               {busy ? "Speichert…" : "Batch abschliessen"}
             </button>
+            {metadataHint ? (
+              <p className="w-full text-sm text-[var(--muted)]">
+                {metadataHint}
+              </p>
+            ) : null}
           </div>
           <MetadataPhotoGrid drafts={drafts} />
         </section>
