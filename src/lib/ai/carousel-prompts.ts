@@ -299,11 +299,41 @@ Pro Text-Slide:
 - Keine feste Slide-Ober-/Untergrenze — die Anzahl ergibt sich aus der Terminanzahl.
 
 Outro:
-- headline = Artikel-Titel wortwörtlich, ctaText = "LINK IN DER BIO".
+- headline: ein Hook fürs Abonnieren des Tsüritipp selbst (ersetzt den Artikeltitel vollständig — dieser taucht im Outro nicht mehr auf).
+  - 1 kurzer, prägnanter Satz oder zwei sehr kurze Sätze (kein Fliesstext) — funktioniert wie ein Titel, nicht wie ein Absatz.
+  - LÄNGENLIMIT: max. 90 Zeichen. Zähle die Zeichen explizit durch (in deinen Denkschritten), bevor du die finale Headline in die JSON-Ausgabe schreibst. Überschreitet sie 90 Zeichen, kürze und zähle erneut.
+  - KEINE NEUEN FAKTEN: Die Headline darf frei formuliert werden, aber ausschliesslich mit Bezug auf Dinge, die tatsächlich in den Terminen dieser Ausgabe vorkommen (kein Erfinden von Orten, Zahlen oder Ereignissen, die nicht genannt sind).
+  - KEINE GEDANKENSTRICHE. Verwende stattdessen Punkte oder Kommas, um Satzteile zu trennen.
+  - AUSWAHL — VERBINDLICH: Der Tsüritipp ist ein Digest aus mehreren unabhängigen Terminen, nicht ein einzelner Artikel mit einer These. Wähle aus dem folgenden Beispielpool die Zeile, die am besten zum GESAMTCHARAKTER dieser Ausgabe passt (z.B. viele/vielfältige Termine → ein "mehr Orte, mehr Ideen"-Typ; besonders exklusive oder wenig bekannte Termine → ein "Insider/Geheimtipp"-Typ; eine eher generische Wochenübersicht → ein neutralerer Typ). Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile. Passe die gewählte Zeile ggf. minimal an den Charakter der Woche an (Platzhalter ersetzen), lasse bereits allgemeine Sätze unverändert. Über mehrere Ausgaben hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
+
+  Beispielpool (Vorlagen, keine Textbausteine zum wörtlichen Kopieren):
+  - Mehr Tipps gibt's jeden Mittwoch im Tsüritipp.
+  - Zürich hat mehr zu bieten, als dieser Post. Abonniere den Tsüritipp.
+  - Die besten Ecken der Stadt. Kuratiert im Tsüritipp.
+  - Nicht verpassen: Noch mehr Tipps im Tsüritipp.
+  - Züri Tipps abseits vom Algorithmus. Abonniere dir den Tsüritipp.
+  - Insider Tipps landen zuerst im Tsüritipp. Jetzt abonnieren.
+  - Diese Adresse kennst du jetzt. Die nächste im Tsüritipp.
+  - Zürich hat noch mehr Nischen. Abonniere den Tsüritipp.
+  - Kein Scrollen nötig. Die besten Tipps in deine Inbox im Tsüritipp.
+  - So nutzt du Zürich wirklich aus. Abonniere den Tsüritipp.
+  - Mehr Orte, mehr Ideen. Jeden Mittwoch im Tsüritipp.
+  - Für alle, die Zürich noch besser kennenlernen wollen. Tsüritipp.
+  - Diese Tipps verpassen die meisten. Du nicht. Abonniere den Tsüritipp.
+  - Zürich hat mehr zu bieten, als der Feed zeigt. Abonniere den Tsüritipp.
+  - Kuratiert statt gegoogelt. Abonniere den Tsüritipp.
+  - Noch mehr Lieblingsorte. Abonniere den Tsüritipp.
+  - Wer Zürich wirklich kennt, hat den Tsüritipp abonniert.
+  - Kleine Tipps, grosser Unterschied. Mehr davon im Tsüritipp.
+  - Jeden Mittwoch neue Ideen für deine Stadt. Abonniere den Tsüritipp.
+
+  - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
+- ctaText = "TSÜRITIPP → LINK IN DER BIO" (bleibt IMMER fix).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
-- Keine erfundenen Fakten. Ziel ist eine prägnante, redaktionell verdichtete Übertragung jedes Termins — kein reines Anhängen/Abschneiden von Sätzen, sondern gezieltes Streichen von Nebensächlichem bei Erhalt aller wichtigen Fakten.
+- Keine erfundenen Fakten. Ziel ist eine prägnante, redaktionell verdichtete Übertragung jedes Termins — kein reines Anhängen/Abschneiden von Sätzen, sondern gezieltes Streichen von Nebensächlichem bei Erhalt aller wichtigen Fakten. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
+- Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
 
 export const SIXIBRIEF_PROMPT = `Du bist Redakteur:in bei Tsüri.ch/6iBrief und erstellst ein Instagram-Karussell (1080×1350) im 6iBrief-Format.
