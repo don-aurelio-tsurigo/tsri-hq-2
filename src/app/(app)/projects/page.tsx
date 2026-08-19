@@ -7,8 +7,8 @@ import {
   parseProjectKindFilter,
   ProjectKindFilter,
 } from "@/components/project-kind-filter";
-import { ExpandableTaskList } from "@/components/expandable-task-list";
 import { ProjectListItem } from "@/components/project-list-item";
+import { ProjectTasksOverview } from "@/components/project-tasks-overview";
 import { requireMembership } from "@/lib/session";
 import { isProjectEvent } from "@/lib/project-meta";
 import {
@@ -16,7 +16,7 @@ import {
   listProjectTemplates,
   listProjects,
 } from "@/lib/projects";
-import { listAssignedProjectTasks } from "@/lib/tasks";
+import { listOpenProjectTasks } from "@/lib/tasks";
 import { prisma } from "@/lib/db";
 
 export default async function ProjectsPage({
@@ -27,11 +27,11 @@ export default async function ProjectsPage({
   const { kind: kindParam } = await searchParams;
   const kind = parseProjectKindFilter(kindParam);
   const { session, membership } = await requireMembership();
-  const [projects, archived, templates, myTasks] = await Promise.all([
+  const [projects, archived, templates, openProjectTasks] = await Promise.all([
     listProjects(membership.organizationId),
     listArchivedProjects(membership.organizationId),
     listProjectTemplates(membership.organizationId),
-    listAssignedProjectTasks(membership.organizationId, session.user.id),
+    listOpenProjectTasks(membership.organizationId),
   ]);
 
   const openCounts = await Promise.all(
@@ -98,36 +98,23 @@ export default async function ProjectsPage({
         />
       </header>
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-          Meine Projekt-Tasks ({myTasks.length})
-        </h2>
-        {myTasks.length === 0 ? (
-          <div className="card px-4 py-6 text-center text-sm text-[var(--muted)]">
-            Dir sind aktuell keine offenen Tasks in Projekten zugewiesen.
-          </div>
-        ) : (
-          <ExpandableTaskList
-            tasks={myTasks.map((task) => ({
-              id: task.id,
-              title: task.title,
-              description: task.description,
-              status: task.status,
-              dueAt: task.dueAt,
-              assigneeId: task.assigneeId,
-              groupId: task.groupId,
-              createdAt: task.createdAt,
-              space: task.space,
-              assignee: task.assignee,
-              createdBy: task.createdBy,
-              group: task.group,
-            }))}
-            showSpace
-            enableDrawer
-            compact
-          />
-        )}
-      </section>
+      <ProjectTasksOverview
+        currentUserId={session.user.id}
+        tasks={openProjectTasks.map((task) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          dueAt: task.dueAt,
+          assigneeId: task.assigneeId,
+          groupId: task.groupId,
+          createdAt: task.createdAt,
+          space: task.space,
+          assignee: task.assignee,
+          createdBy: task.createdBy,
+          group: task.group,
+        }))}
+      />
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">

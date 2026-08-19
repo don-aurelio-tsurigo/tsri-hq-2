@@ -78,11 +78,19 @@ export async function listAssignedProjectTasks(
   organizationId: string,
   userId: string,
 ) {
+  return listOpenProjectTasks(organizationId, { assigneeId: userId });
+}
+
+/** Open tasks across active projects; optionally filter by assignee. */
+export async function listOpenProjectTasks(
+  organizationId: string,
+  opts?: { assigneeId?: string },
+) {
   return prisma.task.findMany({
     where: {
       archivedAt: null,
       status: { in: ["todo", "doing"] },
-      assigneeId: userId,
+      ...(opts?.assigneeId ? { assigneeId: opts.assigneeId } : {}),
       space: {
         organizationId,
         type: "project",
