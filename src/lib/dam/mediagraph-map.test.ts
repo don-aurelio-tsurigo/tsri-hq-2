@@ -55,6 +55,7 @@ describe("mapRightsType", () => {
   it("maps Mediagraph rights_status owned/some/unlimited", () => {
     assert.equal(mapRightsType(asset({ rights_package_id: 15594, rights_status: "owned" })), "own");
     assert.equal(mapRightsType(asset({ rights_package_id: 16571, rights_status: "some" })), "provided");
+    assert.equal(mapRightsType(asset({ rights_package_id: 15598, rights_status: "unlimited" })), "free_use");
     assert.equal(mapRightsType(asset({ rights_status: "unlimited" }), ids), "free_use");
   });
 

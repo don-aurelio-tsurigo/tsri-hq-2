@@ -62,9 +62,9 @@ export type RightsIdMap = {
 
 /** Known Tsüri Mediagraph package IDs from the live account. */
 const KNOWN_RIGHTS_IDS: RightsIdMap = {
-  own: new Set(["15594"]),
-  provided: new Set(["16571"]),
-  free_use: new Set(),
+  own: new Set(["15594"]), // Tsüri.ch
+  provided: new Set(["16571"]), // Zur Verfügung gestellt
+  free_use: new Set(["15598"]), // Royalty free
 };
 
 export function parseIdSet(raw: string | undefined): Set<string> {
