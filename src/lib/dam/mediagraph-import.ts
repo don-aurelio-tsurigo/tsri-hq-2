@@ -10,6 +10,7 @@ import {
   downloadUrl,
   fetchCreatorTagName,
   listCollectionsPage,
+  listRightsPackages,
   mediagraphClientFromEnv,
   searchAssetsPage,
   type MediagraphClient,
@@ -394,6 +395,15 @@ export async function runMediagraphAssetImport(opts: ImportCliOptions): Promise<
   const creatorTagCache = new Map<string, string | null>();
   const perPage = opts.test ? 5 : 100;
   const maxPages = opts.test ? 1 : Number.POSITIVE_INFINITY;
+
+  if (opts.test) {
+    try {
+      const packages = await listRightsPackages(client);
+      console.log("[mediagraph] rights packages", JSON.stringify(packages));
+    } catch (error) {
+      console.warn("[mediagraph] could not list rights packages", error);
+    }
+  }
 
   let page = 1;
   let total = 0;

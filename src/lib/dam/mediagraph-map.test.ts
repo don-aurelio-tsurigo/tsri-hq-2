@@ -52,6 +52,12 @@ describe("mapRightsType", () => {
     assert.equal(mapRightsType(asset({ rights_status: "Royalty free" }), ids), "free_use");
   });
 
+  it("maps Mediagraph rights_status owned/some/unlimited", () => {
+    assert.equal(mapRightsType(asset({ rights_package_id: 15594, rights_status: "owned" })), "own");
+    assert.equal(mapRightsType(asset({ rights_package_id: 16571, rights_status: "some" })), "provided");
+    assert.equal(mapRightsType(asset({ rights_status: "unlimited" }), ids), "free_use");
+  });
+
   it("returns null when unknown", () => {
     assert.equal(mapRightsType(asset({ rights_package: { name: "Mystery" } }), ids), null);
   });

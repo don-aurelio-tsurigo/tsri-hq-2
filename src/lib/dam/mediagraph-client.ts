@@ -111,6 +111,20 @@ export async function searchAssetsPage(
   return { assets, total: totalFromHeaders(headers, assets.length) };
 }
 
+export async function listRightsPackages(client: MediagraphClient) {
+  const { data } = await mediagraphJson<unknown>(client, "/rights_packages?per_page=100");
+  const packages = asList<Record<string, unknown>>(data, [
+    "rights_packages",
+    "data",
+    "results",
+  ]);
+  return packages.map((item) => ({
+    id: item.id ?? null,
+    name: item.name ?? null,
+    status: item.status ?? item.rights_status ?? null,
+  }));
+}
+
 export async function listCollectionsPage(
   client: MediagraphClient,
   page: number,

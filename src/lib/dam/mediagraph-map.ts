@@ -12,6 +12,12 @@ const DEFAULT_RIGHTS_NAMES: Record<string, DamRightsType> = {
   "royalty free": "free_use",
 };
 
+const RIGHTS_STATUS: Record<string, DamRightsType> = {
+  owned: "own",
+  some: "provided",
+  unlimited: "free_use",
+};
+
 export type MediagraphTag = {
   name?: string | null;
   sub_type?: string | null;
@@ -54,6 +60,13 @@ export type RightsIdMap = {
   free_use: Set<string>;
 };
 
+/** Known Tsüri Mediagraph package IDs from the live account. */
+const KNOWN_RIGHTS_IDS: RightsIdMap = {
+  own: new Set(["15594"]),
+  provided: new Set(["16571"]),
+  free_use: new Set(),
+};
+
 export function parseIdSet(raw: string | undefined): Set<string> {
   return new Set(
     (raw ?? "")
@@ -63,12 +76,22 @@ export function parseIdSet(raw: string | undefined): Set<string> {
   );
 }
 
+function mergeIdSets(base: Set<string>, extra: Set<string>): Set<string> {
+  return new Set([...base, ...extra]);
+}
+
 export function defaultRightsIdMap(): RightsIdMap {
   return {
-    own: parseIdSet(process.env.MEDIAGRAPH_RIGHTS_OWN_IDS),
-    provided: parseIdSet(process.env.MEDIAGRAPH_RIGHTS_PROVIDED_IDS),
-    free_use: parseIdSet(
-      process.env.MEDIAGRAPH_RIGHTS_FREE_USE_IDS ?? process.env.MEDIAGRAPH_RIGHTS_FREE_IDS,
+    own: mergeIdSets(KNOWN_RIGHTS_IDS.own, parseIdSet(process.env.MEDIAGRAPH_RIGHTS_OWN_IDS)),
+    provided: mergeIdSets(
+      KNOWN_RIGHTS_IDS.provided,
+      parseIdSet(process.env.MEDIAGRAPH_RIGHTS_PROVIDED_IDS),
+    ),
+    free_use: mergeIdSets(
+      KNOWN_RIGHTS_IDS.free_use,
+      parseIdSet(
+        process.env.MEDIAGRAPH_RIGHTS_FREE_USE_IDS ?? process.env.MEDIAGRAPH_RIGHTS_FREE_IDS,
+      ),
     ),
   };
 }
@@ -118,10 +141,18 @@ export function mapRightsType(
   if (packageId && ids.free_use.has(packageId)) return "free_use";
 
   const packageName = asText(asset.rights_package?.name);
-  const status = asText(asset.rights_status);
-  for (const raw of [packageName, status]) {
-    if (!raw) continue;
-    const mapped = DEFAULT_RIGHTS_NAMES[raw.toLowerCase()] ?? DEFAULT_RIGHTS_NAMES[normalizeName(raw)];
+  if (packageName) {
+    const mapped =
+      DEFAULT_RIGHTS_NAMES[packageName.toLowerCase()] ??
+      DEFAULT_RIGHTS_NAMES[normalizeName(packageName)];
+    if (mapped) return mapped;
+  }
+
+  const status = asText(asset.rights_status).toLowerCase();
+  if (status && RIGHTS_STATUS[status]) return RIGHTS_STATUS[status];
+  if (status) {
+    const mapped =
+      DEFAULT_RIGHTS_NAMES[status] ?? DEFAULT_RIGHTS_NAMES[normalizeName(status)];
     if (mapped) return mapped;
   }
   return null;
