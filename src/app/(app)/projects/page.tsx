@@ -27,12 +27,21 @@ export default async function ProjectsPage({
   const { kind: kindParam } = await searchParams;
   const kind = parseProjectKindFilter(kindParam);
   const { session, membership } = await requireMembership();
-  const [projects, archived, templates, openProjectTasks] = await Promise.all([
-    listProjects(membership.organizationId),
-    listArchivedProjects(membership.organizationId),
-    listProjectTemplates(membership.organizationId),
-    listOpenProjectTasks(membership.organizationId),
-  ]);
+  const [projects, archived, templates, openProjectTasks, members] =
+    await Promise.all([
+      listProjects(membership.organizationId),
+      listArchivedProjects(membership.organizationId),
+      listProjectTemplates(membership.organizationId),
+      listOpenProjectTasks(membership.organizationId),
+      prisma.membership.findMany({
+        where: {
+          organizationId: membership.organizationId,
+          archivedAt: null,
+        },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+    ]);
 
   const openCounts = await Promise.all(
     projects.map(async (p) => ({
@@ -100,6 +109,7 @@ export default async function ProjectsPage({
 
       <ProjectTasksOverview
         currentUserId={session.user.id}
+        members={members.map((m) => m.user)}
         tasks={openProjectTasks.map((task) => ({
           id: task.id,
           title: task.title,

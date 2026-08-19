@@ -36,7 +36,7 @@ import {
 } from "@/lib/actions";
 
 type Group = { id: string; name: string; pinned?: boolean };
-type Member = { id: string; name: string };
+type Member = { id: string; name: string; email?: string | null };
 type InboxMode = "list" | "project" | "due";
 
 type BucketKey = "overdue" | "today" | "week" | "later" | "none";

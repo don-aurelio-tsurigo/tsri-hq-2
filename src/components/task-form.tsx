@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createTask, updateTask } from "@/lib/actions";
 import type { TaskStatus } from "@/generated/prisma/client";
 
-type Member = { id: string; name: string };
+type Member = { id: string; name: string; email?: string | null };
 
 export function CreateTaskForm({
   spaceId,

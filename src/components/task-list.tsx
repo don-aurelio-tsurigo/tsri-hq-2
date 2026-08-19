@@ -15,8 +15,9 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { MoreHorizontal } from "lucide-react";
+import { TaskAssigneePicker } from "@/components/task-assignee-picker";
 import { TaskDuePicker } from "@/components/task-due-picker";
-import { TaskAssigneeSelect, TaskDoneCheckbox } from "@/components/task-form";
+import { TaskDoneCheckbox } from "@/components/task-form";
 import { useDeleteTaskWithUndo } from "@/components/use-delete-task-with-undo";
 import { cancelTask, updateTask } from "@/lib/actions";
 import type { TaskStatus } from "@/generated/prisma/client";
@@ -40,7 +41,7 @@ export type TaskRow = {
   group?: { id: string; name: string } | null;
 };
 
-type Member = { id: string; name: string };
+type Member = { id: string; name: string; email?: string | null };
 type TaskGroupOption = { id: string; name: string };
 
 function offsetLabel(dueOffsetDays: number | null | undefined) {
@@ -222,7 +223,7 @@ export function TaskList({
   tasks,
   showSpace = false,
   members,
-  currentUserId,
+  currentUserId: _currentUserId,
   groups,
   showDescription = false,
   enableDrawer = false,
@@ -238,7 +239,7 @@ export function TaskList({
   tasks: TaskRow[];
   showSpace?: boolean;
   members?: Member[];
-  /** Hide assignee dropdown when the task is already assigned to this user. */
+  /** Reserved for callers; assignee picker is always available when members are set. */
   currentUserId?: string;
   groups?: TaskGroupOption[];
   showDescription?: boolean;
@@ -380,8 +381,6 @@ export function TaskList({
             : null;
           const active = selectedId === task.id;
           const assigneeId = task.assigneeId ?? task.assignee?.id ?? null;
-          const showAssigneeSelect =
-            !!members && (!currentUserId || assigneeId !== currentUserId);
           return (
             <li
               key={task.id}
@@ -525,21 +524,21 @@ export function TaskList({
                   </div>
                 )}
               </div>
-              {showAssigneeSelect ? (
+              {members && members.length > 0 ? (
                 <div
                   className="shrink-0"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <TaskAssigneeSelect
-                    id={task.id}
+                  <TaskAssigneePicker
+                    taskId={task.id}
                     assigneeId={assigneeId}
+                    assigneeName={task.assignee?.name}
                     members={members}
                     compact={compact}
                   />
                 </div>
               ) : (
-                !members &&
                 task.assignee &&
                 task.space?.type !== "personal" && (
                   <span className="shrink-0 text-[0.65rem] text-[var(--muted)]">

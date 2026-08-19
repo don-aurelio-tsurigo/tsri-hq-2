@@ -30,7 +30,7 @@ export default async function ProjectDetailPage({
         organizationId: membership.organizationId,
         archivedAt: null,
       },
-      include: { user: { select: { id: true, name: true } } },
+      include: { user: { select: { id: true, name: true, email: true } } },
       orderBy: { createdAt: "asc" },
     }),
   ]);

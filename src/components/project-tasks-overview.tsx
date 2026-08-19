@@ -20,9 +20,11 @@ function assigneeIdOf(task: TaskRow) {
 export function ProjectTasksOverview({
   tasks,
   currentUserId,
+  members,
 }: {
   tasks: TaskRow[];
   currentUserId: string;
+  members?: { id: string; name: string; email?: string | null }[];
 }) {
   const [scope, setScope] = useState<Scope>("mine");
   const [groupBy, setGroupBy] = useState<GroupBy>("person");
@@ -159,6 +161,8 @@ export function ProjectTasksOverview({
           showSpace
           enableDrawer
           compact
+          members={members}
+          currentUserId={currentUserId}
         />
       ) : (
         <div className="space-y-3">
@@ -175,6 +179,8 @@ export function ProjectTasksOverview({
                 showSpace
                 enableDrawer
                 compact
+                members={members}
+                currentUserId={currentUserId}
               />
             </div>
           ))}

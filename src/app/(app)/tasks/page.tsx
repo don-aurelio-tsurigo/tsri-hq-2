@@ -71,7 +71,7 @@ export default async function PersonalTasksPage({
           organizationId: membership.organizationId,
           archivedAt: null,
         },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { user: { name: "asc" } },
       }),
       listTaskGroups(personal.id),

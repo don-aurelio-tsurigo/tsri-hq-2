@@ -10,11 +10,15 @@ export function ExpandableTaskList({
   showSpace,
   enableDrawer,
   compact,
+  members,
+  currentUserId,
 }: {
   tasks: TaskRow[];
   showSpace?: boolean;
   enableDrawer?: boolean;
   compact?: boolean;
+  members?: { id: string; name: string; email?: string | null }[];
+  currentUserId?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const needsCollapse = tasks.length > PREVIEW_COUNT;
@@ -28,6 +32,8 @@ export function ExpandableTaskList({
         showSpace={showSpace}
         enableDrawer={enableDrawer}
         compact={compact}
+        members={members}
+        currentUserId={currentUserId}
       />
       {needsCollapse && !expanded && (
         <button
