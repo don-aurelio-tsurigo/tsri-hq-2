@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/components/dam-meta-edit";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
+import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import {
   DAM_RIGHTS_OPTIONS,
@@ -364,37 +366,93 @@ export function DamArchivePreview({
               </button>
             ) : null}
 
-            <DamCombobox
-              id={`archive-collections-${asset.id}`}
-              label="Collections"
-              emptyLabel="Collection zuweisen…"
-              placeholder="Collection suchen…"
-              options={allCollections.map((collection) => ({
-                value: collection.id,
-                label: collection.name,
-              }))}
-              value={asset.collections.map((collection) => collection.id)}
-              multiple
-              remote={collectionsRemote}
-              onSearch={
-                collectionsRemote
-                  ? async (q) => {
-                      const params = new URLSearchParams({
-                        type: "collections",
-                        q,
-                      });
-                      const res = await fetch(`/api/dam/archive/facets?${params}`);
-                      if (!res.ok) return [];
-                      const data = (await res.json()) as {
-                        options?: { value: string; label: string }[];
-                      };
-                      return data.options ?? [];
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted)]">Collections</p>
+              {asset.collections.length === 0 ? (
+                <p className="mt-0.5 text-sm text-[var(--muted)]">Keine</p>
+              ) : (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {asset.collections.map((collection) => (
+                    <span
+                      key={collection.id}
+                      className="inline-flex max-w-full items-center gap-0.5 rounded-full bg-[var(--accent-soft)] py-0.5 pl-2 pr-0.5 text-xs font-semibold"
+                    >
+                      <Link
+                        href={archiveCollectionHref(collection.id)}
+                        className="min-w-0 truncate hover:underline"
+                      >
+                        {collection.name}
+                      </Link>
+                      <button
+                        type="button"
+                        className="rounded-full p-0.5 hover:bg-white/70"
+                        aria-label={`${collection.name} entfernen`}
+                        onClick={() =>
+                          onSetCollections(
+                            asset.id,
+                            asset.collections
+                              .filter((item) => item.id !== collection.id)
+                              .map((item) => item.id),
+                          )
+                        }
+                      >
+                        <X className="size-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2">
+                <DamCombobox
+                  id={`archive-add-collection-${asset.id}`}
+                  label="Zu Collection hinzufügen"
+                  emptyLabel="Collection suchen…"
+                  placeholder="Collection suchen oder anlegen…"
+                  options={allCollections
+                    .filter(
+                      (collection) =>
+                        !asset.collections.some((item) => item.id === collection.id),
+                    )
+                    .map((collection) => ({
+                      value: collection.id,
+                      label: collection.name,
+                    }))}
+                  value={[]}
+                  remote={collectionsRemote}
+                  onSearch={
+                    collectionsRemote
+                      ? async (q) => {
+                          const params = new URLSearchParams({
+                            type: "collections",
+                            q,
+                          });
+                          const res = await fetch(`/api/dam/archive/facets?${params}`);
+                          if (!res.ok) return [];
+                          const data = (await res.json()) as {
+                            options?: { value: string; label: string }[];
+                          };
+                          return (data.options ?? []).filter(
+                            (option) =>
+                              !asset.collections.some((item) => item.id === option.value),
+                          );
+                        }
+                      : undefined
+                  }
+                  onCreate={onCreateCollection}
+                  onChange={(ids) => {
+                    const collectionId = ids[0];
+                    if (!collectionId) return;
+                    if (asset.collections.some((item) => item.id === collectionId)) {
+                      return;
                     }
-                  : undefined
-              }
-              onCreate={onCreateCollection}
-              onChange={(ids) => onSetCollections(asset.id, ids)}
-            />
+                    onSetCollections(asset.id, [
+                      ...asset.collections.map((item) => item.id),
+                      collectionId,
+                    ]);
+                  }}
+                />
+              </div>
+            </div>
 
             <DamMetaRow
               label="Credit"
