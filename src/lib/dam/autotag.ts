@@ -1,9 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
+import sharp from "sharp";
+import { decodeHeicIfNeeded } from "@/lib/dam/heic";
+import { sanitizeAiKeywords } from "@/lib/dam/keywords";
 import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
+
+export type AutotagSkipReason = "no_key" | "quota";
 
 export type AutotagResult = {
   altText: string | null;
   keywords: string[];
+  skipped?: AutotagSkipReason;
 };
 
 const TOOL_NAME = "tag_photo";
@@ -18,12 +24,20 @@ function getClient(): Anthropic | null {
   return new Anthropic({ apiKey });
 }
 
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
+export async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
+  const decoded = await decodeHeicIfNeeded(buffer);
+  return sharp(decoded)
+    .resize({ width: 1280, withoutEnlargement: true })
+    .jpeg({ quality: 72 })
+    .toBuffer();
+}
+
+export async function autotagFromImageBuffer(
+  userId: string,
+  buffer: Buffer,
+): Promise<AutotagResult> {
+  const jpeg = await jpegForAutotag(buffer);
+  return autotagImage(userId, jpeg);
 }
 
 export async function autotagImage(
@@ -32,12 +46,14 @@ export async function autotagImage(
 ): Promise<AutotagResult> {
   const client = getClient();
   if (!client) {
-    return { altText: null, keywords: [] };
+    console.warn("[dam] autotag skipped: ANTHROPIC_API_KEY missing");
+    return { altText: null, keywords: [], skipped: "no_key" };
   }
 
   const quota = await consumeMemberQuota(userId, "ai");
   if (!quota.ok) {
-    return { altText: null, keywords: [] };
+    console.warn("[dam] autotag skipped: quota", quota.error);
+    return { altText: null, keywords: [], skipped: "quota" };
   }
 
   try {
@@ -48,7 +64,7 @@ export async function autotagImage(
         {
           name: TOOL_NAME,
           description:
-            "Liefert Alt-Text und Keywords für ein journalistisches Archivfoto. Kein redaktioneller Kontext, keine Bildunterschrift, keine Notes.",
+            "Liefert Alt-Text und konservative Keywords für ein journalistisches Archivfoto. Kein redaktioneller Kontext, keine Bildunterschrift, keine Notes.",
           input_schema: {
             type: "object",
             additionalProperties: false,
@@ -57,13 +73,13 @@ export async function autotagImage(
               altText: {
                 type: "string",
                 description:
-                  "Ein präziser deutscher Alt-Text (max. 160 Zeichen), der Motiv, Ort und relevante Personen beschreibt.",
+                  "Ein präziser deutscher Alt-Text (max. 160 Zeichen), der nur das klar sichtbare Motiv beschreibt.",
               },
               keywords: {
                 type: "array",
                 items: { type: "string" },
                 description:
-                  "5–12 kurze deutsche Keywords in Kleinschreibung (Orte, Motive, Themen).",
+                  "5–12 kurze deutsche Keywords in Kleinschreibung. Nur sichtbar: Orte, Motive, Objekte, Stimmung. Max. 3 Wörter pro Keyword.",
               },
             },
           },
@@ -84,7 +100,16 @@ export async function autotagImage(
             },
             {
               type: "text",
-              text: "Tagge dieses Foto für das Bildarchiv von Tsüri.ch. Sprache: Deutsch. Keine Markennamen erfinden. Nur sichtbares Motiv als Alt-Text und Keywords — keinen Ereignishintergrund oder redaktionellen Kontext.",
+              text: [
+                "Tagge dieses Foto für das Bildarchiv von Tsüri.ch.",
+                "Sprache: Deutsch. Keywords kleingeschrieben.",
+                "Nur klar Sichtbares: Motive, Orte, Objekte, Stimmungen.",
+                "Keine Personennamen erfinden (nur wenn auf Schild/Trikot lesbar).",
+                "Keine Marken erfinden (nur wenn klar lesbar).",
+                "Kein Ereignis-, Termin- oder Redaktionskontext — das gehört in Notes.",
+                "Lieber weniger und treffsicher, keine Synonym-Listen.",
+                "5–12 Keywords, jedes maximal drei Wörter.",
+              ].join(" "),
             },
           ],
         },
@@ -102,7 +127,12 @@ export async function autotagImage(
       typeof input.altText === "string" && input.altText.trim()
         ? input.altText.trim().slice(0, 240)
         : null;
-    return { altText, keywords: asStringArray(input.keywords).slice(0, 16) };
+    const keywords = sanitizeAiKeywords(
+      Array.isArray(input.keywords)
+        ? input.keywords.filter((item): item is string => typeof item === "string")
+        : [],
+    );
+    return { altText, keywords };
   } catch (error) {
     await refundMemberQuota(quota.id);
     throw error;

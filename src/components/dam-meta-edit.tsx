@@ -1,7 +1,9 @@
 "use client";
 
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import { useState } from "react";
 import { Check, Pencil, X } from "lucide-react";
+import { uniqueKeywords } from "@/lib/dam/keywords";
 
 export type DamMetaFieldKey =
   | "fileName"
@@ -114,11 +116,14 @@ export function DamEditControl({
 export function DamKeywordPills({
   keywords,
   onRemove,
+  empty = true,
 }: {
   keywords: string[];
   onRemove?: (keyword: string) => void;
+  empty?: boolean;
 }) {
   if (keywords.length === 0) {
+    if (!empty) return null;
     return <p className="mt-0.5 text-sm text-[var(--muted)]">—</p>;
   }
   return (
@@ -141,6 +146,66 @@ export function DamKeywordPills({
           ) : null}
         </span>
       ))}
+    </div>
+  );
+}
+
+export function DamKeywordEditor({
+  id,
+  keywords,
+  onChange,
+  disabled,
+  placeholder = "Keyword hinzufügen…",
+}: {
+  id?: string;
+  keywords: string[];
+  onChange: (keywords: string[]) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function commit(raw: string) {
+    const next = uniqueKeywords([...keywords, ...raw.split(/[,;]/)]);
+    if (next.length !== keywords.length || raw.trim()) {
+      onChange(next);
+    }
+    setDraft("");
+  }
+
+  return (
+    <div className="space-y-1">
+      <DamKeywordPills
+        keywords={keywords}
+        empty={false}
+        onRemove={
+          disabled
+            ? undefined
+            : (keyword) => onChange(keywords.filter((item) => item !== keyword))
+        }
+      />
+      <input
+        id={id}
+        disabled={disabled}
+        value={draft}
+        maxLength={60}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const value = e.target.value;
+          if (/[,;]/.test(value)) {
+            commit(value);
+            return;
+          }
+          setDraft(value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit(draft);
+          }
+        }}
+        onBlur={() => commit(draft)}
+      />
     </div>
   );
 }

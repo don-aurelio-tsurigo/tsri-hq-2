@@ -1,9 +1,9 @@
 import sharp from "sharp";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
-import { autotagImage } from "@/lib/dam/autotag";
+import { autotagFromImageBuffer } from "@/lib/dam/autotag";
 import { extractExif } from "@/lib/dam/exif";
 import { derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
-import { decodeHeicIfNeeded } from "@/lib/dam/heic";
+import { uniqueKeywords } from "@/lib/dam/keywords";
 import { createMasterImage } from "@/lib/dam/master";
 import { beginDamAsset, endDamAsset } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
@@ -30,14 +30,6 @@ async function mapPool<T>(
   await Promise.all(workers);
 }
 
-async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
-  const decoded = await decodeHeicIfNeeded(buffer);
-  return sharp(decoded)
-    .resize({ width: 1280, withoutEnlargement: true })
-    .jpeg({ quality: 72 })
-    .toBuffer();
-}
-
 async function processOne(assetId: string): Promise<void> {
   if (!beginDamAsset(assetId)) return;
   try {
@@ -61,7 +53,6 @@ async function processOneInner(assetId: string): Promise<void> {
     },
   });
   if (!asset) return;
-  if (asset.altText?.trim()) return;
 
   let r2Key = asset.r2Key;
   let fileName = asset.fileName;
@@ -128,26 +119,27 @@ async function processOneInner(assetId: string): Promise<void> {
     });
   }
 
-  const source = autotagSource ?? (await getObjectBuffer(r2Key));
-  const jpeg = await jpegForAutotag(source);
-  const tags = await autotagImage(asset.uploadedBy, jpeg);
-  const mergedKeywords = [
-    ...new Set(
-      [...asset.keywords, ...tags.keywords]
-        .map((k) => k.trim())
-        .filter(Boolean),
-    ),
-  ].slice(0, 24);
+  if (asset.altText?.trim() && asset.keywords.length > 0) return;
 
-  await prisma.asset.update({
-    where: { id: asset.id },
-    data: {
-      // Journalist notes stay as uploaded — autotag only writes altText + keywords.
-      altText: tags.altText,
-      keywords: mergedKeywords,
-      status: "staging",
-    },
-  });
+  try {
+    const source = autotagSource ?? (await getObjectBuffer(r2Key));
+    const tags = await autotagFromImageBuffer(asset.uploadedBy, source);
+    if (!tags.altText && tags.keywords.length === 0) return;
+
+    const mergedKeywords = uniqueKeywords([...asset.keywords, ...tags.keywords]);
+
+    await prisma.asset.update({
+      where: { id: asset.id },
+      data: {
+        // Journalist notes stay as uploaded — autotag only writes altText + keywords.
+        ...(tags.altText ? { altText: tags.altText } : {}),
+        ...(mergedKeywords.length > 0 ? { keywords: mergedKeywords } : {}),
+        status: "staging",
+      },
+    });
+  } catch (error) {
+    console.error(`[dam] autotag failed for ${asset.id}`, error);
+  }
 }
 
 export async function processDamAssets(assetIds: string[]): Promise<void> {

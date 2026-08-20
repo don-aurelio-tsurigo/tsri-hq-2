@@ -3,6 +3,7 @@ import { z } from "zod";
 import { RightsType } from "@/generated/prisma/client";
 import { MAX_FILES, rejectReason, normalizedContentType, outputExtension } from "@/lib/dam/accept";
 import { buildFileName } from "@/lib/dam/filename";
+import { uniqueKeywords } from "@/lib/dam/keywords";
 import { enqueueDamProcessing } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
 import { getActiveMembershipContext } from "@/lib/session";
@@ -21,6 +22,7 @@ const assetSchema = z.object({
   size: z.number().int().nonnegative().optional(),
   rightsType: rightsSchema.optional(),
   keywords: z.array(z.string().trim().max(60)).max(24).optional(),
+  altText: z.string().trim().max(240).optional(),
   notes: z.string().max(4000).optional(),
   credit: z.string().trim().max(200).optional(),
   collectionIds: z.array(z.string().min(1)).max(20).optional(),
@@ -28,19 +30,12 @@ const assetSchema = z.object({
 });
 
 function parseKeywords(values: string[] | undefined): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of values ?? []) {
-    for (const part of raw.split(",")) {
-      const k = part.trim();
-      if (!k) continue;
-      const key = k.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(k);
-    }
-  }
-  return out.slice(0, 24);
+  return uniqueKeywords((values ?? []).flatMap((raw) => raw.split(",")));
+}
+
+function parseAltText(value: string | undefined): string | null {
+  const altText = value?.trim() ?? "";
+  return altText ? altText.slice(0, 240) : null;
 }
 
 function parseNotes(value: string | undefined): string | null {
@@ -217,10 +212,11 @@ export async function POST(request: Request) {
           body.applyToAll ? body.rightsType : (asset.rightsType ?? body.rightsType)
         ) as RightsType;
         const keywords = parseKeywords(
-          body.applyToAll
-            ? body.keywords
-            : (asset.keywords ?? body.keywords),
+          asset.keywords && asset.keywords.length > 0
+            ? asset.keywords
+            : body.keywords,
         );
+        const altText = parseAltText(asset.altText);
         const notes = parseNotes(
           body.applyToAll ? body.notes : (asset.notes ?? body.notes),
         );
@@ -257,6 +253,7 @@ export async function POST(request: Request) {
             credit,
             rightsType,
             keywords,
+            altText,
             notes,
             uploadedBy: userId,
             collections: {

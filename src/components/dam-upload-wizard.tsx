@@ -13,7 +13,9 @@ import {
   X,
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
+import { DamKeywordEditor } from "@/components/dam-meta-edit";
 import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import { uniqueKeywords } from "@/lib/dam/keywords";
 import { previewUrlForFile } from "@/lib/dam/preview-url";
 import {
   defaultCollectionName,
@@ -58,9 +60,53 @@ type AssetDraft = {
   rightsType: DamRightsType | "";
   notes: string;
   credit: string;
+  keywords: string[];
+  altText: string | null;
   collectionIds: string[];
   newCollections: string[];
 };
+
+type TagStatus = "loading" | "done" | "error" | "quota" | "no_key";
+
+type AutotagResponse = {
+  altText?: string | null;
+  keywords?: string[];
+  skipped?: "no_key" | "quota";
+  error?: string;
+};
+
+const autotagInflight = new Map<
+  string,
+  Promise<{
+    altText: string | null;
+    keywords: string[];
+    skipped?: "no_key" | "quota";
+  }>
+>();
+
+async function requestAutotag(r2Key: string) {
+  const existing = autotagInflight.get(r2Key);
+  if (existing) return existing;
+  const pending = (async () => {
+    const res = await fetch("/api/dam/autotag", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ r2Key }),
+    });
+    const data = (await res.json()) as AutotagResponse;
+    if (!res.ok) {
+      autotagInflight.delete(r2Key);
+      throw new Error(data.error || "Keywords fehlgeschlagen.");
+    }
+    return {
+      altText: data.altText ?? null,
+      keywords: data.keywords ?? [],
+      skipped: data.skipped,
+    };
+  })();
+  autotagInflight.set(r2Key, pending);
+  return pending;
+}
 
 type BatchStatusAsset = {
   id: string;
@@ -101,28 +147,72 @@ function namesFrom(value: string): string[] {
   return name ? [name] : [];
 }
 
-function MetadataPhotoGrid({ drafts }: { drafts: AssetDraft[] }) {
+function MetadataPhotoGrid({
+  drafts,
+  tagStatus,
+  onKeywords,
+  onRetry,
+}: {
+  drafts: AssetDraft[];
+  tagStatus: Record<string, TagStatus>;
+  onKeywords: (r2Key: string, keywords: string[]) => void;
+  onRetry: (r2Key: string) => void;
+}) {
   if (drafts.length === 0) return null;
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-      {drafts.map((draft) => (
-        <li
-          key={draft.r2Key}
-          className="overflow-hidden rounded-lg border-2 border-[var(--border)]"
-        >
-          <div className="flex aspect-[4/3] items-center justify-center bg-[var(--panel-muted)] p-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={draft.previewUrl}
-              alt={draft.originalName || draft.fileName}
-              className="max-h-full max-w-full object-contain"
-            />
-          </div>
-          <p className="truncate px-2 py-1 text-xs font-semibold" title={draft.fileName}>
-            {draft.fileName}
-          </p>
-        </li>
-      ))}
+      {drafts.map((draft) => {
+        const status = tagStatus[draft.r2Key];
+        return (
+          <li
+            key={draft.r2Key}
+            className="overflow-hidden rounded-lg border-2 border-[var(--border)]"
+          >
+            <div className="flex aspect-[4/3] items-center justify-center bg-[var(--panel-muted)] p-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={draft.previewUrl}
+                alt={draft.originalName || draft.fileName}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+            <div className="space-y-1.5 px-2 py-2">
+              <p className="truncate text-xs font-semibold" title={draft.fileName}>
+                {draft.fileName}
+              </p>
+              {status === "loading" ? (
+                <p className="inline-flex items-center gap-1 text-xs text-[var(--muted)]">
+                  <LoaderCircle className="size-3 animate-spin" aria-hidden />
+                  KI erkennt Motive…
+                </p>
+              ) : null}
+              {status === "quota" ? (
+                <p className="text-xs text-[var(--muted)]">KI-Limit erreicht</p>
+              ) : null}
+              {status === "no_key" ? (
+                <p className="text-xs text-[var(--muted)]">KI nicht konfiguriert</p>
+              ) : null}
+              {status === "error" ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[var(--accent)] hover:underline"
+                  onClick={() => onRetry(draft.r2Key)}
+                >
+                  Keywords erneut versuchen
+                </button>
+              ) : null}
+              {status === "done" && draft.keywords.length === 0 ? (
+                <p className="text-xs text-[var(--muted)]">Keine Motive erkannt</p>
+              ) : null}
+              <DamKeywordEditor
+                keywords={draft.keywords}
+                onChange={(keywords) => onKeywords(draft.r2Key, keywords)}
+                disabled={status === "loading"}
+              />
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -371,7 +461,7 @@ function BatchStatus({ batchId }: { batchId: string }) {
     };
   }, [batchId]);
 
-  const pending = assets.filter((a) => !a.altText && !a.takenAt && a.width == null);
+  const pending = assets.filter((a) => a.width == null);
 
   return (
     <div className="card space-y-4 p-5">
@@ -382,8 +472,8 @@ function BatchStatus({ batchId }: { batchId: string }) {
             Batch im Staging
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            {assets.length} Bild(er) gespeichert. EXIF und Autotagging laufen im
-            Hintergrund
+            {assets.length} Bild(er) gespeichert. EXIF und Vorschaubilder laufen
+            im Hintergrund
             {pending.length > 0 ? ` (${pending.length} noch offen)` : " — fertig"}.
           </p>
         </div>
@@ -451,6 +541,7 @@ export function DamUploadWizard({
   );
   const [collectionAuto, setCollectionAuto] = useState(true);
   const [drafts, setDrafts] = useState<AssetDraft[]>([]);
+  const [tagStatus, setTagStatus] = useState<Record<string, TagStatus>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -533,6 +624,65 @@ export function DamUploadWizard({
     (file) => uploadState[file.localId]?.status === "error",
   ).length;
   const allUploaded = prepared.length > 0 && doneCount === prepared.length;
+
+  useEffect(() => {
+    if (step !== 3) return;
+    const pending = prepared.filter(
+      (file) => uploadStateRef.current[file.localId]?.status === "done",
+    );
+    if (pending.length === 0) return;
+    let cancelled = false;
+
+    async function runPool() {
+      const queue = [...pending];
+      async function worker() {
+        while (queue.length > 0) {
+          const file = queue.shift();
+          if (!file || cancelled) return;
+          setTagStatus((prev) =>
+            prev[file.r2Key] ? prev : { ...prev, [file.r2Key]: "loading" },
+          );
+          try {
+            const tags = await requestAutotag(file.r2Key);
+            if (cancelled) return;
+            setDrafts((prev) =>
+              prev.map((d) =>
+                d.r2Key === file.r2Key
+                  ? {
+                      ...d,
+                      keywords: uniqueKeywords([...d.keywords, ...tags.keywords]),
+                      altText: tags.altText ?? d.altText,
+                    }
+                  : d,
+              ),
+            );
+            setTagStatus((prev) => ({
+              ...prev,
+              [file.r2Key]:
+                tags.skipped === "quota"
+                  ? "quota"
+                  : tags.skipped === "no_key"
+                    ? "no_key"
+                    : "done",
+            }));
+          } catch {
+            if (!cancelled) {
+              setTagStatus((prev) => ({ ...prev, [file.r2Key]: "error" }));
+            }
+          }
+        }
+      }
+      await Promise.all(
+        Array.from({ length: Math.min(2, pending.length) }, () => worker()),
+      );
+    }
+
+    void runPool();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, prepared]);
+
   const metadataReady = showPerFile
     ? drafts.every(
         (draft) =>
@@ -631,6 +781,8 @@ export function DamUploadWizard({
       rightsType,
       notes,
       credit: selectedCredit,
+      keywords: [],
+      altText: null,
       collectionIds,
       newCollections: names,
     }));
@@ -807,6 +959,53 @@ export function DamUploadWizard({
     setError(null);
     setBusy(true);
     try {
+      const taggedDrafts = [...drafts];
+      const queue = taggedDrafts.filter((draft) => {
+        const status = tagStatus[draft.r2Key];
+        return status !== "done" && status !== "quota" && status !== "no_key" && status !== "error";
+      });
+      async function drainOne(draft: AssetDraft) {
+        setTagStatus((prev) =>
+          prev[draft.r2Key] ? prev : { ...prev, [draft.r2Key]: "loading" },
+        );
+        try {
+          const tags = await requestAutotag(draft.r2Key);
+          const index = taggedDrafts.findIndex((row) => row.r2Key === draft.r2Key);
+          if (index >= 0) {
+            taggedDrafts[index] = {
+              ...taggedDrafts[index],
+              keywords: uniqueKeywords([
+                ...taggedDrafts[index].keywords,
+                ...tags.keywords,
+              ]),
+              altText: tags.altText ?? taggedDrafts[index].altText,
+            };
+          }
+          setTagStatus((prev) => ({
+            ...prev,
+            [draft.r2Key]:
+              tags.skipped === "quota"
+                ? "quota"
+                : tags.skipped === "no_key"
+                  ? "no_key"
+                  : "done",
+          }));
+        } catch {
+          setTagStatus((prev) => ({ ...prev, [draft.r2Key]: "error" }));
+        }
+      }
+      const workers = Array.from(
+        { length: Math.min(2, queue.length) },
+        async () => {
+          while (queue.length > 0) {
+            const next = queue.shift();
+            if (!next) return;
+            await drainOne(next);
+          }
+        },
+      );
+      await Promise.all(workers);
+      setDrafts(taggedDrafts);
       const batchNames = namesFrom(newCollectionName);
       const res = await fetch("/api/dam/complete", {
         method: "POST",
@@ -818,7 +1017,7 @@ export function DamUploadWizard({
           notes: notes.trim(),
           collectionIds,
           newCollections: batchNames,
-          assets: drafts.map((d) => ({
+          assets: taggedDrafts.map((d) => ({
             r2Key: d.r2Key,
             sequence: d.sequence,
             fileName: d.fileName,
@@ -828,6 +1027,8 @@ export function DamUploadWizard({
             rightsType: d.rightsType || batchRights,
             notes: d.notes.trim(),
             credit: d.credit,
+            keywords: d.keywords,
+            altText: d.altText,
             collectionIds: d.collectionIds,
             newCollections: d.newCollections,
           })),
@@ -1122,6 +1323,59 @@ export function DamUploadWizard({
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             Batch-Metadaten
           </h2>
+          <p className="text-sm text-[var(--muted)]">
+            Die KI schlägt sichtbare Motive vor (max. 12, konservativ). Du kannst
+            streichen oder bis 24 ergänzen. Ereignis-Kontext gehört in die
+            Beschreibung, nicht in die Keywords.
+          </p>
+          {Object.values(tagStatus).includes("quota") ? (
+            <p className="text-sm text-[var(--muted)]">
+              KI-Limit erreicht (30 Aufrufe / Stunde). Keywords kannst du manuell
+              setzen.
+            </p>
+          ) : null}
+          <MetadataPhotoGrid
+            drafts={drafts}
+            tagStatus={tagStatus}
+            onKeywords={(r2Key, keywords) =>
+              setDrafts((prev) =>
+                prev.map((d) => (d.r2Key === r2Key ? { ...d, keywords } : d)),
+              )
+            }
+            onRetry={(r2Key) => {
+              autotagInflight.delete(r2Key);
+              setTagStatus((prev) => ({ ...prev, [r2Key]: "loading" }));
+              void requestAutotag(r2Key)
+                .then((tags) => {
+                  setDrafts((prev) =>
+                    prev.map((d) =>
+                      d.r2Key === r2Key
+                        ? {
+                            ...d,
+                            keywords: uniqueKeywords([
+                              ...d.keywords,
+                              ...tags.keywords,
+                            ]),
+                            altText: tags.altText ?? d.altText,
+                          }
+                        : d,
+                    ),
+                  );
+                  setTagStatus((prev) => ({
+                    ...prev,
+                    [r2Key]:
+                      tags.skipped === "quota"
+                        ? "quota"
+                        : tags.skipped === "no_key"
+                          ? "no_key"
+                          : "done",
+                  }));
+                })
+                .catch(() => {
+                  setTagStatus((prev) => ({ ...prev, [r2Key]: "error" }));
+                });
+            }}
+          />
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -1347,7 +1601,6 @@ export function DamUploadWizard({
               </p>
             ) : null}
           </div>
-          <MetadataPhotoGrid drafts={drafts} />
         </section>
       ) : null}
 

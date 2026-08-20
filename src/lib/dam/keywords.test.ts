@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { applyKeywordChanges, uniqueKeywords } from "./keywords.ts";
+import {
+  AI_KEYWORD_MAX,
+  applyKeywordChanges,
+  sanitizeAiKeywords,
+  uniqueKeywords,
+} from "./keywords.ts";
 
 describe("uniqueKeywords", () => {
   it("trims, de-dupes case-insensitively, and caps at 24", () => {
@@ -27,5 +32,25 @@ describe("applyKeywordChanges", () => {
   it("keeps existing keywords when the list is already full", () => {
     const existing = Array.from({ length: 24 }, (_, i) => `k${i}`);
     assert.deepEqual(applyKeywordChanges(existing, ["neu"], []), existing);
+  });
+});
+
+describe("sanitizeAiKeywords", () => {
+  it("lowercases, drops long phrases, and caps at 12", () => {
+    assert.deepEqual(
+      sanitizeAiKeywords([" Zürich ", "zürich", "Velo auf der Brücke am Abend"]),
+      ["zürich"],
+    );
+    assert.equal(
+      sanitizeAiKeywords(Array.from({ length: 20 }, (_, i) => `k${i}`)).length,
+      AI_KEYWORD_MAX,
+    );
+  });
+
+  it("keeps short two-word tags", () => {
+    assert.deepEqual(sanitizeAiKeywords(["Limmatquai", "rote Fahne"]), [
+      "limmatquai",
+      "rote fahne",
+    ]);
   });
 });
