@@ -4,6 +4,8 @@ import type { Slide } from "@/lib/carousel/types";
 export const TEXT_LIMIT_NO_BREAK = 530;
 export const TEXT_LIMIT_ONE_BREAK = 450;
 export const TEXT_LIMIT_TWO_BREAKS = 300;
+/** Standard text slides with 2+ paragraph breaks: 400–500 chars, 2–3 paragraphs. */
+export const TEXT_LIMIT_TWO_BREAKS_STANDARD = 500;
 export const QUOTE_TEXT_LIMIT = 300;
 export const TIPP_ITEM_BODY_LIMIT = 280;
 /** Drop role/institution from quote attribution when the full line exceeds this. */
@@ -27,9 +29,13 @@ export function countParagraphBreaks(html: string): number {
   return normalized.match(/\n\n+/g)?.length ?? 0;
 }
 
-export function textLimitForParagraphBreaks(breaks: number): number {
+export function textLimitForParagraphBreaks(
+  breaks: number,
+  format: CarouselFormat = "standard",
+): number {
   if (breaks <= 0) return TEXT_LIMIT_NO_BREAK;
   if (breaks === 1) return TEXT_LIMIT_ONE_BREAK;
+  if (format === "standard") return TEXT_LIMIT_TWO_BREAKS_STANDARD;
   return TEXT_LIMIT_TWO_BREAKS;
 }
 
@@ -121,6 +127,7 @@ export function enforceSlideTextLimits(
     if (slide.type === "text") {
       const limit = textLimitForParagraphBreaks(
         countParagraphBreaks(slide.bodyHtml),
+        format,
       );
       const visible = visibleTextLength(slide.bodyHtml);
       if (visible <= limit) return slide;

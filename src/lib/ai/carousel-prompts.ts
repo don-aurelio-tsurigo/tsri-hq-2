@@ -13,11 +13,13 @@ ${categoryColorPromptBlock()}
 Setze category auf genau einen Namen (GROSSBUCHSTABEN); Farbe und Textkontrast folgen daraus automatisiert.
 
 WICHTIGSTE REGEL — Textmenge:
-- Ziel ist es, so viel wie möglich vom Original-Artikeltext auf die Slides zu bringen, idealerweise praktisch den gesamten Fliesstext.
-- Verwende den Artikeltext wortwörtlich. Nicht umformulieren, nicht zusammenfassen, nicht paraphrasieren.
-- Kürzen ist nur erlaubt, wenn ein Abschnitt sonst nicht auf die Slides passen würde (siehe Längenlimit unten) — und auch dann nur durch Weglassen von Sätzen/Nebensätzen, nie durch Umschreiben der verbleibenden Sätze.
-- Nutze so viele Text-Slides wie nötig (innerhalb der 6–10-Grenze), um möglichst viel Original-Text unterzubringen, statt früh zusammenzufassen.
+- Zähle zuerst die sichtbaren Zeichen des Artikel-Fliesstexts (ohne Lead/Teaser, ohne Bildunterschriften).
+- ARTIKEL UNTER 5000 ZEICHEN: Keine Kürzungen. Übernimm den Fliesstext 1:1 wortwörtlich und verteile ihn auf so viele Text-Slides wie nötig (innerhalb Cover + Text + Outro = 6–10 Slides insgesamt). Nicht zusammenfassen, nicht paraphrasieren, keine Sätze weglassen.
+- ARTIKEL AB 5000 ZEICHEN: Ziel bleibt möglichst der gesamte Fliesstext. Kürzen ist nur erlaubt, wenn der Text sonst nicht auf die verfügbaren Text-Slides passt — und dann nur durch Weglassen ganzer Sätze, nie durch Umschreiben.
+- Ziel pro Text-Slide: 400–500 sichtbare Zeichen UND 2–3 Absätze. Absätze mit <br/><br/> trennen (eine Leerzeile). Nicht einen einzigen langen Block ohne Umbruch.
+- Beispiel: Ein Artikel mit etwas über 2000 Zeichen wird typischerweise auf 4 Text-Slides à ca. 400–500 Zeichen mit je 2–3 Absätzen aufgeteilt (plus Cover und Outro).
 - Den Artikel-Lead (Teaser/Intro-Absatz vor dem Fliesstext) NICHT verwenden — nur der eigentliche Artikeltext ab dem ersten Fliesstext-Absatz zählt.
+- Zwischenüberschriften im Artikel (z.B. "Namensänderung in Aussicht") nicht als Slide-Titel erfinden; den folgenden Fliesstext aber übernehmen.
 - Ändere den Text keinesfalls in der Aussage.
 
 FELD-REGELN:
@@ -27,16 +29,14 @@ Cover:
 - headline: Artikel-Titel wortwörtlich (darf \\n enthalten).
 
 Text-Slides:
-- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut, nur bei Bedarf gekürzt.
-- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze und zähle erneut, bis der Wert sicher unter dem Limit liegt.
+- bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut.
+- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Zielband: 400–500 sichtbare Zeichen. Unter 400: mehr Originaltext auf diesen Slide holen (nächster Satz/Absatz), statt dünn zu lassen. Über 500: den letzten Absatz auf den nächsten Slide verschieben.
 - FETT-MARKIERUNG: Markiere pro Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) ist eine einzelne Markierung oder Verzicht akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 pro Slide.
-- ABSATZSTRUKTUR: Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich mitten in einem Argument.
-- LÄNGENLIMIT (abhängig von Absatzstruktur):
-  - Ohne Absatzumbruch: max. 530 Zeichen.
-  - Mit 1 Absatzumbruch (zwei Absätze): max. 450 Zeichen.
-  - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide — splitte stattdessen auf einen weiteren Slide auf.
-  - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
-  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.
+- ABSATZSTRUKTUR — VERBINDLICH: Jede Text-Slide hat 2 oder 3 Absätze, getrennt durch <br/><br/>. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke, Ende eines Zitats), nicht willkürlich mitten in einem Satz.
+- LÄNGENLIMIT:
+  - Ziel: 400–500 sichtbare Zeichen bei 2–3 Absätzen.
+  - Hartes Maximum: 530 ohne Absatzumbruch, 450 bei 1 Umbruch (zwei Absätze), 500 bei 2 Umbrüchen (drei Absätze).
+  - Lieber einen weiteren Text-Slide eröffnen, als einen Slide über 500 zu quetschen oder Absätze wegzulassen.
 
 Quote-Slides (falls verwendet):
 - quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben).
