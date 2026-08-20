@@ -2,6 +2,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   ARCHIVE_FACET_LIMIT,
   ARCHIVE_FACET_SEARCH_LIMIT,
+  ARCHIVE_PAGE_SIZE,
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
 import { prisma } from "@/lib/db";
@@ -10,13 +11,17 @@ import type { ArchiveAssetCard } from "@/lib/dam/types";
 
 export type { ArchiveAssetCard, ArchiveFilters };
 export {
+  ARCHIVE_PAGE_SIZE,
   archiveCollectionHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveFiltersToSearchParams,
+  archiveHref,
   hiddenArchiveFilterCount,
   parseArchiveFilters,
   parseArchiveFiltersFromSearchParams,
+  parseArchivePage,
+  parseArchivePageFromSearchParams,
 } from "@/lib/dam/archive-filters";
 
 export type ArchiveFacetOption = { value: string; label: string };
@@ -41,7 +46,7 @@ async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
         AND dam_asset_fts("fileName", "altText", "credit", keywords, notes)
           @@ websearch_to_tsquery('simple'::regconfig, ${query})
       ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
-      LIMIT 500
+      LIMIT 20000
     `;
     return rows.map((row) => row.id);
   } catch (error) {
@@ -50,13 +55,18 @@ async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
   }
 }
 
-export async function searchPublishedAssets(
-  filters: ArchiveFilters,
-  limit = 120,
-): Promise<ArchiveAssetCard[]> {
-  const ftsIds = await publishedIdsMatchingFts(filters.q);
-  if (ftsIds && ftsIds.length === 0) return [];
+export type ArchiveSearchResult = {
+  assets: ArchiveAssetCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
 
+function publishedWhere(
+  filters: ArchiveFilters,
+  ftsIds: string[] | null,
+): Prisma.AssetWhereInput {
   const where: Prisma.AssetWhereInput = {
     status: "published",
     ...(ftsIds ? { id: { in: ftsIds } } : {}),
@@ -77,46 +87,75 @@ export async function searchPublishedAssets(
     };
   }
 
-  const rows = await prisma.asset.findMany({
-    where,
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: limit,
-    select: {
-      id: true,
-      fileName: true,
-      credit: true,
-      rating: true,
-      altText: true,
-      keywords: true,
-      notes: true,
-      takenAt: true,
-      publishedAt: true,
-      width: true,
-      height: true,
-      rightsType: true,
-      collections: {
-        select: { collection: { select: { id: true, name: true } } },
-      },
-      exports: wepublishExportLogSelect,
-    },
-  });
+  return where;
+}
 
-  return rows.map((row) => ({
-    id: row.id,
-    fileName: row.fileName,
-    credit: row.credit,
-    rating: row.rating,
-    altText: row.altText,
-    keywords: row.keywords,
-    notes: row.notes,
-    takenAt: row.takenAt ? row.takenAt.toISOString() : null,
-    publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
-    width: row.width,
-    height: row.height,
-    rightsType: row.rightsType,
-    collections: row.collections.map((link) => link.collection),
-    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
-  }));
+export async function searchPublishedAssets(
+  filters: ArchiveFilters,
+  page = 1,
+  pageSize = ARCHIVE_PAGE_SIZE,
+): Promise<ArchiveSearchResult> {
+  const ftsIds = await publishedIdsMatchingFts(filters.q);
+  if (ftsIds && ftsIds.length === 0) {
+    return { assets: [], total: 0, page: 1, pageSize, pageCount: 0 };
+  }
+
+  const where = publishedWhere(filters, ftsIds);
+  const safePage = Math.max(1, page);
+  const skip = (safePage - 1) * pageSize;
+
+  const [total, rows] = await Promise.all([
+    prisma.asset.count({ where }),
+    prisma.asset.findMany({
+      where,
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        fileName: true,
+        credit: true,
+        rating: true,
+        altText: true,
+        keywords: true,
+        notes: true,
+        takenAt: true,
+        publishedAt: true,
+        width: true,
+        height: true,
+        rightsType: true,
+        collections: {
+          select: { collection: { select: { id: true, name: true } } },
+        },
+        exports: wepublishExportLogSelect,
+      },
+    }),
+  ]);
+
+  const pageCount = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+  return {
+    assets: rows.map((row) => ({
+      id: row.id,
+      fileName: row.fileName,
+      credit: row.credit,
+      rating: row.rating,
+      altText: row.altText,
+      keywords: row.keywords,
+      notes: row.notes,
+      takenAt: row.takenAt ? row.takenAt.toISOString() : null,
+      publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
+      width: row.width,
+      height: row.height,
+      rightsType: row.rightsType,
+      collections: row.collections.map((link) => link.collection),
+      lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
+    })),
+    total,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
 }
 
 export async function countPublishedAssets(): Promise<number> {

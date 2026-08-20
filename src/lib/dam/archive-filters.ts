@@ -3,6 +3,8 @@ import type { DamRightsType } from "@/lib/dam/types";
 export const ARCHIVE_FACET_LIMIT = 200;
 export const ARCHIVE_FACET_SEARCH_LIMIT = 40;
 export const ARCHIVE_KEYWORD_MAX = 20;
+export const ARCHIVE_PAGE_SIZE = 120;
+const ARCHIVE_PAGE_MAX = 10_000;
 
 export type ArchiveFilters = {
   q: string;
@@ -99,7 +101,18 @@ export function hiddenArchiveFilterCount(filters: ArchiveFilters): number {
   );
 }
 
-export function archiveFiltersToSearchParams(filters: ArchiveFilters): URLSearchParams {
+export function parseArchivePage(
+  params: Record<string, string | string[] | undefined>,
+): number {
+  const n = Number.parseInt(one(params, "page"), 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(Math.floor(n), ARCHIVE_PAGE_MAX);
+}
+
+export function archiveFiltersToSearchParams(
+  filters: ArchiveFilters,
+  page = 1,
+): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.q) params.set("q", filters.q);
   for (const keyword of filters.keywords) params.append("keyword", keyword);
@@ -108,24 +121,36 @@ export function archiveFiltersToSearchParams(filters: ArchiveFilters): URLSearch
   if (filters.credit) params.set("credit", filters.credit);
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
+  if (page > 1) params.set("page", String(page));
   return params;
 }
 
-export function archiveCollectionHref(collectionId: string): string {
-  const qs = archiveFiltersToSearchParams({
-    ...EMPTY_ARCHIVE_FILTERS,
-    collectionId,
-  }).toString();
-  return `/dam/archive?${qs}`;
+export function archiveHref(filters: ArchiveFilters, page = 1): string {
+  const qs = archiveFiltersToSearchParams(filters, page).toString();
+  return qs ? `/dam/archive?${qs}` : "/dam/archive";
 }
 
-export function parseArchiveFiltersFromSearchParams(
+export function archiveCollectionHref(collectionId: string): string {
+  return archiveHref({ ...EMPTY_ARCHIVE_FILTERS, collectionId });
+}
+
+function searchParamsRecord(
   params: URLSearchParams,
-): ArchiveFilters {
+): Record<string, string | string[]> {
   const record: Record<string, string | string[]> = {};
   for (const key of new Set(params.keys())) {
     const all = params.getAll(key);
     record[key] = all.length > 1 ? all : (all[0] ?? "");
   }
-  return parseArchiveFilters(record);
+  return record;
+}
+
+export function parseArchiveFiltersFromSearchParams(
+  params: URLSearchParams,
+): ArchiveFilters {
+  return parseArchiveFilters(searchParamsRecord(params));
+}
+
+export function parseArchivePageFromSearchParams(params: URLSearchParams): number {
+  return parseArchivePage(searchParamsRecord(params));
 }

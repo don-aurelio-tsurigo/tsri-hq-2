@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  EMPTY_ARCHIVE_FILTERS,
   archiveCollectionHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveFiltersToSearchParams,
+  archiveHref,
   hiddenArchiveFilterCount,
   parseArchiveFilters,
   parseArchiveFiltersFromSearchParams,
+  parseArchivePage,
 } from "./archive-filters.ts";
 
 describe("parseArchiveFilters", () => {
@@ -75,12 +78,31 @@ describe("archiveFiltersToSearchParams", () => {
     assert.equal(params.get("q"), "podium");
     assert.deepEqual(params.getAll("keyword"), ["zürich", "velo"]);
     assert.equal(params.get("collection"), "col_1");
+    assert.equal(params.has("page"), false);
     assert.deepEqual(parseArchiveFiltersFromSearchParams(params), filters);
+  });
+
+  it("omits page 1 and writes later pages", () => {
+    const filters = parseArchiveFilters({ q: "podium" });
+    assert.equal(archiveFiltersToSearchParams(filters, 1).has("page"), false);
+    assert.equal(archiveFiltersToSearchParams(filters, 3).get("page"), "3");
+    assert.equal(archiveHref(filters, 3), "/dam/archive?q=podium&page=3");
+    assert.equal(archiveHref(EMPTY_ARCHIVE_FILTERS), "/dam/archive");
   });
 });
 
 describe("archiveCollectionHref", () => {
   it("points at the archive filtered to one collection", () => {
     assert.equal(archiveCollectionHref("col_1"), "/dam/archive?collection=col_1");
+  });
+});
+
+describe("parseArchivePage", () => {
+  it("defaults to 1 and clamps invalid values", () => {
+    assert.equal(parseArchivePage({}), 1);
+    assert.equal(parseArchivePage({ page: "0" }), 1);
+    assert.equal(parseArchivePage({ page: "nope" }), 1);
+    assert.equal(parseArchivePage({ page: "2" }), 2);
+    assert.equal(parseArchivePage({ page: ["8"] }), 8);
   });
 });

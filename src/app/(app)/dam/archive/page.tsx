@@ -1,10 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { DamArchiveView } from "@/components/dam-archive-view";
 import {
+  archiveHref,
   countPublishedAssets,
   listArchiveFacets,
   parseArchiveFilters,
+  parseArchivePage,
   searchPublishedAssets,
 } from "@/lib/dam/archive-search";
 import { requireMembership } from "@/lib/session";
@@ -15,12 +18,18 @@ export default async function DamArchivePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireMembership();
-  const filters = parseArchiveFilters(await searchParams);
-  const [assets, facets, publishedCount] = await Promise.all([
-    searchPublishedAssets(filters),
+  const params = await searchParams;
+  const filters = parseArchiveFilters(params);
+  const page = parseArchivePage(params);
+  const [result, facets, publishedCount] = await Promise.all([
+    searchPublishedAssets(filters, page),
     listArchiveFacets(),
     countPublishedAssets(),
   ]);
+
+  if (result.pageCount > 0 && page > result.pageCount) {
+    redirect(archiveHref(filters, result.pageCount));
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
@@ -40,9 +49,13 @@ export default async function DamArchivePage({
 
       <Suspense>
         <DamArchiveView
-          assets={assets}
+          assets={result.assets}
           facets={facets}
           publishedCount={publishedCount}
+          total={result.total}
+          page={result.page}
+          pageCount={result.pageCount}
+          pageSize={result.pageSize}
         />
       </Suspense>
     </div>

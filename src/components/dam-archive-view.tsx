@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import { DamCombobox, type DamComboboxOption } from "@/components/dam-combobox";
 import {
   EMPTY_ARCHIVE_FILTERS,
   archiveFilterChipCount,
   archiveFiltersActive,
-  archiveFiltersToSearchParams,
+  archiveHref,
   hiddenArchiveFilterCount,
   parseArchiveFiltersFromSearchParams,
   type ArchiveFilters,
@@ -103,10 +103,18 @@ export function DamArchiveView({
   assets,
   facets,
   publishedCount,
+  total,
+  page,
+  pageCount,
+  pageSize,
 }: {
   assets: ArchiveAssetCard[];
   facets: ArchiveFacets;
   publishedCount: number;
+  total: number;
+  page: number;
+  pageCount: number;
+  pageSize: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -125,14 +133,13 @@ export function DamArchiveView({
   const filtered = archiveFiltersActive(filters);
   const extraCount = hiddenArchiveFilterCount(filters);
   const chipCount = archiveFilterChipCount(filters);
+  const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo = Math.min(page * pageSize, total);
 
   const apply = useCallback(
-    (next: ArchiveFilters) => {
-      const qs = archiveFiltersToSearchParams(next).toString();
+    (next: ArchiveFilters, nextPage = 1, scroll = false) => {
       startTransition(() => {
-        router.replace(qs ? `/dam/archive?${qs}` : "/dam/archive", {
-          scroll: false,
-        });
+        router.replace(archiveHref(next, nextPage), { scroll });
       });
     },
     [router],
@@ -370,7 +377,11 @@ export function DamArchiveView({
               </span>
             ) : (
               <>
-                {assets.length} {assets.length === 1 ? "Bild" : "Bilder"}
+                {pageCount > 1
+                  ? `${rangeFrom}–${rangeTo} von ${total} ${
+                      total === 1 ? "Bild" : "Bildern"
+                    }`
+                  : `${total} ${total === 1 ? "Bild" : "Bilder"}`}
                 {filtered ? " gefunden" : ""}. Checkbox oder Shift-Klick wählt,
                 Doppelklick oder Enter öffnet die Vorschau.
               </>
@@ -379,6 +390,34 @@ export function DamArchiveView({
           <div className={pending ? "pointer-events-none opacity-50" : ""}>
             <DamArchiveGrid assets={assets} />
           </div>
+          {pageCount > 1 ? (
+            <nav
+              className="flex flex-wrap items-center justify-between gap-2"
+              aria-label="Seiten"
+            >
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={pending || page <= 1}
+                onClick={() => apply(filters, page - 1, true)}
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+                Zurück
+              </button>
+              <p className="text-sm font-medium text-[var(--muted)]">
+                Seite {page} von {pageCount}
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={pending || page >= pageCount}
+                onClick={() => apply(filters, page + 1, true)}
+              >
+                Weiter
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
+            </nav>
+          ) : null}
         </div>
       )}
     </div>
