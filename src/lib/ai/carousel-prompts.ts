@@ -52,38 +52,37 @@ Outro:
   - AUSWAHL — VERBINDLICH: Wähle GENAU EINE Zeile aus dem folgenden Pool als Basis. Du darfst NUR einzelne Wörter ersetzen, die einen konkreten Bezug zum Artikel herstellen (z.B. "diese Adresse" → "dieses Restaurant"), NIEMALS die Satzstruktur, die Satzanzahl oder den Grundton ändern. Erfinde KEINE neue Zeile, die nicht auf einer Pool-Zeile basiert — das ist keine Kreativaufgabe, sondern eine Auswahlaufgabe mit minimaler Lückenfüllung. Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile — begründe die Wahl in deinen Denkschritten anhand des Artikelinhalts (z.B. gibt es einen klaren Interessenkonflikt → "Wer profitiert / Wer verliert"-Typ; ist das Thema eher ein Einzelfall mit grösserem Muster dahinter → "Einzelfall oder Muster"-Typ; ist es eine reine Fakten-Meldung ohne Konfliktlinie → eher ein neutraler Typ wie "Zürich verändert sich täglich" oder "Mehr dazu im Züri Briefing"). Über mehrere Slides/Artikel hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
 
   Beispielpool (GENAU EINE Zeile wählen; nur einzelne Wörter für den Artikelbezug ersetzen):
-  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Briefing.
-  - Nur was du wirklich wissen musst. Hol dir das Briefing.
-  - Statt endlos scrollen: Züri Briefing in 5 Min.
-  - Über 33'000 Menschen starten mit dem Briefing in den Tag.
-  - Diese Debatte geht weiter. Hol dir das Züri Briefing.
-  - Wer profitiert? Wer verliert? Eingeordnet im Briefing.
+  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Züri Briefing.
+  - Nur was du wirklich wissen musst. Hol dir das Züri Briefing.
+  - Statt endlos scrollen: Züri Briefing in 5 Min lesen.
+  - Über 33'000 Menschen wissen das schon aus dem Züri Briefing.
+  - Diese Debatte geht weiter. Abonniere das Züri Briefing.
+  - Wer profitiert? Wer verliert? Eingeordnet im Züri Briefing.
   - Eine Geschichte, viele Fragen. Antworten im Züri Briefing.
-  - Zürich verändert sich täglich. Verpass nichts Wichtiges.
+  - Zürich verändert sich täglich. Verpass nichts Wichtiges mit dem Züri Briefing.
   - Informiert statt überfordert: Züri Briefing.
-  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Briefing.
+  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Züri Briefing.
   - Klingt einfach. Ist es nicht. Einordnung im Züri Briefing.
-  - So einfach ist die Geschichte nicht. Die Details im Briefing.
+  - So einfach ist die Geschichte nicht. Die Details im Züri Briefing.
   - Einzelfall oder Muster? Eingeordnet im Züri Briefing.
-  - Wenig Platz für eine grosse Debatte. Mehr dazu im Briefing.
-  - Manche Zahlen brauchen Kontext. Mehr dazu im Briefing.
-  - Diese Frage beschäftigt gerade ganz Zürich. Mehr dazu im Briefing.
-  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Briefing.
+  - Wenig Platz für eine grosse Debatte. Mehr dazu im Züri Briefing.
+  - Manche Zahlen brauchen Kontext. Mehr dazu im Züri Briefing.
+  - Diese Frage beschäftigt ganz Zürich. Mehr dazu im Züri Briefing.
+  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Züri Briefing.
   - Mehr dazu im Züri Briefing.
-  - So viel Stadt an einem Tag. Wir sortieren sie für dich. Hol dir das Briefing.
-  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Briefing.
-  - Manche Entscheidungen betreffen mehr Leute, als man denkt.
-  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Briefing.
-  - Zürich hat Widersprüche. Wir zeigen sie dir. Hol dir das Briefing.
-  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht.
-  - Wer entscheidet hier eigentlich mit? Eingeordnet im Briefing.
+  - Wir sortieren die Stadt für dich. Hol dir das Züri Briefing.
+  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Züri Briefing.
+  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Züri Briefing.
+  - Zürich hat Widersprüche. Wir zeigen sie dir im Züri Briefing.
+  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht. Abonniere das Züri Briefing.
+  - Wer entscheidet hier eigentlich mit? Eingeordnet im Züri Briefing.
   - So tickt Zürich gerade wirklich. Mehr dazu im Züri Briefing.
-  - Ein Fakt, viele Meinungen. Die Einordnung im Briefing.
-  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Briefing.
+  - Ein Fakt, viele Meinungen. Die Einordnung im Züri Briefing.
+  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Züri Briefing.
 
-  - Die Social-Proof-Zeile ("Über 33'000 Menschen...") nur wählen, wenn kein anderer Typ besser zum Artikel passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
+  - Die Social-Proof-Zeile ("Über 33'000 Menschen wissen das schon...") nur wählen, wenn kein anderer Typ besser zum Artikel passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
   - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
-- ctaText = "ZÜRI BRIEFING → LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
+- ctaText = "LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
@@ -127,38 +126,37 @@ Outro:
   - AUSWAHL — VERBINDLICH: Wähle GENAU EINE Zeile aus dem folgenden Pool als Basis. Du darfst NUR einzelne Wörter ersetzen, die einen konkreten Bezug zur Kolumne herstellen (z.B. "diese Adresse" → "dieses Restaurant"), NIEMALS die Satzstruktur, die Satzanzahl oder den Grundton ändern. Erfinde KEINE neue Zeile, die nicht auf einer Pool-Zeile basiert — das ist keine Kreativaufgabe, sondern eine Auswahlaufgabe mit minimaler Lückenfüllung. Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile — begründe die Wahl in deinen Denkschritten anhand des Artikelinhalts (z.B. vertritt die Kolumne eine klare These mit Gegenposition → "Wer profitiert / Wer verliert"- oder "Zwei Seiten"-Typ; stellt sie eine unbequeme/steile These auf → "Klingt einfach. Ist es nicht."-Typ; ist es eher ein persönlicher/reflektierender Text ohne klaren Konflikt → ein neutralerer Typ wie "Zürich verändert sich täglich" oder "Mehr dazu im Züri Briefing"). Über mehrere Slides/Artikel hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
 
   Beispielpool (GENAU EINE Zeile wählen; nur einzelne Wörter für den Kolumnenbezug ersetzen):
-  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Briefing.
-  - Nur was du wirklich wissen musst. Hol dir das Briefing.
-  - Statt endlos scrollen: Züri Briefing in 5 Min.
-  - Über 33'000 Menschen starten mit dem Briefing in den Tag.
-  - Diese Debatte geht weiter. Hol dir das Züri Briefing.
-  - Wer profitiert? Wer verliert? Eingeordnet im Briefing.
+  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Züri Briefing.
+  - Nur was du wirklich wissen musst. Hol dir das Züri Briefing.
+  - Statt endlos scrollen: Züri Briefing in 5 Min lesen.
+  - Über 33'000 Menschen wissen das schon aus dem Züri Briefing.
+  - Diese Debatte geht weiter. Abonniere das Züri Briefing.
+  - Wer profitiert? Wer verliert? Eingeordnet im Züri Briefing.
   - Eine Geschichte, viele Fragen. Antworten im Züri Briefing.
-  - Zürich verändert sich täglich. Verpass nichts Wichtiges.
+  - Zürich verändert sich täglich. Verpass nichts Wichtiges mit dem Züri Briefing.
   - Informiert statt überfordert: Züri Briefing.
-  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Briefing.
+  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Züri Briefing.
   - Klingt einfach. Ist es nicht. Einordnung im Züri Briefing.
-  - So einfach ist die Geschichte nicht. Die Details im Briefing.
+  - So einfach ist die Geschichte nicht. Die Details im Züri Briefing.
   - Einzelfall oder Muster? Eingeordnet im Züri Briefing.
-  - Wenig Platz für eine grosse Debatte. Mehr dazu im Briefing.
-  - Manche Zahlen brauchen Kontext. Mehr dazu im Briefing.
-  - Diese Frage beschäftigt gerade ganz Zürich. Mehr dazu im Briefing.
-  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Briefing.
+  - Wenig Platz für eine grosse Debatte. Mehr dazu im Züri Briefing.
+  - Manche Zahlen brauchen Kontext. Mehr dazu im Züri Briefing.
+  - Diese Frage beschäftigt ganz Zürich. Mehr dazu im Züri Briefing.
+  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Züri Briefing.
   - Mehr dazu im Züri Briefing.
-  - So viel Stadt an einem Tag. Wir sortieren sie für dich. Hol dir das Briefing.
-  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Briefing.
-  - Manche Entscheidungen betreffen mehr Leute, als man denkt.
-  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Briefing.
-  - Zürich hat Widersprüche. Wir zeigen sie dir. Hol dir das Briefing.
-  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht.
-  - Wer entscheidet hier eigentlich mit? Eingeordnet im Briefing.
+  - Wir sortieren die Stadt für dich. Hol dir das Züri Briefing.
+  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Züri Briefing.
+  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Züri Briefing.
+  - Zürich hat Widersprüche. Wir zeigen sie dir im Züri Briefing.
+  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht. Abonniere das Züri Briefing.
+  - Wer entscheidet hier eigentlich mit? Eingeordnet im Züri Briefing.
   - So tickt Zürich gerade wirklich. Mehr dazu im Züri Briefing.
-  - Ein Fakt, viele Meinungen. Die Einordnung im Briefing.
-  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Briefing.
+  - Ein Fakt, viele Meinungen. Die Einordnung im Züri Briefing.
+  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Züri Briefing.
 
-  - Die Social-Proof-Zeile ("Über 33'000 Menschen...") nur wählen, wenn kein anderer Typ besser zur Kolumne passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
+  - Die Social-Proof-Zeile ("Über 33'000 Menschen wissen das schon...") nur wählen, wenn kein anderer Typ besser zur Kolumne passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
   - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
-- ctaText = "ZÜRI BRIEFING → LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
+- ctaText = "LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
@@ -206,38 +204,37 @@ Outro:
   - AUSWAHL — VERBINDLICH: Wähle GENAU EINE Zeile aus dem folgenden Pool als Basis. Du darfst NUR einzelne Wörter ersetzen, die einen konkreten Bezug zum Interview herstellen (z.B. "diese Adresse" → "dieses Restaurant"), NIEMALS die Satzstruktur, die Satzanzahl oder den Grundton ändern. Erfinde KEINE neue Zeile, die nicht auf einer Pool-Zeile basiert — das ist keine Kreativaufgabe, sondern eine Auswahlaufgabe mit minimaler Lückenfüllung. Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile — begründe die Wahl in deinen Denkschritten anhand des Interviewinhalts (z.B. vertritt die interviewte Person eine steile/unbequeme These → "Klingt einfach. Ist es nicht."-Typ; geht es um einen klaren Interessenkonflikt oder Gegenposition → "Wer profitiert / Wer verliert"- oder "Zwei Seiten"-Typ; ist es eher ein einordnendes/erklärendes Gespräch ohne klaren Konflikt → ein neutralerer Typ wie "Zürich verstehen" oder "Mehr dazu im Züri Briefing"). Über mehrere Slides/Artikel hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
 
   Beispielpool (GENAU EINE Zeile wählen; nur einzelne Wörter für den Interviewbezug ersetzen):
-  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Briefing.
-  - Nur was du wirklich wissen musst. Hol dir das Briefing.
-  - Statt endlos scrollen: Züri Briefing in 5 Min.
-  - Über 33'000 Menschen starten mit dem Briefing in den Tag.
-  - Diese Debatte geht weiter. Hol dir das Züri Briefing.
-  - Wer profitiert? Wer verliert? Eingeordnet im Briefing.
+  - Zürich verstehen, nicht nur Zürich lesen. Hol dir das Züri Briefing.
+  - Nur was du wirklich wissen musst. Hol dir das Züri Briefing.
+  - Statt endlos scrollen: Züri Briefing in 5 Min lesen.
+  - Über 33'000 Menschen wissen das schon aus dem Züri Briefing.
+  - Diese Debatte geht weiter. Abonniere das Züri Briefing.
+  - Wer profitiert? Wer verliert? Eingeordnet im Züri Briefing.
   - Eine Geschichte, viele Fragen. Antworten im Züri Briefing.
-  - Zürich verändert sich täglich. Verpass nichts Wichtiges.
+  - Zürich verändert sich täglich. Verpass nichts Wichtiges mit dem Züri Briefing.
   - Informiert statt überfordert: Züri Briefing.
-  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Briefing.
+  - Zwei Seiten, eine Stadt. Die ganze Geschichte im Züri Briefing.
   - Klingt einfach. Ist es nicht. Einordnung im Züri Briefing.
-  - So einfach ist die Geschichte nicht. Die Details im Briefing.
+  - So einfach ist die Geschichte nicht. Die Details im Züri Briefing.
   - Einzelfall oder Muster? Eingeordnet im Züri Briefing.
-  - Wenig Platz für eine grosse Debatte. Mehr dazu im Briefing.
-  - Manche Zahlen brauchen Kontext. Mehr dazu im Briefing.
-  - Diese Frage beschäftigt gerade ganz Zürich. Mehr dazu im Briefing.
-  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Briefing.
+  - Wenig Platz für eine grosse Debatte. Mehr dazu im Züri Briefing.
+  - Manche Zahlen brauchen Kontext. Mehr dazu im Züri Briefing.
+  - Diese Frage beschäftigt ganz Zürich. Mehr dazu im Züri Briefing.
+  - Was du hier liest, ist nur der Anfang der Debatte. Mehr dazu im Züri Briefing.
   - Mehr dazu im Züri Briefing.
-  - So viel Stadt an einem Tag. Wir sortieren sie für dich. Hol dir das Briefing.
-  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Briefing.
-  - Manche Entscheidungen betreffen mehr Leute, als man denkt.
-  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Briefing.
-  - Zürich hat Widersprüche. Wir zeigen sie dir. Hol dir das Briefing.
-  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht.
-  - Wer entscheidet hier eigentlich mit? Eingeordnet im Briefing.
+  - Wir sortieren die Stadt für dich. Hol dir das Züri Briefing.
+  - Zürich hat mehr Geschichten, als der Insta Feed. Hol dir das Züri Briefing.
+  - Klingt nach Kleinigkeit. Ist aber keine. Mehr dazu im Züri Briefing.
+  - Zürich hat Widersprüche. Wir zeigen sie dir im Züri Briefing.
+  - Diese Geschichte hat eine Fortsetzung. Verpass sie nicht. Abonniere das Züri Briefing.
+  - Wer entscheidet hier eigentlich mit? Eingeordnet im Züri Briefing.
   - So tickt Zürich gerade wirklich. Mehr dazu im Züri Briefing.
-  - Ein Fakt, viele Meinungen. Die Einordnung im Briefing.
-  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Briefing.
+  - Ein Fakt, viele Meinungen. Die Einordnung im Züri Briefing.
+  - Nicht jeder in Zürich sieht das gleich. Mehr dazu im Züri Briefing.
 
-  - Die Social-Proof-Zeile ("Über 33'000 Menschen...") nur wählen, wenn kein anderer Typ besser zum Interview passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
+  - Die Social-Proof-Zeile ("Über 33'000 Menschen wissen das schon...") nur wählen, wenn kein anderer Typ besser zum Interview passt — sie transportiert kein artikelspezifisches Einordnungsversprechen und sollte daher die Ausnahme bleiben, nicht die Regel.
   - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
-- ctaText = "ZÜRI BRIEFING → LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
+- ctaText = "LINK IN DER BIO" (bleibt IMMER fix, unabhängig vom Artikel).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
