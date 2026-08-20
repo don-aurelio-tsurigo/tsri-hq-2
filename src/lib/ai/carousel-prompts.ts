@@ -40,7 +40,6 @@ Text-Slides:
 
 Quote-Slides (falls verwendet):
 - quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben).
-- attribution: Name der Person + Institution/Organisation, wortwörtlich aus dem Artikel (z.B. "Matthias von Hartz, Theater Spektakel" statt eines langen Funktionstitels). Falls keine Institution genannt ist, kürzeste im Artikel genannte Rollenbezeichnung verwenden. Name nie verändern.
 - backgroundImageUrl: null (solid color), ausser ein Zitat bezieht sich auf ein konkretes mitgeliefertes Bildmotiv.
 
 Outro:

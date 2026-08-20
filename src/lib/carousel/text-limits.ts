@@ -8,8 +8,6 @@ export const TEXT_LIMIT_TWO_BREAKS = 300;
 export const TEXT_LIMIT_TWO_BREAKS_STANDARD = 500;
 export const QUOTE_TEXT_LIMIT = 300;
 export const TIPP_ITEM_BODY_LIMIT = 280;
-/** Drop role/institution from quote attribution when the full line exceeds this. */
-export const ATTRIBUTION_MAX_LENGTH = 43;
 /** Sentence-end cut is used only if it falls in [ratio * limit, limit]. */
 export const SENTENCE_CUT_MIN_RATIO = 0.7;
 
@@ -152,31 +150,14 @@ export function enforceSlideTextLimits(
         visibleTextLength(slide.quoteText) <= QUOTE_TEXT_LIMIT
           ? slide.quoteText
           : truncateHtmlToVisibleChars(slide.quoteText, QUOTE_TEXT_LIMIT);
-      const attribution = shortenQuoteAttribution(slide.attribution);
-      if (quoteText === slide.quoteText && attribution === slide.attribution) {
-        return slide;
-      }
+      if (quoteText === slide.quoteText) return slide;
       return {
         ...slide,
         quoteText,
-        attribution,
       };
     }
     return slide;
   });
-}
-
-export function shortenQuoteAttribution(attribution: string): string {
-  const trimmed = attribution.trim();
-  if (!trimmed) return trimmed;
-  if (visibleTextLength(trimmed) <= ATTRIBUTION_MAX_LENGTH) return trimmed;
-
-  const comma = trimmed.indexOf(",");
-  if (comma < 0) return trimmed;
-
-  const name = trimmed.slice(0, comma).trim();
-  if (!name || visibleTextLength(name) > ATTRIBUTION_MAX_LENGTH) return trimmed;
-  return name;
 }
 
 function isSentenceEnd(ch: string, prev: string): boolean {
