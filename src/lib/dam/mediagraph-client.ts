@@ -85,6 +85,16 @@ export function totalFromHeaders(headers: Headers, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function totalFromSearch(data: unknown, headers: Headers, fallback: number): number {
+  const fromHeader = totalFromHeaders(headers, 0);
+  if (fromHeader > 0) return fromHeader;
+  if (data && typeof data === "object") {
+    const n = Number((data as { total_entries?: unknown }).total_entries);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return fallback;
+}
+
 export async function searchAssetsPage(
   client: MediagraphClient,
   opts: {
@@ -92,15 +102,23 @@ export async function searchAssetsPage(
     perPage: number;
     collectionId?: string;
     omitChildCollections?: boolean;
+    snapshotTimestamp?: number;
+    ids?: Array<number | string>;
   },
 ) {
   const params = new URLSearchParams({
     page: String(opts.page),
     per_page: String(opts.perPage),
-    sortField: "created_at",
-    sortOrder: "ascend",
+    sort: "created_at",
+    order: "asc",
     aasm_state: "processed",
   });
+  if (opts.snapshotTimestamp) {
+    params.set("snapshot_timestamp", String(opts.snapshotTimestamp));
+  }
+  for (const id of opts.ids ?? []) {
+    params.append("ids[]", String(id));
+  }
   if (opts.collectionId) params.set("collection_id", opts.collectionId);
   if (opts.omitChildCollections) params.set("omit_child_collections", "true");
   const { data, headers } = await mediagraphJson<unknown>(
@@ -108,7 +126,46 @@ export async function searchAssetsPage(
     `/assets/search?${params.toString()}`,
   );
   const assets = asList<Record<string, unknown>>(data, ["assets", "data", "results"]);
-  return { assets, total: totalFromHeaders(headers, assets.length) };
+  return { assets, total: totalFromSearch(data, headers, assets.length) };
+}
+
+function numberIds(value: unknown): number[] {
+  const raw = Array.isArray(value) ? value : [];
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const item of raw) {
+    const n = typeof item === "number" ? item : Number(item);
+    if (!Number.isFinite(n) || n <= 0 || seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
+/** Full processed-asset ID list. Null if Mediagraph omitted `all_ids`. */
+export async function searchAllAssetIds(client: MediagraphClient): Promise<number[] | null> {
+  const params = new URLSearchParams({
+    all_ids: "true",
+    aasm_state: "processed",
+    per_page: "1",
+  });
+  const { data, headers } = await mediagraphJson<unknown>(
+    client,
+    `/assets/search?${params.toString()}`,
+  );
+  const record = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const ids = numberIds(
+    record.ids ?? record.all_ids ?? record.ids_in_selection ?? record.asset_ids,
+  );
+  if (ids.length === 0) return null;
+  const total = totalFromSearch(data, headers, ids.length);
+  if (ids.length < total) {
+    console.warn(
+      `[mediagraph] all_ids returned ${ids.length} of ${total} — falling back to pages`,
+    );
+    return null;
+  }
+  return ids;
 }
 
 export async function listRightsPackages(client: MediagraphClient) {

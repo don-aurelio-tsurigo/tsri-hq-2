@@ -12,6 +12,7 @@ import {
   listCollectionsPage,
   listRightsPackages,
   mediagraphClientFromEnv,
+  searchAllAssetIds,
   searchAssetsPage,
   type MediagraphClient,
 } from "@/lib/dam/mediagraph-client";
@@ -395,6 +396,16 @@ export async function runMediagraphAssetImport(opts: ImportCliOptions): Promise<
   const creatorTagCache = new Map<string, string | null>();
   const perPage = opts.test ? 5 : 100;
   const maxPages = opts.test ? 1 : Number.POSITIVE_INFINITY;
+  const snapshotTimestamp = Date.now();
+  let allIds: number[] | null = null;
+  if (!opts.test) {
+    try {
+      allIds = await searchAllAssetIds(client);
+      if (allIds) console.log(`[mediagraph] all_ids ${allIds.length}`);
+    } catch (error) {
+      console.warn("[mediagraph] all_ids failed, using pages", error);
+    }
+  }
 
   if (opts.test) {
     try {
@@ -413,9 +424,22 @@ export async function runMediagraphAssetImport(opts: ImportCliOptions): Promise<
   let errors = 0;
 
   while (page <= maxPages) {
-    const result = await searchAssetsPage(client, { page, perPage });
+    const idChunk =
+      allIds && !opts.test
+        ? allIds.slice((page - 1) * perPage, page * perPage)
+        : undefined;
+    if (allIds && !opts.test && (!idChunk || idChunk.length === 0)) break;
+    const result = await searchAssetsPage(client, {
+      page: allIds && !opts.test ? 1 : page,
+      perPage,
+      snapshotTimestamp,
+      ids: idChunk,
+    });
     if (result.assets.length === 0) break;
-    total = Math.max(total, result.total);
+    total = Math.max(total, allIds?.length ?? result.total, processed + result.assets.length);
+    console.log(
+      `[mediagraph] page ${page} got ${result.assets.length} (total ${total})`,
+    );
     if (opts.test) {
       for (const raw of result.assets) {
         const asset = asAsset(raw);
@@ -481,7 +505,10 @@ export async function runMediagraphAssetImport(opts: ImportCliOptions): Promise<
     flush();
     if (opts.test) break;
     page += 1;
-    if (result.assets.length < perPage) break;
+    if (!allIds && page > Math.max(200, Math.ceil((total || 1) / perPage) + 5)) {
+      console.warn(`[mediagraph] page cap at ${page}, total=${total}`);
+      break;
+    }
   }
 
   flush();
@@ -549,12 +576,15 @@ export async function runMediagraphCollectionImport(opts: ImportCliOptions): Pro
           });
           linked += 1;
         }
-        if (opts.test || assets.assets.length < 100) break;
+        if (opts.test) break;
         assetPage += 1;
+        if (assetPage > 200) break;
       }
     }
-    if (opts.test || result.collections.length < perPage) break;
+    if (opts.test) break;
+    if (result.collections.length === 0) break;
     page += 1;
+    if (page > 200) break;
   }
 
   console.log(`[mediagraph] collections done linked=${linked} skipped=${skipped}`);
