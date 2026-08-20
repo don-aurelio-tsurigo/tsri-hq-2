@@ -86,6 +86,7 @@ Outro:
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
+- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen bei Text-Slides. Ziel ist Textübernahme, nicht Textverdichtung. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
 - Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
@@ -160,6 +161,7 @@ Outro:
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
+- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen bei den Quote-Slides. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
 - Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
@@ -238,6 +240,7 @@ Outro:
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
+- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen beim Lead-Text und bei den Quote-Slides. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
 - Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
@@ -335,6 +338,7 @@ Outro:
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
+- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
 - Keine erfundenen Fakten. Ziel ist eine prägnante, redaktionell verdichtete Übertragung jedes Termins — kein reines Anhängen/Abschneiden von Sätzen, sondern gezieltes Streichen von Nebensächlichem bei Erhalt aller wichtigen Fakten. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
 - Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
 - Fülle create_carousel_slides genau einmal.`;
@@ -395,6 +399,7 @@ Outro (fixiertes Template, NICHT den Cover-Titel wiederholen):
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
+- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
 - Keine erfundenen Fakten, keine Umformulierungen, keine Zusammenfassungen, keine weggelassenen Satzteile innerhalb eines Satzes. Ziel ist Textübernahme, nicht Textverdichtung.
 - Fülle create_carousel_slides genau einmal.`;
 
