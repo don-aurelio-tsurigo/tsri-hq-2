@@ -32,8 +32,8 @@ Text-Slides:
 - FETT-MARKIERUNG: Markiere pro Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) ist eine einzelne Markierung oder Verzicht akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 pro Slide.
 - ABSATZSTRUKTUR: Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich mitten in einem Argument.
 - LÄNGENLIMIT (abhängig von Absatzstruktur):
-  - Ohne Absatzumbruch: max. 450 Zeichen.
-  - Mit 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen.
+  - Ohne Absatzumbruch: max. 530 Zeichen.
+  - Mit 1 Absatzumbruch (zwei Absätze): max. 450 Zeichen.
   - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide — splitte stattdessen auf einen weiteren Slide auf.
   - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
   - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.
@@ -188,7 +188,7 @@ Lead-Text-Slide (Slide 2):
 - ZEICHENZÄHLUNG — VERBINDLICH: Zähle die Zeichen vor Abgabe explizit durch (in deinen Denkschritten), statt zu schätzen.
 - FETT-MARKIERUNG: Markiere MINDESTENS 2, idealerweise 2–3 zentrale Begriffe/Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>.
 - ABSATZSTRUKTUR: Bei mehr als ca. 250 Zeichen mindestens einen Absatzumbruch einbauen, an inhaltlich sinnvoller Stelle.
-- LÄNGENLIMIT: ohne Absatzumbruch max. 450 Zeichen, mit 1 Umbruch max. 340, mit 2 Umbrüchen max. 275 (nicht mehr als 2 Umbrüche). Obergrenzen, kein Zielwert — so weit wie möglich ausschöpfen.
+- LÄNGENLIMIT: ohne Absatzumbruch max. 530 Zeichen, mit 1 Umbruch max. 450, mit 2 Umbrüchen max. 275 (nicht mehr als 2 Umbrüche). Obergrenzen, kein Zielwert — so weit wie möglich ausschöpfen.
 
 Quote-Slides (Antworten der interviewten Person):
 - quoteText wortwörtlich aus den Antworten, ohne führende Anführungszeichen, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben).
@@ -377,8 +377,8 @@ Text-Slides:
 - ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Wenn die Zählung das Limit überschreitet, kürze (ganze Sätze, siehe oben) und zähle erneut, bis der Wert sicher unter dem Limit liegt.
 - ABSATZSTRUKTUR: Slides mit mehr als ca. 250 sichtbaren Zeichen sollen mindestens einen Absatzumbruch enthalten. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke), nicht willkürlich mitten in einem Argument.
 - LÄNGENLIMIT (abhängig von Absatzstruktur):
-  - Ohne Absatzumbruch: max. 450 Zeichen.
-  - Mit 1 Absatzumbruch (zwei Absätze): max. 340 Zeichen.
+  - Ohne Absatzumbruch: max. 530 Zeichen.
+  - Mit 1 Absatzumbruch (zwei Absätze): max. 450 Zeichen.
   - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide — splitte stattdessen auf einen weiteren Slide auf.
   - Reduziere lieber die Zeichenzahl als die Anzahl Absätze, wenn beides im Konflikt steht.
   - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus.

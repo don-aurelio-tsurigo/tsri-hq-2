@@ -1,8 +1,8 @@
 import type { CarouselFormat } from "@/lib/carousel/format";
 import type { Slide } from "@/lib/carousel/types";
 
-export const TEXT_LIMIT_NO_BREAK = 500;
-export const TEXT_LIMIT_ONE_BREAK = 380;
+export const TEXT_LIMIT_NO_BREAK = 530;
+export const TEXT_LIMIT_ONE_BREAK = 450;
 export const TEXT_LIMIT_TWO_BREAKS = 300;
 export const QUOTE_TEXT_LIMIT = 300;
 export const TIPP_ITEM_BODY_LIMIT = 280;
