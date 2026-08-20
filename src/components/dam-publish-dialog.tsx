@@ -19,14 +19,14 @@ export function DamPublishDialog({
   pending: boolean;
   onClose: () => void;
   onConfirm: (
-    items: { assetId: string; altText: string; collectionIds: string[] }[],
+    items: { assetId: string; notes: string; collectionIds: string[] }[],
   ) => void;
   onCreateCollection?: (
     name: string,
   ) => Promise<{ value: string; label: string } | null>;
 }) {
-  const [altDrafts, setAltDrafts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(assets.map((asset) => [asset.id, asset.altText?.trim() ?? ""])),
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(assets.map((asset) => [asset.id, asset.notes?.trim() ?? ""])),
   );
   const [collectionDrafts, setCollectionDrafts] = useState<Record<string, string[]>>(
     () =>
@@ -41,9 +41,9 @@ export function DamPublishDialog({
     [allCollections],
   );
 
-  const missingAlt = useMemo(
-    () => assets.filter((asset) => !altDrafts[asset.id]?.trim()).map((asset) => asset.id),
-    [assets, altDrafts],
+  const missingNotes = useMemo(
+    () => assets.filter((asset) => !noteDrafts[asset.id]?.trim()).map((asset) => asset.id),
+    [assets, noteDrafts],
   );
   const missingCollection = useMemo(
     () =>
@@ -67,13 +67,17 @@ export function DamPublishDialog({
         >
           Ins Archiv verschieben
         </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Alt-Text und Collection sind Pflicht. Bitte prüfen oder korrigieren.
+        <p className="mt-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm">
+          Verschiebe nur Fotos ins Archiv, die für Artikel benützt werden oder
+          einen potenziellen Wert in der Zukunft haben.
+        </p>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Kontext und Collection sind Pflicht. Alt-Text wird automatisch generiert.
         </p>
 
         <ul className="mt-4 space-y-5">
           {assets.map((asset) => {
-            const emptyAlt = submitted && !altDrafts[asset.id]?.trim();
+            const emptyNotes = submitted && !noteDrafts[asset.id]?.trim();
             const emptyCollection =
               submitted && (collectionDrafts[asset.id] ?? []).length === 0;
             return (
@@ -92,24 +96,25 @@ export function DamPublishDialog({
                 <div className="min-w-0 space-y-3">
                   <p className="truncate text-sm font-semibold">{asset.fileName}</p>
                   <div className="field">
-                    <label htmlFor={`alt-${asset.id}`}>
-                      Alt-Text
+                    <label htmlFor={`notes-${asset.id}`}>
+                      Kontext
                       <span className="text-[var(--danger)]"> *</span>
                     </label>
                     <textarea
-                      id={`alt-${asset.id}`}
+                      id={`notes-${asset.id}`}
                       rows={3}
-                      value={altDrafts[asset.id] ?? ""}
+                      maxLength={4000}
+                      value={noteDrafts[asset.id] ?? ""}
                       disabled={pending}
                       onChange={(e) =>
-                        setAltDrafts((prev) => ({ ...prev, [asset.id]: e.target.value }))
+                        setNoteDrafts((prev) => ({ ...prev, [asset.id]: e.target.value }))
                       }
-                      aria-invalid={emptyAlt}
-                      placeholder="Beschreibe das Motiv für Screenreader und Suche"
+                      aria-invalid={emptyNotes}
+                      placeholder="Ereignis, Hintergrund, beteiligte Personen…"
                     />
-                    {emptyAlt ? (
+                    {emptyNotes ? (
                       <p className="text-xs text-[var(--danger)]">
-                        Alt-Text darf nicht leer sein.
+                        Kontext darf nicht leer sein.
                       </p>
                     ) : null}
                   </div>
@@ -147,11 +152,11 @@ export function DamPublishDialog({
             disabled={pending}
             onClick={() => {
               setSubmitted(true);
-              if (missingAlt.length > 0 || missingCollection.length > 0) return;
+              if (missingNotes.length > 0 || missingCollection.length > 0) return;
               onConfirm(
                 assets.map((asset) => ({
                   assetId: asset.id,
-                  altText: altDrafts[asset.id].trim(),
+                  notes: noteDrafts[asset.id].trim(),
                   collectionIds: collectionDrafts[asset.id] ?? [],
                 })),
               );

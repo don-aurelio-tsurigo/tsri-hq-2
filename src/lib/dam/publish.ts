@@ -25,7 +25,7 @@ async function mapPool<T>(
 
 export type PublishItem = {
   assetId: string;
-  altText: string;
+  notes: string;
   collectionIds: string[];
 };
 
@@ -50,8 +50,8 @@ async function publishOne(
   userId: string,
   item: PublishItem,
 ): Promise<{ error?: string }> {
-  const altText = item.altText.trim();
-  if (!altText) return { error: "Alt-Text fehlt." };
+  const notes = item.notes.trim();
+  if (!notes) return { error: "Kontext fehlt." };
   const collectionIds = uniqueIds(item.collectionIds).slice(0, 20);
   if (collectionIds.length === 0) return { error: "Collection fehlt." };
 
@@ -114,7 +114,7 @@ async function publishOne(
     data: {
       r2Key: archiveKey,
       fileName: replaceKeyExtension(asset.fileName, "jpg"),
-      altText,
+      notes,
       status: "published",
       publishedAt: new Date(),
       width: published.width ?? undefined,

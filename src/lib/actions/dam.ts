@@ -431,7 +431,7 @@ export async function updateAssetMetadata(
 
 const publishItemSchema = z.object({
   assetId: z.string().min(1),
-  altText: z.string().trim().min(1).max(240),
+  notes: z.string().trim().min(1).max(4000),
   collectionIds: z.array(z.string().trim().min(1)).min(1).max(20),
 });
 
@@ -445,7 +445,7 @@ export async function publishAssets(
   const { session } = await requireMembership();
   const parsed = z.array(publishItemSchema).min(1).max(200).safeParse(items);
   if (!parsed.success) {
-    return { error: "Alt-Text und Collection sind Pflicht." };
+    return { error: "Kontext und Collection sind Pflicht." };
   }
   const owned = await ownedStagingAssets(
     session.user.id,
