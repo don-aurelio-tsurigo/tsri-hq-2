@@ -3,10 +3,14 @@ import { describe, it } from "node:test";
 import {
   collectionNamesFromAsset,
   creditFromAsset,
+  descriptionForNotes,
   flattenCollectionName,
   isImageAsset,
   keywordsFromTags,
   mapRightsType,
+  mergeKeywords,
+  notesAreEmpty,
+  parseAutoTagNames,
   shouldUseFullRendition,
   takenAtFromAsset,
   UNSORTED_COLLECTION_NAME,
@@ -75,6 +79,35 @@ describe("keywordsFromTags", () => {
       ]),
       ["Zürich", "Anna"],
     );
+  });
+});
+
+describe("mergeKeywords / parseAutoTagNames / notes", () => {
+  it("merges auto tags case-insensitively and keeps existing casing", () => {
+    assert.deepEqual(mergeKeywords(["Wiedikon", "See"], ["wiedikon", "Limmat"]), [
+      "Wiedikon",
+      "See",
+      "Limmat",
+    ]);
+  });
+
+  it("reads auto tag names from arrays and wrapped payloads", () => {
+    assert.deepEqual(parseAutoTagNames([{ name: "Hund" }, { name: " " }, "Katze"]), [
+      "Hund",
+      "Katze",
+    ]);
+    assert.deepEqual(parseAutoTagNames({ auto_tags: [{ name: "Tram" }] }), ["Tram"]);
+    assert.deepEqual(parseAutoTagNames([]), []);
+    assert.deepEqual(parseAutoTagNames(null), []);
+  });
+
+  it("only uses a non-empty description for notes", () => {
+    assert.equal(descriptionForNotes("  Kontext  "), "Kontext");
+    assert.equal(descriptionForNotes("   "), null);
+    assert.equal(descriptionForNotes(null), null);
+    assert.equal(notesAreEmpty(null), true);
+    assert.equal(notesAreEmpty("  "), true);
+    assert.equal(notesAreEmpty("manuell"), false);
   });
 });
 

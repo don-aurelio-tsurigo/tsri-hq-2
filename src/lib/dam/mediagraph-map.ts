@@ -159,10 +159,43 @@ export function mapRightsType(
 }
 
 export function keywordsFromTags(tags: MediagraphTag[] | null | undefined): string[] {
+  return mergeKeywords(
+    [],
+    (tags ?? []).map((tag) => asText(tag.name)),
+  );
+}
+
+export function parseAutoTagNames(payload: unknown): string[] {
+  const list = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object"
+      ? (() => {
+          const record = payload as Record<string, unknown>;
+          const nested = record.auto_tags ?? record.tags ?? record.data;
+          return Array.isArray(nested) ? nested : [];
+        })()
+      : [];
+  const names: string[] = [];
+  for (const item of list) {
+    if (typeof item === "string") {
+      if (item.trim()) names.push(item.trim());
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const record = item as { name?: unknown; tag?: unknown; label?: unknown; text?: unknown };
+    const name = [record.name, record.tag, record.label, record.text].find(
+      (value) => typeof value === "string" && value.trim(),
+    );
+    if (typeof name === "string") names.push(name.trim());
+  }
+  return names;
+}
+
+export function mergeKeywords(existing: string[], incoming: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const tag of tags ?? []) {
-    const name = asText(tag.name);
+  for (const raw of [...existing, ...incoming]) {
+    const name = asText(raw);
     if (!name) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
@@ -170,6 +203,16 @@ export function keywordsFromTags(tags: MediagraphTag[] | null | undefined): stri
     out.push(name.slice(0, 80));
   }
   return out.slice(0, 80);
+}
+
+export function descriptionForNotes(description: unknown): string | null {
+  if (typeof description !== "string") return null;
+  const text = description.trim();
+  return text || null;
+}
+
+export function notesAreEmpty(notes: string | null | undefined): boolean {
+  return !notes?.trim();
 }
 
 export function collectionNamesFromAsset(asset: MediagraphAsset): string[] {

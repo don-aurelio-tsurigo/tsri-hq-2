@@ -8,6 +8,8 @@ import { createMasterImage } from "@/lib/dam/master";
 import {
   downloadAssetBytes,
   downloadUrl,
+  fetchAssetDetail,
+  fetchAutoTags,
   fetchCreatorTagName,
   listCollectionsPage,
   listRightsPackages,
@@ -22,11 +24,15 @@ import {
   collectionNamesFromAsset,
   creditFromAsset,
   defaultRightsIdMap,
+  descriptionForNotes,
   flattenCollectionName,
   gpsFromAsset,
   isImageAsset,
   keywordsFromTags,
   mapRightsType,
+  mergeKeywords,
+  notesAreEmpty,
+  parseAutoTagNames,
   shouldUseFullRendition,
   takenAtFromAsset,
   type MediagraphAsset,
@@ -45,6 +51,7 @@ const MAX_DOWNLOAD_BYTES = 200 * 1024 * 1024;
 export type ImportCliOptions = {
   test: boolean;
   collectionsOnly: boolean;
+  enrichOnly: boolean;
   dryRun: boolean;
   concurrency: number;
   reportDir: string;
@@ -91,6 +98,7 @@ export function parseImportArgs(argv: string[]): ImportCliOptions {
   return {
     test,
     collectionsOnly: argv.includes("--collections"),
+    enrichOnly: argv.includes("--enrich"),
     dryRun: argv.includes("--dry-run"),
     concurrency: Number(
       argv.find((arg) => arg.startsWith("--concurrency="))?.slice(14) ??
@@ -592,4 +600,91 @@ export async function runMediagraphCollectionImport(opts: ImportCliOptions): Pro
   }
 
   console.log(`[mediagraph] collections done linked=${linked} skipped=${skipped}`);
+}
+
+export async function runMediagraphEnrichment(opts: ImportCliOptions): Promise<void> {
+  const client = mediagraphClientFromEnv();
+  const rows = await prisma.asset.findMany({
+    where: {
+      importSource: MEDIAGRAPH_IMPORT_SOURCE,
+      mediagraphId: { not: null },
+    },
+    select: {
+      id: true,
+      mediagraphId: true,
+      keywords: true,
+      notes: true,
+      fileName: true,
+    },
+    orderBy: { createdAt: "asc" },
+    take: opts.test ? 5 : undefined,
+  });
+  const total = rows.length;
+  console.log(`[mediagraph] enrich ${total} imported assets`);
+  let processed = 0;
+  let keywordsUpdated = 0;
+  let notesUpdated = 0;
+  let errors = 0;
+
+  await mapPool(rows, opts.concurrency, async (row) => {
+    const mediagraphId = row.mediagraphId;
+    if (!mediagraphId) {
+      processed += 1;
+      return;
+    }
+    try {
+      const [detail, autoTagPayload] = await Promise.all([
+        fetchAssetDetail(client, mediagraphId),
+        fetchAutoTags(client, mediagraphId),
+      ]);
+      const merged = mergeKeywords(row.keywords, parseAutoTagNames(autoTagPayload));
+      const keywordsChanged =
+        merged.length !== row.keywords.length ||
+        merged.some((keyword, index) => keyword !== row.keywords[index]);
+      const description = descriptionForNotes(detail?.description);
+      const canSetNotes = notesAreEmpty(row.notes) && Boolean(description);
+
+      if (opts.test) {
+        console.log(
+          "[mediagraph] enrich probe",
+          JSON.stringify({
+            id: row.id,
+            fileName: row.fileName,
+            mediagraphId,
+            keywords_before: row.keywords,
+            keywords_after: merged,
+            notes_before: row.notes,
+            notes_after: canSetNotes ? description : row.notes,
+            notes_would_write: canSetNotes,
+          }),
+        );
+      }
+
+      if (!opts.dryRun && (keywordsChanged || canSetNotes)) {
+        await prisma.asset.update({
+          where: { id: row.id },
+          data: {
+            ...(keywordsChanged ? { keywords: merged } : {}),
+            ...(canSetNotes ? { notes: description } : {}),
+          },
+        });
+      }
+      if (keywordsChanged) keywordsUpdated += 1;
+      if (canSetNotes) notesUpdated += 1;
+    } catch (error) {
+      errors += 1;
+      console.warn(
+        `[mediagraph] enrich failed ${row.fileName} (${mediagraphId})`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+    processed += 1;
+    console.log(
+      `${processed}/${total} Assets angereichert (Keywords: ${keywordsUpdated}, Notes: ${notesUpdated})`,
+    );
+  });
+
+  console.log(
+    `[mediagraph] enrich done keywords=${keywordsUpdated} notes=${notesUpdated} errors=${errors}`,
+  );
 }

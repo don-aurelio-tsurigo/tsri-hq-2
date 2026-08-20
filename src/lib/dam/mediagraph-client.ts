@@ -250,3 +250,50 @@ export async function downloadUrl(url: string): Promise<Buffer> {
   if (!res.ok) throw new Error(`Rendition HTTP ${res.status}`);
   return Buffer.from(await res.arrayBuffer());
 }
+
+async function mediagraphJsonOr404<T>(
+  client: MediagraphClient,
+  path: string,
+): Promise<T | null> {
+  const res = await mediagraphFetch(client, path);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Mediagraph ${res.status} ${path}: ${body.slice(0, 300)}`);
+  }
+  return (await res.json()) as T;
+}
+
+function unwrapRecord(data: unknown, keys: string[]): Record<string, unknown> | null {
+  if (!data || typeof data !== "object") return null;
+  const record = data as Record<string, unknown>;
+  for (const key of keys) {
+    const nested = record[key];
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+      return nested as Record<string, unknown>;
+    }
+  }
+  return record;
+}
+
+export async function fetchAssetDetail(
+  client: MediagraphClient,
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  const data = await mediagraphJsonOr404<unknown>(
+    client,
+    `/assets/${encodeURIComponent(id)}`,
+  );
+  return unwrapRecord(data, ["asset", "data"]);
+}
+
+export async function fetchAutoTags(
+  client: MediagraphClient,
+  id: string,
+): Promise<unknown> {
+  const data = await mediagraphJsonOr404<unknown>(
+    client,
+    `/assets/${encodeURIComponent(id)}/auto_tags`,
+  );
+  return data ?? [];
+}

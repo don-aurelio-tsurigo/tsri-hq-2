@@ -16,6 +16,7 @@
  *   npm run dam:mediagraph-import -- --test --dry-run
  *   npm run dam:mediagraph-import
  *   npm run dam:mediagraph-import -- --collections
+ *   npm run dam:mediagraph-import -- --enrich --test
  */
 
 import { config } from "dotenv";
@@ -24,6 +25,7 @@ import {
   parseImportArgs,
   runMediagraphAssetImport,
   runMediagraphCollectionImport,
+  runMediagraphEnrichment,
 } from "../src/lib/dam/mediagraph-import";
 
 config({ path: ".env" });
@@ -35,6 +37,7 @@ function printHelp(): void {
   --test           erste Seite, per_page=5
   --dry-run        nur Mapping, kein R2/DB-Write
   --collections    Phase 9b: Collections + Asset-Zuordnung
+  --enrich         Phase 9c+9d: Auto-Tags → Keywords, Description → Notes
   --concurrency=N  parallele Assets (default 3)
 
 Reports: migration-errors.json, migration-videos-skipped.json, migration-rights-review.json
@@ -49,6 +52,11 @@ async function main() {
     return;
   }
   const opts = parseImportArgs(argv);
+  if (opts.enrichOnly) {
+    process.stderr.write("[mediagraph] mode=enrich\n");
+    await runMediagraphEnrichment(opts);
+    return;
+  }
   if (opts.collectionsOnly) {
     process.stderr.write("[mediagraph] mode=collections\n");
     await runMediagraphCollectionImport(opts);
