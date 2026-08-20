@@ -61,7 +61,7 @@ export const llmTsueritippSchema = z.object({
   slides: z
     .array(z.discriminatedUnion("type", [coverDraft, textDraft, outroDraft]))
     .min(3)
-    .max(30),
+    .max(10),
 });
 
 export const llmSixibriefSchema = z.object({

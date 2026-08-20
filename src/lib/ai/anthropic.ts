@@ -82,6 +82,22 @@ const kolumneToolInputSchema = {
   },
 };
 
+const coverTextOutroSlideItems = {
+  type: "object" as const,
+  additionalProperties: false,
+  required: ["type"],
+  properties: {
+    type: {
+      type: "string" as const,
+      enum: ["cover", "text", "outro"],
+    },
+    overline: { type: "string" as const },
+    headline: { type: "string" as const },
+    bodyHtml: { type: "string" as const },
+    ctaText: { type: "string" as const },
+  },
+};
+
 const tsueritippToolInputSchema = {
   type: "object" as const,
   additionalProperties: false,
@@ -91,22 +107,23 @@ const tsueritippToolInputSchema = {
     slides: {
       type: "array" as const,
       minItems: 3,
+      maxItems: 10,
+      items: coverTextOutroSlideItems,
+    },
+  },
+};
+
+const sixibriefToolInputSchema = {
+  type: "object" as const,
+  additionalProperties: false,
+  required: ["category", "slides"],
+  properties: {
+    category: { type: "string" as const },
+    slides: {
+      type: "array" as const,
+      minItems: 3,
       maxItems: 30,
-      items: {
-        type: "object" as const,
-        additionalProperties: false,
-        required: ["type"],
-        properties: {
-          type: {
-            type: "string" as const,
-            enum: ["cover", "text", "outro"],
-          },
-          overline: { type: "string" as const },
-          headline: { type: "string" as const },
-          bodyHtml: { type: "string" as const },
-          ctaText: { type: "string" as const },
-        },
-      },
+      items: coverTextOutroSlideItems,
     },
   },
 };
@@ -215,11 +232,13 @@ async function generateSlidesFromSource(
 
   const client = getClient();
   const toolInputSchema =
-    format === "tsueritipp" || format === "6ibrief"
+    format === "tsueritipp"
       ? tsueritippToolInputSchema
-      : format === "kolumne"
-        ? kolumneToolInputSchema
-        : standardToolInputSchema;
+      : format === "6ibrief"
+        ? sixibriefToolInputSchema
+        : format === "kolumne"
+          ? kolumneToolInputSchema
+          : standardToolInputSchema;
   const maxTokens = format === "tsueritipp" ? 8192 : 4096;
   const intro =
     source === "paste"
