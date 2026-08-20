@@ -260,9 +260,9 @@ Cover-Slide → mehrere "text"-Slides (Termine) → Outro-Slide.
 SLIDE-OBERGRENZE — VERBINDLICH:
 - Die GESAMTE Slide-Anzahl (Cover + Termin-Slides + Outro) darf 10 NICHT überschreiten. Das bedeutet maximal 8 Termin-Slides.
 - Rechne das VOR der Slide-Erstellung explizit in deinen Denkschritten durch: Zähle die Anzahl Termine im Artikel. Passen sie bei 1 Termin/Slide nicht in 8 Slides (d.h. mehr als 8 Termine), musst du so viele Termin-Paare wie nötig auf gemeinsame Slides legen, damit die Gesamtzahl der Termin-Slides ≤ 8 bleibt. Beispiel: 11 Termine → mindestens 3 Slides mit je 2 Terminen nötig (3×2 + 5×1 = 8 Slides).
-- Bevorzuge beim Kombinieren benachbarte Termin-Paare, die inhaltlich beide kurz genug sind, um zusammen unter dem 380er-Gesamtbudget zu bleiben (siehe unten). Kürze Beschreibungstexte nötigenfalls stärker (siehe Kürzungsregeln), damit ein Paar unters Budget passt — aber niemals unter Verlust der Kernaussage oder der Pflichtangaben (Titel, Datum/Zeit/Ort).
-- Ist die Termin-Anzahl auch mit maximalem Kombinieren (jeweils 2 pro Slide, also theoretisch bis zu 16 Termine auf 8 Slides) nicht auf 8 Slides unterzubringen: kombiniere so weit wie möglich und halte dich an die 380-Zeichen-Grenze pro Slide so gut wie möglich, auch wenn das im Extremfall knapp über dem Budget liegt. ALLE Termine müssen weiterhin vorkommen, keiner darf gestrichen werden.
-- Diese Obergrenze hat Vorrang vor dem 380-Zeichen-Komfort-Budget pro Slide, aber nicht vor dem Gebot, alle Termine wortgetreu und mit allen Pflichtangaben abzubilden.
+- Bevorzuge beim Kombinieren benachbarte Termin-Paare, die inhaltlich beide kurz genug sind, um zusammen unter dem Längenlimit zu bleiben (siehe unten). Kürze Beschreibungstexte nötigenfalls stärker (siehe Kürzungsregeln), damit ein Paar unters Budget passt — aber niemals unter Verlust der Kernaussage oder der Pflichtangaben (Titel, Datum/Zeit/Ort).
+- Ist die Termin-Anzahl auch mit maximalem Kombinieren (jeweils 2 pro Slide, also theoretisch bis zu 16 Termine auf 8 Slides) nicht auf 8 Slides unterzubringen: kombiniere so weit wie möglich und halte dich an das Längenlimit pro Slide so gut wie möglich, auch wenn das im Extremfall knapp über dem Budget liegt. ALLE Termine müssen weiterhin vorkommen, keiner darf gestrichen werden.
+- Diese Obergrenze hat Vorrang vor dem Zeichen-Komfort-Budget pro Slide, aber nicht vor dem Gebot, alle Termine wortgetreu und mit allen Pflichtangaben abzubilden.
 
 KATEGORIE:
 ${categoryColorPromptBlock()}
@@ -276,8 +276,13 @@ Cover:
 
 Pro Text-Slide:
 - STANDARD: Bis zu 2 Termine pro Slide sind erlaubt und werden aktiv genutzt, wann immer nötig, um die Slide-Obergrenze (siehe oben) einzuhalten. Bei genügend Slide-Spielraum (Gesamtzahl bleibt klar unter 8 Termin-Slides) darf 1 Termin pro Slide bleiben, wenn das den Text besser lesbar macht.
-- GESAMTBUDGET PRO SLIDE — VERBINDLICH: Die Summe aller sichtbaren Zeichen im Slide (Titel + Beschreibungstext + Meta-Zeile, über alle Termine auf diesem Slide zusammengezählt, OHNE <b>/<i>/<br/>-Tags und ohne das 🗓️-Zeichen mitzuzählen) darf 380 Zeichen NICHT überschreiten (siehe Ausnahme oben bei sehr hoher Terminzahl).
-- ZEICHENZÄHLUNG: Bevor du einen Slide mit 2 Terminen befüllst, zähle die Gesamtsumme (beide Titel + beide Beschreibungen + beide Meta-Zeilen) explizit in deinen Denkschritten durch. Liegt die Summe deutlich über 380 UND die Slide-Obergrenze lässt noch Spielraum zu: verteile die beiden Termine stattdessen auf zwei separate Slides.
+- LÄNGENLIMIT (abhängig von Absatzstruktur, gleiche Grenzen wie bei den anderen Formaten):
+  - Ohne Absatzumbruch (typisch 1 Termin, nur einzelne <br/>): max. 530 Zeichen.
+  - Mit 1 Absatzumbruch (zwei Absätze, typisch 2 Termine durch <br/><br/> getrennt): max. 450 Zeichen.
+  - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide.
+  - Zählung: sichtbare Zeichen (Titel + Beschreibungstext + Meta-Zeile, über alle Termine auf diesem Slide), OHNE <b>/<i>/<br/>-Tags.
+  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus (siehe Ausnahme oben bei sehr hoher Terminzahl).
+- ZEICHENZÄHLUNG: Bevor du einen Slide mit 2 Terminen befüllst, zähle die Gesamtsumme (beide Titel + beide Beschreibungen + beide Meta-Zeilen) explizit in deinen Denkschritten durch. Liegt die Summe deutlich über 450 UND die Slide-Obergrenze lässt noch Spielraum zu: verteile die beiden Termine stattdessen auf zwei separate Slides.
 
 - Jeder Termin wird als EIN Block innerhalb von bodyHtml ausgegeben, in exakt dieser Struktur:
   <b>Wochentag: Thema.</b><br/>
@@ -289,8 +294,8 @@ Pro Text-Slide:
   Zeile 1 (Titel, fett): "Wochentag: Thema." wortwörtlich aus der ####-Überschrift, inkl. Punkt am Ende.
 
   Zeile 2 (Beschreibungstext, normal):
-  - Bei 1 Termin pro Slide: max. 220 Zeichen.
-  - Bei 2 Terminen pro Slide: pro Termin entsprechend kürzer, meist um die 80–110 Zeichen — kürze so weit, dass beide Termine zusammen unter dem 380er-Gesamtbudget bleiben (bzw. so nah wie möglich darunter, siehe Ausnahme bei hoher Terminzahl).
+  - Bei 1 Termin pro Slide: max. 350 Zeichen.
+  - Bei 2 Terminen pro Slide: pro Termin entsprechend kürzer, meist um die 120–160 Zeichen — kürze so weit, dass beide Termine zusammen unter dem 450er-Limit (1 Absatzumbruch) bleiben (bzw. so nah wie möglich darunter, siehe Ausnahme bei hoher Terminzahl).
   - So kürzen:
     - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt (z.B. "Von Wollishofen hört man übers Jahr nicht viel, einmal aber schallt es von dort durch die ganze Stadt."). Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind (z.B. einleitende Fragen, die das Thema einer Veranstaltung sind).
     - STREICHE Sekundärinfos: Namen von Support-Acts/Nebenpersonen, zusätzliche zukünftige Termine im selben Absatz, Linkverweise ("hier", "mehr dazu", "Alles Weitere hier").

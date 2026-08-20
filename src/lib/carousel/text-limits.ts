@@ -1,4 +1,3 @@
-import type { CarouselFormat } from "@/lib/carousel/format";
 import type { Slide } from "@/lib/carousel/types";
 
 export const TEXT_LIMIT_NO_BREAK = 530;
@@ -6,8 +5,6 @@ export const TEXT_LIMIT_ONE_BREAK = 450;
 export const TEXT_LIMIT_TWO_BREAKS = 300;
 export const QUOTE_TEXT_LIMIT = 300;
 export const TIPP_ITEM_BODY_LIMIT = 280;
-/** Tsüritipp text slides: visible chars excluding tags and 🗓️. */
-export const TSUERITIPP_TEXT_LIMIT = 380;
 /** Drop role/institution from quote attribution when the full line exceeds this. */
 export const ATTRIBUTION_MAX_LENGTH = 43;
 /** Sentence-end cut is used only if it falls in [ratio * limit, limit]. */
@@ -52,12 +49,6 @@ export function visibleTextLength(html: string): number {
     i += 1;
   }
   return visible;
-}
-
-function tsueritippVisibleLength(html: string): number {
-  return visibleTextLength(
-    html.replace(/(?:\u{1F5D3}|\u{1F4C5})\u{FE0F}?|🗓️|📅/gu, ""),
-  );
 }
 
 export function truncateHtmlToVisibleChars(html: string, limit: number): string {
@@ -119,20 +110,13 @@ export function truncateHtmlToVisibleChars(html: string, limit: number): string 
   return stripTrailingEmptyMarkup(cut);
 }
 
-export function enforceSlideTextLimits(
-  slides: Slide[],
-  format: CarouselFormat = "standard",
-): Slide[] {
+export function enforceSlideTextLimits(slides: Slide[]): Slide[] {
   return slides.map((slide) => {
     if (slide.type === "text") {
-      const limit =
-        format === "tsueritipp"
-          ? TSUERITIPP_TEXT_LIMIT
-          : textLimitForParagraphBreaks(countParagraphBreaks(slide.bodyHtml));
-      const visible =
-        format === "tsueritipp"
-          ? tsueritippVisibleLength(slide.bodyHtml)
-          : visibleTextLength(slide.bodyHtml);
+      const limit = textLimitForParagraphBreaks(
+        countParagraphBreaks(slide.bodyHtml),
+      );
+      const visible = visibleTextLength(slide.bodyHtml);
       if (visible <= limit) return slide;
       return {
         ...slide,
