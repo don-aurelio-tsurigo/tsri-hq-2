@@ -68,8 +68,8 @@ export function DamPublishDialog({
           Ins Archiv verschieben
         </h2>
         <p className="mt-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-sm">
-          Verschiebe nur Fotos ins Archiv, die für Artikel benützt werden oder
-          einen potenziellen Wert in der Zukunft haben.
+          Verschiebe nur Fotos ins Archiv die du möglicherweise benützen wirst
+          oder die in Zukunft für andere wertvoll sein könnten.
         </p>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Kontext und Collection sind Pflicht. Alt-Text wird automatisch generiert.
