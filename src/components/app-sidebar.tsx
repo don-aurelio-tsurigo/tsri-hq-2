@@ -85,10 +85,12 @@ function NavLink({
         "flex items-center gap-2.5 rounded-xl transition-colors",
         nested
           ? "px-3 py-1.5 text-[0.8125rem] font-medium"
-          : "px-3 py-2 text-sm font-semibold",
+          : "px-3 py-2 text-sm font-bold tracking-wider uppercase",
         active
           ? "bg-[var(--highlight)] !text-[#0a0a0a]"
-          : "text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white",
+          : nested
+            ? "text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white"
+            : "text-white hover:bg-white/10",
         className ?? "",
       ].join(" ")}
     >
@@ -97,7 +99,7 @@ function NavLink({
         className={[
           "shrink-0",
           nested ? "size-3.5" : "size-4",
-          active ? "opacity-90" : "opacity-70",
+          active ? "opacity-90" : nested ? "opacity-70" : "opacity-90",
         ].join(" ")}
         strokeWidth={1.75}
       />
@@ -111,14 +113,12 @@ function NavTopLink({
   active,
   icon: Icon,
   children,
-  uppercase = false,
   onNavigate,
 }: {
   href: string;
   active: boolean;
   icon: LucideIcon;
   children: ReactNode;
-  uppercase?: boolean;
   onNavigate?: () => void;
 }) {
   return (
@@ -126,8 +126,7 @@ function NavTopLink({
       href={href}
       onClick={onNavigate}
       className={[
-        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold transition-colors",
-        uppercase ? "tracking-wider uppercase" : "",
+        "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold tracking-wider uppercase transition-colors",
         active
           ? "bg-[var(--highlight)] !text-[#0a0a0a]"
           : "text-white hover:bg-white/10",
@@ -326,14 +325,14 @@ export function AppSidebar({
 
       <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4">
         <div className="mb-2 flex flex-col gap-0.5">
-          <NavLink
+          <NavTopLink
             href="/home"
             active={pathname === "/home" || pathname === "/inbox"}
             icon={Home}
             onNavigate={onMobileClose}
           >
             Home
-          </NavLink>
+          </NavTopLink>
         </div>
 
         <NavSection
@@ -390,7 +389,6 @@ export function AppSidebar({
             pathname === "/carousel" || pathname.startsWith("/carousel/")
           }
           icon={Images}
-          uppercase
           onNavigate={onMobileClose}
         >
           Social Media
@@ -422,7 +420,7 @@ export function AppSidebar({
             icon={Image}
             onNavigate={onMobileClose}
           >
-            Meine Fotos
+            Meine Uploads
           </NavLink>
           <NavLink
             href="/dam/archive"
@@ -524,7 +522,6 @@ export function AppSidebar({
             href="/ads"
             active={pathname === "/ads" || pathname.startsWith("/ads/")}
             icon={Megaphone}
-            uppercase
             onNavigate={onMobileClose}
           >
             Werbung
@@ -538,7 +535,6 @@ export function AppSidebar({
               pathname === "/payrexx" || pathname.startsWith("/payrexx/")
             }
             icon={Wallet}
-            uppercase
             onNavigate={onMobileClose}
           >
             Finance
