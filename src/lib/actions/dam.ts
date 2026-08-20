@@ -148,6 +148,25 @@ export async function createDamCollection(
   return { collection };
 }
 
+export async function deleteDamCollections(
+  collectionIds: string[],
+): Promise<{ error?: string; count?: number; names?: string[]; ids?: string[] }> {
+  await requireMembership();
+  const parsed = z.array(z.string().min(1)).min(1).max(50).safeParse(collectionIds);
+  if (!parsed.success) return { error: "Keine Collection gewählt." };
+  const rows = await prisma.collection.findMany({
+    where: { id: { in: parsed.data } },
+    select: { id: true, name: true },
+  });
+  if (rows.length === 0) return { error: "Collection nicht gefunden." };
+  const ids = rows.map((row) => row.id);
+  await prisma.collection.deleteMany({
+    where: { id: { in: ids } },
+  });
+  revalidateDam();
+  return { count: rows.length, names: rows.map((row) => row.name), ids };
+}
+
 export async function assignAssetsToCollection(input: {
   assetIds: string[];
   collectionId?: string;

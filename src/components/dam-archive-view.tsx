@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { FolderMinus, SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { DamArchiveDeleteCollectionsDialog } from "@/components/dam-archive-delete-collections";
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import { DamCombobox, type DamComboboxOption } from "@/components/dam-combobox";
+import { useToast } from "@/components/toast";
 import {
   EMPTY_ARCHIVE_FILTERS,
   archiveFilterChipCount,
@@ -118,8 +120,10 @@ export function DamArchiveView({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [pending, startTransition] = useTransition();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const filters = useMemo(
     () => parseArchiveFiltersFromSearchParams(searchParams),
     [searchParams],
@@ -250,6 +254,14 @@ export function DamArchiveView({
           >
             <SlidersHorizontal className="size-4" aria-hidden />
             {extraCount > 0 ? `Filter (${extraCount})` : "Filter"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <FolderMinus className="size-4" aria-hidden />
+            Collections löschen
           </button>
         </div>
 
@@ -420,6 +432,32 @@ export function DamArchiveView({
           ) : null}
         </div>
       )}
+
+      {deleteOpen ? (
+        <DamArchiveDeleteCollectionsDialog
+          options={collectionOptions}
+          remote={facets.collectionsTruncated}
+          pending={pending}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={({ names, ids }) => {
+            setDeleteOpen(false);
+            const deletedCurrent = ids.includes(filters.collectionId);
+            showToast({
+              message:
+                names.length === 1
+                  ? `Collection «${names[0]}» gelöscht.`
+                  : `${names.length} Collections gelöscht.`,
+            });
+            startTransition(() => {
+              if (deletedCurrent) {
+                router.replace(archiveHref({ ...filters, collectionId: "" }));
+              } else {
+                router.refresh();
+              }
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
