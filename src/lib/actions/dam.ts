@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { parseEditParams } from "@/lib/dam/edit-params";
+import { applyKeywordChanges, uniqueKeywords } from "@/lib/dam/keywords";
 import { publishDamAssets } from "@/lib/dam/publish";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
@@ -119,6 +120,7 @@ export async function saveAssetEditParams(
 
 export async function createDamCollection(
   name: string,
+  options?: { isPersonal?: boolean },
 ): Promise<{ error?: string; collection?: { id: string; name: string } }> {
   const { session } = await requireMembership();
   const parsed = z.string().trim().min(1).max(120).safeParse(name);
@@ -127,7 +129,7 @@ export async function createDamCollection(
     data: {
       name: parsed.data,
       createdBy: session.user.id,
-      isPersonal: true,
+      isPersonal: options?.isPersonal ?? true,
     },
     select: { id: true, name: true },
   });
@@ -215,18 +217,133 @@ const metadataSchema = z
     message: "Keine Änderungen.",
   });
 
-function uniqueKeywords(values: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of values) {
-    const keyword = raw.trim();
-    if (!keyword) continue;
-    const key = keyword.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(keyword);
+const idListSchema = z.array(z.string().min(1)).max(20);
+const keywordListSchema = z.array(z.string().trim().min(1).max(60)).max(24);
+const bulkPublishedSchema = z
+  .object({
+    assetIds: idsSchema,
+    credit: z.string().trim().min(1).max(200).optional(),
+    notes: z.string().max(4000).nullable().optional(),
+    addKeywords: keywordListSchema.optional(),
+    removeKeywords: keywordListSchema.optional(),
+    addCollectionIds: idListSchema.optional(),
+    removeCollectionIds: idListSchema.optional(),
+  })
+  .refine(
+    (value) =>
+      value.credit !== undefined ||
+      value.notes !== undefined ||
+      (value.addKeywords?.length ?? 0) > 0 ||
+      (value.removeKeywords?.length ?? 0) > 0 ||
+      (value.addCollectionIds?.length ?? 0) > 0 ||
+      (value.removeCollectionIds?.length ?? 0) > 0,
+    { message: "Keine Änderungen." },
+  );
+
+function uniqueIds(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+export async function bulkUpdatePublishedAssets(
+  input: unknown,
+): Promise<{ error?: string; count?: number }> {
+  await requireMembership();
+  const parsed = bulkPublishedSchema.safeParse(input);
+  if (!parsed.success) return { error: "Ungültige Änderungen." };
+
+  const addKeywords = uniqueKeywords(parsed.data.addKeywords ?? []);
+  const removeKeywords = uniqueKeywords(parsed.data.removeKeywords ?? []);
+  const addCollectionIds = uniqueIds(parsed.data.addCollectionIds ?? []).filter(
+    (id) => !(parsed.data.removeCollectionIds ?? []).includes(id),
+  );
+  const removeCollectionIds = uniqueIds(parsed.data.removeCollectionIds ?? []).filter(
+    (id) => !addCollectionIds.includes(id),
+  );
+  const collectionIds = [...addCollectionIds, ...removeCollectionIds];
+  const credit = parsed.data.credit;
+  const notes =
+    parsed.data.notes === undefined
+      ? undefined
+      : parsed.data.notes?.trim()
+        ? parsed.data.notes.trim().slice(0, 4000)
+        : null;
+  const touchKeywords = addKeywords.length > 0 || removeKeywords.length > 0;
+  const touchFields = credit !== undefined || notes !== undefined;
+
+  const rows = await prisma.asset.findMany({
+    where: { id: { in: parsed.data.assetIds }, status: "published" },
+    select: { id: true, keywords: true },
+  });
+  if (rows.length === 0) return { error: "Bild nicht gefunden." };
+  const ids = rows.map((row) => row.id);
+
+  if (collectionIds.length > 0) {
+    const found = await prisma.collection.count({
+      where: { id: { in: collectionIds } },
+    });
+    if (found !== collectionIds.length) {
+      return { error: "Collection nicht gefunden." };
+    }
   }
-  return out.slice(0, 24);
+
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        if (addCollectionIds.length > 0) {
+          await tx.assetCollection.createMany({
+            data: ids.flatMap((assetId) =>
+              addCollectionIds.map((collectionId) => ({ assetId, collectionId })),
+            ),
+            skipDuplicates: true,
+          });
+        }
+        if (removeCollectionIds.length > 0) {
+          await tx.assetCollection.deleteMany({
+            where: {
+              collectionId: { in: removeCollectionIds },
+              assetId: { in: ids },
+            },
+          });
+        }
+
+        if (touchKeywords) {
+          for (const row of rows) {
+            const keywords = applyKeywordChanges(
+              row.keywords,
+              addKeywords,
+              removeKeywords,
+            );
+            const keywordsUnchanged =
+              keywords.length === row.keywords.length &&
+              keywords.every((keyword, index) => keyword === row.keywords[index]);
+            if (keywordsUnchanged && !touchFields) continue;
+            await tx.asset.update({
+              where: { id: row.id },
+              data: {
+                keywords,
+                ...(credit !== undefined ? { credit } : {}),
+                ...(notes !== undefined ? { notes } : {}),
+              },
+            });
+          }
+        } else if (touchFields) {
+          await tx.asset.updateMany({
+            where: { id: { in: ids }, status: "published" },
+            data: {
+              ...(credit !== undefined ? { credit } : {}),
+              ...(notes !== undefined ? { notes } : {}),
+            },
+          });
+        }
+      },
+      { timeout: 30_000 },
+    );
+  } catch {
+    return { error: "Änderungen konnten nicht gespeichert werden." };
+  }
+
+  revalidateDam();
+  return { count: ids.length };
 }
 
 export async function updateAssetMetadata(

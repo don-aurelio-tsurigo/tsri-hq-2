@@ -388,7 +388,7 @@ export function DamArchiveView({
             )}
           </p>
           <div className={pending ? "pointer-events-none opacity-50" : ""}>
-            <DamArchiveGrid assets={assets} />
+            <DamArchiveGrid assets={assets} facets={facets} />
           </div>
           {pageCount > 1 ? (
             <nav

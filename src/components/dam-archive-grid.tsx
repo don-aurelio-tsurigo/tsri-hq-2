@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Send, Trash2, X } from "lucide-react";
+import { Download, Pencil, Send, Trash2, X } from "lucide-react";
+import { DamArchiveBulkEditDialog } from "@/components/dam-archive-bulk-edit";
 import { DamArchivePreview } from "@/components/dam-archive-preview";
 import { DamConfirmDialog } from "@/components/dam-confirm-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { moveAssetsToTrash } from "@/lib/actions/dam";
+import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import {
@@ -16,7 +18,13 @@ import {
   type ArchiveAssetCard,
 } from "@/lib/dam/types";
 
-export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
+export function DamArchiveGrid({
+  assets,
+  facets,
+}: {
+  assets: ArchiveAssetCard[];
+  facets: ArchiveFacets;
+}) {
   const router = useRouter();
   const { showToast } = useToast();
   const [pending, startTransition] = useTransition();
@@ -28,6 +36,7 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [trashIds, setTrashIds] = useState<string[] | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [exportedAt, setExportedAt] = useState<Record<string, string>>({});
   const [exporting, setExporting] = useState(false);
   const assetKey = assets.map((asset) => asset.id).join(",");
@@ -38,13 +47,14 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
     setFocused(0);
     setAnchor(0);
     setPreviewIndex(null);
+    setBulkOpen(false);
     setError(null);
     setProgress(null);
     setExporting(false);
   }
 
   useEffect(() => {
-    if (previewIndex !== null) return;
+    if (previewIndex !== null || bulkOpen || trashIds) return;
 
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -68,7 +78,7 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [assets.length, focused, previewIndex]);
+  }, [assets.length, bulkOpen, focused, previewIndex, trashIds]);
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -109,7 +119,7 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
   }
 
   const overLimit = selected.size > MAX_ARCHIVE_DOWNLOADS;
-  const overlayOpen = previewIndex !== null || trashIds !== null;
+  const overlayOpen = previewIndex !== null || trashIds !== null || bulkOpen;
   const busy = downloading || exporting || pending;
 
   async function sendSelectedToWepublish() {
@@ -294,6 +304,18 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
             <button
               type="button"
               className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setBulkOpen(true);
+              }}
+            >
+              <Pencil className="size-4" aria-hidden />
+              Metadaten
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
               disabled={busy || overLimit}
               onClick={() => void downloadSelected()}
             >
@@ -358,6 +380,26 @@ export function DamArchiveGrid({ assets }: { assets: ArchiveAssetCard[] }) {
           onWepublishExported={(assetId, at) =>
             setExportedAt((prev) => ({ ...prev, [assetId]: at }))
           }
+        />
+      ) : null}
+
+      {bulkOpen ? (
+        <DamArchiveBulkEditDialog
+          assets={assets}
+          selectedIds={[...selected]}
+          facets={facets}
+          pending={pending}
+          onClose={() => setBulkOpen(false)}
+          onSaved={(count) => {
+            setBulkOpen(false);
+            showToast({
+              message:
+                count === 1
+                  ? "1 Bild aktualisiert."
+                  : `${count} Bilder aktualisiert.`,
+            });
+            router.refresh();
+          }}
         />
       ) : null}
 
