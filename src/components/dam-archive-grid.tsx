@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamArchiveBulkEditDialog } from "@/components/dam-archive-bulk-edit";
@@ -8,7 +8,13 @@ import { DamArchivePreview } from "@/components/dam-archive-preview";
 import { DamConfirmDialog } from "@/components/dam-confirm-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
-import { moveAssetsToTrash } from "@/lib/actions/dam";
+import {
+  assignAssetsToCollection,
+  createDamCollection,
+  moveAssetsToTrash,
+  removeAssetsFromCollection,
+  updateAssetMetadata,
+} from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
@@ -16,6 +22,7 @@ import {
   damRightsLabel,
   damWepublishExportedHint,
   type ArchiveAssetCard,
+  type AssetMetadataPatch,
 } from "@/lib/dam/types";
 
 export function DamArchiveGrid({
@@ -39,6 +46,14 @@ export function DamArchiveGrid({
   const [bulkOpen, setBulkOpen] = useState(false);
   const [exportedAt, setExportedAt] = useState<Record<string, string>>({});
   const [exporting, setExporting] = useState(false);
+  const [overrides, setOverrides] = useState<
+    Record<string, Partial<ArchiveAssetCard>>
+  >({});
+  const [extraCollections, setExtraCollections] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const extraCollectionsRef = useRef(extraCollections);
+  extraCollectionsRef.current = extraCollections;
   const assetKey = assets.map((asset) => asset.id).join(",");
   const [seenAssets, setSeenAssets] = useState(assetKey);
   if (assetKey !== seenAssets) {
@@ -51,6 +66,92 @@ export function DamArchiveGrid({
     setError(null);
     setProgress(null);
     setExporting(false);
+    setOverrides({});
+  }
+
+  const viewAssets = assets.map((asset) => ({
+    ...asset,
+    ...overrides[asset.id],
+    lastWepublishExportedAt:
+      exportedAt[asset.id] ??
+      overrides[asset.id]?.lastWepublishExportedAt ??
+      asset.lastWepublishExportedAt,
+  }));
+
+  const allCollections = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    for (const collection of facets.collections) map.set(collection.id, collection);
+    for (const asset of viewAssets) {
+      for (const collection of asset.collections) map.set(collection.id, collection);
+    }
+    for (const collection of extraCollections) map.set(collection.id, collection);
+    return [...map.values()];
+  }, [extraCollections, facets.collections, viewAssets]);
+
+  function patchAsset(assetId: string, patch: AssetMetadataPatch) {
+    setError(null);
+    setOverrides((prev) => ({
+      ...prev,
+      [assetId]: { ...prev[assetId], ...patch },
+    }));
+    startTransition(async () => {
+      const result = await updateAssetMetadata(assetId, patch);
+      if (result.error) setError(result.error);
+    });
+  }
+
+  function setAssetCollections(assetId: string, nextIds: string[]) {
+    const asset = viewAssets.find((item) => item.id === assetId);
+    if (!asset) return;
+    const prevIds = asset.collections.map((collection) => collection.id);
+    const toAdd = nextIds.filter((id) => !prevIds.includes(id));
+    const toRemove = prevIds.filter((id) => !nextIds.includes(id));
+    const nextCollections = nextIds.map((id) => {
+      const known =
+        allCollections.find((collection) => collection.id === id) ??
+        extraCollectionsRef.current.find((collection) => collection.id === id) ??
+        asset.collections.find((collection) => collection.id === id);
+      return known ?? { id, name: "Collection" };
+    });
+    setError(null);
+    setOverrides((prev) => ({
+      ...prev,
+      [assetId]: { ...prev[assetId], collections: nextCollections },
+    }));
+    for (const collectionId of toAdd) {
+      startTransition(async () => {
+        const result = await assignAssetsToCollection({
+          assetIds: [assetId],
+          collectionId,
+        });
+        if (result.error) setError(result.error);
+      });
+    }
+    for (const collectionId of toRemove) {
+      startTransition(async () => {
+        const result = await removeAssetsFromCollection({
+          assetIds: [assetId],
+          collectionId,
+        });
+        if (result.error) setError(result.error);
+      });
+    }
+  }
+
+  async function createCollection(name: string) {
+    const result = await createDamCollection(name, { isPersonal: false });
+    if (result.error || !result.collection) {
+      setError(result.error ?? "Collection konnte nicht angelegt werden.");
+      return null;
+    }
+    const collection = result.collection;
+    extraCollectionsRef.current = extraCollectionsRef.current.some(
+      (item) => item.id === collection.id,
+    )
+      ? extraCollectionsRef.current
+      : [...extraCollectionsRef.current, collection];
+    setExtraCollections(extraCollectionsRef.current);
+    return { value: collection.id, label: collection.name };
   }
 
   useEffect(() => {
@@ -60,12 +161,12 @@ export function DamArchiveGrid({
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = e.target instanceof HTMLElement ? e.target.tagName : "";
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-      if (assets.length === 0) return;
+      if (viewAssets.length === 0) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const delta = e.key === "ArrowRight" ? 1 : -1;
         setFocused((prev) => {
-          const next = (prev + delta + assets.length) % assets.length;
+          const next = (prev + delta + viewAssets.length) % viewAssets.length;
           setAnchor(next);
           return next;
         });
@@ -73,12 +174,12 @@ export function DamArchiveGrid({
       }
       if (e.key === "Enter") {
         e.preventDefault();
-        setPreviewIndex(Math.min(focused, assets.length - 1));
+        setPreviewIndex(Math.min(focused, viewAssets.length - 1));
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [assets.length, bulkOpen, focused, previewIndex, trashIds]);
+  }, [bulkOpen, focused, previewIndex, trashIds, viewAssets.length]);
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -92,12 +193,12 @@ export function DamArchiveGrid({
   function selectRange(toIndex: number) {
     const start = Math.min(anchor, toIndex);
     const end = Math.max(anchor, toIndex);
-    setSelected(new Set(assets.slice(start, end + 1).map((asset) => asset.id)));
+    setSelected(new Set(viewAssets.slice(start, end + 1).map((asset) => asset.id)));
     setFocused(toIndex);
   }
 
   async function downloadSelected() {
-    const ids = assets.filter((asset) => selected.has(asset.id)).map((asset) => asset.id);
+    const ids = viewAssets.filter((asset) => selected.has(asset.id)).map((asset) => asset.id);
     if (ids.length === 0 || downloading) return;
     if (ids.length > MAX_ARCHIVE_DOWNLOADS) {
       setError(`Maximal ${MAX_ARCHIVE_DOWNLOADS} Bilder pro Download.`);
@@ -123,7 +224,7 @@ export function DamArchiveGrid({
   const busy = downloading || exporting || pending;
 
   async function sendSelectedToWepublish() {
-    const ids = assets.filter((asset) => selected.has(asset.id)).map((asset) => asset.id);
+    const ids = viewAssets.filter((asset) => selected.has(asset.id)).map((asset) => asset.id);
     if (ids.length === 0 || exporting) return;
     setError(null);
     setExporting(true);
@@ -209,7 +310,7 @@ export function DamArchiveGrid({
       ) : null}
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {assets.map((asset, index) => {
+        {viewAssets.map((asset, index) => {
           const isFocused = focused === index;
           const isSelected = selected.has(asset.id);
           return (
@@ -368,18 +469,19 @@ export function DamArchiveGrid({
 
       {previewIndex !== null ? (
         <DamArchivePreview
-          assets={assets.map((asset) => ({
-            ...asset,
-            lastWepublishExportedAt:
-              exportedAt[asset.id] ?? asset.lastWepublishExportedAt,
-          }))}
+          assets={viewAssets}
           index={previewIndex}
+          allCollections={allCollections}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onTrash={(id) => confirmTrash([id])}
           onWepublishExported={(assetId, at) =>
             setExportedAt((prev) => ({ ...prev, [assetId]: at }))
           }
+          onPatch={patchAsset}
+          onSetCollections={setAssetCollections}
+          onCreateCollection={createCollection}
+          collectionsRemote={facets.collectionsTruncated}
         />
       ) : null}
 
@@ -392,6 +494,7 @@ export function DamArchiveGrid({
           onClose={() => setBulkOpen(false)}
           onSaved={(count) => {
             setBulkOpen(false);
+            setOverrides({});
             showToast({
               message:
                 count === 1

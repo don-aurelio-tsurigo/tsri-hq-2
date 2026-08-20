@@ -31,6 +31,17 @@ async function ownedStagingAssets(userId: string, ids: string[]) {
   return new Set(rows.map((row) => row.id));
 }
 
+async function editableAssets(userId: string, ids: string[]) {
+  const rows = await prisma.asset.findMany({
+    where: {
+      id: { in: ids },
+      OR: [{ status: "published" }, { status: "staging", uploadedBy: userId }],
+    },
+    select: { id: true },
+  });
+  return new Set(rows.map((row) => row.id));
+}
+
 export async function setAssetRating(
   assetId: string,
   rating: number,
@@ -145,7 +156,7 @@ export async function assignAssetsToCollection(input: {
   const { session } = await requireMembership();
   const parsedIds = idsSchema.safeParse(input.assetIds);
   if (!parsedIds.success) return { error: "Keine Bilder gewählt." };
-  const owned = await ownedStagingAssets(session.user.id, parsedIds.data);
+  const owned = await editableAssets(session.user.id, parsedIds.data);
   const ids = parsedIds.data.filter((id) => owned.has(id));
   if (ids.length === 0) return { error: "Bild nicht gefunden." };
 
@@ -188,7 +199,7 @@ export async function removeAssetsFromCollection(input: {
   if (!parsedIds.success || !collectionId) {
     return { error: "Keine Bilder oder Collection gewählt." };
   }
-  const owned = await ownedStagingAssets(session.user.id, parsedIds.data);
+  const owned = await editableAssets(session.user.id, parsedIds.data);
   const ids = parsedIds.data.filter((id) => owned.has(id));
   if (ids.length === 0) return { error: "Bild nicht gefunden." };
 
@@ -356,7 +367,7 @@ export async function updateAssetMetadata(
   if (!parsedId.success || !parsed.success) {
     return { error: "Ungültige Metadaten." };
   }
-  const owned = await ownedStagingAssets(session.user.id, [parsedId.data]);
+  const owned = await editableAssets(session.user.id, [parsedId.data]);
   if (!owned.has(parsedId.data)) {
     return { error: "Bild nicht gefunden." };
   }

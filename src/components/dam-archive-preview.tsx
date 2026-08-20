@@ -1,52 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Download, Send, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { ChevronLeft, ChevronRight, Download, Pencil, Send, Trash2, X } from "lucide-react";
+import { DamCombobox } from "@/components/dam-combobox";
+import {
+  DamEditControl,
+  DamKeywordPills,
+  DamMetaRow,
+  damMetaDraftKey,
+  isTypingTarget,
+  parseKeywords,
+  toDatetimeLocal,
+  type DamMetaFieldKey,
+} from "@/components/dam-meta-edit";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
-import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import {
+  DAM_RIGHTS_OPTIONS,
   damRightsLabel,
   damWepublishExportedHint,
   type ArchiveAssetCard,
+  type AssetMetadataPatch,
 } from "@/lib/dam/types";
 
 function formatTakenAt(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "";
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString("de-CH");
-}
-
-function MetaBlock({ label, children }: { label: string; children: string }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-[var(--muted)]">{label}</p>
-      <p className="mt-0.5 text-sm whitespace-pre-wrap">{children || "—"}</p>
-    </div>
-  );
 }
 
 export function DamArchivePreview({
   assets,
   index,
+  allCollections,
   onIndexChange,
   onClose,
   onTrash,
   onWepublishExported,
+  onPatch,
+  onSetCollections,
+  onCreateCollection,
+  collectionsRemote = false,
 }: {
   assets: ArchiveAssetCard[];
   index: number;
+  allCollections: { id: string; name: string }[];
   onIndexChange: (index: number) => void;
   onClose: () => void;
   onTrash?: (assetId: string) => void;
   onWepublishExported?: (assetId: string, exportedAt: string) => void;
+  onPatch: (assetId: string, patch: AssetMetadataPatch) => void;
+  onSetCollections: (assetId: string, collectionIds: string[]) => void;
+  onCreateCollection: (
+    name: string,
+  ) => Promise<{ value: string; label: string } | null>;
+  collectionsRemote?: boolean;
 }) {
   const asset = assets[index];
   const count = assets.length;
   const { showToast } = useToast();
+  const skipBlur = useRef(false);
+  const [editing, setEditing] = useState<DamMetaFieldKey | null>(null);
+  const [draft, setDraft] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -60,11 +77,82 @@ export function DamArchivePreview({
     setExportError(null);
     setExportSuccess(null);
     setExporting(false);
+    setEditing(null);
+    setDraft("");
+  }
+
+  function startEdit(field: DamMetaFieldKey) {
+    if (!asset) return;
+    skipBlur.current = false;
+    setEditing(field);
+    if (field === "keywords") setDraft(asset.keywords.join(", "));
+    else if (field === "takenAt") setDraft(toDatetimeLocal(asset.takenAt));
+    else if (field === "altText") setDraft(asset.altText ?? "");
+    else if (field === "notes") setDraft(asset.notes ?? "");
+    else if (field === "fileName") setDraft(asset.fileName);
+    else if (field === "credit") setDraft(asset.credit);
+    else setDraft(asset.rightsType);
+  }
+
+  function cancelEdit() {
+    skipBlur.current = true;
+    setEditing(null);
+    setDraft("");
+  }
+
+  function saveField(field: DamMetaFieldKey = editing ?? "fileName") {
+    if (!asset) return;
+    const value = draft.trim();
+    let patch: AssetMetadataPatch | null = null;
+    if (field === "fileName") {
+      const fileName = value.replace(/[/\\]/g, "");
+      if (!fileName) return;
+      patch = { fileName };
+    } else if (field === "credit") {
+      if (!value) return;
+      patch = { credit: value };
+    } else if (field === "rightsType") {
+      if (value !== "own" && value !== "provided" && value !== "free_use") return;
+      patch = { rightsType: value };
+    } else if (field === "altText") {
+      patch = { altText: value || null };
+    } else if (field === "keywords") {
+      patch = { keywords: parseKeywords(draft) };
+    } else if (field === "notes") {
+      patch = { notes: value || null };
+    } else if (field === "takenAt") {
+      patch = { takenAt: value ? new Date(value).toISOString() : null };
+    }
+    if (!patch) return;
+    onPatch(asset.id, patch);
+    setEditing(null);
+    setDraft("");
+  }
+
+  function onDraftKey(
+    e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
+    damMetaDraftKey(e, saveField, cancelEdit);
+  }
+
+  function onDraftBlur() {
+    if (skipBlur.current) {
+      skipBlur.current = false;
+      return;
+    }
+    if (editing) saveField(editing);
   }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (editing || isTypingTarget(e.target)) {
+        if (e.key === "Escape" && editing) {
+          e.preventDefault();
+          cancelEdit();
+        }
+        return;
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
@@ -82,7 +170,7 @@ export function DamArchivePreview({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count, index, onClose, onIndexChange]);
+  }, [count, editing, index, onClose, onIndexChange]);
 
   async function downloadOriginal() {
     if (!asset || downloading) return;
@@ -185,16 +273,39 @@ export function DamArchivePreview({
               <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
                 Archiv
               </p>
-              <h2
-                id="dam-archive-preview-title"
-                className="mt-1 break-all font-[family-name:var(--font-display)] text-base font-semibold"
-              >
-                {asset.fileName}
-              </h2>
+              {editing === "fileName" ? (
+                <DamEditControl onSave={() => saveField("fileName")}>
+                  <input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={onDraftKey}
+                    onBlur={onDraftBlur}
+                    autoFocus
+                    aria-label="Dateiname"
+                  />
+                </DamEditControl>
+              ) : (
+                <div className="mt-1 flex items-start gap-1">
+                  <h2
+                    id="dam-archive-preview-title"
+                    className="min-w-0 flex-1 break-all font-[family-name:var(--font-display)] text-base font-semibold"
+                  >
+                    {asset.fileName}
+                  </h2>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded p-0.5 text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+                    aria-label="Dateiname bearbeiten"
+                    onClick={() => startEdit("fileName")}
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
             <button
               type="button"
-              className="btn btn-ghost px-2"
+              className="btn btn-ghost shrink-0 px-2"
               aria-label="Schliessen"
               onClick={onClose}
             >
@@ -253,44 +364,194 @@ export function DamArchivePreview({
               </button>
             ) : null}
 
-            <MetaBlock label="Credit">{asset.credit}</MetaBlock>
-            <MetaBlock label="Rechte">{damRightsLabel(asset.rightsType)}</MetaBlock>
-            <MetaBlock label="Aufnahmedatum">{formatTakenAt(asset.takenAt)}</MetaBlock>
-            <MetaBlock label="Keywords">{asset.keywords.join(", ")}</MetaBlock>
-            <MetaBlock label="Alt-Text">{asset.altText ?? ""}</MetaBlock>
-            <MetaBlock label="Kontext">{asset.notes ?? ""}</MetaBlock>
+            <DamCombobox
+              id={`archive-collections-${asset.id}`}
+              label="Collections"
+              emptyLabel="Collection zuweisen…"
+              placeholder="Collection suchen…"
+              options={allCollections.map((collection) => ({
+                value: collection.id,
+                label: collection.name,
+              }))}
+              value={asset.collections.map((collection) => collection.id)}
+              multiple
+              remote={collectionsRemote}
+              onSearch={
+                collectionsRemote
+                  ? async (q) => {
+                      const params = new URLSearchParams({
+                        type: "collections",
+                        q,
+                      });
+                      const res = await fetch(`/api/dam/archive/facets?${params}`);
+                      if (!res.ok) return [];
+                      const data = (await res.json()) as {
+                        options?: { value: string; label: string }[];
+                      };
+                      return data.options ?? [];
+                    }
+                  : undefined
+              }
+              onCreate={onCreateCollection}
+              onChange={(ids) => onSetCollections(asset.id, ids)}
+            />
 
-            <div>
-              <p className="text-xs font-semibold text-[var(--muted)]">Collections</p>
-              {asset.collections.length === 0 ? (
-                <p className="mt-0.5 text-sm text-[var(--muted)]">Keine</p>
-              ) : (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {asset.collections.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={archiveCollectionHref(c.id)}
-                      className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold hover:bg-[var(--accent)] hover:text-white"
-                    >
-                      {c.name}
-                    </Link>
+            <DamMetaRow
+              label="Credit"
+              display={asset.credit}
+              field="credit"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("credit")}>
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  autoFocus
+                  aria-label="Credit"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Rechte"
+              display={damRightsLabel(asset.rightsType)}
+              field="rightsType"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("rightsType")}>
+                <select
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  autoFocus
+                  aria-label="Rechte"
+                >
+                  {DAM_RIGHTS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
                   ))}
-                </div>
-              )}
-            </div>
+                </select>
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Aufnahmedatum"
+              display={formatTakenAt(asset.takenAt)}
+              field="takenAt"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("takenAt")}>
+                <input
+                  type="datetime-local"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  autoFocus
+                  aria-label="Aufgenommen"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Keywords"
+              display={asset.keywords.join(", ")}
+              displayNode={
+                <DamKeywordPills
+                  keywords={asset.keywords}
+                  onRemove={(keyword) =>
+                    onPatch(asset.id, {
+                      keywords: asset.keywords.filter((item) => item !== keyword),
+                    })
+                  }
+                />
+              }
+              field="keywords"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("keywords")}>
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  placeholder="zürich, velo, podium"
+                  autoFocus
+                  aria-label="Keywords"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Alt-Text"
+              display={asset.altText ?? ""}
+              field="altText"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("altText")}>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  rows={3}
+                  autoFocus
+                  aria-label="Alt-Text"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Kontext"
+              display={asset.notes ?? ""}
+              field="notes"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("notes")}>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  rows={4}
+                  maxLength={4000}
+                  placeholder="Ereignis, Hintergrund, beteiligte Personen…"
+                  autoFocus
+                  aria-label="Kontext"
+                />
+              </DamEditControl>
+            </DamMetaRow>
 
             {asset.width && asset.height ? (
-              <MetaBlock label="Masse">{`${asset.width} × ${asset.height}`}</MetaBlock>
+              <div>
+                <p className="text-xs font-semibold text-[var(--muted)]">Masse</p>
+                <p className="mt-0.5 text-sm">
+                  {asset.width} × {asset.height}
+                </p>
+              </div>
             ) : null}
 
             {asset.publishedAt ? (
-              <MetaBlock label="Publiziert">
-                {new Date(asset.publishedAt).toLocaleString("de-CH")}
-              </MetaBlock>
+              <div>
+                <p className="text-xs font-semibold text-[var(--muted)]">Publiziert</p>
+                <p className="mt-0.5 text-sm">
+                  {new Date(asset.publishedAt).toLocaleString("de-CH")}
+                </p>
+              </div>
             ) : null}
 
             <p className="text-xs text-[var(--muted)]">
-              Esc schliesst, ← → blättern.
+              Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern.
             </p>
           </div>
         </aside>

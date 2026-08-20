@@ -1,119 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { Check, ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { ChevronLeft, ChevronRight, Pencil, X } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
+import {
+  DamEditControl,
+  DamKeywordPills,
+  DamMetaRow,
+  damMetaDraftKey,
+  isTypingTarget,
+  parseKeywords,
+  toDatetimeLocal,
+  type DamMetaFieldKey,
+} from "@/components/dam-meta-edit";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { cssPreviewStyle } from "@/lib/dam/edit-params";
 import { DAM_RIGHTS_OPTIONS, damWepublishExportedHint } from "@/lib/dam/types";
 import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
 
-type FieldKey =
-  | "fileName"
-  | "credit"
-  | "rightsType"
-  | "takenAt"
-  | "altText"
-  | "keywords"
-  | "notes";
+type FieldKey = DamMetaFieldKey;
 
 function rightsLabel(value: string): string {
   return DAM_RIGHTS_OPTIONS.find((opt) => opt.value === value)?.label ?? value;
-}
-
-function toDatetimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function parseKeywords(value: string): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const part of value.split(",")) {
-    const keyword = part.trim();
-    if (!keyword) continue;
-    const key = keyword.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(keyword.slice(0, 60));
-  }
-  return out.slice(0, 24);
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  const tag = target.tagName;
-  if (tag === "TEXTAREA" || tag === "SELECT") return true;
-  if (tag === "INPUT") {
-    const type = (target as HTMLInputElement).type;
-    return type !== "checkbox" && type !== "radio";
-  }
-  return target.isContentEditable;
-}
-
-function MetaRow({
-  label,
-  display,
-  field,
-  editing,
-  onEdit,
-  children,
-}: {
-  label: string;
-  display: string;
-  field: FieldKey;
-  editing: FieldKey | null;
-  onEdit: (field: FieldKey) => void;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-[var(--muted)]">{label}</p>
-        {editing !== field ? (
-          <button
-            type="button"
-            className="rounded p-0.5 text-[var(--accent)] hover:bg-[var(--accent-soft)]"
-            aria-label={`${label} bearbeiten`}
-            onClick={() => onEdit(field)}
-          >
-            <Pencil className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
-      {editing === field ? (
-        children
-      ) : (
-        <p className="mt-0.5 text-sm whitespace-pre-wrap">{display || "—"}</p>
-      )}
-    </div>
-  );
-}
-
-function EditControl({
-  children,
-  onSave,
-}: {
-  children: ReactNode;
-  onSave: () => void;
-}) {
-  return (
-    <div className="mt-1 flex items-start gap-1">
-      <div className="field min-w-0 flex-1">{children}</div>
-      <button
-        type="button"
-        className="btn btn-ghost mt-0.5 px-2"
-        aria-label="Speichern"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onSave}
-      >
-        <Check className="size-3.5" />
-      </button>
-    </div>
-  );
 }
 
 export function DamAssetDetail({
@@ -203,15 +111,7 @@ export function DamAssetDetail({
   }
 
   function onDraftKey(e: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-    if (e.key === "Enter" && e.currentTarget.tagName !== "TEXTAREA") {
-      e.preventDefault();
-      saveField();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      cancelEdit();
-    }
+    damMetaDraftKey(e, saveField, cancelEdit);
   }
 
   function onDraftBlur() {
@@ -327,7 +227,7 @@ export function DamAssetDetail({
                 Details
               </p>
               {editing === "fileName" ? (
-                <EditControl onSave={() => saveField("fileName")}>
+                <DamEditControl onSave={() => saveField("fileName")}>
                   <input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
@@ -336,7 +236,7 @@ export function DamAssetDetail({
                     autoFocus
                     aria-label="Dateiname"
                   />
-                </EditControl>
+                </DamEditControl>
               ) : (
                 <div className="mt-1 flex items-start gap-1">
                   <h2
@@ -397,14 +297,14 @@ export function DamAssetDetail({
               onChange={(ids) => onSetCollections(asset.id, ids)}
             />
 
-            <MetaRow
+            <DamMetaRow
               label="Credit"
               display={asset.credit}
               field="credit"
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("credit")}>
+              <DamEditControl onSave={() => saveField("credit")}>
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -413,17 +313,17 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Credit"
                 />
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
-            <MetaRow
+            <DamMetaRow
               label="Rechte"
               display={rightsLabel(asset.rightsType)}
               field="rightsType"
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("rightsType")}>
+              <DamEditControl onSave={() => saveField("rightsType")}>
                 <select
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -438,8 +338,8 @@ export function DamAssetDetail({
                     </option>
                   ))}
                 </select>
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
             {asset.width && asset.height ? (
               <div>
@@ -450,7 +350,7 @@ export function DamAssetDetail({
               </div>
             ) : null}
 
-            <MetaRow
+            <DamMetaRow
               label="Aufgenommen"
               display={
                 asset.takenAt ? new Date(asset.takenAt).toLocaleString("de-CH") : ""
@@ -459,7 +359,7 @@ export function DamAssetDetail({
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("takenAt")}>
+              <DamEditControl onSave={() => saveField("takenAt")}>
                 <input
                   type="datetime-local"
                   value={draft}
@@ -469,17 +369,17 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Aufgenommen"
                 />
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
-            <MetaRow
+            <DamMetaRow
               label="Alt-Text"
               display={asset.altText ?? ""}
               field="altText"
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("altText")}>
+              <DamEditControl onSave={() => saveField("altText")}>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -489,17 +389,27 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Alt-Text"
                 />
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
-            <MetaRow
+            <DamMetaRow
               label="Keywords"
               display={asset.keywords.join(", ")}
+              displayNode={
+                <DamKeywordPills
+                  keywords={asset.keywords}
+                  onRemove={(keyword) =>
+                    onPatch(asset.id, {
+                      keywords: asset.keywords.filter((item) => item !== keyword),
+                    })
+                  }
+                />
+              }
               field="keywords"
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("keywords")}>
+              <DamEditControl onSave={() => saveField("keywords")}>
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -509,17 +419,17 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Keywords"
                 />
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
-            <MetaRow
+            <DamMetaRow
               label="Kontext"
               display={asset.notes ?? ""}
               field="notes"
               editing={editing}
               onEdit={startEdit}
             >
-              <EditControl onSave={() => saveField("notes")}>
+              <DamEditControl onSave={() => saveField("notes")}>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -531,8 +441,8 @@ export function DamAssetDetail({
                   autoFocus
                   aria-label="Kontext"
                 />
-              </EditControl>
-            </MetaRow>
+              </DamEditControl>
+            </DamMetaRow>
 
             <p className="text-xs text-[var(--muted)]">
               Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
