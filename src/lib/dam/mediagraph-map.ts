@@ -180,9 +180,17 @@ export function collectionNamesFromAsset(asset: MediagraphAsset): string[] {
 }
 
 export function flattenCollectionName(collection: MediagraphCollectionRef): string {
-  const path = (collection.path_names ?? []).map((part) => asText(part)).filter(Boolean);
-  if (path.length > 0) return path.join(" / ");
-  return asText(collection.name);
+  const fromPath = (collection.path_names ?? []).map((part) => asText(part)).filter(Boolean);
+  const parts =
+    fromPath.length > 0
+      ? fromPath
+      : asText(collection.name)
+          .split(/\s*\/\s*/)
+          .map((part) => part.trim())
+          .filter(Boolean);
+  // Mediagraph: "A_upload … / Photographer / 2025-… title" → keep from the year segment.
+  if (parts.length >= 3) return parts.slice(2).join(" / ");
+  return parts.join(" / ");
 }
 
 export function shouldUseFullRendition(asset: MediagraphAsset): boolean {

@@ -43,15 +43,18 @@ Reports: migration-errors.json, migration-videos-skipped.json, migration-rights-
 
 async function main() {
   const argv = process.argv.slice(2);
+  process.stderr.write(`[mediagraph] start ${argv.join(" ") || "(assets)"}\n`);
   if (argv.includes("--help") || argv.includes("-h")) {
     printHelp();
     return;
   }
   const opts = parseImportArgs(argv);
   if (opts.collectionsOnly) {
+    process.stderr.write("[mediagraph] mode=collections\n");
     await runMediagraphCollectionImport(opts);
     return;
   }
+  process.stderr.write("[mediagraph] mode=assets\n");
   await runMediagraphAssetImport(opts);
 }
 

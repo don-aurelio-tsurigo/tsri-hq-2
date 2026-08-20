@@ -518,6 +518,7 @@ export async function runMediagraphAssetImport(opts: ImportCliOptions): Promise<
 }
 
 export async function runMediagraphCollectionImport(opts: ImportCliOptions): Promise<void> {
+  console.log("[mediagraph] collections: resolve uploader…");
   const client = mediagraphClientFromEnv();
   const uploaderUserId = await resolveUploaderId(opts);
   const perPage = opts.test ? 5 : 100;
@@ -528,14 +529,17 @@ export async function runMediagraphCollectionImport(opts: ImportCliOptions): Pro
 
   while (page <= maxPages) {
     const result = await listCollectionsPage(client, page, perPage);
+    console.log(
+      `[mediagraph] collections page ${page} got ${result.collections.length} (total ${result.total})`,
+    );
     if (result.collections.length === 0) break;
     for (const raw of result.collections) {
       const collection = raw as MediagraphCollectionRef & { id?: number | string };
       const mediagraphId = collection.id != null ? String(collection.id) : "";
       if (!mediagraphId) continue;
       const name = flattenCollectionName(collection) || `Collection ${mediagraphId}`;
+      console.log(`[mediagraph] collection ${mediagraphId} → ${name}`);
       if (opts.dryRun) {
-        console.log(`[mediagraph] collection ${mediagraphId} → ${name}`);
         continue;
       }
       const collectionId = await findOrCreateCollection({

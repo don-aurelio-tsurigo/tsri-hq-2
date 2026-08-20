@@ -89,8 +89,25 @@ describe("collectionNamesFromAsset", () => {
         name: "Leaf",
         path_names: ["Events", "2024", "Demo"],
       }),
-      "Events / 2024 / Demo",
+      "Demo",
     );
+    assert.equal(
+      flattenCollectionName({
+        path_names: [
+          "A_upload Redaktion",
+          "Emilio Masullo",
+          "2025-06-11 Podium Leerkündigungen",
+        ],
+      }),
+      "2025-06-11 Podium Leerkündigungen",
+    );
+    assert.equal(
+      flattenCollectionName({
+        name: "A_upload Redaktion / Emilio Masullo / 2025-06-11 Podium Leerkündigungen",
+      }),
+      "2025-06-11 Podium Leerkündigungen",
+    );
+    assert.equal(flattenCollectionName({ path_names: ["Nur eins"] }), "Nur eins");
   });
 });
 
