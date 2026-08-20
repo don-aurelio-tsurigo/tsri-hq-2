@@ -1,3 +1,4 @@
+import type { CarouselFormat } from "@/lib/carousel/format";
 import type { Slide } from "@/lib/carousel/types";
 
 export const TEXT_LIMIT_NO_BREAK = 530;
@@ -95,8 +96,9 @@ export function truncateHtmlToVisibleChars(html: string, limit: number): string 
     visible += 1;
     if (visible > limit) break;
     inWord = true;
+    const prev = i > 0 ? html[i - 1] : "";
     i += 1;
-    if (isSentenceEnd(ch) && visible >= minSentenceVisible) {
+    if (isSentenceEnd(ch, prev) && visible >= minSentenceVisible) {
       lastSentenceEnd = i;
       inWord = false;
     }
@@ -110,7 +112,11 @@ export function truncateHtmlToVisibleChars(html: string, limit: number): string 
   return stripTrailingEmptyMarkup(cut);
 }
 
-export function enforceSlideTextLimits(slides: Slide[]): Slide[] {
+export function enforceSlideTextLimits(
+  slides: Slide[],
+  format: CarouselFormat = "standard",
+): Slide[] {
+  if (format === "tsueritipp") return slides;
   return slides.map((slide) => {
     if (slide.type === "text") {
       const limit = textLimitForParagraphBreaks(
@@ -166,8 +172,11 @@ export function shortenQuoteAttribution(attribution: string): string {
   return name;
 }
 
-function isSentenceEnd(ch: string): boolean {
-  return ch === "." || ch === "!" || ch === "?";
+function isSentenceEnd(ch: string, prev: string): boolean {
+  if (ch !== "." && ch !== "!" && ch !== "?") return false;
+  // German ordinals ("8. September", "ab 8.") are not sentence ends.
+  if (ch === "." && /\d/.test(prev)) return false;
+  return true;
 }
 
 function matchTag(html: string, index: number): TagMatch | null {

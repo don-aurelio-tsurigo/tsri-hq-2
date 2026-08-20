@@ -13,6 +13,11 @@ import {
   createEmptyTextSlide,
   applyFormatSlideDefaults,
 } from "@/lib/carousel/slides";
+import {
+  decodeHtmlEntities,
+  sanitizeSlideHtml,
+  separateTsueritippEvents,
+} from "@/lib/carousel/html";
 import { DEFAULT_OUTRO_CTA, type Slide } from "@/lib/carousel/types";
 
 const coverDraft = z.object({
@@ -120,8 +125,8 @@ export function llmDraftToSlides(
         return applyFormatSlideDefaults(
           {
             ...cover,
-            overline: slide.overline.trim(),
-            headline: slide.headline.trim(),
+            overline: decodeHtmlEntities(slide.overline.trim()),
+            headline: decodeHtmlEntities(slide.headline.trim()),
             backgroundImageUrl: index === 0 ? coverImageUrl : null,
           },
           format,
@@ -134,7 +139,10 @@ export function llmDraftToSlides(
             ...text,
             backgroundColor,
             ink,
-            bodyHtml: sanitizeBodyHtml(slide.bodyHtml),
+            bodyHtml:
+              format === "tsueritipp"
+                ? separateTsueritippEvents(sanitizeSlideHtml(slide.bodyHtml))
+                : sanitizeSlideHtml(slide.bodyHtml),
           },
           format,
         );
@@ -146,8 +154,8 @@ export function llmDraftToSlides(
             ...quote,
             backgroundColor,
             ink,
-            quoteText: slide.quoteText.trim(),
-            attribution: slide.attribution.trim(),
+            quoteText: sanitizeSlideHtml(slide.quoteText.trim()),
+            attribution: decodeHtmlEntities(slide.attribution.trim()),
           },
           format,
         );
@@ -160,27 +168,14 @@ export function llmDraftToSlides(
             ...outro,
             backgroundColor,
             ink,
-            headline: slide.headline.trim(),
-            ctaText: format === "6ibrief" ? ctaRaw : ctaRaw.toUpperCase(),
+            headline: decodeHtmlEntities(slide.headline.trim()),
+            ctaText: decodeHtmlEntities(
+              format === "6ibrief" ? ctaRaw : ctaRaw.toUpperCase(),
+            ),
           },
           format,
         );
       }
     }
   });
-}
-
-function sanitizeBodyHtml(input: string): string {
-  const escaped = input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return escaped
-    .replace(/&lt;b&gt;/gi, "<b>")
-    .replace(/&lt;\/b&gt;/gi, "</b>")
-    .replace(/&lt;i&gt;/gi, "<i>")
-    .replace(/&lt;\/i&gt;/gi, "</i>")
-    .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
-    .replace(/\n/g, "<br/>")
-    .trim();
 }

@@ -254,15 +254,16 @@ Der Tsüritipp ist ein wöchentliches Veranstaltungs-Digest. Der Artikeltext lie
 
 Deine Aufgabe ist redaktionelles Kürzen auf das Wesentliche — nicht reines Weglassen von Sätzen am Ende, sondern gezielte Verdichtung jedes Termins.
 
+Hinweis: Textblöcke, die selbst für den Tsüritipp-Newsletter werben (z.B. "DIE WICHTIGSTEN KULTURTIPPS", "Immer mittwochs findest du im Tsüritipp..."), sind KEIN Termin und werden komplett ignoriert — nicht als Slide übernehmen.
+
 STRUKTUR:
 Cover-Slide → mehrere "text"-Slides (Termine) → Outro-Slide.
 
 SLIDE-OBERGRENZE — VERBINDLICH:
 - Die GESAMTE Slide-Anzahl (Cover + Termin-Slides + Outro) darf 10 NICHT überschreiten. Das bedeutet maximal 8 Termin-Slides.
-- Rechne das VOR der Slide-Erstellung explizit in deinen Denkschritten durch: Zähle die Anzahl Termine im Artikel. Passen sie bei 1 Termin/Slide nicht in 8 Slides (d.h. mehr als 8 Termine), musst du so viele Termin-Paare wie nötig auf gemeinsame Slides legen, damit die Gesamtzahl der Termin-Slides ≤ 8 bleibt. Beispiel: 11 Termine → mindestens 3 Slides mit je 2 Terminen nötig (3×2 + 5×1 = 8 Slides).
-- Bevorzuge beim Kombinieren benachbarte Termin-Paare, die inhaltlich beide kurz genug sind, um zusammen unter dem Längenlimit zu bleiben (siehe unten). Kürze Beschreibungstexte nötigenfalls stärker (siehe Kürzungsregeln), damit ein Paar unters Budget passt — aber niemals unter Verlust der Kernaussage oder der Pflichtangaben (Titel, Datum/Zeit/Ort).
-- Ist die Termin-Anzahl auch mit maximalem Kombinieren (jeweils 2 pro Slide, also theoretisch bis zu 16 Termine auf 8 Slides) nicht auf 8 Slides unterzubringen: kombiniere so weit wie möglich und halte dich an das Längenlimit pro Slide so gut wie möglich, auch wenn das im Extremfall knapp über dem Budget liegt. ALLE Termine müssen weiterhin vorkommen, keiner darf gestrichen werden.
-- Diese Obergrenze hat Vorrang vor dem Zeichen-Komfort-Budget pro Slide, aber nicht vor dem Gebot, alle Termine wortgetreu und mit allen Pflichtangaben abzubilden.
+- Rechne das VOR der Slide-Erstellung explizit in deinen Denkschritten durch: Zähle die Anzahl Termine im Artikel (N). Ist N ≤ 8: 1 Termin pro Slide. Ist N > 8: Du brauchst mindestens (N − 8) Slides mit je 2 Terminen, der Rest bleibt 1 Termin pro Slide. Beispiel: 11 Termine → mindestens 3 Slides mit je 2 Terminen + 5 Slides mit je 1 Termin = 8 Slides, 11 Termine.
+- KEIN TERMIN DARF WEGGELASSEN WERDEN, UM DIE OBERGRENZE EINZUHALTEN. Die Obergrenze wird ausschliesslich durch stärkeres Kombinieren (mehr Termine pro Slide) und stärkeres Kürzen der Beschreibungstexte erreicht — niemals durch Streichen ganzer Termine. Wenn du am Ende merkst, dass nicht alle Termine in 8 Slides passen: kombiniere mehr Termine pro Slide (auch 3 pro Slide ist im Extremfall erlaubt) und kürze die Beschreibungstexte härter, bevor du auch nur einen Termin streichst.
+- Bevorzuge beim Kombinieren benachbarte Termin-Paare, die inhaltlich beide kurz genug sind, um zusammen unter dem Längenlimit zu bleiben (siehe unten).
 
 KATEGORIE:
 ${categoryColorPromptBlock()}
@@ -275,56 +276,60 @@ Cover:
 - Kein overline-Feld nötig/anzuzeigen.
 
 Pro Text-Slide:
-- STANDARD: Bis zu 2 Termine pro Slide sind erlaubt und werden aktiv genutzt, wann immer nötig, um die Slide-Obergrenze (siehe oben) einzuhalten. Bei genügend Slide-Spielraum (Gesamtzahl bleibt klar unter 8 Termin-Slides) darf 1 Termin pro Slide bleiben, wenn das den Text besser lesbar macht.
-- LÄNGENLIMIT (abhängig von Absatzstruktur, gleiche Grenzen wie bei den anderen Formaten):
-  - Ohne Absatzumbruch (typisch 1 Termin, nur einzelne <br/>): max. 530 Zeichen.
-  - Mit 1 Absatzumbruch (zwei Absätze, typisch 2 Termine durch <br/><br/> getrennt): max. 450 Zeichen.
-  - Mit 2 Absatzumbrüchen (drei Absätze): max. 275 Zeichen. Vermeide mehr als 2 Umbrüche pro Slide.
-  - Zählung: sichtbare Zeichen (Titel + Beschreibungstext + Meta-Zeile, über alle Termine auf diesem Slide), OHNE <b>/<i>/<br/>-Tags.
-  - Diese Zahlen sind Obergrenzen, kein Zielwert: Schöpfe sie so weit wie möglich aus (siehe Ausnahme oben bei sehr hoher Terminzahl).
-- ZEICHENZÄHLUNG: Bevor du einen Slide mit 2 Terminen befüllst, zähle die Gesamtsumme (beide Titel + beide Beschreibungen + beide Meta-Zeilen) explizit in deinen Denkschritten durch. Liegt die Summe deutlich über 450 UND die Slide-Obergrenze lässt noch Spielraum zu: verteile die beiden Termine stattdessen auf zwei separate Slides.
+- STANDARD: Bis zu 2 (im Ausnahmefall 3) Termine pro Slide, aktiv genutzt, wann immer nötig, um die Slide-Obergrenze einzuhalten UND alle Termine unterzubringen (siehe oben, hat Vorrang vor Weglassen).
+- LÄNGENLIMIT — VERBINDLICH:
+  - Gesamtbudget pro Slide: max. 500 sichtbare Zeichen (Titel + Beschreibungstext + Meta-Zeile, über alle Termine auf diesem Slide). Darüber zu liegen ist ein Fehler, kein akzeptables Ergebnis.
+  - Zählung: OHNE <b>/<i>/<br/>-Tags und ohne das 🗓️-Zeichen. Zähle vor der Ausgabe JEDEN Slide explizit durch.
+  - Liegt ein Slide über 500: kürze AUSSCHLIESSLICH die Beschreibungstexte (Zeile 2), niemals Titel oder Datum/Ort. Streiche ganze Sätze, bis die Summe sicher ≤ 500 ist. Dann erneut zählen.
+  - Bei 2 Terminen auf einem Slide musst du die Beschreibungen von vornherein stark kürzen (siehe Zeile 2) — zwei ungekürzte Fliesstexte passen nicht ins Budget.
 
-- Jeder Termin wird als EIN Block innerhalb von bodyHtml ausgegeben, in exakt dieser Struktur:
+- Jeder Termin wird als EIN Block innerhalb von bodyHtml ausgegeben, in EXAKT dieser Struktur, IMMER mit dem 🗓️-Emoji:
   <b>Wochentag: Thema.</b><br/>
   [verdichteter Beschreibungstext]<br/>
   <i>🗓️ [Datum, Zeit, Ort]</i>
-- Bei 2 Terminen auf einem Slide: die beiden Blöcke durch <br/><br/> trennen.
-- Nur <b>, <i>, <br/> als Tags verwenden. Der Titel (Zeile 1) ist immer komplett fett, der Beschreibungstext (Zeile 2) unformatiert, die Datum/Ort-Zeile (Zeile 3) IMMER komplett kursiv.
+- Bei 2 oder 3 Terminen auf einem Slide: die Blöcke IMMER mit <br/><br/> trennen (eine Leerzeile zwischen Datum/Ort des einen und Titel des nächsten). Ein einzelnes <br/> reicht NICHT.
+
+- FORMATIERUNGS-REGEL — VERBINDLICH:
+  - Zeile 1 (Titel): IMMER komplett fett (<b>...</b>).
+  - Zeile 2 (Beschreibungstext): normal, mit optionaler <b>-Markierung einzelner zentraler Begriffe erlaubt (z.B. Veranstaltungsname, Künstler:in, Kernaussage) — sparsam einsetzen, nicht mehr als 1–2 Markierungen pro Termin, keine ganzen Sätze fett setzen.
+  - Zeile 3 (Datum/Ort): IMMER komplett kursiv (<i>...</i>) UND IMMER mit vorangestelltem 🗓️-Emoji direkt vor dem Datum. Das Emoji ist Pflicht, niemals weglassen, auch nicht wenn im Originaltext an dieser Stelle kein Emoji stand.
+  - Nur <b>, <i>, <br/> als Tags verwenden, keine anderen.
 
   Zeile 1 (Titel, fett): "Wochentag: Thema." wortwörtlich aus der ####-Überschrift, inkl. Punkt am Ende.
 
-  Zeile 2 (Beschreibungstext, normal):
-  - Bei 1 Termin pro Slide: max. 350 Zeichen.
-  - Bei 2 Terminen pro Slide: pro Termin entsprechend kürzer, meist um die 120–160 Zeichen — kürze so weit, dass beide Termine zusammen unter dem 450er-Limit (1 Absatzumbruch) bleiben (bzw. so nah wie möglich darunter, siehe Ausnahme bei hoher Terminzahl).
+  Zeile 2 (Beschreibungstext, normal, mit sparsamer Fett-Markierung erlaubt):
+  - Kürzen ist erlaubt und erwünscht. Ziel ist eine knappe Ankündigung, kein übernommener Newsletter-Absatz.
+  - Bei 1 Termin pro Slide: max. 280 Zeichen.
+  - Bei 2 Terminen pro Slide: max. 110 Zeichen pro Beschreibung (1–2 kurze Sätze). Zwei lange Absätze auf einem Slide sind verboten.
+  - Bei 3 Terminen pro Slide (nur im Ausnahmefall bei sehr hoher Terminzahl): max. 70 Zeichen pro Beschreibung.
   - So kürzen:
-    - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt (z.B. "Von Wollishofen hört man übers Jahr nicht viel, einmal aber schallt es von dort durch die ganze Stadt."). Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind (z.B. einleitende Fragen, die das Thema einer Veranstaltung sind).
+    - STREICHE komplett: rein atmosphärische/dekorative Einleitungssätze ohne eigenen Fakteninhalt. Behalte dagegen Sätze, die selbst der inhaltliche Kern der Ankündigung sind, auch wenn sie rhetorisch formuliert sind.
     - STREICHE Sekundärinfos: Namen von Support-Acts/Nebenpersonen, zusätzliche zukünftige Termine im selben Absatz, Linkverweise ("hier", "mehr dazu", "Alles Weitere hier").
     - BEHALTE: die Kernaussage (was/wo/warum relevant), zentrale Eigennamen (Veranstaltungsname, Hauptperson, Ort), das Wesentliche der Beschreibung.
     - WORTLAUT: Verwende für die behaltenen Satzteile den Original-Wortlaut, keine freie Umformulierung.
-    - AUSNAHME — Faktenrettung: Wenn ein gestrichener Einleitungssatz einen für das Verständnis nötigen Fakt trug (typischerweise einen Eigennamen wie den Veranstaltungs-/Ortsnamen), der sonst im gekürzten Text fehlen würde, integriere diesen einen Fakt minimal in den verbleibenden Satz (z.B. "Das Openair-Kino feiert..." → "Das Openair-Kino Röntgenplatz feiert..."). Das ist die einzige erlaubte Umformulierung.
-    - AUSNAHME — Grammatik bei Streichung: Wenn du einen Satzteil streichst, der eine indirekte Rede einleitet (z.B. "Im ankündigenden Post heisst es, sie verbinde..."), wandle den verbleibenden Nebensatz in einen normalen Hauptsatz um (Konjunktiv → Indikativ: "sie verbinde" → "sie verbindet"). Nur die grammatikalische Form anpassen, den Inhalt nicht verändern.
+    - AUSNAHME — Faktenrettung: Wenn ein gestrichener Einleitungssatz einen für das Verständnis nötigen Fakt trug (typischerweise einen Eigennamen), integriere diesen einen Fakt minimal in den verbleibenden Satz. Das ist die einzige erlaubte Umformulierung.
+    - AUSNAHME — Grammatik bei Streichung: Wandle bei Streichung einer indirekten-Rede-Einleitung den verbleibenden Nebensatz in einen Hauptsatz um (Konjunktiv → Indikativ). Nur die grammatikalische Form anpassen, den Inhalt nicht verändern.
 
-  Zeile 3 (Datum/Ort, kursiv): <i>🗓️ + Datum/Zeit/Ort-Kern</i>, immer wortwörtlich und vollständig erhalten. Postleitzahl und "Zürich" dürfen weggelassen werden, wenn sie redundant sind (Standardfall, da alles in Zürich stattfindet) — z.B. "Neue Hard 10, 8005 Zürich" → "🗓️ Neue Hard 10". Max. 80 Zeichen.
+  Zeile 3 (Datum/Ort, kursiv, MIT Emoji): <i>🗓️ [Datum/Zeit/Ort-Kern]</i>, immer wortwörtlich und vollständig erhalten. Postleitzahl und "Zürich" dürfen weggelassen werden, wenn redundant. Max. 80 Zeichen (ohne das Emoji mitzuzählen). Fehlt im Original ein konkretes Datum (z.B. nur "mehr auf Tsüri.ch"), übernimm den vorhandenen Hinweis trotzdem wortwörtlich mit Emoji davor.
 
 - Reihenfolge der Termine exakt wie im Original-Artikel, nicht umsortieren.
-- ALLE im Artikel genannten Termine müssen vorkommen — keiner darf weggelassen werden.
+- ALLE im Artikel genannten Termine müssen vorkommen — keiner darf weggelassen werden (siehe SLIDE-OBERGRENZE oben: kombinieren statt streichen).
 
 Outro:
-- headline: ein Hook fürs Abonnieren des Tsüritipp selbst (ersetzt den Artikeltitel vollständig — dieser taucht im Outro nicht mehr auf).
-  - 1 kurzer, prägnanter Satz oder zwei sehr kurze Sätze (kein Fliesstext) — funktioniert wie ein Titel, nicht wie ein Absatz.
-  - LÄNGENLIMIT: max. 90 Zeichen. Zähle die Zeichen explizit durch (in deinen Denkschritten), bevor du die finale Headline in die JSON-Ausgabe schreibst. Überschreitet sie 90 Zeichen, kürze und zähle erneut.
-  - KEINE NEUEN FAKTEN: Die Headline darf frei formuliert werden, aber ausschliesslich mit Bezug auf Dinge, die tatsächlich in den Terminen dieser Ausgabe vorkommen (kein Erfinden von Orten, Zahlen oder Ereignissen, die nicht genannt sind).
-  - KEINE GEDANKENSTRICHE. Verwende stattdessen Punkte, Kommas oder Doppelpunkte zur Satztrennung.
-  - AUSWAHL — VERBINDLICH: Der Tsüritipp ist ein Digest aus mehreren unabhängigen Terminen, nicht ein einzelner Artikel mit einer These. Wähle GENAU EINE Zeile aus dem folgenden Pool als Basis. Du darfst NUR einzelne Wörter ersetzen, die einen konkreten Bezug zu dieser Ausgabe herstellen (z.B. "diese Adresse" → "dieses Restaurant"), NIEMALS die Satzstruktur, die Satzanzahl oder den Grundton ändern. Erfinde KEINE neue Zeile, die nicht auf einer Pool-Zeile basiert — das ist keine Kreativaufgabe, sondern eine Auswahlaufgabe mit minimaler Lückenfüllung. Wähle NICHT automatisch die erste oder eine bestimmte bevorzugte Zeile. Begründe die Wahl in deinen Denkschritten anhand des Gesamtcharakters dieser Ausgabe (z.B. viele/vielfältige Termine → ein "mehr Orte, mehr Ideen"-Typ; besonders exklusive oder wenig bekannte Termine → ein "Insider/Geheimtipp"-Typ; eine eher generische Wochenübersicht → ein neutralerer Typ). Über mehrere Ausgaben hinweg soll eine spürbare Vielfalt entstehen, nicht wiederholt derselbe Satztyp.
+- headline: ein Hook fürs Abonnieren des TSÜRITIPP selbst (ersetzt den Artikeltitel vollständig).
+  - Bezieht sich AUSSCHLIESSLICH auf den Tsüritipp, NIEMALS auf das Züri Briefing oder einen anderen Newsletter. Das Wort "Briefing" darf im Tsüritipp-Outro nicht vorkommen.
+  - 1 kurzer, prägnanter Satz oder zwei sehr kurze Sätze (kein Fliesstext).
+  - LÄNGENLIMIT: max. 90 Zeichen, explizit durchzählen.
+  - KEINE NEUEN FAKTEN, KEINE GEDANKENSTRICHE.
+  - AUSWAHL — VERBINDLICH: Wähle GENAU EINE Zeile aus dem folgenden Pool, WORTWÖRTLICH und UNVERÄNDERT. Du darfst KEIN Wort ersetzen, umformulieren oder mit Inhalten aus anderen Formaten (z.B. Züri Briefing) mischen. Wähle diejenige Zeile, die inhaltlich am besten zum Gesamtcharakter dieser Ausgabe passt (Begründung in den Denkschritten). Es gibt keine Option, eine neue Zeile zu formulieren.
 
-  Beispielpool (GENAU EINE Zeile wählen; nur einzelne Wörter für den Bezug zur Ausgabe ersetzen):
+  Beispielpool (GENAU EINE Zeile wählen, wortwörtlich übernehmen):
   - Mehr Tipps gibt's jeden Mittwoch im Tsüritipp.
   - Zürich hat mehr zu bieten, als dieser Post. Abonniere den Tsüritipp.
   - Die besten Ecken der Stadt. Kuratiert im Tsüritipp.
   - Nicht verpassen: Noch mehr Tipps im Tsüritipp.
   - Züri Tipps abseits vom Algorithmus. Abonniere dir den Tsüritipp.
   - Insider Tipps landen zuerst im Tsüritipp. Jetzt abonnieren.
-  - Diese Adresse kennst du jetzt. Die nächste im Tsüritipp.
   - Zürich hat noch mehr Nischen. Abonniere den Tsüritipp.
   - Kein Scrollen nötig. Die besten Tipps in deine Inbox im Tsüritipp.
   - So nutzt du Zürich wirklich aus. Abonniere den Tsüritipp.
@@ -338,15 +343,24 @@ Outro:
   - Kleine Tipps, grosser Unterschied. Mehr davon im Tsüritipp.
   - Jeden Mittwoch neue Ideen für deine Stadt. Abonniere den Tsüritipp.
 
-  - Ton: nüchtern-einladend, aktivierend, kein Clickbait, keine Übertreibung, kein "Erfahre mehr" o.ä. Floskeln.
-- ctaText = "TSÜRITIPP → LINK IN DER BIO" (bleibt IMMER fix).
+  - Ton: nüchtern-einladend, aktivierend, kein Clickbait.
+- ctaText = "TSÜRITIPP → LINK IN DER BIO" (bleibt IMMER fix, exakt so geschrieben).
 
 ALLGEMEIN:
 - Sprache: Deutsch (Schweiz).
-- KEINE HTML-ENTITIES: Schreibe Sonderzeichen immer als rohes Zeichen, niemals als HTML-Entity. Also "&" statt "&amp;", '"' statt "&quot;", "'" statt "&#39;", "ü"/"ä"/"ö" als echte Umlaute statt als numerische oder benannte Entities. Das gilt auch dann, wenn das Zeichen innerhalb von <b>, <i> oder sonst im bodyHtml-Text vorkommt.
-- Keine erfundenen Fakten. Ziel ist eine prägnante, redaktionell verdichtete Übertragung jedes Termins — kein reines Anhängen/Abschneiden von Sätzen, sondern gezieltes Streichen von Nebensächlichem bei Erhalt aller wichtigen Fakten. (Ausnahme: die Outro-Headline ist bewusst neu formuliert, siehe oben — dort gilt trotzdem striktes Fakten-Verbot für neue Inhalte.)
-- Keine Gedankenstriche irgendwo in den Slides. Verwende Punkte, Kommas oder Doppelpunkte zur Satztrennung.
-- Fülle create_carousel_slides genau einmal.`;
+- KEINE HTML-ENTITIES: Schreibe "&" niemals als "&amp;", "ü"/"ä"/"ö" niemals als Entity — immer das rohe Zeichen, auch innerhalb von <b>/<i>.
+- Keine erfundenen Fakten. (Ausnahme: Outro-Headline, siehe oben — dort trotzdem striktes Fakten-Verbot für neue Inhalte.)
+- Keine Gedankenstriche irgendwo in den Slides.
+- Fülle create_carousel_slides genau einmal.
+
+SELBSTPRÜFUNG — VERBINDLICH, führe diese Checkliste in deinen Denkschritten aus, BEVOR du die finale JSON-Ausgabe schreibst:
+1. Zähle die Termine im Original-Artikel (ignoriere Eigenwerbungs-Blöcke wie "DIE WICHTIGSTEN KULTURTIPPS"). Zähle die Termine in deinem Slide-Entwurf. Stimmen beide Zahlen exakt überein? Falls nicht: welcher Termin fehlt, und wie kombinierst du ihn auf einen bestehenden Slide, statt ihn zu streichen?
+2. Durchsuche deinen kompletten Entwurf nach dem Zeichen "&". Steht irgendwo "&amp;" statt "&"? Falls ja, korrigieren.
+3. Prüfe JEDE Zeile 3 (Datum/Ort): Beginnt sie mit 🗓️ UND ist sie komplett in <i>...</i> eingeschlossen? Falls das Emoji fehlt: ergänzen.
+4. Prüfe die Gesamt-Slide-Zahl (Cover + Termine + Outro): Liegt sie bei maximal 10?
+5. Prüfe die Outro-headline: Kommt das Wort "Briefing" vor? Falls ja: durch eine tatsächliche Pool-Zeile ersetzen.
+6. Prüfe bei mehreren Terminen auf einem Slide: Steht zwischen </i> (Datum) und dem nächsten <b> (Titel) ein <br/><br/>? Falls nur ein <br/>: korrigieren.
+7. Zähle die sichtbaren Zeichen JEDES Termin-Slides (ohne Tags, ohne 🗓️). Liegt ein Slide über 500: kürze die Beschreibungstexte weiter und zähle erneut, bis jeder Slide ≤ 500 ist.`;
 
 export const SIXIBRIEF_PROMPT = `Du bist Redakteur:in bei Tsüri.ch/6iBrief und erstellst ein Instagram-Karussell (1080×1350) im 6iBrief-Format.
 

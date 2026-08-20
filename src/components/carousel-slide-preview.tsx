@@ -7,6 +7,7 @@ import {
   type SlideInk,
 } from "@/lib/carousel/categories";
 import { carouselFont, gtSectra, instrumentSans } from "@/lib/carousel/fonts";
+import { decodeHtmlEntities, sanitizeSlideHtml, separateTsueritippEvents } from "@/lib/carousel/html";
 import {
   GT_SECTRA_STACK,
   INSTRUMENT_SANS_STACK,
@@ -77,19 +78,7 @@ function CalendarIcon() {
   );
 }
 
-export function sanitizeSlideHtml(input: string): string {
-  const escaped = input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  return escaped
-    .replace(/&lt;b&gt;/gi, "<b>")
-    .replace(/&lt;\/b&gt;/gi, "</b>")
-    .replace(/&lt;i&gt;/gi, "<i>")
-    .replace(/&lt;\/i&gt;/gi, "</i>")
-    .replace(/&lt;br\s*\/?&gt;/gi, "<br/>")
-    .replace(/\n/g, "<br/>");
-}
+export { sanitizeSlideHtml } from "@/lib/carousel/html";
 
 function slideHtml(input: string): string {
   return sanitizeSlideHtml(input)
@@ -524,7 +513,7 @@ function CoverPreview({
                 padding: "10px 18px",
               }}
             >
-              {slide.overline}
+              {decodeHtmlEntities(slide.overline)}
             </p>
           ) : (
             <p
@@ -537,7 +526,7 @@ function CoverPreview({
                 fontWeight: isSixi ? 400 : undefined,
               }}
             >
-              {slide.overline}
+              {decodeHtmlEntities(slide.overline)}
             </p>
           )
         ) : null}
@@ -550,7 +539,7 @@ function CoverPreview({
             whiteSpace: isTipp || isSixi ? "pre-wrap" : undefined,
           }}
         >
-          {slide.headline || "Headline…"}
+          {decodeHtmlEntities(slide.headline) || "Headline…"}
         </p>
       </div>
       {isSixi ? null : <BrandMark ink="light" />}
@@ -575,6 +564,7 @@ function TextPreview({
   }) {
   const hasImage = Boolean(slide.backgroundImageUrl);
   const isSixi = format === "6ibrief";
+  const isTipp = format === "tsueritipp";
   const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
@@ -657,7 +647,11 @@ function TextPreview({
         onPointerUp={textDrag.onPointerUp}
         dangerouslySetInnerHTML={{
           __html:
-            slideHtml(slide.bodyHtml) ||
+            slideHtml(
+              isTipp
+                ? separateTsueritippEvents(slide.bodyHtml)
+                : slide.bodyHtml,
+            ) ||
             "<span style='opacity:0.55'>Text…</span>",
         }}
       />
@@ -792,7 +786,7 @@ function QuotePreview({
             className="font-normal opacity-95"
             style={{ fontSize: 40.05, lineHeight: 1.2, marginTop: 52 }}
           >
-            {slide.attribution}
+            {decodeHtmlEntities(slide.attribution)}
           </p>
         ) : null}
       </div>
@@ -839,13 +833,13 @@ function TippItemPreview({
             style={{ marginBottom: index === slide.items.length - 1 ? 0 : 56 }}
           >
             <p className="font-bold" style={{ fontSize: 52, lineHeight: 1.15 }}>
-              {item.title || "Wochentag: Thema."}
+              {decodeHtmlEntities(item.title) || "Wochentag: Thema."}
             </p>
             <p
               className="font-normal"
               style={{ fontSize: 40, lineHeight: 1.25, marginTop: 16 }}
             >
-              {item.body || "Termintext…"}
+              {decodeHtmlEntities(item.body) || "Termintext…"}
             </p>
             {item.meta ? (
               <p
@@ -853,7 +847,7 @@ function TippItemPreview({
                 style={{ fontSize: 36, lineHeight: 1.2, marginTop: 16 }}
               >
                 <CalendarIcon />
-                {withCalendarEmoji(item.meta).text}
+                {withCalendarEmoji(decodeHtmlEntities(item.meta)).text}
               </p>
             ) : null}
           </div>
@@ -952,7 +946,7 @@ function OutroPreview({
               fontFamily: CAROUSEL_FONT,
             }}
           >
-            {slide.ctaText || "LINK IN DER BIO"}
+            {decodeHtmlEntities(slide.ctaText) || "LINK IN DER BIO"}
           </p>
         )}
       </div>
@@ -969,7 +963,7 @@ function OutroPreview({
             color: inkColor,
           }}
         >
-          {slide.ctaText || "→ Link in der Bio"}
+          {decodeHtmlEntities(slide.ctaText) || "→ Link in der Bio"}
         </p>
       ) : (
         <BrandMark ink={ink} />
