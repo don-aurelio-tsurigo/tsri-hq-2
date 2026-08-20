@@ -141,6 +141,36 @@ describe("collectionNamesFromAsset", () => {
       "2025-06-11 Podium Leerkündigungen",
     );
     assert.equal(flattenCollectionName({ path_names: ["Nur eins"] }), "Nur eins");
+    assert.equal(
+      flattenCollectionName({
+        name: "B_aktuelle Fotos / 2026-06-30 Schwamendingen Überlandpark",
+      }),
+      "2026-06-30 Schwamendingen Überlandpark",
+    );
+    assert.equal(
+      flattenCollectionName({
+        name: "X_shop / 2024-11-20 Tsehn Jahre Tsüri Shirt Jubiläum",
+      }),
+      "2024-11-20 Tsehn Jahre Tsüri Shirt Jubiläum",
+    );
+    assert.equal(
+      flattenCollectionName({ name: "Z_archiv / 2022-12-05 Kosmos Konkurs" }),
+      "2022-12-05 Kosmos Konkurs",
+    );
+    assert.equal(flattenCollectionName({ name: "Boschbar" }), "Boschbar");
+    assert.equal(flattenCollectionName({ name: "C_transfer Mailchimp" }), "C_transfer Mailchimp");
+    assert.equal(
+      flattenCollectionName({
+        name: "B_aktuelle Fotos / Schwamendingen Überlandpark",
+      }),
+      "Schwamendingen Überlandpark",
+    );
+    assert.equal(
+      flattenCollectionName({
+        path_names: ["A_upload Redaktion", "Emilio Masullo", "Podium Leerkündigungen"],
+      }),
+      "Podium Leerkündigungen",
+    );
   });
 });
 

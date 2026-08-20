@@ -231,8 +231,10 @@ export function flattenCollectionName(collection: MediagraphCollectionRef): stri
           .split(/\s*\/\s*/)
           .map((part) => part.trim())
           .filter(Boolean);
-  // Mediagraph: "A_upload … / Photographer / 2025-… title" → keep from the year segment.
-  if (parts.length >= 3) return parts.slice(2).join(" / ");
+  const dateAt = parts.findIndex((part) => /^\d{4}-\d{2}-\d{2}(?:\b|$)/.test(part));
+  if (dateAt >= 0) return parts.slice(dateAt).join(" / ");
+  // No date in the path (often forgotten): drop parent folders, keep the leaf.
+  if (parts.length >= 2) return parts[parts.length - 1] ?? "";
   return parts.join(" / ");
 }
 
