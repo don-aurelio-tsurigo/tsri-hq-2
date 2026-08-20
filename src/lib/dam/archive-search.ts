@@ -45,7 +45,7 @@ async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
       WHERE status = 'published'::"AssetStatus"
         AND dam_asset_fts("fileName", "altText", "credit", keywords, notes)
           @@ websearch_to_tsquery('simple'::regconfig, ${query})
-      ORDER BY "publishedAt" DESC NULLS LAST, "createdAt" DESC
+      ORDER BY "takenAt" DESC NULLS LAST, "publishedAt" DESC NULLS LAST, "createdAt" DESC
       LIMIT 20000
     `;
     return rows.map((row) => row.id);
@@ -108,7 +108,11 @@ export async function searchPublishedAssets(
     prisma.asset.count({ where }),
     prisma.asset.findMany({
       where,
-      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      orderBy: [
+        { takenAt: { sort: "desc", nulls: "last" } },
+        { publishedAt: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+      ],
       skip,
       take: pageSize,
       select: {
