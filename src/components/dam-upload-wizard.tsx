@@ -292,7 +292,7 @@ function MetaFields({
           ref={collectionInputRef}
           value={newCollectionName}
           onChange={(e) => onNewCollectionName(e.target.value)}
-          placeholder="2026-08-17 – Paul Muster"
+          placeholder="2026-08-17 – Theater Spektakel"
         />
       </div>
       <div className="sm:col-span-2 space-y-2">
@@ -447,7 +447,7 @@ export function DamUploadWizard({
   const [notes, setNotes] = useState("");
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
   const [newCollectionName, setNewCollectionName] = useState(() =>
-    defaultCollectionName(meCredit),
+    defaultCollectionName(""),
   );
   const [collectionAuto, setCollectionAuto] = useState(true);
   const [drafts, setDrafts] = useState<AssetDraft[]>([]);
@@ -578,11 +578,7 @@ export function DamUploadWizard({
   }, [queued, selectedCredit, newCollectionName, collectionIds, collections]);
 
   function applyCredit(next: string, fromMe: boolean) {
-    const trimmed = next.trim();
     setCredit(next);
-    if (collectionAuto) {
-      setNewCollectionName(trimmed ? defaultCollectionName(trimmed) : "");
-    }
     if (fromMe) setCreditDraft("");
   }
 
@@ -1157,8 +1153,28 @@ export function DamUploadWizard({
             notes={notes}
             onNotes={(v) => {
               setNotes(v);
+              const nextName = collectionAuto
+                ? defaultCollectionName(v)
+                : newCollectionName;
+              if (collectionAuto) setNewCollectionName(nextName);
               if (!showPerFile) {
-                setDrafts((prev) => prev.map((d) => ({ ...d, notes: v })));
+                const title = collectionTitle(nextName, collectionIds);
+                setDrafts((prev) =>
+                  prev.map((d) => ({
+                    ...d,
+                    notes: v,
+                    ...(collectionAuto
+                      ? {
+                          newCollections: namesFrom(nextName),
+                          fileName: fileNameFor(
+                            d.sequence,
+                            d.originalName || d.fileName,
+                            title,
+                          ),
+                        }
+                      : {}),
+                  })),
+                );
               }
             }}
             collectionIds={collectionIds}
@@ -1237,9 +1253,21 @@ export function DamUploadWizard({
                         notes={draft.notes}
                         onNotes={(v) =>
                           setDrafts((prev) =>
-                            prev.map((d, i) =>
-                              i === index ? { ...d, notes: v } : d,
-                            ),
+                            prev.map((d, i) => {
+                              if (i !== index) return d;
+                              if (!collectionAuto) return { ...d, notes: v };
+                              const nextName = defaultCollectionName(v);
+                              return {
+                                ...d,
+                                notes: v,
+                                newCollections: namesFrom(nextName),
+                                fileName: fileNameFor(
+                                  d.sequence,
+                                  d.originalName || d.fileName,
+                                  collectionTitle(nextName, d.collectionIds),
+                                ),
+                              };
+                            }),
                           )
                         }
                         collectionIds={draft.collectionIds}
@@ -1262,7 +1290,8 @@ export function DamUploadWizard({
                         }
                         collections={collections}
                         newCollectionName={draft.newCollections[0] ?? ""}
-                        onNewCollectionName={(name) =>
+                        onNewCollectionName={(name) => {
+                          setCollectionAuto(false);
                           setDrafts((prev) =>
                             prev.map((d, i) =>
                               i === index
@@ -1277,8 +1306,8 @@ export function DamUploadWizard({
                                   }
                                 : d,
                             ),
-                          )
-                        }
+                          );
+                        }}
                         credit={draft.credit}
                         onCredit={(v) =>
                           setDrafts((prev) =>

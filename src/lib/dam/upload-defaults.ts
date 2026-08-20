@@ -15,8 +15,16 @@ export function zurichDateLabel(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-export function defaultCollectionName(credit: string, date = new Date()): string {
-  const name = creditDisplayName(credit);
-  if (!name) return "";
-  return `${zurichDateLabel(date)} – ${name}`;
+const COLLECTION_NAME_MAX = 120;
+
+export function defaultCollectionName(notes: string, date = new Date()): string {
+  const dateLabel = zurichDateLabel(date);
+  const context = notes
+    .trim()
+    .split(/\n/)[0]
+    ?.trim()
+    .replace(/\s+/g, " ") ?? "";
+  if (!context) return dateLabel;
+  const prefix = `${dateLabel} – `;
+  return `${prefix}${context}`.slice(0, COLLECTION_NAME_MAX);
 }
