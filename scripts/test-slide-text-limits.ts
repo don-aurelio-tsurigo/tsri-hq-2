@@ -126,12 +126,12 @@ const extra: Slide[] = [
 ];
 const extraAfter = enforceSlideTextLimits(extra);
 report(
-  "5) Satzende im 70–100%-Fenster (soll am Punkt schneiden)",
+  "5) Satzende innerhalb des Limits (soll am Punkt schneiden)",
   extra[0]!,
   extraAfter[0]!,
 );
 report(
-  "6) Satzende vor 70% (Fallback: letztes Wort)",
+  "6) Unvollständiger letzter Satz (Fragment bis zum letzten Punkt entfernen)",
   extra[1]!,
   extraAfter[1]!,
 );

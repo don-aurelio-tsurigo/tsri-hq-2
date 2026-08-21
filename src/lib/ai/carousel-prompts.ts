@@ -30,13 +30,14 @@ Cover:
 
 Text-Slides:
 - bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut.
-- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Zielband: 400–500 sichtbare Zeichen. Unter 400: mehr Originaltext auf diesen Slide holen (nächster Satz/Absatz), statt dünn zu lassen. Über 500: den letzten Absatz auf den nächsten Slide verschieben.
+- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Zielband: 400–500 sichtbare Zeichen. Unter 400: mehr Originaltext auf diesen Slide holen (nächster Satz/Absatz), statt dünn zu lassen. Über 500: den letzten vollständigen Satz auf den nächsten Slide verschieben — niemals mitten im Satz oder mitten im Wort abschneiden.
 - FETT-MARKIERUNG: Markiere pro Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) ist eine einzelne Markierung oder Verzicht akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 pro Slide.
 - ABSATZSTRUKTUR — VERBINDLICH: Jede Text-Slide hat 2 oder 3 Absätze, getrennt durch <br/><br/>. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke, Ende eines Zitats), nicht willkürlich mitten in einem Satz.
+- KEIN FRAGMENT: Jede Text-Slide muss mit einem vollständigen Satz enden (Punkt, Frage- oder Ausrufezeichen). Wenn der letzte Satz nicht mehr ganz auf den Slide passt, verschiebe den GESAMTEN Satz auf den nächsten Slide. Niemals Wörter, Satzteile oder Halbsätze am Slide-Ende abschneiden. Keinen Satz auf mehreren Slides wiederholen.
 - LÄNGENLIMIT:
   - Ziel: 400–500 sichtbare Zeichen bei 2–3 Absätzen.
-  - Hartes Maximum: 530 ohne Absatzumbruch, 450 bei 1 Umbruch (zwei Absätze), 500 bei 2 Umbrüchen (drei Absätze).
-  - Lieber einen weiteren Text-Slide eröffnen, als einen Slide über 500 zu quetschen oder Absätze wegzulassen.
+  - Hartes Maximum: 530 ohne Absatzumbruch, 500 bei 1 oder 2 Umbrüchen (zwei oder drei Absätze).
+  - Lieber einen weiteren Text-Slide eröffnen, als einen Slide über 500 zu quetschen, Absätze wegzulassen oder einen Satz zu zerteilen.
 
 Quote-Slides (falls verwendet):
 - quoteText ohne führende Anführungszeichen, wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben).

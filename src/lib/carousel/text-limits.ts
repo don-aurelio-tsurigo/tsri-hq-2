@@ -8,8 +8,6 @@ export const TEXT_LIMIT_TWO_BREAKS = 300;
 export const TEXT_LIMIT_TWO_BREAKS_STANDARD = 500;
 export const QUOTE_TEXT_LIMIT = 300;
 export const TIPP_ITEM_BODY_LIMIT = 280;
-/** Sentence-end cut is used only if it falls in [ratio * limit, limit]. */
-export const SENTENCE_CUT_MIN_RATIO = 0.7;
 
 const TAG_RE = /^<\/?(b|i|br)\s*\/?>/i;
 
@@ -32,7 +30,13 @@ export function textLimitForParagraphBreaks(
   format: CarouselFormat = "standard",
 ): number {
   if (breaks <= 0) return TEXT_LIMIT_NO_BREAK;
-  if (breaks === 1) return TEXT_LIMIT_ONE_BREAK;
+  // Standard targets 400–500 chars with 2–3 paragraphs; 2 paragraphs must
+  // not be capped below that band or the model cuts mid-sentence.
+  if (breaks === 1) {
+    return format === "standard"
+      ? TEXT_LIMIT_TWO_BREAKS_STANDARD
+      : TEXT_LIMIT_ONE_BREAK;
+  }
   if (format === "standard") return TEXT_LIMIT_TWO_BREAKS_STANDARD;
   return TEXT_LIMIT_TWO_BREAKS;
 }
@@ -56,42 +60,40 @@ export function visibleTextLength(html: string): number {
   return visible;
 }
 
-export function truncateHtmlToVisibleChars(html: string, limit: number): string {
-  if (limit <= 0) return "";
-  if (visibleTextLength(html) <= limit) return html;
+function applyTextLimit(
+  html: string,
+  limitFor: (html: string) => number,
+): string {
+  const withoutFragment = dropIncompleteTrailingSentence(html);
+  const limit = limitFor(withoutFragment);
+  return visibleTextLength(withoutFragment) <= limit
+    ? withoutFragment
+    : truncateHtmlToVisibleChars(withoutFragment, limit);
+}
 
-  const minSentenceVisible = Math.ceil(limit * SENTENCE_CUT_MIN_RATIO);
+type HtmlScan = {
+  index: number;
+  visible: number;
+  lastSentenceEnd: number;
+  endedAtSentence: boolean;
+};
+
+function scanHtml(html: string, limit = Number.POSITIVE_INFINITY): HtmlScan {
   let i = 0;
   let visible = 0;
-  let lastWordEnd = 0;
   let lastSentenceEnd = 0;
-  let inWord = false;
+  let endedAtSentence = false;
 
   while (i < html.length) {
     const tag = matchTag(html, i);
     if (tag) {
-      if (tag.name === "br") {
-        if (inWord && visible <= limit) lastWordEnd = i;
-        inWord = false;
-        i += tag.raw.length;
-        continue;
-      }
       i += tag.raw.length;
       continue;
     }
 
     const ch = html[i] ?? "";
-    if (ch === "\n" || ch === "\r") {
-      if (inWord && visible <= limit) lastWordEnd = i;
-      inWord = false;
-      i += 1;
-      continue;
-    }
-
-    if (/\s/.test(ch)) {
-      if (inWord && visible <= limit) lastWordEnd = i;
-      inWord = false;
-      visible += 1;
+    if (ch === "\n" || ch === "\r" || /\s/.test(ch)) {
+      visible += ch === "\n" || ch === "\r" ? 0 : 1;
       if (visible > limit) break;
       i += 1;
       continue;
@@ -99,21 +101,66 @@ export function truncateHtmlToVisibleChars(html: string, limit: number): string 
 
     visible += 1;
     if (visible > limit) break;
-    inWord = true;
     const prev = i > 0 ? html[i - 1] : "";
     i += 1;
-    if (isSentenceEnd(ch, prev) && visible >= minSentenceVisible) {
-      lastSentenceEnd = i;
-      inWord = false;
+    if (isSentenceEnd(ch, prev)) {
+      lastSentenceEnd = consumeClosingQuotes(html, i);
+      endedAtSentence = true;
+    } else if (!isClosingQuote(ch)) {
+      endedAtSentence = false;
     }
   }
 
-  if (visible <= limit && i >= html.length) return html;
-  if (inWord && visible <= limit) lastWordEnd = i;
+  return { index: i, visible, lastSentenceEnd, endedAtSentence };
+}
 
-  const cutAt = lastSentenceEnd > 0 ? lastSentenceEnd : lastWordEnd;
-  const cut = closeOpenTags(html.slice(0, cutAt));
-  return stripTrailingEmptyMarkup(cut);
+function isClosingQuote(ch: string): boolean {
+  return ch === "»" || ch === '"' || ch === "”" || ch === "’" || ch === "'";
+}
+
+function consumeClosingQuotes(html: string, index: number): number {
+  let i = index;
+  while (i < html.length) {
+    const tag = matchTag(html, i);
+    if (tag) {
+      if (tag.name === "br") break;
+      i += tag.raw.length;
+      continue;
+    }
+    const ch = html[i] ?? "";
+    if (isClosingQuote(ch)) {
+      i += 1;
+      continue;
+    }
+    break;
+  }
+  return i;
+}
+
+export function dropIncompleteTrailingSentence(html: string): string {
+  const { lastSentenceEnd, endedAtSentence } = scanHtml(html);
+  if (endedAtSentence || lastSentenceEnd <= 0) return html;
+  return stripTrailingEmptyMarkup(
+    closeOpenTags(html.slice(0, lastSentenceEnd)),
+  );
+}
+
+export function truncateHtmlToVisibleChars(html: string, limit: number): string {
+  if (limit <= 0) return "";
+  if (visibleTextLength(html) <= limit) {
+    return dropIncompleteTrailingSentence(html);
+  }
+
+  const { lastSentenceEnd, visible, index } = scanHtml(html, limit);
+  if (visible <= limit && index >= html.length) {
+    return dropIncompleteTrailingSentence(html);
+  }
+  // Never cut inside a sentence or word. If no sentence fits, keep the text.
+  if (lastSentenceEnd <= 0) return html;
+
+  return stripTrailingEmptyMarkup(
+    closeOpenTags(html.slice(0, lastSentenceEnd)),
+  );
 }
 
 export function enforceSlideTextLimits(
@@ -123,38 +170,22 @@ export function enforceSlideTextLimits(
   if (format === "tsueritipp") return slides;
   return slides.map((slide) => {
     if (slide.type === "text") {
-      const limit = textLimitForParagraphBreaks(
-        countParagraphBreaks(slide.bodyHtml),
-        format,
+      const bodyHtml = applyTextLimit(slide.bodyHtml, (html) =>
+        textLimitForParagraphBreaks(countParagraphBreaks(html), format),
       );
-      const visible = visibleTextLength(slide.bodyHtml);
-      if (visible <= limit) return slide;
-      return {
-        ...slide,
-        bodyHtml: truncateHtmlToVisibleChars(slide.bodyHtml, limit),
-      };
+      return bodyHtml === slide.bodyHtml ? slide : { ...slide, bodyHtml };
     }
     if (slide.type === "tipp-item") {
       const items = slide.items.map((item) => {
-        const body =
-          visibleTextLength(item.body) <= TIPP_ITEM_BODY_LIMIT
-            ? item.body
-            : truncateHtmlToVisibleChars(item.body, TIPP_ITEM_BODY_LIMIT);
+        const body = applyTextLimit(item.body, () => TIPP_ITEM_BODY_LIMIT);
         return body === item.body ? item : { ...item, body };
       });
       if (items.every((item, i) => item === slide.items[i])) return slide;
       return { ...slide, items };
     }
     if (slide.type === "quote") {
-      const quoteText =
-        visibleTextLength(slide.quoteText) <= QUOTE_TEXT_LIMIT
-          ? slide.quoteText
-          : truncateHtmlToVisibleChars(slide.quoteText, QUOTE_TEXT_LIMIT);
-      if (quoteText === slide.quoteText) return slide;
-      return {
-        ...slide,
-        quoteText,
-      };
+      const quoteText = applyTextLimit(slide.quoteText, () => QUOTE_TEXT_LIMIT);
+      return quoteText === slide.quoteText ? slide : { ...slide, quoteText };
     }
     return slide;
   });
