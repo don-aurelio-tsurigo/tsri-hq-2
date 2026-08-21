@@ -1323,78 +1323,6 @@ export function DamUploadWizard({
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             Batch-Metadaten
           </h2>
-          <p className="text-sm text-[var(--muted)]">
-            Die KI schlägt sichtbare Motive vor (max. 12, konservativ). Du kannst
-            streichen oder bis 24 ergänzen. Ereignis-Kontext gehört in die
-            Beschreibung, nicht in die Keywords.
-          </p>
-          {Object.values(tagStatus).includes("quota") ? (
-            <p className="text-sm text-[var(--muted)]">
-              KI-Limit erreicht (30 Aufrufe / Stunde). Keywords kannst du manuell
-              setzen.
-            </p>
-          ) : null}
-          <MetadataPhotoGrid
-            drafts={drafts}
-            tagStatus={tagStatus}
-            onKeywords={(r2Key, keywords) =>
-              setDrafts((prev) =>
-                prev.map((d) => (d.r2Key === r2Key ? { ...d, keywords } : d)),
-              )
-            }
-            onRetry={(r2Key) => {
-              autotagInflight.delete(r2Key);
-              setTagStatus((prev) => ({ ...prev, [r2Key]: "loading" }));
-              void requestAutotag(r2Key)
-                .then((tags) => {
-                  setDrafts((prev) =>
-                    prev.map((d) =>
-                      d.r2Key === r2Key
-                        ? {
-                            ...d,
-                            keywords: uniqueKeywords([
-                              ...d.keywords,
-                              ...tags.keywords,
-                            ]),
-                            altText: tags.altText ?? d.altText,
-                          }
-                        : d,
-                    ),
-                  );
-                  setTagStatus((prev) => ({
-                    ...prev,
-                    [r2Key]:
-                      tags.skipped === "quota"
-                        ? "quota"
-                        : tags.skipped === "no_key"
-                          ? "no_key"
-                          : "done",
-                  }));
-                })
-                .catch(() => {
-                  setTagStatus((prev) => ({ ...prev, [r2Key]: "error" }));
-                });
-            }}
-          />
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={applyBatchToDrafts}
-            >
-              Auf alle anwenden
-            </button>
-            <button
-              type="button"
-              className={showPerFile ? "btn btn-primary" : "btn btn-ghost"}
-              onClick={() => {
-                if (!showPerFile) applyBatchToDrafts();
-                setShowPerFile(true);
-              }}
-            >
-              Einzeln bearbeiten
-            </button>
-          </div>
           <MetaFields
             fieldId="batch"
             rightsType={rightsType}
@@ -1471,6 +1399,25 @@ export function DamUploadWizard({
             collectionInputRef={collectionInputRef}
             autoFocusCollection
           />
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={applyBatchToDrafts}
+            >
+              Auf alle anwenden
+            </button>
+            <button
+              type="button"
+              className={showPerFile ? "btn btn-primary" : "btn btn-ghost"}
+              onClick={() => {
+                if (!showPerFile) applyBatchToDrafts();
+                setShowPerFile(true);
+              }}
+            >
+              Einzeln bearbeiten
+            </button>
+          </div>
           {showPerFile ? (
             <ul className="space-y-3">
               {drafts.map((draft, index) => (
@@ -1578,6 +1525,59 @@ export function DamUploadWizard({
               ))}
             </ul>
           ) : null}
+          <p className="text-sm text-[var(--muted)]">
+            Die KI schlägt sichtbare Motive vor (max. 12, konservativ). Du kannst
+            streichen oder bis 24 ergänzen. Ereignis-Kontext gehört in die
+            Beschreibung, nicht in die Keywords.
+          </p>
+          {Object.values(tagStatus).includes("quota") ? (
+            <p className="text-sm text-[var(--muted)]">
+              KI-Limit erreicht (30 Aufrufe / Stunde). Keywords kannst du manuell
+              setzen.
+            </p>
+          ) : null}
+          <MetadataPhotoGrid
+            drafts={drafts}
+            tagStatus={tagStatus}
+            onKeywords={(r2Key, keywords) =>
+              setDrafts((prev) =>
+                prev.map((d) => (d.r2Key === r2Key ? { ...d, keywords } : d)),
+              )
+            }
+            onRetry={(r2Key) => {
+              autotagInflight.delete(r2Key);
+              setTagStatus((prev) => ({ ...prev, [r2Key]: "loading" }));
+              void requestAutotag(r2Key)
+                .then((tags) => {
+                  setDrafts((prev) =>
+                    prev.map((d) =>
+                      d.r2Key === r2Key
+                        ? {
+                            ...d,
+                            keywords: uniqueKeywords([
+                              ...d.keywords,
+                              ...tags.keywords,
+                            ]),
+                            altText: tags.altText ?? d.altText,
+                          }
+                        : d,
+                    ),
+                  );
+                  setTagStatus((prev) => ({
+                    ...prev,
+                    [r2Key]:
+                      tags.skipped === "quota"
+                        ? "quota"
+                        : tags.skipped === "no_key"
+                          ? "no_key"
+                          : "done",
+                  }));
+                })
+                .catch(() => {
+                  setTagStatus((prev) => ({ ...prev, [r2Key]: "error" }));
+                });
+            }}
+          />
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
