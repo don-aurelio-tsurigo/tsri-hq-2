@@ -1,9 +1,13 @@
 import sharp from "sharp";
-import { looksLikeImageBytes } from "@/lib/dam/accept";
-import { renderPublishedMaster } from "@/lib/dam/apply-edits";
-import { buildArchiveKey, derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
+import { looksLikeImageBytes, sniffImageContentType } from "@/lib/dam/accept";
+import {
+  buildArchiveKey,
+  derivativeKey,
+  fileExtension,
+} from "@/lib/dam/filename";
+import { r2KeysForAsset } from "@/lib/dam/r2-keys";
 import { prisma } from "@/lib/db";
-import { getObjectBuffer, putObject } from "@/lib/r2";
+import { deleteObject, getObject, getObjectBuffer, putObject } from "@/lib/r2";
 
 const CONCURRENCY = 2;
 
@@ -46,6 +50,39 @@ export type PublishResult = {
   errors: { assetId: string; error: string }[];
 };
 
+async function copyObject(fromKey: string, toKey: string): Promise<void> {
+  const obj = await getObject(fromKey);
+  await putObject(toKey, obj.buffer, obj.contentType);
+}
+
+async function putUneditedDerivatives(archiveKey: string, original: Buffer) {
+  const [thumb, web] = await Promise.all([
+    sharp(original)
+      .rotate()
+      .resize({ width: 480, withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer(),
+    sharp(original)
+      .rotate()
+      .resize({ width: 2000, withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer(),
+  ]);
+  await Promise.all([
+    putObject(derivativeKey(archiveKey, "thumb"), thumb, "image/webp"),
+    putObject(derivativeKey(archiveKey, "web"), web, "image/webp"),
+  ]);
+}
+
+async function deleteKeysQuietly(keys: string[]) {
+  const results = await Promise.allSettled(keys.map((key) => deleteObject(key)));
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.warn("[dam] staging cleanup skipped", result.reason);
+    }
+  }
+}
+
 async function publishOne(
   userId: string,
   item: PublishItem,
@@ -65,7 +102,6 @@ async function publishOne(
       id: true,
       r2Key: true,
       fileName: true,
-      editParams: true,
     },
   });
   if (!asset) return { error: "Bild nicht gefunden." };
@@ -86,45 +122,35 @@ async function publishOne(
     return { error: "Datei ist kein Bild." };
   }
 
-  const published = await renderPublishedMaster(original, asset.editParams);
   const archiveKey = buildArchiveKey({
     userId,
     assetId: asset.id,
-    ext: "jpg",
+    ext: fileExtension(asset.r2Key),
   });
-  const [thumb, web] = await Promise.all([
-    sharp(published.buffer)
-      .resize({ width: 480, withoutEnlargement: true })
-      .webp({ quality: 72 })
-      .toBuffer(),
-    sharp(published.buffer)
-      .resize({ width: 2000, withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer(),
-  ]);
+  const contentType = sniffImageContentType(original) ?? "image/jpeg";
+  await putObject(archiveKey, original, contentType);
 
-  await Promise.all([
-    putObject(archiveKey, published.buffer, "image/jpeg"),
-    putObject(derivativeKey(archiveKey, "thumb"), thumb, "image/webp"),
-    putObject(derivativeKey(archiveKey, "web"), web, "image/webp"),
-  ]);
+  try {
+    await copyObject(derivativeKey(asset.r2Key, "thumb"), derivativeKey(archiveKey, "thumb"));
+    await copyObject(derivativeKey(asset.r2Key, "web"), derivativeKey(archiveKey, "web"));
+  } catch {
+    await putUneditedDerivatives(archiveKey, original);
+  }
 
   await prisma.asset.update({
     where: { id: asset.id },
     data: {
       r2Key: archiveKey,
-      fileName: replaceKeyExtension(asset.fileName, "jpg"),
       notes,
       status: "published",
       publishedAt: new Date(),
-      width: published.width ?? undefined,
-      height: published.height ?? undefined,
       collections: {
         deleteMany: {},
         create: collectionIds.map((collectionId) => ({ collectionId })),
       },
     },
   });
+  await deleteKeysQuietly(r2KeysForAsset(asset.r2Key));
   return {};
 }
 

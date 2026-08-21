@@ -61,6 +61,15 @@ export function buildMediagraphArchiveKey(mediagraphId: string, ext: string): st
   return `archive/mediagraph-import/${id}-${shortUuid}.${cleanExt}`;
 }
 
+export function fileExtension(nameOrKey: string): string {
+  const base = nameOrKey.split("/").pop() ?? nameOrKey;
+  const dot = base.lastIndexOf(".");
+  if (dot < 0) return "jpg";
+  const ext = base.slice(dot + 1).toLowerCase();
+  if (!ext) return "jpg";
+  return ext === "jpeg" ? "jpg" : ext;
+}
+
 export function replaceKeyExtension(key: string, ext: string): string {
   const clean = ext.replace(/^\./, "").toLowerCase();
   const slash = key.lastIndexOf("/");

@@ -18,6 +18,7 @@ import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import { cssPreviewStyle } from "@/lib/dam/edit-params";
 import {
   DAM_RIGHTS_OPTIONS,
   damRightsLabel,
@@ -45,6 +46,8 @@ export function DamArchivePreview({
   onSetCollections,
   onCreateCollection,
   collectionsRemote = false,
+  keyboardEnabled = true,
+  onEdit,
 }: {
   assets: ArchiveAssetCard[];
   index: number;
@@ -59,6 +62,8 @@ export function DamArchivePreview({
     name: string,
   ) => Promise<{ value: string; label: string } | null>;
   collectionsRemote?: boolean;
+  keyboardEnabled?: boolean;
+  onEdit: () => void;
 }) {
   const asset = assets[index];
   const count = assets.length;
@@ -146,6 +151,7 @@ export function DamArchivePreview({
   }
 
   useEffect(() => {
+    if (!keyboardEnabled) return;
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (editing || isTypingTarget(e.target)) {
@@ -168,11 +174,16 @@ export function DamArchivePreview({
       if (e.key === "ArrowRight") {
         e.preventDefault();
         onIndexChange((index + 1) % count);
+        return;
+      }
+      if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        onEdit();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count, editing, index, onClose, onIndexChange]);
+  }, [count, editing, index, keyboardEnabled, onClose, onEdit, onIndexChange]);
 
   async function downloadOriginal() {
     if (!asset || downloading) return;
@@ -235,12 +246,15 @@ export function DamArchivePreview({
       >
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`/api/dam/assets/${asset.id}/file?variant=original`}
-              alt={asset.altText || asset.fileName}
-              className="block max-h-[80vh] max-w-full object-contain"
-            />
+            <div className="inline-block max-h-full max-w-full overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/dam/assets/${asset.id}/file?variant=web`}
+                alt={asset.altText || asset.fileName}
+                className="block max-h-[70vh] max-w-full object-contain"
+                style={cssPreviewStyle(asset.editParams, asset)}
+              />
+            </div>
             {count > 1 ? (
               <>
                 <button
@@ -262,11 +276,15 @@ export function DamArchivePreview({
               </>
             ) : null}
           </div>
-          {count > 1 ? (
-            <p className="px-4 py-3 text-sm text-white/70">
-              {index + 1} / {count}
+          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
+            <p className="text-sm text-white/70">
+              {count > 1 ? `${index + 1} / ${count}` : "\u00a0"}
             </p>
-          ) : null}
+            <button type="button" className="btn btn-highlight" onClick={onEdit}>
+              <Pencil className="size-4" aria-hidden />
+              Bild bearbeiten
+            </button>
+          </div>
         </div>
 
         <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--border)] lg:w-[22rem] lg:border-t-0 lg:border-l">
@@ -325,7 +343,7 @@ export function DamArchivePreview({
               onClick={downloadOriginal}
             >
               <Download className="size-4" aria-hidden />
-              {downloading ? "Wird vorbereitet…" : "Original herunterladen"}
+              {downloading ? "Wird vorbereitet…" : "Herunterladen"}
             </button>
             {downloadError ? (
               <p className="text-sm text-red-600">{downloadError}</p>
@@ -609,7 +627,8 @@ export function DamArchivePreview({
             ) : null}
 
             <p className="text-xs text-[var(--muted)]">
-              Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern.
+              Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
+              E Bildeditor.
             </p>
           </div>
         </aside>

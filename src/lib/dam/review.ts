@@ -1,4 +1,5 @@
 import { ARCHIVE_PAGE_SIZE } from "@/lib/dam/archive-filters";
+import { parseEditParams } from "@/lib/dam/edit-params";
 import {
   parseReviewOpenedAt,
   reviewHref,
@@ -75,6 +76,7 @@ export async function searchDamArchiveReviewQueue(
         width: true,
         height: true,
         rightsType: true,
+        editParams: true,
         collections: {
           select: { collection: { select: { id: true, name: true } } },
         },
@@ -99,6 +101,7 @@ export async function searchDamArchiveReviewQueue(
       rightsType: row.rightsType,
       collections: row.collections.map((link) => link.collection),
       lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
+      editParams: parseEditParams(row.editParams),
     })),
     total,
     page: safePage,

@@ -1,12 +1,15 @@
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import { prisma } from "@/lib/db";
-import { presignGetUrl, R2_DOWNLOAD_EXPIRES_IN } from "@/lib/r2";
 
 export type SignedDownloadFile = {
   id: string;
   url: string;
   fileName: string;
 };
+
+export function publishedExportPath(assetId: string): string {
+  return `/api/dam/assets/${encodeURIComponent(assetId)}/file?variant=export`;
+}
 
 export async function createPublishedDownloadLinks(
   userId: string,
@@ -17,7 +20,7 @@ export async function createPublishedDownloadLinks(
 
   const assets = await prisma.asset.findMany({
     where: { id: { in: unique }, status: "published" },
-    select: { id: true, r2Key: true, fileName: true },
+    select: { id: true, fileName: true },
   });
   if (assets.length === 0) return { error: "Keine publizierten Bilder gefunden." };
 
@@ -26,16 +29,11 @@ export async function createPublishedDownloadLinks(
     .map((id) => byId.get(id))
     .filter((asset): asset is (typeof assets)[number] => Boolean(asset));
 
-  const files: SignedDownloadFile[] = await Promise.all(
-    ordered.map(async (asset) => ({
-      id: asset.id,
-      fileName: asset.fileName,
-      url: await presignGetUrl(asset.r2Key, {
-        expiresIn: R2_DOWNLOAD_EXPIRES_IN,
-        fileName: asset.fileName,
-      }),
-    })),
-  );
+  const files: SignedDownloadFile[] = ordered.map((asset) => ({
+    id: asset.id,
+    fileName: asset.fileName,
+    url: publishedExportPath(asset.id),
+  }));
 
   await prisma.exportLog.createMany({
     data: files.map((file) => ({
@@ -44,5 +42,5 @@ export async function createPublishedDownloadLinks(
     })),
   });
 
-  return { files, expiresIn: R2_DOWNLOAD_EXPIRES_IN };
+  return { files, expiresIn: 120 };
 }

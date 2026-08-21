@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamArchiveBulkEditDialog } from "@/components/dam-archive-bulk-edit";
 import { DamArchivePreview } from "@/components/dam-archive-preview";
+import { DamAssetEditor } from "@/components/dam-asset-editor";
 import { DamConfirmDialog } from "@/components/dam-confirm-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
@@ -13,11 +14,13 @@ import {
   createDamCollection,
   moveAssetsToTrash,
   removeAssetsFromCollection,
+  saveAssetEditParams,
   updateAssetMetadata,
 } from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
+import { cssPreviewStyle } from "@/lib/dam/edit-params";
 import {
   damRightsLabel,
   damWepublishExportedHint,
@@ -39,6 +42,7 @@ export function DamArchiveGrid({
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [editorId, setEditorId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +66,7 @@ export function DamArchiveGrid({
     setFocused(0);
     setAnchor(0);
     setPreviewIndex(null);
+    setEditorId(null);
     setBulkOpen(false);
     setError(null);
     setProgress(null);
@@ -155,7 +160,7 @@ export function DamArchiveGrid({
   }
 
   useEffect(() => {
-    if (previewIndex !== null || bulkOpen || trashIds) return;
+    if (previewIndex !== null || bulkOpen || trashIds || editorId) return;
 
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -179,7 +184,7 @@ export function DamArchiveGrid({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [bulkOpen, focused, previewIndex, trashIds, viewAssets.length]);
+  }, [bulkOpen, editorId, focused, previewIndex, trashIds, viewAssets.length]);
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -220,7 +225,11 @@ export function DamArchiveGrid({
   }
 
   const overLimit = selected.size > MAX_ARCHIVE_DOWNLOADS;
-  const overlayOpen = previewIndex !== null || trashIds !== null || bulkOpen;
+  const overlayOpen =
+    previewIndex !== null || trashIds !== null || bulkOpen || editorId !== null;
+  const editorAsset = editorId
+    ? (viewAssets.find((asset) => asset.id === editorId) ?? null)
+    : null;
   const busy = downloading || exporting || pending;
 
   async function sendSelectedToWepublish() {
@@ -338,12 +347,13 @@ export function DamArchiveGrid({
                   }
                 }}
               >
-                <div className="relative flex aspect-[4/3] items-center justify-center bg-[var(--panel-muted)] p-2">
+                <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[var(--panel-muted)] p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/dam/assets/${asset.id}/file?variant=thumb`}
                     alt={asset.altText || asset.fileName}
                     className="max-h-full max-w-full object-contain"
+                    style={cssPreviewStyle(asset.editParams, asset)}
                   />
                   <label
                     className="absolute top-1 left-1 rounded bg-white/90 px-1 py-0.5"
@@ -482,6 +492,32 @@ export function DamArchiveGrid({
           onSetCollections={setAssetCollections}
           onCreateCollection={createCollection}
           collectionsRemote={facets.collectionsTruncated}
+          keyboardEnabled={!editorAsset}
+          onEdit={() => {
+            const asset = viewAssets[previewIndex];
+            if (asset) setEditorId(asset.id);
+          }}
+        />
+      ) : null}
+
+      {editorAsset ? (
+        <DamAssetEditor
+          fileName={editorAsset.fileName}
+          imageSrc={`/api/dam/assets/${editorAsset.id}/file?variant=web`}
+          initial={editorAsset.editParams}
+          pending={pending}
+          onClose={() => setEditorId(null)}
+          onSave={(params) => {
+            setOverrides((prev) => ({
+              ...prev,
+              [editorAsset.id]: { ...prev[editorAsset.id], editParams: params },
+            }));
+            startTransition(async () => {
+              const result = await saveAssetEditParams(editorAsset.id, params);
+              if (result.error) setError(result.error);
+              else setEditorId(null);
+            });
+          }}
         />
       ) : null}
 

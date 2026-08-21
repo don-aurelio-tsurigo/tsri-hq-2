@@ -10,8 +10,9 @@ import {
 import { decodeHeicIfNeeded } from "@/lib/dam/heic";
 
 /**
- * Apply non-destructive editParams for publish (Phase 4).
+ * Apply non-destructive editParams onto an original.
  * Geometry (rotate / flip / straighten-cover / crop) runs before colour ops.
+ * The archive master stays unedited; this is used for download, WePublish, and tests.
  */
 export async function applyDamEdits(
   input: Buffer,
@@ -91,6 +92,7 @@ export async function applyDamEditsToOriented(
   return pipeline.toBuffer();
 }
 
+/** JPEG with the recipe applied — for download / WePublish, not the stored original. */
 export async function renderPublishedMaster(
   original: Buffer,
   raw: unknown,

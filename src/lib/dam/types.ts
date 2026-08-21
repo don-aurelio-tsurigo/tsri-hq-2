@@ -81,4 +81,5 @@ export type ArchiveAssetCard = {
   rightsType: DamRightsType;
   collections: { id: string; name: string }[];
   lastWepublishExportedAt: string | null;
+  editParams: DamEditParams;
 };

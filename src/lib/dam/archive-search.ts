@@ -6,6 +6,7 @@ import {
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
 import { prisma } from "@/lib/db";
+import { parseEditParams } from "@/lib/dam/edit-params";
 import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
@@ -128,6 +129,7 @@ export async function searchPublishedAssets(
         width: true,
         height: true,
         rightsType: true,
+        editParams: true,
         collections: {
           select: { collection: { select: { id: true, name: true } } },
         },
@@ -154,6 +156,7 @@ export async function searchPublishedAssets(
       rightsType: row.rightsType,
       collections: row.collections.map((link) => link.collection),
       lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
+      editParams: parseEditParams(row.editParams),
     })),
     total,
     page: safePage,

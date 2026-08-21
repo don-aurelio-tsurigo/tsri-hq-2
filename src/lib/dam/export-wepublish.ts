@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db";
-import { getObject } from "@/lib/r2";
+import { renderPublishedMaster } from "@/lib/dam/apply-edits";
+import { replaceKeyExtension } from "@/lib/dam/filename";
+import { getObjectBuffer } from "@/lib/r2";
 import { uploadImageToWepublish } from "@/lib/wepublish/upload-image";
 
 export const wepublishExportLogSelect = {
@@ -33,19 +35,22 @@ export async function exportPublishedAssetToWepublish(
       r2Key: true,
       credit: true,
       altText: true,
+      editParams: true,
     },
   });
   if (!asset) return { error: "Publiziertes Bild nicht gefunden." };
 
-  const file = await getObject(asset.r2Key);
+  const original = await getObjectBuffer(asset.r2Key);
+  const rendered = await renderPublishedMaster(original, asset.editParams);
+  const fileName = replaceKeyExtension(asset.fileName, "jpg");
   const uploaded = await uploadImageToWepublish(
     {
-      buffer: file.buffer,
-      contentType: file.contentType || "image/jpeg",
-      fileName: asset.fileName,
+      buffer: rendered.buffer,
+      contentType: "image/jpeg",
+      fileName,
     },
     {
-      fileName: asset.fileName,
+      fileName,
       altText: asset.altText,
       credit: asset.credit,
     },

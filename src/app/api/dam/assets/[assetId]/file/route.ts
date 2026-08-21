@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
-import { derivativeKey } from "@/lib/dam/filename";
+import { renderPublishedMaster } from "@/lib/dam/apply-edits";
+import { contentDispositionAttachment, derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
@@ -11,7 +12,7 @@ export const maxDuration = 60;
 
 async function loadVariant(r2Key: string, variant: string) {
   const keys =
-    variant === "original"
+    variant === "original" || variant === "export"
       ? [r2Key]
       : variant === "web"
         ? [derivativeKey(r2Key, "web"), r2Key]
@@ -28,12 +29,17 @@ async function loadVariant(r2Key: string, variant: string) {
   throw lastError ?? new Error("not found");
 }
 
-function imageResponse(buffer: Buffer, contentType: string) {
+function imageResponse(
+  buffer: Buffer,
+  contentType: string,
+  extraHeaders?: Record<string, string>,
+) {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(buffer.length),
       "Cache-Control": "private, max-age=120",
+      ...extraHeaders,
     },
   });
 }
@@ -57,7 +63,7 @@ export async function GET(
         { status: { in: ["published", "archived"] } },
       ],
     },
-    select: { r2Key: true },
+    select: { r2Key: true, fileName: true, editParams: true },
   });
   if (!asset) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -65,6 +71,15 @@ export async function GET(
 
   try {
     let { buffer, contentType } = await loadVariant(asset.r2Key, variant);
+    if (variant === "export") {
+      const rendered = await renderPublishedMaster(buffer, asset.editParams);
+      return imageResponse(rendered.buffer, "image/jpeg", {
+        "Cache-Control": "private, no-store",
+        "Content-Disposition": contentDispositionAttachment(
+          replaceKeyExtension(asset.fileName, "jpg"),
+        ),
+      });
+    }
     if (looksLikeHeicBytes(buffer)) {
       try {
         const maxEdge =

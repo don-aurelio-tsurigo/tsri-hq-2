@@ -120,7 +120,7 @@ export async function saveAssetEditParams(
   if (!parsedId.success || !parsed.success) {
     return { error: "Ungültige Edit-Werte." };
   }
-  const owned = await ownedStagingAssets(session.user.id, [parsedId.data]);
+  const owned = await editableAssets(session.user.id, [parsedId.data]);
   if (!owned.has(parsedId.data)) {
     return { error: "Bild nicht gefunden." };
   }

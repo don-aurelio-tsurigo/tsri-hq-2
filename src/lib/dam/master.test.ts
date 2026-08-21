@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import sharp from "sharp";
 import { createMasterImage, MASTER_MAX_EDGE } from "./master.ts";
-import { buildArchiveKey, buildMediagraphArchiveKey, contentDispositionAttachment, replaceKeyExtension, uniqueDownloadName } from "./filename.ts";
+import { buildArchiveKey, buildMediagraphArchiveKey, contentDispositionAttachment, fileExtension, replaceKeyExtension, uniqueDownloadName } from "./filename.ts";
 
 async function makeImage(
   width: number,
@@ -52,6 +52,14 @@ describe("createMasterImage", () => {
 
   it("rejects bytes that sharp cannot decode", async () => {
     await assert.rejects(() => createMasterImage(Buffer.from("not-an-image")));
+  });
+});
+
+describe("fileExtension", () => {
+  it("reads the suffix from keys and file names", () => {
+    assert.equal(fileExtension("staging/u/b/001-abc.png"), "png");
+    assert.equal(fileExtension("foto.JPEG"), "jpg");
+    assert.equal(fileExtension("no-ext"), "jpg");
   });
 });
 
