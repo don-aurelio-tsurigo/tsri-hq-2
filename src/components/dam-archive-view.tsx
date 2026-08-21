@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { FolderMinus, SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DamArchiveDeleteCollectionsDialog } from "@/components/dam-archive-delete-collections";
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import { DamCombobox, type DamComboboxOption } from "@/components/dam-combobox";
@@ -255,14 +255,6 @@ export function DamArchiveView({
             <SlidersHorizontal className="size-4" aria-hidden />
             {extraCount > 0 ? `Filter (${extraCount})` : "Filter"}
           </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => setDeleteOpen(true)}
-          >
-            <FolderMinus className="size-4" aria-hidden />
-            Collections löschen
-          </button>
         </div>
 
         {moreOpen ? (
@@ -432,6 +424,16 @@ export function DamArchiveView({
           ) : null}
         </div>
       )}
+
+      <p className="pt-2 text-right text-xs text-[var(--muted)]">
+        <button
+          type="button"
+          className="hover:text-[var(--fg)] hover:underline"
+          onClick={() => setDeleteOpen(true)}
+        >
+          Collections löschen
+        </button>
+      </p>
 
       {deleteOpen ? (
         <DamArchiveDeleteCollectionsDialog
