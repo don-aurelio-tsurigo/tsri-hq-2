@@ -20,7 +20,7 @@ export default async function DamPersonalPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
             Fotos
@@ -28,6 +28,11 @@ export default async function DamPersonalPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             Meine Uploads
           </h1>
+          <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
+            Hier bearbeitest und sortierst du deine Uploads. Lösche Fotos, die du
+            nicht brauchst und die nie irgendjemand brauchen wird. Weniger ist
+            mehr. Was bleiben soll, auswählen und ins Archiv verschieben.
+          </p>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">
           Upload
