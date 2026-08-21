@@ -26,7 +26,7 @@ export default async function DamPersonalPage() {
             Fotos
           </p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            Meine Fotos
+            Meine Uploads
           </h1>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">

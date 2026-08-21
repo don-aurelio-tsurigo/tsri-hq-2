@@ -503,7 +503,7 @@ function BatchStatus({ batchId }: { batchId: string }) {
         ))}
       </ul>
       <Link href="/dam/personal" className="btn btn-primary inline-flex w-fit">
-        Zu meinen Fotos
+        Zu meinen Uploads
       </Link>
     </div>
   );

@@ -212,7 +212,7 @@ export function DamArchiveView({
           href="/dam/personal"
           className="font-semibold text-[var(--accent)] hover:underline"
         >
-          Meine Fotos
+          Meine Uploads
         </Link>{" "}
         auswählen und ins Archiv verschieben.
       </p>

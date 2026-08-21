@@ -25,7 +25,7 @@ export function endDamAsset(assetId: string): void {
 
 /**
  * Run DAM EXIF/thumb/autotag work off the HTTP request.
- * Next `after()` is aborted when the user navigates away (e.g. to Meine Fotos).
+ * Next `after()` is aborted when the user navigates away (e.g. to Meine Uploads).
  */
 export function enqueueDamProcessing(assetIds: string[]): void {
   const g = queueState();
