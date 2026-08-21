@@ -10,6 +10,7 @@ import {
   parseArchivePage,
   searchPublishedAssets,
 } from "@/lib/dam/archive-search";
+import { canReviewDamArchive } from "@/lib/dam/review";
 import { requireMembership } from "@/lib/session";
 
 export default async function DamArchivePage({
@@ -17,7 +18,7 @@ export default async function DamArchivePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireMembership();
+  const { membership } = await requireMembership();
   const params = await searchParams;
   const filters = parseArchiveFilters(params);
   const page = parseArchivePage(params);
@@ -56,6 +57,7 @@ export default async function DamArchivePage({
           page={result.page}
           pageCount={result.pageCount}
           pageSize={result.pageSize}
+          canReview={canReviewDamArchive(membership)}
         />
       </Suspense>
     </div>

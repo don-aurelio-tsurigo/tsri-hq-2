@@ -57,6 +57,7 @@ model User {
   deletedAssets         Asset[]              @relation("AssetDeletedBy")
   collections           Collection[]
   exportLogs            ExportLog[]
+  damArchiveReviews     DamArchiveReview[]
   taskInboxPins         TaskInboxPin[]
 
   @@map("user")
@@ -1125,6 +1126,19 @@ model ExportLog {
   @@index([assetId])
   @@index([exportedBy])
   @@map("export_log")
+  @@schema("public")
+}
+
+model DamArchiveReview {
+  id             String   @id @default(cuid())
+  reviewedUntil  DateTime
+  completedAt    DateTime @default(now())
+  completedBy    String?
+  completer      User?    @relation(fields: [completedBy], references: [id], onDelete: SetNull)
+  remainingCount Int
+
+  @@index([completedAt])
+  @@map("dam_archive_review")
   @@schema("public")
 }
 

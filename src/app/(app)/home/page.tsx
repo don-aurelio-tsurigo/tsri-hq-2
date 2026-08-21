@@ -7,6 +7,7 @@ import { PrivateNotes } from "@/components/private-notes";
 import { HomeBirthday } from "@/components/home-birthday";
 import {
   ChoreMidweekReminder,
+  DamArchiveReviewReminder,
   TimeGapsReminder,
 } from "@/components/home-reminders";
 import { listTodaysBirthdays } from "@/lib/birthdays";
@@ -23,6 +24,11 @@ import { getCurrentDashboardItems } from "@/lib/tasks";
 import { listMyHomeArticles } from "@/lib/articles";
 import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
 import { listTodaysTsueriArticles } from "@/lib/editorial-program";
+import {
+  canReviewDamArchive,
+  countDamArchiveReviewQueue,
+  getLastDamArchiveReview,
+} from "@/lib/dam/review";
 import {
   getFerienplanSpaceId,
   listPendingVacationApprovals,
@@ -59,6 +65,7 @@ export default async function HomePage() {
 
   const today = new Date();
   const showChoreReminder = isMidweekChoreReminderDay(today);
+  const showArchiveReview = canReviewDamArchive(membership);
 
   const [
     items,
@@ -75,6 +82,7 @@ export default async function HomePage() {
     pastWeekGaps,
     assignedChores,
     todaysBirthdays,
+    archiveReview,
   ] = await Promise.all([
     getCurrentDashboardItems(
       membership.organizationId,
@@ -134,6 +142,19 @@ export default async function HomePage() {
         )
       : Promise.resolve([]),
     listTodaysBirthdays(membership.organizationId),
+    showArchiveReview
+      ? getLastDamArchiveReview().then(async (last) => {
+          const count = await countDamArchiveReviewQueue(
+            last?.reviewedUntil ?? new Date(0),
+          );
+          return {
+            count,
+            sinceLabel: last
+              ? last.reviewedUntil.toLocaleDateString("de-CH")
+              : null,
+          };
+        })
+      : Promise.resolve({ count: 0, sinceLabel: null as string | null }),
   ]);
 
   const ownBirthday = todaysBirthdays.some((p) => p.id === session.user.id);
@@ -212,6 +233,13 @@ export default async function HomePage() {
           </ul>
         </section>
       )}
+
+      {showArchiveReview ? (
+        <DamArchiveReviewReminder
+          count={archiveReview.count}
+          sinceLabel={archiveReview.sinceLabel}
+        />
+      ) : null}
 
       {pastWeekGaps.gaps.length > 0 && (
         <TimeGapsReminder

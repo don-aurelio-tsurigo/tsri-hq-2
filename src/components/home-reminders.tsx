@@ -134,3 +134,33 @@ export function ChoreMidweekReminder({
     </section>
   );
 }
+
+export function DamArchiveReviewReminder({
+  count,
+  sinceLabel,
+}: {
+  count: number;
+  sinceLabel: string | null;
+}) {
+  if (count <= 0) return null;
+
+  return (
+    <section className="relative rounded-xl border border-[var(--border)] bg-[var(--highlight)]/35 px-4 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
+            Archiv-Review
+          </h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {count} {count === 1 ? "neues Foto" : "neue Fotos"}
+            {sinceLabel ? ` seit ${sinceLabel}` : ""} im Archiv. Slop in den
+            Papierkorb, Rest abschliessen.
+          </p>
+        </div>
+        <Link href="/dam/review" className="btn btn-primary shrink-0 text-sm">
+          Review öffnen
+        </Link>
+      </div>
+    </section>
+  );
+}

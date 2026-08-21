@@ -6,6 +6,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { parseEditParams } from "@/lib/dam/edit-params";
 import { applyKeywordChanges, uniqueKeywords } from "@/lib/dam/keywords";
 import { publishDamAssets } from "@/lib/dam/publish";
+import { canReviewDamArchive } from "@/lib/dam/review";
+import { parseReviewOpenedAt } from "@/lib/dam/review-params";
 import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
 
@@ -16,7 +18,9 @@ function revalidateDam() {
   revalidatePath("/dam/personal");
   revalidatePath("/dam");
   revalidatePath("/dam/archive");
+  revalidatePath("/dam/review");
   revalidatePath("/dam/papierkorb");
+  revalidatePath("/home");
 }
 
 async function ownedStagingAssets(userId: string, ids: string[]) {
@@ -501,6 +505,44 @@ export async function purgeAsset(
   const { purgeAssetById } = await import("@/lib/dam/trash");
   const result = await purgeAssetById(session.user.id, parsedId.data);
   if (result.error) return result;
+  revalidateDam();
+  return {};
+}
+
+export async function completeDamArchiveReview(
+  openedAtIso: string,
+): Promise<{ error?: string }> {
+  const { session, membership } = await requireMembership();
+  if (!canReviewDamArchive(membership)) {
+    return { error: "Keine Berechtigung für den Archiv-Review." };
+  }
+
+  const openedAt = parseReviewOpenedAt(openedAtIso);
+  if (!openedAt) return { error: "Review-Sitzung ungültig. Seite neu laden." };
+
+  const last = await prisma.damArchiveReview.findFirst({
+    orderBy: { completedAt: "desc" },
+    select: { reviewedUntil: true },
+  });
+  const reviewedUntil = last?.reviewedUntil ?? new Date(0);
+  if (openedAt.getTime() <= reviewedUntil.getTime()) {
+    return { error: "Dieser Review ist bereits abgeschlossen." };
+  }
+
+  const remainingCount = await prisma.asset.count({
+    where: {
+      status: "published",
+      publishedAt: { gt: reviewedUntil, lte: openedAt },
+    },
+  });
+
+  await prisma.damArchiveReview.create({
+    data: {
+      reviewedUntil: openedAt,
+      completedBy: session.user.id,
+      remainingCount,
+    },
+  });
   revalidateDam();
   return {};
 }
