@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import sharp from "sharp";
-import { applyDamEditsToOriented, renderPublishedMaster } from "./apply-edits.ts";
+import {
+  applyDamEditsToOriented,
+  renderDamPreviewWebp,
+  renderPublishedMaster,
+} from "./apply-edits.ts";
 import { DEFAULT_EDIT_PARAMS } from "./edit-params.ts";
 
 async function solidPng(
@@ -64,6 +68,22 @@ describe("applyDamEditsToOriented", () => {
       );
     }
     assert.ok(Math.abs(info.width / info.height - 2) < 0.08);
+  });
+});
+
+describe("renderDamPreviewWebp", () => {
+  it("returns an axis-aligned webp after straighten", async () => {
+    const input = await solidPng(200, 100, { r: 220, g: 40, b: 40 });
+    const preview = await renderDamPreviewWebp(
+      input,
+      { ...DEFAULT_EDIT_PARAMS, rotate: 10 },
+      480,
+      80,
+    );
+    const meta = await sharp(preview).metadata();
+    assert.equal(meta.format, "webp");
+    assert.ok(meta.width && meta.height);
+    assert.ok(Math.abs(meta.width / meta.height - 2) < 0.08);
   });
 });
 

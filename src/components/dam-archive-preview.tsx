@@ -15,10 +15,10 @@ import {
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
 import { DamRatingStars } from "@/components/dam-rating-stars";
-import { DamCssPreviewImage } from "@/components/dam-css-preview";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import { damFileSrc } from "@/lib/dam/edit-params";
 import {
   DAM_RIGHTS_OPTIONS,
   damRightsLabel,
@@ -246,15 +246,12 @@ export function DamArchivePreview({
       >
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-            <div className="h-full max-h-[70vh] w-full">
-              <DamCssPreviewImage
-                src={`/api/dam/assets/${asset.id}/file?variant=web`}
-                alt={asset.altText || asset.fileName}
-                params={asset.editParams}
-                width={asset.width}
-                height={asset.height}
-              />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={damFileSrc(asset.id, "web", asset.editParams)}
+              alt={asset.altText || asset.fileName}
+              className="max-h-[70vh] max-w-full object-contain"
+            />
             {count > 1 ? (
               <>
                 <button

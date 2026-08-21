@@ -219,6 +219,33 @@ export function cssPreviewStyle(
   };
 }
 
+export function editParamsRev(params: DamEditParams): string {
+  const crop = params.crop;
+  return [
+    Math.round(params.rotate * 100),
+    params.brightness,
+    params.saturation,
+    params.contrast,
+    params.flipHorizontal ? 1 : 0,
+    params.flipVertical ? 1 : 0,
+    params.sharpen,
+    params.temperature,
+    crop
+      ? [crop.x, crop.y, crop.width, crop.height].map((n) => Math.round(n * 10)).join("x")
+      : "0",
+  ].join("-");
+}
+
+export function damFileSrc(
+  assetId: string,
+  variant: "thumb" | "web" | "original",
+  params?: DamEditParams,
+): string {
+  const path = `/api/dam/assets/${assetId}/file?variant=${variant}`;
+  if (variant === "original" || !params) return path;
+  return `${path}&r=${editParamsRev(params)}`;
+}
+
 export function rotatedBoundingBox(
   width: number,
   height: number,

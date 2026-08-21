@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { DamCombobox } from "@/components/dam-combobox";
+import { damFileSrc } from "@/lib/dam/edit-params";
 import type { PersonalAssetCard } from "@/lib/dam/types";
 
 type CollectionOption = { id: string; name: string };
@@ -88,7 +89,7 @@ export function DamPublishDialog({
                 <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg bg-[var(--panel-muted)] p-1">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/dam/assets/${asset.id}/file?variant=thumb`}
+                    src={damFileSrc(asset.id, "thumb", asset.editParams)}
                     alt=""
                     className="max-h-full max-w-full object-contain"
                   />

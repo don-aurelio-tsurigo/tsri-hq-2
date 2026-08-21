@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
-import { renderPublishedMaster } from "@/lib/dam/apply-edits";
-import { contentDispositionAttachment, derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
+import { renderDamPreviewWebp, renderPublishedMaster } from "@/lib/dam/apply-edits";
+import { contentDispositionAttachment, replaceKeyExtension } from "@/lib/dam/filename";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
@@ -9,25 +9,6 @@ import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-async function loadVariant(r2Key: string, variant: string) {
-  const keys =
-    variant === "original" || variant === "export"
-      ? [r2Key]
-      : variant === "web"
-        ? [derivativeKey(r2Key, "web"), r2Key]
-        : [derivativeKey(r2Key, "thumb"), derivativeKey(r2Key, "web"), r2Key];
-
-  let lastError: unknown;
-  for (const key of keys) {
-    try {
-      return await getObject(key);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError ?? new Error("not found");
-}
 
 function imageResponse(
   buffer: Buffer,
@@ -70,9 +51,9 @@ export async function GET(
   }
 
   try {
-    let { buffer, contentType } = await loadVariant(asset.r2Key, variant);
+    const original = await getObject(asset.r2Key);
     if (variant === "export") {
-      const rendered = await renderPublishedMaster(buffer, asset.editParams);
+      const rendered = await renderPublishedMaster(original.buffer, asset.editParams);
       return imageResponse(rendered.buffer, "image/jpeg", {
         "Cache-Control": "private, no-store",
         "Content-Disposition": contentDispositionAttachment(
@@ -80,11 +61,20 @@ export async function GET(
         ),
       });
     }
+    if (variant === "thumb" || variant === "web") {
+      const buffer = await renderDamPreviewWebp(
+        original.buffer,
+        asset.editParams,
+        variant === "thumb" ? 480 : 2000,
+        variant === "thumb" ? 72 : 80,
+      );
+      return imageResponse(buffer, "image/webp");
+    }
+
+    let { buffer, contentType } = original;
     if (looksLikeHeicBytes(buffer)) {
       try {
-        const maxEdge =
-          variant === "thumb" ? 640 : variant === "web" ? 2000 : 4000;
-        buffer = await jpegBufferFromHeic(buffer, maxEdge);
+        buffer = await jpegBufferFromHeic(buffer, 4000);
         contentType = "image/jpeg";
       } catch (error) {
         console.warn("[dam] HEIC preview convert failed", error);

@@ -1,13 +1,12 @@
-import sharp from "sharp";
 import { looksLikeImageBytes, sniffImageContentType } from "@/lib/dam/accept";
+import { writeEditedDerivatives } from "@/lib/dam/derivatives";
 import {
   buildArchiveKey,
-  derivativeKey,
   fileExtension,
 } from "@/lib/dam/filename";
 import { r2KeysForAsset } from "@/lib/dam/r2-keys";
 import { prisma } from "@/lib/db";
-import { deleteObject, getObject, getObjectBuffer, putObject } from "@/lib/r2";
+import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
 
 const CONCURRENCY = 2;
 
@@ -50,30 +49,6 @@ export type PublishResult = {
   errors: { assetId: string; error: string }[];
 };
 
-async function copyObject(fromKey: string, toKey: string): Promise<void> {
-  const obj = await getObject(fromKey);
-  await putObject(toKey, obj.buffer, obj.contentType);
-}
-
-async function putUneditedDerivatives(archiveKey: string, original: Buffer) {
-  const [thumb, web] = await Promise.all([
-    sharp(original)
-      .rotate()
-      .resize({ width: 480, withoutEnlargement: true })
-      .webp({ quality: 72 })
-      .toBuffer(),
-    sharp(original)
-      .rotate()
-      .resize({ width: 2000, withoutEnlargement: true })
-      .webp({ quality: 80 })
-      .toBuffer(),
-  ]);
-  await Promise.all([
-    putObject(derivativeKey(archiveKey, "thumb"), thumb, "image/webp"),
-    putObject(derivativeKey(archiveKey, "web"), web, "image/webp"),
-  ]);
-}
-
 async function deleteKeysQuietly(keys: string[]) {
   const results = await Promise.allSettled(keys.map((key) => deleteObject(key)));
   for (const result of results) {
@@ -102,6 +77,7 @@ async function publishOne(
       id: true,
       r2Key: true,
       fileName: true,
+      editParams: true,
     },
   });
   if (!asset) return { error: "Bild nicht gefunden." };
@@ -129,13 +105,7 @@ async function publishOne(
   });
   const contentType = sniffImageContentType(original) ?? "image/jpeg";
   await putObject(archiveKey, original, contentType);
-
-  try {
-    await copyObject(derivativeKey(asset.r2Key, "thumb"), derivativeKey(archiveKey, "thumb"));
-    await copyObject(derivativeKey(asset.r2Key, "web"), derivativeKey(archiveKey, "web"));
-  } catch {
-    await putUneditedDerivatives(archiveKey, original);
-  }
+  await writeEditedDerivatives(archiveKey, original, asset.editParams);
 
   await prisma.asset.update({
     where: { id: asset.id },

@@ -92,6 +92,19 @@ export async function applyDamEditsToOriented(
   return pipeline.toBuffer();
 }
 
+export async function renderDamPreviewWebp(
+  original: Buffer,
+  raw: unknown,
+  maxWidth: number,
+  quality: number,
+): Promise<Buffer> {
+  const edited = await applyDamEdits(original, raw);
+  return sharp(edited)
+    .resize({ width: maxWidth, withoutEnlargement: true })
+    .webp({ quality })
+    .toBuffer();
+}
+
 /** JPEG with the recipe applied — for download / WePublish, not the stored original. */
 export async function renderPublishedMaster(
   original: Buffer,

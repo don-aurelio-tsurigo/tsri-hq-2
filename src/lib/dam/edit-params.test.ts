@@ -4,6 +4,7 @@ import {
   cropToExtract,
   cssFilter,
   cssTransform,
+  damFileSrc,
   DEFAULT_EDIT_PARAMS,
   joinRotate,
   parseEditParams,
@@ -156,6 +157,15 @@ describe("temperatureToRgb", () => {
     const cool = temperatureToRgb(-100);
     assert.ok(warm.b < warm.r);
     assert.ok(cool.r < cool.b);
+  });
+});
+
+describe("damFileSrc", () => {
+  it("busts the cache when the recipe changes", () => {
+    const src = damFileSrc("abc", "thumb", { ...DEFAULT_EDIT_PARAMS, rotate: 10 });
+    assert.equal(src.includes("variant=thumb"), true);
+    assert.equal(src.includes("&r="), true);
+    assert.equal(damFileSrc("abc", "original").includes("&r="), false);
   });
 });
 

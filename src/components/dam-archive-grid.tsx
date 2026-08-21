@@ -7,7 +7,6 @@ import { DamArchiveBulkEditDialog } from "@/components/dam-archive-bulk-edit";
 import { DamArchivePreview } from "@/components/dam-archive-preview";
 import { DamAssetEditor } from "@/components/dam-asset-editor";
 import { DamConfirmDialog } from "@/components/dam-confirm-dialog";
-import { DamCssPreviewImage } from "@/components/dam-css-preview";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import {
@@ -20,6 +19,7 @@ import {
 } from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import { damFileSrc } from "@/lib/dam/edit-params";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import {
   damRightsLabel,
@@ -347,16 +347,13 @@ export function DamArchiveGrid({
                   }
                 }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-[var(--panel-muted)]">
-                  <div className="absolute inset-2">
-                    <DamCssPreviewImage
-                      src={`/api/dam/assets/${asset.id}/file?variant=thumb`}
-                      alt={asset.altText || asset.fileName}
-                      params={asset.editParams}
-                      width={asset.width}
-                      height={asset.height}
-                    />
-                  </div>
+                <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[var(--panel-muted)] p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={damFileSrc(asset.id, "thumb", asset.editParams)}
+                    alt={asset.altText || asset.fileName}
+                    className="max-h-full max-w-full object-contain"
+                  />
                   <label
                     className="absolute top-1 left-1 rounded bg-white/90 px-1 py-0.5"
                     onClick={(e) => e.stopPropagation()}
@@ -505,7 +502,7 @@ export function DamArchiveGrid({
       {editorAsset ? (
         <DamAssetEditor
           fileName={editorAsset.fileName}
-          imageSrc={`/api/dam/assets/${editorAsset.id}/file?variant=web`}
+          imageSrc={damFileSrc(editorAsset.id, "original")}
           initial={editorAsset.editParams}
           pending={pending}
           onClose={() => setEditorId(null)}

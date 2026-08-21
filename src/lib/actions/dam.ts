@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
+import { writeEditedDerivatives } from "@/lib/dam/derivatives";
 import { parseEditParams } from "@/lib/dam/edit-params";
 import { applyKeywordChanges, uniqueKeywords } from "@/lib/dam/keywords";
 import { publishDamAssets } from "@/lib/dam/publish";
 import { canReviewDamArchive } from "@/lib/dam/review";
 import { parseReviewOpenedAt } from "@/lib/dam/review-params";
 import { prisma } from "@/lib/db";
+import { getObjectBuffer } from "@/lib/r2";
 import { requireMembership } from "@/lib/session";
 
 const idsSchema = z.array(z.string().min(1)).min(1).max(200);
@@ -125,10 +127,21 @@ export async function saveAssetEditParams(
     return { error: "Bild nicht gefunden." };
   }
   const params = parseEditParams(parsed.data);
+  const asset = await prisma.asset.findUnique({
+    where: { id: parsedId.data },
+    select: { r2Key: true },
+  });
+  if (!asset) return { error: "Bild nicht gefunden." };
   await prisma.asset.update({
     where: { id: parsedId.data },
     data: { editParams: params as unknown as Prisma.InputJsonValue },
   });
+  try {
+    const original = await getObjectBuffer(asset.r2Key);
+    await writeEditedDerivatives(asset.r2Key, original, params);
+  } catch (error) {
+    console.warn("[dam] edited derivatives failed", error);
+  }
   revalidateDam();
   return {};
 }

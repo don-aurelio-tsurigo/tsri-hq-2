@@ -15,9 +15,9 @@ import {
 import { DamAssetDetail } from "@/components/dam-asset-detail";
 import { DamAssetEditor } from "@/components/dam-asset-editor";
 import { DamCombobox } from "@/components/dam-combobox";
-import { DamCssPreviewImage } from "@/components/dam-css-preview";
 import { DamPublishDialog } from "@/components/dam-publish-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
+import { damFileSrc } from "@/lib/dam/edit-params";
 import {
   RATING_FILTERS,
   matchesRatingFilter,
@@ -463,16 +463,13 @@ export function DamPersonalGrid({
                   }}
                   onDoubleClick={() => openDetail(index)}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-[var(--panel-muted)]">
-                    <div className="absolute inset-2">
-                      <DamCssPreviewImage
-                        src={`/api/dam/assets/${asset.id}/file?variant=thumb`}
-                        alt=""
-                        params={asset.editParams}
-                        width={asset.width}
-                        height={asset.height}
-                      />
-                    </div>
+                  <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[var(--panel-muted)] p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={damFileSrc(asset.id, "thumb", asset.editParams)}
+                      alt=""
+                      className="max-h-full max-w-full object-contain"
+                    />
                     <label
                       className="absolute top-1 left-1 rounded bg-white/90 px-1 py-0.5"
                       onClick={(e) => e.stopPropagation()}
@@ -617,7 +614,7 @@ export function DamPersonalGrid({
       {editorAsset ? (
         <DamAssetEditor
           fileName={editorAsset.fileName}
-          imageSrc={`/api/dam/assets/${editorAsset.id}/file?variant=web`}
+          imageSrc={damFileSrc(editorAsset.id, "original")}
           initial={editorAsset.editParams}
           pending={pending}
           onClose={() => setEditorId(null)}
