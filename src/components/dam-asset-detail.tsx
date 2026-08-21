@@ -13,8 +13,8 @@ import {
   toDatetimeLocal,
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
+import { DamCssPreviewImage } from "@/components/dam-css-preview";
 import { DamRatingStars } from "@/components/dam-rating-stars";
-import { cssPreviewStyle } from "@/lib/dam/edit-params";
 import { DAM_RIGHTS_OPTIONS, damWepublishExportedHint } from "@/lib/dam/types";
 import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
 
@@ -179,13 +179,13 @@ export function DamAssetDetail({
       >
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-            <div className="inline-block max-h-full max-w-full overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+            <div className="h-full max-h-[70vh] w-full">
+              <DamCssPreviewImage
                 src={`/api/dam/assets/${asset.id}/file?variant=web`}
                 alt={asset.altText || asset.fileName}
-                className="block max-h-[70vh] max-w-full object-contain"
-                style={cssPreviewStyle(asset.editParams, asset)}
+                params={asset.editParams}
+                width={asset.width}
+                height={asset.height}
               />
             </div>
             {count > 1 ? (
