@@ -1402,17 +1402,22 @@ export function DamUploadWizard({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn btn-primary"
-              onClick={applyBatchToDrafts}
+              className={showPerFile ? "btn btn-ghost" : "btn btn-primary"}
+              aria-pressed={!showPerFile}
+              onClick={() => {
+                applyBatchToDrafts();
+                setShowPerFile(false);
+              }}
             >
               Auf alle anwenden
             </button>
             <button
               type="button"
               className={showPerFile ? "btn btn-primary" : "btn btn-ghost"}
+              aria-pressed={showPerFile}
               onClick={() => {
                 if (!showPerFile) applyBatchToDrafts();
-                setShowPerFile(true);
+                setShowPerFile((prev) => !prev);
               }}
             >
               Einzeln bearbeiten
