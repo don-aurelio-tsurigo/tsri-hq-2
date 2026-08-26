@@ -352,6 +352,8 @@ export function DamArchiveGrid({
                   <img
                     src={damFileSrc(asset.id, "thumb", asset.editParams)}
                     alt={asset.altText || asset.fileName}
+                    loading="lazy"
+                    decoding="async"
                     className="max-h-full max-w-full object-contain"
                   />
                   <label

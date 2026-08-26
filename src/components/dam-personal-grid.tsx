@@ -468,6 +468,8 @@ export function DamPersonalGrid({
                     <img
                       src={damFileSrc(asset.id, "thumb", asset.editParams)}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="max-h-full max-w-full object-contain"
                     />
                     <label

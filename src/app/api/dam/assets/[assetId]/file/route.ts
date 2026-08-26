@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
 import { renderDamPreviewWebp, renderPublishedMaster } from "@/lib/dam/apply-edits";
-import { contentDispositionAttachment, replaceKeyExtension } from "@/lib/dam/filename";
+import {
+  previewDerivativeKey,
+  writeEditedDerivatives,
+} from "@/lib/dam/derivatives";
+import {
+  contentDispositionAttachment,
+  replaceKeyExtension,
+} from "@/lib/dam/filename";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
@@ -51,6 +58,32 @@ export async function GET(
   }
 
   try {
+    if (variant === "thumb" || variant === "web") {
+      const key = previewDerivativeKey(asset.r2Key, variant, asset.editParams);
+      try {
+        const cached = await getObject(key);
+        return imageResponse(cached.buffer, "image/webp", {
+          "Cache-Control": "private, max-age=86400",
+        });
+      } catch {
+        /* regenerate below */
+      }
+
+      const original = await getObject(asset.r2Key);
+      const buffer = await renderDamPreviewWebp(
+        original.buffer,
+        asset.editParams,
+        variant === "thumb" ? 480 : 2000,
+        variant === "thumb" ? 72 : 80,
+      );
+      void writeEditedDerivatives(asset.r2Key, original.buffer, asset.editParams).catch(
+        (error) => console.warn("[dam] derivative backfill failed", error),
+      );
+      return imageResponse(buffer, "image/webp", {
+        "Cache-Control": "private, max-age=86400",
+      });
+    }
+
     const original = await getObject(asset.r2Key);
     if (variant === "export") {
       const rendered = await renderPublishedMaster(original.buffer, asset.editParams);
@@ -60,15 +93,6 @@ export async function GET(
           replaceKeyExtension(asset.fileName, "jpg"),
         ),
       });
-    }
-    if (variant === "thumb" || variant === "web") {
-      const buffer = await renderDamPreviewWebp(
-        original.buffer,
-        asset.editParams,
-        variant === "thumb" ? 480 : 2000,
-        variant === "thumb" ? 72 : 80,
-      );
-      return imageResponse(buffer, "image/webp");
     }
 
     let { buffer, contentType } = original;
