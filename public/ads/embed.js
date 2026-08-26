@@ -25,7 +25,7 @@
     ".hq-ad-slot__wrapper{box-sizing:border-box;position:relative;width:100%;max-width:582px;overflow:hidden;border:0;border-radius:1cqw;background-color:#e1e4e8;padding:0 .5rem .5rem;opacity:0;transition:opacity .5s cubic-bezier(0,.5,.25,1) .6s}" +
     "@container hq-ad (min-width:480px){.hq-ad-slot__wrapper{padding:0 1.5rem 1.5rem}}" +
     ".hq-ad-slot--ready .hq-ad-slot__wrapper{opacity:1}" +
-    ".hq-ad-slot__label{display:flex;align-items:center;width:100%;height:39px;color:#fff;font-size:.75rem;font-weight:600;letter-spacing:.01em;line-height:1;text-decoration:none;user-select:none}" +
+    ".hq-ad-slot__label{display:flex;align-items:center;width:100%;height:39px;color:#fff;font-family:\"Hanken Grotesk\",\"Hanken Grotesk Fallback\",sans-serif;font-size:.75rem;font-weight:600;letter-spacing:.01em;line-height:1;text-decoration:none;user-select:none}" +
     ".hq-ad-slot__label:hover{text-decoration:underline}" +
     ".hq-ad-slot__content{position:relative;width:100%;overflow:hidden;background:#fff;line-height:0}" +
     ".hq-ad-slot__media{display:block;width:100%;height:auto;border:0}" +
