@@ -8,6 +8,8 @@ import {
   getWikiSpace,
   uniqueWikiSlug,
 } from "@/lib/wiki";
+import { extractWikiImageIds } from "@/lib/wiki-images";
+import { purgeUnreferencedWikiImages } from "@/lib/wiki-image-purge";
 
 async function revalidateWiki(_organizationId: string, spaceId: string) {
   revalidatePath(`/spaces/${spaceId}`);
@@ -120,6 +122,12 @@ export async function updateWikiPage(formData: FormData) {
           existing.id,
         );
 
+  const previousImageIds = extractWikiImageIds(existing.body);
+  const nextImageIds = extractWikiImageIds(parsed.data.body);
+  const removedImageIds = [...previousImageIds].filter(
+    (id) => !nextImageIds.has(id),
+  );
+
   const page = await prisma.wikiPage.update({
     where: { id: existing.id },
     data: {
@@ -129,6 +137,13 @@ export async function updateWikiPage(formData: FormData) {
       updatedById: session.user.id,
     },
   });
+
+  if (removedImageIds.length > 0) {
+    await purgeUnreferencedWikiImages(
+      membership.organizationId,
+      removedImageIds,
+    );
+  }
 
   await revalidateWiki(membership.organizationId, existing.spaceId);
   return { ok: true as const, slug: page.slug };
@@ -244,7 +259,11 @@ export async function deleteWikiPage(formData: FormData) {
     };
   }
 
+  const imageIds = extractWikiImageIds(existing.body);
   await prisma.wikiPage.delete({ where: { id: existing.id } });
+  if (imageIds.size > 0) {
+    await purgeUnreferencedWikiImages(membership.organizationId, imageIds);
+  }
   await revalidateWiki(membership.organizationId, existing.spaceId);
   return { ok: true as const };
 }

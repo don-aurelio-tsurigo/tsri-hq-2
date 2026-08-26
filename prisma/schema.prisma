@@ -50,6 +50,7 @@ model User {
   timeEntries           TimeEntry[]
   createdWikiPages      WikiPage[]           @relation("WikiPageCreator")
   updatedWikiPages      WikiPage[]           @relation("WikiPageUpdater")
+  uploadedWikiImages    WikiImage[]          @relation("WikiImageUploader")
   createdCarouselPosts  CarouselPost[]       @relation("CarouselPostCreator")
   usageEvents           MemberUsage[]
   uploadBatches         UploadBatch[]
@@ -166,6 +167,7 @@ model Organization {
   eigenleistungRubriken   EigenleistungRubrik[]
   articleCategories       ArticleCategory[]
   wikiPages               WikiPage[]
+  wikiImages              WikiImage[]
   newsItems               NewsItem[]
   payrexxPayouts          PayrexxPayout[]
   payrexxChannelRules     PayrexxChannelRule[]
@@ -783,6 +785,29 @@ model WikiPage {
   @@index([organizationId, pinned])
   @@index([parentId])
   @@map("wiki_page")
+  @@schema("public")
+}
+
+/// Wiki media — separate from DAM Asset. R2 keys under wiki/{orgId}/… only.
+model WikiImage {
+  id             String   @id @default(cuid())
+  organizationId String
+  uploadedById   String
+  /// Always wiki/{organizationId}/{id}/…
+  r2Key          String   @unique
+  fileName       String
+  contentType    String
+  byteSize       Int
+  width          Int?
+  height         Int?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation("WikiImageUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([uploadedById])
+  @@map("wiki_image")
   @@schema("public")
 }
 

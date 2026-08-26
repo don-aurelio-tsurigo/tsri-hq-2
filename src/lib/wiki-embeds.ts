@@ -1,7 +1,9 @@
 /** Resolve allowlisted video providers to a safe iframe src. */
 
+export type WikiVideoProvider = "youtube" | "vimeo" | "loom";
+
 export type WikiVideoEmbed = {
-  provider: "youtube" | "vimeo";
+  provider: WikiVideoProvider;
   src: string;
   watchUrl: string;
 };
@@ -12,6 +14,10 @@ function youtubeEmbedSrc(videoId: string): string {
 
 function vimeoEmbedSrc(videoId: string): string {
   return `https://player.vimeo.com/video/${encodeURIComponent(videoId)}`;
+}
+
+function loomEmbedSrc(videoId: string): string {
+  return `https://www.loom.com/embed/${encodeURIComponent(videoId)}`;
 }
 
 function parseYouTubeId(url: URL): string | null {
@@ -62,6 +68,23 @@ function parseVimeoId(url: URL): string | null {
   return null;
 }
 
+function parseLoomId(url: URL): string | null {
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
+  if (host !== "loom.com") return null;
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  const marker = parts[0];
+  if (
+    (marker === "share" || marker === "embed") &&
+    parts[1] &&
+    /^[a-f0-9]{16,64}$/i.test(parts[1])
+  ) {
+    return parts[1];
+  }
+
+  return null;
+}
+
 export function resolveVideoEmbed(rawHref: string): WikiVideoEmbed | null {
   const trimmed = rawHref.trim();
   if (!trimmed) return null;
@@ -89,6 +112,15 @@ export function resolveVideoEmbed(rawHref: string): WikiVideoEmbed | null {
     return {
       provider: "vimeo",
       src: vimeoEmbedSrc(vimeoId),
+      watchUrl: trimmed,
+    };
+  }
+
+  const loomId = parseLoomId(url);
+  if (loomId) {
+    return {
+      provider: "loom",
+      src: loomEmbedSrc(loomId),
       watchUrl: trimmed,
     };
   }

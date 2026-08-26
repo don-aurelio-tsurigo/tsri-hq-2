@@ -306,7 +306,7 @@ textarea {
 .wiki-prose h1,
 .wiki-prose h2,
 .wiki-prose h3 {
-  font-family: var(--font-display), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 1.25em 0 0.5em;
@@ -369,6 +369,56 @@ textarea {
   padding-left: 0.9rem;
   border-left: 3px solid var(--accent);
   color: var(--muted);
+}
+
+.wiki-table-wrap {
+  overflow-x: auto;
+  margin: 0.85em 0;
+}
+
+.wiki-prose table,
+.wiki-editor-surface table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+  margin: 0.85em 0;
+}
+
+.wiki-table-wrap > table {
+  margin: 0;
+}
+
+.wiki-prose table th,
+.wiki-prose table td,
+.wiki-editor-surface table th,
+.wiki-editor-surface table td {
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+  min-width: 4.5rem;
+}
+
+.wiki-prose table th,
+.wiki-editor-surface table th {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+.wiki-prose table p,
+.wiki-editor-surface table p {
+  margin: 0;
+}
+
+.wiki-prose img,
+.wiki-editor-surface img.wiki-editor-image,
+.wiki-editor-surface img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.85em 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 .wiki-video-embed {

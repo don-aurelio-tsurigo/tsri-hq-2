@@ -3,12 +3,17 @@
 import {
   Children,
   isValidElement,
+  type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { resolveVideoEmbed } from "@/lib/wiki-embeds";
+import type { WikiVideoProvider } from "@/lib/wiki-embeds";
 import {
+  getInternalAppHref,
   isExternalWikiHref,
   normalizeWikiHref,
 } from "@/lib/wiki-links";
@@ -20,9 +25,14 @@ function WikiVideoEmbed({
 }: {
   src: string;
   watchUrl: string;
-  provider: "youtube" | "vimeo";
+  provider: WikiVideoProvider;
 }) {
-  const label = provider === "youtube" ? "YouTube-Video" : "Vimeo-Video";
+  const label =
+    provider === "youtube"
+      ? "YouTube-Video"
+      : provider === "vimeo"
+        ? "Vimeo-Video"
+        : "Loom-Video";
   return (
     <figure className="wiki-video-embed my-4">
       <div className="wiki-video-embed__frame">
@@ -55,29 +65,60 @@ function soleAnchorHref(children: ReactNode): string | null {
   return typeof only.props.href === "string" ? only.props.href : null;
 }
 
-const markdownComponents: Components = {
-  a({ href, children, ...props }) {
-    const raw = typeof href === "string" ? href : "";
-    const normalized = normalizeWikiHref(raw);
-    const external = isExternalWikiHref(normalized);
+function WikiAnchor({
+  href,
+  children,
+  ...props
+}: {
+  href?: string;
+  children?: ReactNode;
+} & Omit<ComponentPropsWithoutRef<"a">, "href">) {
+  const raw = typeof href === "string" ? href : "";
+  const normalized = normalizeWikiHref(raw);
+  const internal = getInternalAppHref(normalized);
 
-    if (external) {
-      return (
-        <a
-          {...props}
-          href={normalized}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {children}
-        </a>
-      );
-    }
-
+  if (internal) {
     return (
-      <a {...props} href={normalized || undefined}>
+      <Link href={internal} {...props}>
+        {children}
+      </Link>
+    );
+  }
+
+  if (normalized.startsWith("#")) {
+    return (
+      <a {...props} href={normalized}>
         {children}
       </a>
+    );
+  }
+
+  if (isExternalWikiHref(normalized)) {
+    return (
+      <a
+        {...props}
+        href={normalized}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <a {...props} href={normalized || undefined}>
+      {children}
+    </a>
+  );
+}
+
+const markdownComponents: Components = {
+  a({ href, children, ...props }) {
+    return (
+      <WikiAnchor href={href} {...props}>
+        {children}
+      </WikiAnchor>
     );
   },
   p({ children, ...props }) {
@@ -109,12 +150,30 @@ const markdownComponents: Components = {
       );
     }
     if (!raw) return null;
-    return <img src={raw} alt={typeof alt === "string" ? alt : ""} />;
+    return (
+      <img
+        src={raw}
+        alt={typeof alt === "string" ? alt : ""}
+        loading="lazy"
+        className="wiki-content-image"
+      />
+    );
+  },
+  table({ children, ...props }) {
+    return (
+      <div className="wiki-table-wrap">
+        <table className="wiki-table" {...props}>
+          {children}
+        </table>
+      </div>
+    );
   },
 };
 
 export function WikiMarkdown({ source }: { source: string }) {
   return (
-    <ReactMarkdown components={markdownComponents}>{source}</ReactMarkdown>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {source}
+    </ReactMarkdown>
   );
 }
