@@ -5,7 +5,8 @@ import sharp from "sharp";
 export const WIKI_R2_PREFIX = "wiki/";
 
 export const WIKI_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-export const WIKI_IMAGE_MAX_EDGE = 2000;
+/** Longest edge after upload — enough for sharp display, not full-bleed page width. */
+export const WIKI_IMAGE_MAX_EDGE = 1200;
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -99,7 +100,34 @@ export async function prepareWikiImageBytes(
   }
 
   if (type === "image/gif") {
-    return { buffer: bytes, contentType: type };
+    const image = sharp(bytes, { animated: true, failOn: "none" });
+    const meta = await image.metadata();
+    const width = meta.width ?? undefined;
+    const height = meta.height ?? undefined;
+    const needsResize =
+      (width != null && width > WIKI_IMAGE_MAX_EDGE) ||
+      (height != null && height > WIKI_IMAGE_MAX_EDGE);
+
+    if (!needsResize) {
+      return { buffer: bytes, contentType: type, width, height };
+    }
+
+    const buffer = await image
+      .resize({
+        width: WIKI_IMAGE_MAX_EDGE,
+        height: WIKI_IMAGE_MAX_EDGE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .gif()
+      .toBuffer();
+    const out = await sharp(buffer, { animated: true }).metadata();
+    return {
+      buffer,
+      contentType: "image/gif",
+      width: out.width,
+      height: out.height,
+    };
   }
 
   const image = sharp(bytes, { failOn: "none" }).rotate();

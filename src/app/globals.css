@@ -414,7 +414,8 @@ textarea {
 .wiki-editor-surface img.wiki-editor-image,
 .wiki-editor-surface img {
   display: block;
-  max-width: 100%;
+  width: auto;
+  max-width: min(100%, 28rem);
   height: auto;
   margin: 0.85em 0;
   border-radius: var(--radius-sm);
