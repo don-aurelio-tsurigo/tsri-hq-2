@@ -351,14 +351,14 @@ export function WikiSpace({
               <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
                 Wissensbasis
               </p>
-              <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+              <h1 className="mt-1 font-[family-name:var(--font-body)] text-3xl font-semibold tracking-tight">
                 Wiki
               </h1>
             </header>
 
             {pinned.length > 0 && (
               <section>
-                <h2 className="mb-2 font-[family-name:var(--font-display)] text-lg font-semibold">
+                <h2 className="mb-2 font-[family-name:var(--font-body)] text-lg font-semibold">
                   Pins
                 </h2>
                 <div className="flex flex-wrap gap-2">
@@ -381,7 +381,7 @@ export function WikiSpace({
             )}
 
             <section>
-              <h2 className="mb-2 font-[family-name:var(--font-display)] text-lg font-semibold">
+              <h2 className="mb-2 font-[family-name:var(--font-body)] text-lg font-semibold">
                 Bereiche
               </h2>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -408,10 +408,10 @@ export function WikiSpace({
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full max-w-xl rounded-lg border border-[var(--border)] bg-white px-3 py-2 font-[family-name:var(--font-display)] text-2xl font-semibold"
+                    className="w-full max-w-xl rounded-lg border border-[var(--border)] bg-white px-3 py-2 font-[family-name:var(--font-body)] text-2xl font-semibold"
                   />
                 ) : (
-                  <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+                  <h1 className="font-[family-name:var(--font-body)] text-3xl font-semibold tracking-tight">
                     {currentPage.title}
                   </h1>
                 )}
@@ -500,7 +500,7 @@ export function WikiSpace({
       {newOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="card w-full max-w-md space-y-4 p-5">
-            <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+            <h2 className="font-[family-name:var(--font-body)] text-xl font-semibold">
               Neue Seite
             </h2>
             <p className="text-sm text-[var(--muted)]">
