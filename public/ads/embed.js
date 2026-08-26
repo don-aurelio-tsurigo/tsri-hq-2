@@ -21,7 +21,7 @@
 
   var STYLE_ID = "hq-ad-embed-styles";
   var CSS =
-    ".hq-ad-slot{display:block;width:100%;max-width:582px;box-sizing:border-box;container-name:hq-ad;container-type:inline-size}" +
+    ".hq-ad-slot{display:block;width:100%;max-width:582px;margin:0 auto;box-sizing:border-box;container-name:hq-ad;container-type:inline-size}" +
     ".hq-ad-slot__wrapper{box-sizing:border-box;position:relative;width:100%;max-width:582px;overflow:hidden;border:0;border-radius:1cqw;background-color:#e1e4e8;padding:0 .5rem .5rem;opacity:0;transition:opacity .5s cubic-bezier(0,.5,.25,1) .6s}" +
     "@container hq-ad (min-width:480px){.hq-ad-slot__wrapper{padding:0 1.5rem 1.5rem}}" +
     ".hq-ad-slot--ready .hq-ad-slot__wrapper{opacity:1}" +
