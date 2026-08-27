@@ -3,7 +3,6 @@
 import {
   Children,
   isValidElement,
-  type ComponentPropsWithoutRef,
   type ReactNode,
 } from "react";
 import Link from "next/link";
@@ -68,58 +67,40 @@ function soleAnchorHref(children: ReactNode): string | null {
 function WikiAnchor({
   href,
   children,
-  ...props
 }: {
   href?: string;
   children?: ReactNode;
-} & Omit<ComponentPropsWithoutRef<"a">, "href">) {
+}) {
   const raw = typeof href === "string" ? href : "";
   const normalized = normalizeWikiHref(raw);
   const internal = getInternalAppHref(normalized);
 
   if (internal) {
     return (
-      <Link href={internal} {...props}>
+      <Link href={internal} prefetch={false}>
         {children}
       </Link>
     );
   }
 
   if (normalized.startsWith("#")) {
-    return (
-      <a {...props} href={normalized}>
-        {children}
-      </a>
-    );
+    return <a href={normalized}>{children}</a>;
   }
 
   if (isExternalWikiHref(normalized)) {
     return (
-      <a
-        {...props}
-        href={normalized}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href={normalized} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
     );
   }
 
-  return (
-    <a {...props} href={normalized || undefined}>
-      {children}
-    </a>
-  );
+  return <a href={normalized || undefined}>{children}</a>;
 }
 
 const markdownComponents: Components = {
-  a({ href, children, ...props }) {
-    return (
-      <WikiAnchor href={href} {...props}>
-        {children}
-      </WikiAnchor>
-    );
+  a({ href, children }) {
+    return <WikiAnchor href={href}>{children}</WikiAnchor>;
   },
   p({ children, ...props }) {
     const href = soleAnchorHref(children);

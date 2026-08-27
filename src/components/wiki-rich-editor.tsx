@@ -295,8 +295,8 @@ export function WikiRichEditor({
       ed.chain().focus().extendMarkRange("link").unsetLink().run();
       return;
     }
-    const href = canonicalizeWikiHref(trimmed);
-    const external = isExternalWikiHref(href);
+    const href = canonicalizeWikiHref(trimmed, window.location.origin);
+    const external = isExternalWikiHref(href, window.location.origin);
     ed.chain()
       .focus()
       .extendMarkRange("link")
