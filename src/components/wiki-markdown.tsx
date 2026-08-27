@@ -16,7 +16,7 @@ import {
   isExternalWikiHref,
   normalizeWikiHref,
 } from "@/lib/wiki-links";
-import { normalizeWikiMarkdownTables } from "@/lib/wiki-markdown-tables";
+import { normalizeWikiMarkdown } from "@/lib/wiki-markdown-tables";
 
 function WikiVideoEmbed({
   src,
@@ -153,7 +153,7 @@ const markdownComponents: Components = {
 };
 
 export function WikiMarkdown({ source }: { source: string }) {
-  const normalized = normalizeWikiMarkdownTables(source);
+  const normalized = normalizeWikiMarkdown(source);
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {normalized}

@@ -26,7 +26,7 @@ import {
   normalizeWikiHref,
 } from "@/lib/wiki-links";
 import { resolveVideoEmbed } from "@/lib/wiki-embeds";
-import { htmlToWikiMarkdown, normalizeWikiMarkdownTables } from "@/lib/wiki-markdown-tables";
+import { htmlToWikiMarkdown, normalizeWikiMarkdown } from "@/lib/wiki-markdown-tables";
 
 function markdownToHtml(markdown: string): string {
   const html = marked.parse(markdown || "", { async: false });
@@ -192,7 +192,7 @@ export function WikiRichEditor({
         },
       }),
     ],
-    content: markdownToHtml(normalizeWikiMarkdownTables(initialMarkdown)),
+    content: markdownToHtml(normalizeWikiMarkdown(initialMarkdown)),
     editorProps: {
       attributes: {
         class:
@@ -315,8 +315,8 @@ export function WikiRichEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white">
-      <div className="border-b border-[var(--border)] bg-[var(--bg)]/60">
+    <div className="rounded-lg border border-[var(--border)] bg-white">
+      <div className="sticky top-14 z-20 border-b border-[var(--border)] bg-[var(--bg)]/95 shadow-sm backdrop-blur-sm md:top-0">
         <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
           <BlockStyleSelect
             value={getBlockStyle(ed)}
