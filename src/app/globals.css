@@ -378,7 +378,8 @@ textarea {
 
 .wiki-prose table,
 .wiki-editor-surface table {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: 0.95em;
   margin: 0.85em 0;

@@ -7,8 +7,6 @@ import TiptapLink from "@tiptap/extension-link";
 import { Image as TiptapImage } from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { marked } from "marked";
-import TurndownService from "turndown";
-import { tables as turndownTables } from "turndown-plugin-gfm";
 import {
   Bold,
   ImageIcon,
@@ -28,35 +26,11 @@ import {
   normalizeWikiHref,
 } from "@/lib/wiki-links";
 import { resolveVideoEmbed } from "@/lib/wiki-embeds";
-
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  bulletListMarker: "-",
-});
-turndown.use(turndownTables);
-// TipTap wraps cell text in <p>; flatten so GFM tables stay one line per row.
-turndown.addRule("tableCellParagraph", {
-  filter(node) {
-    return (
-      node.nodeName === "P" &&
-      !!node.parentNode &&
-      (node.parentNode.nodeName === "TD" || node.parentNode.nodeName === "TH")
-    );
-  },
-  replacement(content) {
-    return content;
-  },
-});
+import { htmlToWikiMarkdown, normalizeWikiMarkdownTables } from "@/lib/wiki-markdown-tables";
 
 function markdownToHtml(markdown: string): string {
   const html = marked.parse(markdown || "", { async: false });
   return typeof html === "string" ? html : "";
-}
-
-function htmlToMarkdown(html: string): string {
-  if (!html || html === "<p></p>") return "";
-  return turndown.turndown(html).trim();
 }
 
 type BlockStyle = "paragraph" | "heading2" | "heading3";
@@ -218,7 +192,7 @@ export function WikiRichEditor({
         },
       }),
     ],
-    content: markdownToHtml(initialMarkdown),
+    content: markdownToHtml(normalizeWikiMarkdownTables(initialMarkdown)),
     editorProps: {
       attributes: {
         class:
@@ -226,7 +200,7 @@ export function WikiRichEditor({
       },
     },
     onUpdate: ({ editor: ed }) => {
-      onChange(htmlToMarkdown(ed.getHTML()));
+      onChange(htmlToWikiMarkdown(ed.getHTML()));
       bump();
     },
     onSelectionUpdate: () => {
