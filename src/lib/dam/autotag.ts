@@ -64,7 +64,7 @@ export async function autotagImage(
         {
           name: TOOL_NAME,
           description:
-            "Liefert Alt-Text und konservative Keywords für ein journalistisches Archivfoto. Kein redaktioneller Kontext, keine Bildunterschrift, keine Notes.",
+            "Liefert Alt-Text und konservative Keywords für ein journalistisches Archivfoto. Kein redaktioneller Kontext, keine Bildunterschrift, keine Notes. Schweizer Rechtschreibung (kein ß, immer ss).",
           input_schema: {
             type: "object",
             additionalProperties: false,
@@ -73,13 +73,13 @@ export async function autotagImage(
               altText: {
                 type: "string",
                 description:
-                  "Ein präziser deutscher Alt-Text (max. 160 Zeichen), der nur das klar sichtbare Motiv beschreibt.",
+                  "Ein präziser deutscher Alt-Text (max. 160 Zeichen), der nur das klar sichtbare Motiv beschreibt. Schweizer Rechtschreibung (kein ß, immer ss).",
               },
               keywords: {
                 type: "array",
                 items: { type: "string" },
                 description:
-                  "5–12 kurze deutsche Keywords in Kleinschreibung. Nur sichtbar: Orte, Motive, Objekte, Stimmung. Max. 3 Wörter pro Keyword.",
+                  "5–12 kurze deutsche Keywords in Kleinschreibung. Nur sichtbar: Orte, Motive, Objekte, Stimmung. Max. 3 Wörter pro Keyword. Schweizer Rechtschreibung (kein ß, immer ss).",
               },
             },
           },
@@ -102,7 +102,7 @@ export async function autotagImage(
               type: "text",
               text: [
                 "Tagge dieses Foto für das Bildarchiv von Tsüri.ch.",
-                "Sprache: Deutsch. Keywords kleingeschrieben.",
+                "Sprache: Deutsch. Schweizer Rechtschreibung (kein ß, immer ss). Keywords kleingeschrieben.",
                 "Nur klar Sichtbares: Motive, Orte, Objekte, Stimmungen.",
                 "Keine Personennamen erfinden (nur wenn auf Schild/Trikot lesbar).",
                 "Keine Marken erfinden (nur wenn klar lesbar).",
