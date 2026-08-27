@@ -1,11 +1,11 @@
 import { DamUploadWizard } from "@/components/dam-upload-wizard";
-import { listCollections, listRecentCredits } from "@/lib/dam/queries";
+import { listCollections, listKnownCredits } from "@/lib/dam/queries";
 import { requireMembership } from "@/lib/session";
 
 export default async function DamUploadPage() {
   const { session } = await requireMembership();
-  const [recentCredits, collections] = await Promise.all([
-    listRecentCredits(session.user.id),
+  const [knownCredits, collections] = await Promise.all([
+    listKnownCredits(),
     listCollections(),
   ]);
 
@@ -21,7 +21,7 @@ export default async function DamUploadPage() {
       </header>
       <DamUploadWizard
         userName={session.user.name}
-        recentCredits={recentCredits}
+        knownCredits={knownCredits}
         collections={collections}
       />
     </div>

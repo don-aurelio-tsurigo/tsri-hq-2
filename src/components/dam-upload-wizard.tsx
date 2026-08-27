@@ -30,6 +30,22 @@ type CollectionOption = {
   isPersonal: boolean;
 };
 
+type CreditOption = { value: string; label: string };
+
+function buildCreditOptions(meCredit: string, knownCredits: string[]): CreditOption[] {
+  const seen = new Set<string>();
+  const options: CreditOption[] = [];
+  const add = (credit: string) => {
+    const trimmed = credit.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    options.push({ value: trimmed, label: trimmed });
+  };
+  add(meCredit);
+  for (const credit of knownCredits) add(credit);
+  return options;
+}
+
 type QueuedFile = {
   id: string;
   file: File;
@@ -301,6 +317,7 @@ function MetaFields({
   credit,
   onCredit,
   showCredit,
+  creditOptions,
   collectionInputRef,
   autoFocusCollection,
 }: {
@@ -317,6 +334,7 @@ function MetaFields({
   credit?: string;
   onCredit?: (v: string) => void;
   showCredit?: boolean;
+  creditOptions?: CreditOption[];
   collectionInputRef?: React.Ref<HTMLInputElement>;
   autoFocusCollection?: boolean;
 }) {
@@ -371,8 +389,21 @@ function MetaFields({
       </div>
       {showCredit && onCredit ? (
         <div className="field sm:col-span-2">
-          <label>Credit</label>
-          <input value={credit ?? ""} onChange={(e) => onCredit(e.target.value)} />
+          <DamCombobox
+            id={`${fieldId}-credit`}
+            label="Credit"
+            emptyLabel="Credit wählen…"
+            placeholder="Credit suchen oder neu…"
+            options={creditOptions ?? []}
+            value={credit?.trim() ? [credit.trim()] : []}
+            onChange={(next) => onCredit(next[0]?.trim() ?? "")}
+            onCreate={async (name) => {
+              const trimmed = name.trim();
+              if (!trimmed) return null;
+              onCredit(trimmed);
+              return { value: trimmed, label: trimmed };
+            }}
+          />
         </div>
       ) : null}
       <div className="field sm:col-span-2">
@@ -511,20 +542,23 @@ function BatchStatus({ batchId }: { batchId: string }) {
 
 export function DamUploadWizard({
   userName,
-  recentCredits,
+  knownCredits,
   collections,
 }: {
   userName: string;
-  recentCredits: string[];
+  knownCredits: string[];
   collections: CollectionOption[];
 }) {
   const meCredit = `${userName}/Tsüri.ch`;
+  const creditOptions = useMemo(
+    () => buildCreditOptions(meCredit, knownCredits),
+    [knownCredits, meCredit],
+  );
   const collectionInputRef = useRef<HTMLInputElement>(null);
   const uploadStateRef = useRef<Record<string, FileUploadState>>({});
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [reached, setReached] = useState(1);
   const [credit, setCredit] = useState(meCredit);
-  const [creditDraft, setCreditDraft] = useState("");
   const [queued, setQueued] = useState<QueuedFile[]>([]);
   const [dropErrors, setDropErrors] = useState<string[]>([]);
   const [prepared, setPrepared] = useState<PreparedFile[]>([]);
@@ -727,9 +761,8 @@ export function DamUploadWizard({
     });
   }, [queued, selectedCredit, newCollectionName, collectionIds, collections]);
 
-  function applyCredit(next: string, fromMe: boolean) {
+  function applyCredit(next: string) {
     setCredit(next);
-    if (fromMe) setCreditDraft("");
   }
 
   function changeNewCollection(name: string) {
@@ -1100,46 +1133,25 @@ export function DamUploadWizard({
             Credit / Fotograf:in
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            Standard ist dein Name. Wird auf alle Bilder dieses Batches gesetzt
-            und für die Dateinamen verwendet.
+            Standard ist dein Name. Wähle einen bereits erfassten Credit oder
+            gib einen neuen ein. Gilt für alle Bilder dieses Batches und die
+            Dateinamen.
           </p>
-          <div className="field">
-            <label htmlFor="recent-credit">Credit</label>
-            <select
-              id="recent-credit"
-              value={
-                [meCredit, ...recentCredits].includes(credit) ? credit : ""
-              }
-              onChange={(e) => {
-                applyCredit(e.target.value, e.target.value === meCredit);
-                setCreditDraft("");
-              }}
-            >
-              {[meCredit, ...recentCredits].includes(credit) ? null : (
-                <option value="">— neuer Credit unten —</option>
-              )}
-              <option value={meCredit}>{meCredit}</option>
-              {recentCredits
-                .filter((c) => c !== meCredit)
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="credit-free">Oder neuer Credit</label>
-            <input
-              id="credit-free"
-              value={creditDraft}
-              onChange={(e) => {
-                setCreditDraft(e.target.value);
-                applyCredit(e.target.value, false);
-              }}
-              placeholder="Paul Muster/Tsüri.ch"
-            />
-          </div>
+          <DamCombobox
+            id="upload-credit"
+            label="Credit"
+            emptyLabel="Credit wählen…"
+            placeholder="Credit suchen oder neu…"
+            options={creditOptions}
+            value={selectedCredit ? [selectedCredit] : []}
+            onChange={(next) => applyCredit(next[0]?.trim() ?? "")}
+            onCreate={async (name) => {
+              const trimmed = name.trim();
+              if (!trimmed) return null;
+              applyCredit(trimmed);
+              return { value: trimmed, label: trimmed };
+            }}
+          />
           {selectedCredit ? (
             <p className="text-sm">
               Aktiv: <strong>{selectedCredit}</strong>
@@ -1522,6 +1534,7 @@ export function DamUploadWizard({
                             ),
                           )
                         }
+                        creditOptions={creditOptions}
                         showCredit
                       />
                     </div>

@@ -3,23 +3,17 @@ import { parseEditParams } from "@/lib/dam/edit-params";
 import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 import type { PersonalAssetCard } from "@/lib/dam/types";
 
-export async function listRecentCredits(userId: string): Promise<string[]> {
-  const rows = await prisma.uploadBatch.findMany({
-    where: { uploadedBy: userId },
-    orderBy: { createdAt: "desc" },
+export async function listKnownCredits(): Promise<string[]> {
+  const rows = await prisma.asset.findMany({
+    where: {
+      deletedAt: null,
+      status: { in: ["published", "staging", "archived"] },
+    },
+    distinct: ["credit"],
     select: { credit: true },
-    take: 80,
+    orderBy: { credit: "asc" },
   });
-  const seen = new Set<string>();
-  const credits: string[] = [];
-  for (const row of rows) {
-    const credit = row.credit.trim();
-    if (!credit || seen.has(credit)) continue;
-    seen.add(credit);
-    credits.push(credit);
-    if (credits.length >= 20) break;
-  }
-  return credits;
+  return rows.map((row) => row.credit.trim()).filter(Boolean);
 }
 
 export async function listCollections() {
