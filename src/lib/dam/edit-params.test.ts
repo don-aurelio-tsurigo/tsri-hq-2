@@ -165,6 +165,7 @@ describe("damFileSrc", () => {
     const src = damFileSrc("abc", "thumb", { ...DEFAULT_EDIT_PARAMS, rotate: 10 });
     assert.equal(src.includes("variant=thumb"), true);
     assert.equal(src.includes("&r="), true);
+    assert.equal(src.includes("&v=2"), true);
     assert.equal(damFileSrc("abc", "original").includes("&r="), false);
   });
 });

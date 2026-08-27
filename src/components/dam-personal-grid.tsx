@@ -621,15 +621,18 @@ export function DamPersonalGrid({
           pending={pending}
           onClose={() => setEditorId(null)}
           onSave={(params) => {
-            setAssets((prev) =>
-              prev.map((a) =>
-                a.id === editorAsset.id ? { ...a, editParams: params } : a,
-              ),
-            );
             startTransition(async () => {
               const result = await saveAssetEditParams(editorAsset.id, params);
-              if (result.error) setError(result.error);
-              else setEditorId(null);
+              if (result.error) {
+                setError(result.error);
+                return;
+              }
+              setAssets((prev) =>
+                prev.map((a) =>
+                  a.id === editorAsset.id ? { ...a, editParams: params } : a,
+                ),
+              );
+              setEditorId(null);
             });
           }}
         />

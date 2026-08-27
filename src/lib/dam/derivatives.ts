@@ -9,7 +9,14 @@ import { putObject } from "@/lib/r2";
 
 const DEFAULT_REV = editParamsRev(DEFAULT_EDIT_PARAMS);
 
-/** Thumb/web key for the current recipe (defaults stay on the classic key). */
+export function isDefaultEditParams(raw: unknown): boolean {
+  return editParamsRev(parseEditParams(raw)) === DEFAULT_REV;
+}
+
+/**
+ * Recipe-scoped thumb/web key. Defaults stay on the classic `_thumb.webp` /
+ * `_web.webp` path so existing unedited derivatives keep working.
+ */
 export function previewDerivativeKey(
   r2Key: string,
   kind: "thumb" | "web",
@@ -30,8 +37,17 @@ export async function writeEditedDerivatives(
     renderDamPreviewWebp(original, raw, 480, 72),
     renderDamPreviewWebp(original, raw, 2000, 80),
   ]);
-  await Promise.all([
-    putObject(previewDerivativeKey(r2Key, "thumb", raw), thumb, "image/webp"),
-    putObject(previewDerivativeKey(r2Key, "web", raw), web, "image/webp"),
-  ]);
+  const thumbKey = previewDerivativeKey(r2Key, "thumb", raw);
+  const webKey = previewDerivativeKey(r2Key, "web", raw);
+  const writes = [
+    putObject(thumbKey, thumb, "image/webp"),
+    putObject(webKey, web, "image/webp"),
+  ];
+  // Keep classic keys in sync too so a recipe miss never falls back to a
+  // stale unedited thumb from upload/publish.
+  if (thumbKey !== derivativeKey(r2Key, "thumb")) {
+    writes.push(putObject(derivativeKey(r2Key, "thumb"), thumb, "image/webp"));
+    writes.push(putObject(derivativeKey(r2Key, "web"), web, "image/webp"));
+  }
+  await Promise.all(writes);
 }

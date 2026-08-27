@@ -509,14 +509,17 @@ export function DamArchiveGrid({
           pending={pending}
           onClose={() => setEditorId(null)}
           onSave={(params) => {
-            setOverrides((prev) => ({
-              ...prev,
-              [editorAsset.id]: { ...prev[editorAsset.id], editParams: params },
-            }));
             startTransition(async () => {
               const result = await saveAssetEditParams(editorAsset.id, params);
-              if (result.error) setError(result.error);
-              else setEditorId(null);
+              if (result.error) {
+                setError(result.error);
+                return;
+              }
+              setOverrides((prev) => ({
+                ...prev,
+                [editorAsset.id]: { ...prev[editorAsset.id], editParams: params },
+              }));
+              setEditorId(null);
             });
           }}
         />

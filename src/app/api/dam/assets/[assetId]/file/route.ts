@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
 import { renderDamPreviewWebp, renderPublishedMaster } from "@/lib/dam/apply-edits";
 import {
+  isDefaultEditParams,
   previewDerivativeKey,
   writeEditedDerivatives,
 } from "@/lib/dam/derivatives";
 import {
   contentDispositionAttachment,
+  derivativeKey,
   replaceKeyExtension,
 } from "@/lib/dam/filename";
+import { editParamsRev, parseEditParams } from "@/lib/dam/edit-params";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
@@ -42,7 +45,9 @@ export async function GET(
   }
 
   const { assetId } = await ctx.params;
-  const variant = new URL(request.url).searchParams.get("variant") ?? "thumb";
+  const url = new URL(request.url);
+  const variant = url.searchParams.get("variant") ?? "thumb";
+  const clientRev = url.searchParams.get("r");
   const asset = await prisma.asset.findFirst({
     where: {
       id: assetId,
@@ -59,28 +64,51 @@ export async function GET(
 
   try {
     if (variant === "thumb" || variant === "web") {
-      const key = previewDerivativeKey(asset.r2Key, variant, asset.editParams);
+      const params = parseEditParams(asset.editParams);
+      const serverRev = editParamsRev(params);
+      // Avoid poisoning the browser cache when the client optimistic `r=` is ahead
+      // of the DB write, or points at a stale recipe.
+      const cacheControl =
+        clientRev && clientRev !== serverRev
+          ? "private, no-store"
+          : "private, max-age=86400";
+
+      const recipeKey = previewDerivativeKey(asset.r2Key, variant, params);
       try {
-        const cached = await getObject(key);
+        const cached = await getObject(recipeKey);
         return imageResponse(cached.buffer, "image/webp", {
-          "Cache-Control": "private, max-age=86400",
+          "Cache-Control": cacheControl,
         });
       } catch {
-        /* regenerate below */
+        /* try classic only when the recipe is default — otherwise it is often
+           an unedited upload thumb and would hide straighten/colour edits. */
+      }
+
+      if (isDefaultEditParams(params)) {
+        try {
+          const classic = await getObject(derivativeKey(asset.r2Key, variant));
+          return imageResponse(classic.buffer, "image/webp", {
+            "Cache-Control": cacheControl,
+          });
+        } catch {
+          /* regenerate below */
+        }
       }
 
       const original = await getObject(asset.r2Key);
       const buffer = await renderDamPreviewWebp(
         original.buffer,
-        asset.editParams,
+        params,
         variant === "thumb" ? 480 : 2000,
         variant === "thumb" ? 72 : 80,
       );
-      void writeEditedDerivatives(asset.r2Key, original.buffer, asset.editParams).catch(
-        (error) => console.warn("[dam] derivative backfill failed", error),
-      );
+      try {
+        await writeEditedDerivatives(asset.r2Key, original.buffer, params);
+      } catch (error) {
+        console.warn("[dam] derivative backfill failed", error);
+      }
       return imageResponse(buffer, "image/webp", {
-        "Cache-Control": "private, max-age=86400",
+        "Cache-Control": cacheControl,
       });
     }
 

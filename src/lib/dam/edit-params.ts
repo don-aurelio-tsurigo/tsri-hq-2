@@ -243,7 +243,8 @@ export function damFileSrc(
 ): string {
   const path = `/api/dam/assets/${assetId}/file?variant=${variant}`;
   if (variant === "original" || !params) return path;
-  return `${path}&r=${editParamsRev(params)}`;
+  // `v=2` busts browsers that cached unedited thumbs under an optimistic `r=`.
+  return `${path}&r=${editParamsRev(params)}&v=2`;
 }
 
 export function rotatedBoundingBox(
