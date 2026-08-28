@@ -271,6 +271,49 @@ export async function updateMemberPensum(formData: FormData) {
   return { ok: true as const };
 }
 
+const fixedDayOffSchema = z.object({
+  userId: z.string().min(1),
+  weekday: z
+    .string()
+    .transform((v) => (v.trim() === "" ? null : Number(v)))
+    .pipe(z.union([z.null(), z.number().int().min(1).max(5)])),
+});
+
+/** Fixer freier Wochentag (ISO 1=Mo…5=Fr) — teamweit, u.a. für Schichtplan. */
+export async function setFixedDayOff(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = fixedDayOffSchema.safeParse({
+    userId: formData.get("userId"),
+    weekday: formData.get("weekday") ?? "",
+  });
+  if (!parsed.success) {
+    return { error: "Person und Wochentag (Mo–Fr) prüfen." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId: parsed.data.userId,
+      },
+    },
+  });
+  if (!target) return { error: "Person ist nicht im Team." };
+  if (target.archivedAt) {
+    return { error: "Archivierte Mitglieder können keinen freien Tag setzen." };
+  }
+
+  await prisma.membership.update({
+    where: { id: target.id },
+    data: { fixedDayOff: parsed.data.weekday },
+  });
+
+  revalidatePath("/settings/members");
+  revalidatePath("/schichtplan");
+  revalidatePath("/settings/schichtplan");
+  return { ok: true as const };
+}
+
 const capabilityKeys = ASSIGNABLE_CAPABILITIES.map((c) => c.key) as [
   AppCapability,
   ...AppCapability[],

@@ -141,6 +141,7 @@ import {
   adminUpdateMemberName as adminUpdateMemberNameAction,
   updateMemberProfile as updateMemberProfileAction,
   updateMemberPensum as updateMemberPensumAction,
+  setFixedDayOff as setFixedDayOffAction,
   setMemberCapability as setMemberCapabilityAction,
   archiveMember as archiveMemberAction,
   restoreMember as restoreMemberAction,
@@ -163,6 +164,9 @@ export async function updateMemberProfile(formData: FormData) {
 }
 export async function updateMemberPensum(formData: FormData) {
   return updateMemberPensumAction(formData);
+}
+export async function setFixedDayOff(formData: FormData) {
+  return setFixedDayOffAction(formData);
 }
 export async function setMemberCapability(formData: FormData) {
   return setMemberCapabilityAction(formData);
@@ -279,6 +283,50 @@ export async function skipNewsletterSlot(formData: FormData) {
 }
 export async function clearNewsletterSlot(formData: FormData) {
   return clearNewsletterSlotAction(formData);
+}
+
+import {
+  upsertShiftQuota as upsertShiftQuotaAction,
+  deleteShiftQuota as deleteShiftQuotaAction,
+  saveMemberShiftQuotas as saveMemberShiftQuotasAction,
+  clearMemberShiftQuotas as clearMemberShiftQuotasAction,
+  createCouncilSessionStub as createCouncilSessionStubAction,
+  markCouncilSessionSkipped as markCouncilSessionSkippedAction,
+  generateShiftPlanProposal as generateShiftPlanProposalAction,
+  confirmShiftPlanMonth as confirmShiftPlanMonthAction,
+  upsertShiftSlot as upsertShiftSlotAction,
+  clearShiftSlot as clearShiftSlotAction,
+} from "./actions/shift-plan";
+
+export async function upsertShiftQuota(formData: FormData) {
+  return upsertShiftQuotaAction(formData);
+}
+export async function deleteShiftQuota(formData: FormData) {
+  return deleteShiftQuotaAction(formData);
+}
+export async function saveMemberShiftQuotas(formData: FormData) {
+  return saveMemberShiftQuotasAction(formData);
+}
+export async function clearMemberShiftQuotas(formData: FormData) {
+  return clearMemberShiftQuotasAction(formData);
+}
+export async function createCouncilSessionStub(formData: FormData) {
+  return createCouncilSessionStubAction(formData);
+}
+export async function markCouncilSessionSkipped(formData: FormData) {
+  return markCouncilSessionSkippedAction(formData);
+}
+export async function generateShiftPlanProposal(formData: FormData) {
+  return generateShiftPlanProposalAction(formData);
+}
+export async function confirmShiftPlanMonth(formData: FormData) {
+  return confirmShiftPlanMonthAction(formData);
+}
+export async function upsertShiftSlot(formData: FormData) {
+  return upsertShiftSlotAction(formData);
+}
+export async function clearShiftSlot(formData: FormData) {
+  return clearShiftSlotAction(formData);
 }
 
 import {

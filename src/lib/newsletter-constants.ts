@@ -45,9 +45,19 @@ export const NEWSLETTER_CAMPAIGN_STATUSES = [
   "planned",
   "published",
   "skipped",
+  "proposed",
 ] as const;
 export type NewsletterCampaignStatusValue =
   (typeof NEWSLETTER_CAMPAIGN_STATUSES)[number];
+
+/** Statuses shown in the newsletter calendar (excludes Schichtplan drafts). */
+export const NEWSLETTER_VISIBLE_STATUSES = [
+  "planned",
+  "published",
+  "skipped",
+] as const;
+export type NewsletterVisibleStatusValue =
+  (typeof NEWSLETTER_VISIBLE_STATUSES)[number];
 
 export const NEWSLETTER_CAMPAIGN_STATUS_LABELS: Record<
   NewsletterCampaignStatusValue,
@@ -56,6 +66,19 @@ export const NEWSLETTER_CAMPAIGN_STATUS_LABELS: Record<
   planned: "Geplant",
   published: "Erschienen",
   skipped: "Nicht erschienen",
+  proposed: "Vorschlag",
+};
+
+export const NEWSLETTER_SCHEDULING_MODES = ["newsletter", "manualDates"] as const;
+export type NewsletterSchedulingModeValue =
+  (typeof NEWSLETTER_SCHEDULING_MODES)[number];
+
+export const NEWSLETTER_SCHEDULING_MODE_LABELS: Record<
+  NewsletterSchedulingModeValue,
+  string
+> = {
+  newsletter: "Wochentags-Rhythmus",
+  manualDates: "Manuelle Termine",
 };
 
 export const GENERATE_HORIZON_WEEKS = [2, 4, 8, 12, 26] as const;
@@ -86,6 +109,18 @@ export function isNewsletterCampaignStatus(
   value: string,
 ): value is NewsletterCampaignStatusValue {
   return (NEWSLETTER_CAMPAIGN_STATUSES as readonly string[]).includes(value);
+}
+
+export function isNewsletterVisibleStatus(
+  value: string,
+): value is NewsletterVisibleStatusValue {
+  return (NEWSLETTER_VISIBLE_STATUSES as readonly string[]).includes(value);
+}
+
+export function isNewsletterSchedulingMode(
+  value: string,
+): value is NewsletterSchedulingModeValue {
+  return (NEWSLETTER_SCHEDULING_MODES as readonly string[]).includes(value);
 }
 
 export function isWeekday(value: number): value is Weekday {

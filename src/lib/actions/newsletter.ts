@@ -10,6 +10,7 @@ import {
   frequencyFromWeekdays,
   isoWeekdayFromDateKey,
   isWeekday,
+  NEWSLETTER_VISIBLE_STATUSES,
   scheduledDateKeysForWeeks,
   WEEKDAY_FULL_LABELS,
 } from "@/lib/newsletter-constants";
@@ -239,7 +240,9 @@ export async function deleteNewsletterBlockedRange(formData: FormData) {
 function assertCampaignMatchesSchedule(
   weekdays: number[],
   dateKey: string,
+  schedulingMode?: string,
 ): string | null {
+  if (schedulingMode === "manualDates") return null;
   if (weekdays.length === 0) return null;
   const weekday = isoWeekdayFromDateKey(dateKey);
   if (!weekday || !weekdays.includes(weekday)) {
@@ -345,6 +348,7 @@ export async function createNewsletterCampaign(formData: FormData) {
   const scheduleError = assertCampaignMatchesSchedule(
     type.weekdays,
     parsed.data.date,
+    type.schedulingMode,
   );
   if (scheduleError) return { error: scheduleError };
 
@@ -399,6 +403,12 @@ export async function updateNewsletterCampaign(formData: FormData) {
   ) {
     return { error: "Kein Zugriff." };
   }
+  if (campaign.status === "proposed") {
+    return {
+      error:
+        "Schichtplan-Vorschläge bitte im Schichtplan bearbeiten oder bestätigen.",
+    };
+  }
 
   const type = await prisma.newsletterType.findFirst({
     where: {
@@ -412,6 +422,7 @@ export async function updateNewsletterCampaign(formData: FormData) {
   const scheduleError = assertCampaignMatchesSchedule(
     type.weekdays,
     parsed.data.date,
+    type.schedulingMode,
   );
   if (scheduleError) return { error: scheduleError };
 
@@ -580,6 +591,7 @@ export async function generateNewsletterCampaigns(formData: FormData) {
   }
 
   const dates = dateKeys.map((key) => new Date(`${key}T12:00:00.000Z`));
+  // Include proposed so Schichtplan drafts block duplicate rhythm slots.
   const existing = await prisma.newsletterCampaign.findMany({
     where: {
       typeId: type.id,
@@ -674,13 +686,29 @@ export async function upsertNewsletterSlot(formData: FormData) {
   const scheduleError = assertCampaignMatchesSchedule(
     type.weekdays,
     parsed.data.date,
+    type.schedulingMode,
   );
   if (scheduleError) return { error: scheduleError };
 
   const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
+  // Do not overwrite Schichtplan drafts from the newsletter calendar.
   const existing = await prisma.newsletterCampaign.findFirst({
-    where: { typeId: type.id, date },
+    where: {
+      typeId: type.id,
+      date,
+      status: { in: [...NEWSLETTER_VISIBLE_STATUSES] },
+    },
   });
+  const proposedBlocking = await prisma.newsletterCampaign.findFirst({
+    where: { typeId: type.id, date, status: "proposed" },
+    select: { id: true },
+  });
+  if (!existing && proposedBlocking) {
+    return {
+      error:
+        "Für dieses Datum gibt es einen Schichtplan-Vorschlag — bitte im Schichtplan bearbeiten.",
+    };
+  }
 
   const author = await resolveOptionalAuthor(
     membership.organizationId,
@@ -744,7 +772,11 @@ export async function skipNewsletterSlot(formData: FormData) {
   });
   if (!type) return { error: "Newsletter-Typ nicht gefunden." };
 
-  const scheduleError = assertCampaignMatchesSchedule(type.weekdays, dateKey);
+  const scheduleError = assertCampaignMatchesSchedule(
+    type.weekdays,
+    dateKey,
+    type.schedulingMode,
+  );
   if (scheduleError) return { error: scheduleError };
 
   const date = new Date(`${dateKey}T12:00:00.000Z`);

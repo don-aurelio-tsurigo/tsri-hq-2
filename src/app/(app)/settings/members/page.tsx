@@ -56,6 +56,7 @@ export default async function MembersSettingsPage() {
           userId: m.userId,
           role: m.role,
           pensumPercent: m.pensumPercent,
+          fixedDayOff: m.fixedDayOff,
           archivedAt: null,
           user: {
             name: m.user.name,
@@ -73,6 +74,7 @@ export default async function MembersSettingsPage() {
           userId: m.userId,
           role: m.role,
           pensumPercent: m.pensumPercent,
+          fixedDayOff: m.fixedDayOff,
           archivedAt: m.archivedAt?.toISOString() ?? null,
           user: {
             name: m.user.name,

@@ -7,6 +7,7 @@ import { de } from "date-fns/locale";
 import { prisma } from "@/lib/db";
 import {
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
+  NEWSLETTER_VISIBLE_STATUSES,
   scheduledDateKeysInMonth,
   type NewsletterCampaignStatusValue,
   type NewsletterFrequencyValue,
@@ -19,7 +20,10 @@ export {
   NEWSLETTER_FREQUENCIES,
   NEWSLETTER_FREQUENCY_LABELS,
   NEWSLETTER_CAMPAIGN_STATUSES,
+  NEWSLETTER_VISIBLE_STATUSES,
   NEWSLETTER_CAMPAIGN_STATUS_LABELS,
+  NEWSLETTER_SCHEDULING_MODES,
+  NEWSLETTER_SCHEDULING_MODE_LABELS,
   WEEKDAYS,
   WEEKDAY_LABELS,
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
@@ -27,6 +31,8 @@ export {
   GENERATE_HORIZON_LABELS,
   isNewsletterFrequency,
   isNewsletterCampaignStatus,
+  isNewsletterVisibleStatus,
+  isNewsletterSchedulingMode,
   parseWeekdays,
   isoWeekdayFromDateKey,
   formatWeekdays,
@@ -36,6 +42,8 @@ export {
   todayDateKey,
   type NewsletterFrequencyValue,
   type NewsletterCampaignStatusValue,
+  type NewsletterVisibleStatusValue,
+  type NewsletterSchedulingModeValue,
   type Weekday,
   type GenerateHorizonWeeks,
 } from "@/lib/newsletter-constants";
@@ -85,7 +93,7 @@ export async function ensureDefaultNewsletterTypes(organizationId: string) {
 
 export async function listNewsletterTypes(organizationId: string) {
   return prisma.newsletterType.findMany({
-    where: { organizationId, active: true },
+    where: { organizationId, active: true, isNewsletter: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
@@ -95,6 +103,8 @@ export async function listNewsletterCampaigns(
   options?: {
     typeId?: string;
     status?: NewsletterCampaignStatus;
+    /** Include Schichtplan drafts (`proposed`). Default: false. */
+    includeProposed?: boolean;
     take?: number;
   },
 ) {
@@ -102,7 +112,11 @@ export async function listNewsletterCampaigns(
     where: {
       type: { organizationId },
       ...(options?.typeId ? { typeId: options.typeId } : {}),
-      ...(options?.status ? { status: options.status } : {}),
+      ...(options?.status
+        ? { status: options.status }
+        : options?.includeProposed
+          ? {}
+          : { status: { in: [...NEWSLETTER_VISIBLE_STATUSES] } }),
     },
     include: {
       type: {
@@ -225,7 +239,8 @@ export async function listNewsletterCalendarMonth(
     listNewsletterTypes(organizationId),
     prisma.newsletterCampaign.findMany({
       where: {
-        type: { organizationId, active: true },
+        type: { organizationId, active: true, isNewsletter: true },
+        status: { in: [...NEWSLETTER_VISIBLE_STATUSES] },
         date: {
           gte: new Date(`${format(monthStart, "yyyy-MM-dd")}T12:00:00.000Z`),
           lte: new Date(`${format(monthEnd, "yyyy-MM-dd")}T12:00:00.000Z`),

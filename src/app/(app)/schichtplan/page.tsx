@@ -1,16 +1,15 @@
-import { NewsletterDirectory } from "@/components/newsletter-directory";
+import { ShiftPlanDirectory } from "@/components/shift-plan-directory";
 import {
   listMembersInTagPool,
   mergePickerMembers,
 } from "@/lib/membership-grants";
+import { canManageEditorial } from "@/lib/permissions";
 import {
-  ensureDefaultNewsletterTypes,
-  listNewsletterCalendarMonth,
-  listNewsletterTypes,
-  monthParamKey,
+  ensureShiftPlanTypes,
+  listShiftPlanMonth,
+  listShiftPlanTypes,
   parseMonthParam,
-} from "@/lib/newsletter";
-import { ensureShiftPlanTypes } from "@/lib/shift-plan";
+} from "@/lib/shift-plan";
 import { requireMembership } from "@/lib/session";
 
 function parseTypeFilterParam(
@@ -24,25 +23,21 @@ function parseTypeFilterParam(
     .filter(Boolean);
 }
 
-export default async function NewsletterPage({
+export default async function SchichtplanPage({
   searchParams,
 }: {
   searchParams: Promise<{ month?: string; type?: string | string[] }>;
 }) {
   const { membership } = await requireMembership();
   const { month: monthParam, type: typeParam } = await searchParams;
-  await ensureDefaultNewsletterTypes(membership.organizationId);
   await ensureShiftPlanTypes(membership.organizationId);
 
   const monthAnchor = parseMonthParam(monthParam);
   const typeFilter = parseTypeFilterParam(typeParam);
 
   const [types, calendar, editorialMembers] = await Promise.all([
-    listNewsletterTypes(membership.organizationId),
-    listNewsletterCalendarMonth(
-      membership.organizationId,
-      monthAnchor,
-    ),
+    listShiftPlanTypes(membership.organizationId),
+    listShiftPlanMonth(membership.organizationId, monthAnchor),
     listMembersInTagPool(membership.organizationId, "editorial"),
   ]);
 
@@ -72,20 +67,24 @@ export default async function NewsletterPage({
           Redaktion
         </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Newsletter-Plan
+          Schichtplan
         </h1>
+        <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
+          Monatliche Einsatzplanung für Repo, Briefings und weitere Schichten.
+          Vorschläge sind gelb markiert, bis sie bestätigt werden.
+        </p>
       </header>
 
-      <NewsletterDirectory
+      <ShiftPlanDirectory
         types={typeOptions}
         initialTypeIds={validFilter}
         members={members}
+        canManage={canManageEditorial(membership)}
         calendar={{
           monthLabel: calendar.monthLabel,
-          monthKey: monthParamKey(monthAnchor),
+          monthKey: calendar.monthKey,
           prevMonth: calendar.prevMonth,
           nextMonth: calendar.nextMonth,
-          currentMonth: monthParamKey(new Date()),
           days: calendar.days,
         }}
       />

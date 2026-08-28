@@ -45,6 +45,7 @@ model User {
   passwordResetsCreated PasswordResetToken[] @relation("PasswordResetCreator")
   authoredNewsletters   NewsletterCampaign[] @relation("NewsletterAuthor")
   createdNewsletters    NewsletterCampaign[] @relation("NewsletterCreator")
+  shiftQuotas           ShiftQuota[]
   vacationRequests      VacationRequest[]    @relation("VacationRequester")
   vacationReviews       VacationRequest[]    @relation("VacationReviewer")
   timeEntries           TimeEntry[]
@@ -162,6 +163,7 @@ model Organization {
   spaces                  Space[]
   newsletterTypes         NewsletterType[]
   newsletterBlockedRanges NewsletterBlockedRange[]
+  shiftQuotas             ShiftQuota[]
   vacationRequests        VacationRequest[]
   timeEntries             TimeEntry[]
   eigenleistungRubriken   EigenleistungRubrik[]
@@ -183,6 +185,8 @@ model Membership {
   role           MembershipRole @default(member)
   /// Anstellungsgrad in Prozent (100 = Vollzeit, Bezug: 40h/Woche)
   pensumPercent  Int            @default(100)
+  /// ISO-Wochentag (1=Mo…7=So) — fixer freier Tag für Schichtplan, optional
+  fixedDayOff    Int?
   /// Soft-archive: kein App-Zugang, Historie bleibt
   archivedAt     DateTime?
   createdAt      DateTime       @default(now())
@@ -584,36 +588,75 @@ enum NewsletterFrequency {
   @@schema("public")
 }
 
-/// Geplant / erschienen / ausgefallen (z.B. Sommerpause)
+/// Rhythm-Slots aus Wochentagen vs. manuell gesetzte Termine (z.B. Gemeinderat)
+enum NewsletterSchedulingMode {
+  newsletter
+  manualDates
+
+  @@schema("public")
+}
+
+/// Geplant / erschienen / ausgefallen / Schichtplan-Vorschlag
 enum NewsletterCampaignStatus {
   planned
   published
   skipped
+  proposed
 
   @@schema("public")
 }
 
 model NewsletterType {
-  id             String              @id @default(cuid())
+  id             String                   @id @default(cuid())
   organizationId String
   name           String
   frequency      NewsletterFrequency
   /// ISO-Wochentage: 1=Montag … 7=Sonntag
-  weekdays       Int[]               @default([])
+  weekdays       Int[]                    @default([])
   /// Wordle-Feld in der Planung anzeigen und beim Speichern verlangen
-  requiresWordle Boolean             @default(false)
-  sortOrder      Int                 @default(0)
-  active         Boolean             @default(true)
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  requiresWordle Boolean                  @default(false)
+  /// false = nur Schichtplan (z.B. Repo), nicht im Newsletter-Kalender
+  isNewsletter   Boolean                  @default(true)
+  /// Abend-Newsletter / Abendeinsatz (Briefings, Wohnbrief, Tsüritipp, Gemeinderat)
+  isEveningShift Boolean                  @default(false)
+  schedulingMode NewsletterSchedulingMode @default(newsletter)
+  sortOrder      Int                      @default(0)
+  active         Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   organization  Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   campaigns     NewsletterCampaign[]
   blockedRanges NewsletterBlockedRange[]
+  shiftQuotas   ShiftQuota[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
   @@map("newsletter_type")
+  @@schema("public")
+}
+
+/// Fixquote oder Präferenzbereich Person × Schichttyp (Schichtplan)
+model ShiftQuota {
+  id               String   @id @default(cuid())
+  organizationId   String
+  userId           String
+  newsletterTypeId String
+  minCount         Int
+  maxCount         Int
+  /// true = harte Vorgabe (exakt min=max), false = weiche Präferenz
+  isFixed          Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsletterType NewsletterType @relation(fields: [newsletterTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, newsletterTypeId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("shift_quota")
   @@schema("public")
 }
 

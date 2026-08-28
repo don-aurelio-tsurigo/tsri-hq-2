@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  ArchiveMemberButton,
-  RestoreMemberButton,
-} from "@/components/member-archive-buttons";
+import { ArchiveMemberButton, RestoreMemberButton } from "@/components/member-archive-buttons";
+import { FixedDayOffSelect } from "@/components/fixed-day-off-select";
 import { MemberCapabilityGrants } from "@/components/member-capability-grants";
 import { MemberNameEdit } from "@/components/member-name-edit";
 import { MemberPasswordHelp } from "@/components/member-password-help";
@@ -12,6 +10,10 @@ import { PensumSelect } from "@/components/pensum-select";
 import { ASSIGNABLE_CAPABILITIES } from "@/lib/permissions";
 import { nameIsIncomplete } from "@/lib/user-name";
 import type { AppCapability } from "@/generated/prisma/client";
+import {
+  WEEKDAY_LABELS,
+  type Weekday,
+} from "@/lib/newsletter-constants";
 
 const DRAWER_MS = 280;
 
@@ -20,6 +22,7 @@ export type TeamMember = {
   userId: string;
   role: string;
   pensumPercent: number;
+  fixedDayOff: number | null;
   archivedAt: string | null;
   user: {
     name: string;
@@ -172,6 +175,11 @@ function MemberRow({
         <span className="shrink-0 tabular-nums text-sm text-[var(--muted)]">
           {member.pensumPercent}%
         </span>
+        {member.fixedDayOff != null ? (
+          <span className="shrink-0 text-sm text-[var(--muted)]">
+            frei {WEEKDAY_LABELS[member.fixedDayOff as Weekday]}
+          </span>
+        ) : null}
         <span className="hidden min-w-0 flex-1 truncate text-sm text-[var(--muted)] sm:block">
           {tags.length > 0 ? tags.join(" · ") : ""}
         </span>
@@ -303,6 +311,19 @@ function MemberDrawer({
                   compact
                   userId={panelMember.userId}
                   pensumPercent={panelMember.pensumPercent}
+                />
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                  Fixer freier Tag
+                </h3>
+                <p className="text-sm text-[var(--muted)]">
+                  Wochentag Mo–Fr ohne Schichtzuweisung (z.B. Schichtplan).
+                </p>
+                <FixedDayOffSelect
+                  userId={panelMember.userId}
+                  fixedDayOff={panelMember.fixedDayOff}
                 />
               </section>
 

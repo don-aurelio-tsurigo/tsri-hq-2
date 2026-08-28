@@ -237,7 +237,9 @@ export function AppSidebar({
         pathname === "/newsletter" ||
         pathname.startsWith("/newsletter/") ||
         pathname.startsWith("/settings/newsletter") ||
-        pathname === "/feedback" ||
+        pathname === "/schichtplan" ||
+        pathname.startsWith("/schichtplan/") ||
+        pathname.startsWith("/settings/schichtplan") ||
         (!!redaktion && pathname === `/spaces/${redaktion.id}`) ||
         (!!quellen && pathname === `/spaces/${quellen.id}`)
       );
@@ -378,6 +380,17 @@ export function AppSidebar({
           >
             Feedback
           </NavLink>
+          <NavLink
+            href="/schichtplan"
+            active={
+              pathname === "/schichtplan" ||
+              pathname.startsWith("/schichtplan/")
+            }
+            icon={CalendarDays}
+            onNavigate={onMobileClose}
+          >
+            Schichtplan
+          </NavLink>
           {canManageEditorial && (
             <NavLink
               href="/settings/newsletter"
@@ -389,6 +402,19 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Newslettereinstellungen
+            </NavLink>
+          )}
+          {canManageEditorial && (
+            <NavLink
+              href="/settings/schichtplan"
+              active={
+                pathname === "/settings/schichtplan" ||
+                pathname.startsWith("/settings/schichtplan/")
+              }
+              icon={ClipboardList}
+              onNavigate={onMobileClose}
+            >
+              Schichtplan-Einstellungen
             </NavLink>
           )}
         </NavSection>
