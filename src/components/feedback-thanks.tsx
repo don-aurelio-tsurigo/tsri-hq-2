@@ -105,9 +105,12 @@ export function FeedbackThanks({ id }: { id: string }) {
         aria-hidden
       />
       <div className="relative card space-y-5 p-6">
-        <p className="brand-mark text-sm tracking-[0.04em] uppercase">
-          Tsüri Newsletter
-        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/tsuri-logo.png"
+          alt="Tsüri"
+          className="h-9 w-auto object-contain object-left"
+        />
 
         {status === "loading" ? (
           <p className="text-[var(--muted)]">Dein Feedback wird gespeichert…</p>
