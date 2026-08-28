@@ -152,7 +152,7 @@ export function DamArchiveReviewReminder({
             Archiv-Review
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            {count} {count === 1 ? "neues Foto" : "neue Fotos"}
+            Monatlicher Review-Tag: {count} {count === 1 ? "neues Foto" : "neue Fotos"}
             {sinceLabel ? ` seit ${sinceLabel}` : ""} im Archiv. Slop in den
             Papierkorb, Rest abschliessen.
           </p>

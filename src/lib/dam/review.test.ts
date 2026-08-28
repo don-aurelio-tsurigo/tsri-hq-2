@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isDamArchiveReviewReminderDay,
   parseReviewOpenedAt,
   reviewHref,
   reviewQueueWhere,
@@ -25,6 +26,33 @@ describe("parseReviewOpenedAt", () => {
     assert.equal(parseReviewOpenedAt("nope"), null);
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     assert.equal(parseReviewOpenedAt(future), null);
+  });
+});
+
+describe("isDamArchiveReviewReminderDay", () => {
+  it("is true on the 31st when the month has 31 days", () => {
+    assert.equal(
+      isDamArchiveReviewReminderDay(new Date("2026-08-31T10:00:00.000Z")),
+      true,
+    );
+  });
+
+  it("uses the last calendar day in shorter months", () => {
+    assert.equal(
+      isDamArchiveReviewReminderDay(new Date("2026-04-30T10:00:00.000Z")),
+      true,
+    );
+    assert.equal(
+      isDamArchiveReviewReminderDay(new Date("2026-04-29T10:00:00.000Z")),
+      false,
+    );
+  });
+
+  it("is false on other days", () => {
+    assert.equal(
+      isDamArchiveReviewReminderDay(new Date("2026-08-15T10:00:00.000Z")),
+      false,
+    );
   });
 });
 

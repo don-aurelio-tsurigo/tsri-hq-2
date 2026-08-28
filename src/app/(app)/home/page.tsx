@@ -28,6 +28,7 @@ import {
   canReviewDamArchive,
   countDamArchiveReviewQueue,
   getLastDamArchiveReview,
+  isDamArchiveReviewReminderDay,
 } from "@/lib/dam/review";
 import {
   getFerienplanSpaceId,
@@ -66,6 +67,8 @@ export default async function HomePage() {
   const today = new Date();
   const showChoreReminder = isMidweekChoreReminderDay(today);
   const showArchiveReview = canReviewDamArchive(membership);
+  const showArchiveReviewReminder =
+    showArchiveReview && isDamArchiveReviewReminderDay(today);
 
   const [
     items,
@@ -142,7 +145,7 @@ export default async function HomePage() {
         )
       : Promise.resolve([]),
     listTodaysBirthdays(membership.organizationId),
-    showArchiveReview
+    showArchiveReviewReminder
       ? getLastDamArchiveReview().then(async (last) => {
           const count = await countDamArchiveReviewQueue(
             last?.reviewedUntil ?? new Date(0),
@@ -234,7 +237,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {showArchiveReview ? (
+      {showArchiveReviewReminder ? (
         <DamArchiveReviewReminder
           count={archiveReview.count}
           sinceLabel={archiveReview.sinceLabel}

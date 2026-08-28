@@ -1,6 +1,7 @@
 import { ARCHIVE_PAGE_SIZE } from "@/lib/dam/archive-filters";
 import { parseEditParams } from "@/lib/dam/edit-params";
 import {
+  isDamArchiveReviewReminderDay,
   parseReviewOpenedAt,
   reviewHref,
   reviewQueueWhere,
@@ -11,6 +12,7 @@ import type { ArchiveAssetCard } from "@/lib/dam/types";
 import { canManageEditorial, type MembershipWithGrants } from "@/lib/permissions";
 
 export {
+  isDamArchiveReviewReminderDay,
   parseReviewOpenedAt,
   reviewHref,
   reviewQueueWhere,
