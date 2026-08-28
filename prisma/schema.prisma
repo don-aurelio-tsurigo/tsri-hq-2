@@ -662,6 +662,34 @@ model NewsletterCampaign {
   @@schema("public")
 }
 
+enum Rating {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+
+  @@schema("public")
+}
+
+/// One-click newsletter feedback. GET creates a pending row; JS confirm sets confirmedAt
+/// so prefetch scanners (Apple MPP, Safe Links) are not counted as votes.
+model FeedbackResponse {
+  id             String   @id @default(uuid())
+  newsletter     String
+  campaignId     String
+  issueDate      String
+  rating         Rating
+  comment        String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  commentAddedAt DateTime?
+  /// Null until POST /api/feedback/confirm — pending rows are ignored in stats.
+  confirmedAt    DateTime?
+
+  @@index([newsletter, campaignId])
+  @@map("feedback_response")
+  @@schema("public")
+}
+
 // ─── Ferienplan ────────────────────────────────────────────────
 
 enum VacationStatus {

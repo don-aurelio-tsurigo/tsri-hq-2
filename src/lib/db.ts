@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 39; // v39: DamArchiveReview
+const PRISMA_CLIENT_SCHEMA_VERSION = 40; // v40: FeedbackResponse (newsletter one-click)
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -49,6 +49,13 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   Asset: ["r2Key", "status", "deletedAt", "deletedBy", "notes", "mediagraphId", "importSource"],
   Collection: ["isPersonal", "mediagraphId"],
   DamArchiveReview: ["reviewedUntil", "completedAt", "remainingCount"],
+  FeedbackResponse: [
+    "newsletter",
+    "campaignId",
+    "issueDate",
+    "rating",
+    "confirmedAt",
+  ],
 };
 
 const REQUIRED_MODELS = [
@@ -82,6 +89,7 @@ const REQUIRED_MODELS = [
   "ExportLog",
   "DamArchiveReview",
   "TaskInboxPin",
+  "FeedbackResponse",
 ] as const;
 
 function pgErrorCode(error: unknown): string | null {

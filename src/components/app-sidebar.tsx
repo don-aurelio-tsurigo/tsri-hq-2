@@ -22,6 +22,7 @@ import {
   LogOut,
   Mail,
   Megaphone,
+  MessageCircle,
   Bell,
   Newspaper,
   Pin,
@@ -236,6 +237,7 @@ export function AppSidebar({
         pathname === "/newsletter" ||
         pathname.startsWith("/newsletter/") ||
         pathname.startsWith("/settings/newsletter") ||
+        pathname === "/feedback" ||
         (!!redaktion && pathname === `/spaces/${redaktion.id}`) ||
         (!!quellen && pathname === `/spaces/${quellen.id}`)
       );
@@ -367,6 +369,14 @@ export function AppSidebar({
             onNavigate={onMobileClose}
           >
             Newsletter
+          </NavLink>
+          <NavLink
+            href="/feedback"
+            active={pathname === "/feedback"}
+            icon={MessageCircle}
+            onNavigate={onMobileClose}
+          >
+            Feedback
           </NavLink>
           {canManageEditorial && (
             <NavLink
