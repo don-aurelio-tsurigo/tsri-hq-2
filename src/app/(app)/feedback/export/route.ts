@@ -21,6 +21,8 @@ export async function GET(request: Request) {
       issueDate: row.issueDate,
       rating: row.rating,
       comment: row.comment,
+      email: row.email,
+      membershipStatus: row.membershipStatus,
     })),
   );
 

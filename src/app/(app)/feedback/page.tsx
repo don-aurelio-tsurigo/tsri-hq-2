@@ -4,7 +4,7 @@ import { isFeedbackRating, parseNewsletterSlug } from "@/lib/feedback";
 import {
   listConfirmedNewsletters,
   listFeedbackComments,
-  listIssueSummaries,
+  listIssuesWithComments,
 } from "@/lib/feedback-dashboard";
 import { requireMembership } from "@/lib/session";
 
@@ -37,7 +37,7 @@ export default async function FeedbackPage({
 
   const [issues, commentResult] = await Promise.all([
     tab === "issues" && newsletter
-      ? listIssueSummaries(newsletter)
+      ? listIssuesWithComments(newsletter)
       : Promise.resolve([]),
     tab === "comments"
       ? listFeedbackComments({

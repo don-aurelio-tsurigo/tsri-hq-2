@@ -14,16 +14,68 @@ const CAMPAIGN_RE = /^[A-Za-z0-9._-]{1,128}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254;
+
+export const FEEDBACK_MEMBERSHIP_STATUSES = [-1, 0, 1] as const;
+export type FeedbackMembershipStatus =
+  (typeof FEEDBACK_MEMBERSHIP_STATUSES)[number];
+
+export const FEEDBACK_MEMBERSHIP_LABELS: Record<
+  FeedbackMembershipStatus,
+  string
+> = {
+  1: "Mitglied",
+  0: "Kein Mitglied",
+  [-1]: "Ausgetreten",
+};
 
 export type FeedbackClickInput = {
   newsletter: string;
   campaignId: string;
   issueDate: string;
   rating: FeedbackRating;
+  email: string | null;
+  membershipStatus: FeedbackMembershipStatus;
 };
 
 export function isFeedbackRating(value: string): value is FeedbackRating {
   return (FEEDBACK_RATINGS as readonly string[]).includes(value);
+}
+
+export function isFeedbackMembershipStatus(
+  value: number,
+): value is FeedbackMembershipStatus {
+  return (FEEDBACK_MEMBERSHIP_STATUSES as readonly number[]).includes(value);
+}
+
+/** Empty or unknown membership is stored/shown as not a member (0). */
+export function normalizeMembershipStatus(
+  value: number | null | undefined,
+): FeedbackMembershipStatus {
+  if (value !== null && value !== undefined && isFeedbackMembershipStatus(value)) {
+    return value;
+  }
+  return 0;
+}
+
+function parseOptionalEmail(value: string | null | undefined): string | null | false {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  if (raw.length > MAX_EMAIL_LENGTH) return false;
+  const email = raw.toLowerCase();
+  if (!EMAIL_RE.test(email)) return false;
+  return email;
+}
+
+function parseMembershipStatus(
+  value: string | null | undefined,
+): FeedbackMembershipStatus | false {
+  const raw = value?.trim() ?? "";
+  if (!raw || raw === "0") return 0;
+  if (raw === "1") return 1;
+  if (raw === "-1") return -1;
+  return false;
 }
 
 export function parseFeedbackClickInput(params: {
@@ -31,17 +83,22 @@ export function parseFeedbackClickInput(params: {
   campaign: string | null;
   date: string | null;
   rating: string | null;
+  email?: string | null;
+  membership?: string | null;
 }): FeedbackClickInput | null {
   const newsletter = params.newsletter?.trim() ?? "";
   const campaignId = params.campaign?.trim() ?? "";
   const issueDate = params.date?.trim() ?? "";
   const rating = params.rating?.trim().toUpperCase() ?? "";
+  const email = parseOptionalEmail(params.email);
+  const membershipStatus = parseMembershipStatus(params.membership);
 
   if (!NEWSLETTER_RE.test(newsletter)) return null;
   if (!CAMPAIGN_RE.test(campaignId)) return null;
   if (!DATE_RE.test(issueDate)) return null;
   if (!isFeedbackRating(rating)) return null;
-  return { newsletter, campaignId, issueDate, rating };
+  if (email === false || membershipStatus === false) return null;
+  return { newsletter, campaignId, issueDate, rating, email, membershipStatus };
 }
 
 export function parseFeedbackId(value: string | null | undefined): string | null {
@@ -158,6 +215,10 @@ export type IssueSummary = {
   score: number | null;
 };
 
+export function issueFeedbackKey(issueDate: string, campaignId: string): string {
+  return `${issueDate}\t${campaignId}`;
+}
+
 /** Weighted mean in [-1, 1], mapped to 0–100. */
 export function satisfactionScore(counts: FeedbackCounts): number | null {
   const total = counts.POSITIVE + counts.NEUTRAL + counts.NEGATIVE;
@@ -180,7 +241,7 @@ export function assembleIssueSummaries(
   >();
   for (const row of rows) {
     if (!isFeedbackRating(row.rating)) continue;
-    const key = `${row.issueDate}\t${row.campaignId}`;
+    const key = issueFeedbackKey(row.issueDate, row.campaignId);
     const current = map.get(key) ?? {
       issueDate: row.issueDate,
       campaignId: row.campaignId,
@@ -221,6 +282,8 @@ export type FeedbackCommentCsvRow = {
   issueDate: string;
   rating: FeedbackRating;
   comment: string;
+  email: string | null;
+  membershipStatus: FeedbackMembershipStatus;
 };
 
 export type FeedbackCommentListItem = {
@@ -231,7 +294,31 @@ export type FeedbackCommentListItem = {
   rating: FeedbackRating;
   comment: string;
   commentAddedAt: string;
+  email: string | null;
+  membershipStatus: FeedbackMembershipStatus;
 };
+
+export type IssueWithComments = IssueSummary & {
+  comments: FeedbackCommentListItem[];
+};
+
+export function attachCommentsToIssues(
+  issues: IssueSummary[],
+  comments: FeedbackCommentListItem[],
+): IssueWithComments[] {
+  const byIssue = new Map<string, FeedbackCommentListItem[]>();
+  for (const comment of comments) {
+    const key = issueFeedbackKey(comment.issueDate, comment.campaignId);
+    const list = byIssue.get(key);
+    if (list) list.push(comment);
+    else byIssue.set(key, [comment]);
+  }
+  return issues.map((issue) => ({
+    ...issue,
+    comments:
+      byIssue.get(issueFeedbackKey(issue.issueDate, issue.campaignId)) ?? [],
+  }));
+}
 
 function csvCell(value: string): string {
   if (/[;"\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
@@ -239,11 +326,17 @@ function csvCell(value: string): string {
 }
 
 export function feedbackCommentsToCsv(rows: FeedbackCommentCsvRow[]): string {
-  const header = ["issueDate", "rating", "comment"].join(";");
+  const header = ["issueDate", "rating", "comment", "email", "membershipStatus"].join(
+    ";",
+  );
   const lines = rows.map((row) =>
-    [csvCell(row.issueDate), csvCell(row.rating), csvCell(row.comment)].join(
-      ";",
-    ),
+    [
+      csvCell(row.issueDate),
+      csvCell(row.rating),
+      csvCell(row.comment),
+      csvCell(row.email ?? ""),
+      csvCell(String(row.membershipStatus)),
+    ].join(";"),
   );
   return `\uFEFF${[header, ...lines].join("\n")}`;
 }

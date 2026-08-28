@@ -3,13 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  FEEDBACK_MEMBERSHIP_LABELS,
   FEEDBACK_RATING_LABELS,
   FEEDBACK_RATINGS,
   formatIssueDateFull,
   newsletterLabel,
   type FeedbackCommentListItem,
   type FeedbackRating,
-  type IssueSummary,
+  type IssueWithComments,
 } from "@/lib/feedback";
 
 type Tab = "issues" | "comments";
@@ -35,7 +36,13 @@ function scoreClass(score: number): string {
   return "text-[var(--fg)]";
 }
 
-function DistributionBar({ counts, total }: { counts: IssueSummary["counts"]; total: number }) {
+function DistributionBar({
+  counts,
+  total,
+}: {
+  counts: IssueWithComments["counts"];
+  total: number;
+}) {
   if (total === 0) {
     return <span className="text-sm text-[var(--muted)]">Keine Stimmen</span>;
   }
@@ -60,6 +67,44 @@ function DistributionBar({ counts, total }: { counts: IssueSummary["counts"]; to
       <p className="mt-1 text-[0.7rem] tabular-nums text-[var(--muted)]">
         {counts.POSITIVE} / {counts.NEUTRAL} / {counts.NEGATIVE}
       </p>
+    </div>
+  );
+}
+
+function CommentMeta({
+  row,
+  showIssue,
+}: {
+  row: FeedbackCommentListItem;
+  showIssue: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+      <span
+        className="font-semibold"
+        style={{ color: RATING_COLORS[row.rating] }}
+      >
+        {FEEDBACK_RATING_LABELS[row.rating]}
+      </span>
+      {showIssue ? (
+        <>
+          <span className="text-[var(--muted)]">
+            {newsletterLabel(row.newsletter)}
+          </span>
+          <span className="text-[var(--muted)]">
+            {formatIssueDateFull(row.issueDate)}
+          </span>
+        </>
+      ) : null}
+      <span className="text-xs text-[var(--muted)]">
+        {`${FEEDBACK_MEMBERSHIP_LABELS[row.membershipStatus]} (${row.membershipStatus})`}
+      </span>
+      {row.email ? (
+        <span className="text-xs text-[var(--muted)]">{row.email}</span>
+      ) : null}
+      <span className="text-xs text-[var(--muted)]">
+        {new Date(row.commentAddedAt).toLocaleString("de-CH")}
+      </span>
     </div>
   );
 }
@@ -103,7 +148,7 @@ export function FeedbackDashboard({
   newsletters: string[];
   newsletter: string;
   tab: Tab;
-  issues: IssueSummary[];
+  issues: IssueWithComments[];
   comments: FeedbackCommentListItem[];
   commentsHasMore: boolean;
   ratingFilter: string;
@@ -232,57 +277,80 @@ export function FeedbackDashboard({
             Stimmen.
           </p>
         ) : (
-          <div className="space-y-2">
-          <div className="card overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--muted)]">
-                  <th className="px-4 py-3 font-semibold">Ausgabe</th>
-                  <th className="px-4 py-3 font-semibold">Kampagne</th>
-                  <th className="px-4 py-3 text-right font-semibold">Stimmen</th>
-                  <th className="px-4 py-3 font-semibold">Verteilung</th>
-                  <th className="px-4 py-3 text-right font-semibold">
-                    Score
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {issues.map((issue) => (
-                  <tr
-                    key={`${issue.issueDate}-${issue.campaignId}`}
-                    className="border-b border-[var(--border)] last:border-b-0"
-                  >
-                    <td className="px-4 py-3 font-semibold">
+          <div className="space-y-3">
+            {issues.map((issue) => (
+              <article
+                key={`${issue.issueDate}-${issue.campaignId}`}
+                className="card space-y-4 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h2 className="font-semibold">
                       {formatIssueDateFull(issue.issueDate)}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-[var(--muted)]">
+                    </h2>
+                    <p className="mt-0.5 font-mono text-xs text-[var(--muted)]">
                       {issue.campaignId}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {issue.total}
-                    </td>
-                    <td className="px-4 py-3">
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-6">
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-[var(--muted)]">
+                        Stimmen
+                      </p>
+                      <p className="tabular-nums">{issue.total}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-[var(--muted)]">
+                        Verteilung
+                      </p>
                       <DistributionBar
                         counts={issue.counts}
                         total={issue.total}
                       />
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </div>
+                    <div className="min-w-[3.5rem] text-right">
+                      <p className="text-xs font-semibold text-[var(--muted)]">
+                        Score
+                      </p>
                       {issue.score === null ? (
-                        <span className="text-[var(--muted)]">—</span>
+                        <p className="text-[var(--muted)]">—</p>
                       ) : (
-                        <span
+                        <p
                           className={`font-semibold tabular-nums ${scoreClass(issue.score)}`}
                         >
                           {issue.score}
-                        </span>
+                        </p>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t border-[var(--border)] pt-3">
+                  <p className="text-sm font-semibold">
+                    Kommentare
+                    {issue.comments.length > 0
+                      ? ` · ${issue.comments.length}`
+                      : ""}
+                  </p>
+                  {issue.comments.length === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">
+                      Keine Kommentare zu dieser Ausgabe.
+                    </p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {issue.comments.map((row) => (
+                        <li key={row.id} className="space-y-1.5">
+                          <CommentMeta row={row} showIssue={false} />
+                          <p className="whitespace-pre-wrap text-sm">
+                            {row.comment}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </article>
+            ))}
             <p className="text-xs text-[var(--muted)]">
               Score 0–100 aus Gut = 1, Geht so = 0, Nicht so gut = −1.
               Balken: grün Gut, grau Geht so, rot Nicht so gut.
@@ -296,20 +364,7 @@ export function FeedbackDashboard({
           <ul className="space-y-3">
             {comments.map((row) => (
               <li key={row.id} className="card space-y-2 p-4">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                  <span className="font-semibold">
-                    {FEEDBACK_RATING_LABELS[row.rating]}
-                  </span>
-                  <span className="text-[var(--muted)]">
-                    {newsletterLabel(row.newsletter)}
-                  </span>
-                  <span className="text-[var(--muted)]">
-                    {formatIssueDateFull(row.issueDate)}
-                  </span>
-                  <span className="text-xs text-[var(--muted)]">
-                    {new Date(row.commentAddedAt).toLocaleString("de-CH")}
-                  </span>
-                </div>
+                <CommentMeta row={row} showIssue />
                 <p className="whitespace-pre-wrap text-sm">{row.comment}</p>
               </li>
             ))}

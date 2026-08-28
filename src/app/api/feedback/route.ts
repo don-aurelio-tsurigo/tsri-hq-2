@@ -26,6 +26,8 @@ export async function GET(request: Request) {
     campaign: url.searchParams.get("campaign"),
     date: url.searchParams.get("date"),
     rating: url.searchParams.get("rating"),
+    email: url.searchParams.get("email"),
+    membership: url.searchParams.get("membership"),
   });
 
   if (!parsed) {
@@ -41,6 +43,8 @@ export async function GET(request: Request) {
       campaignId: parsed.campaignId,
       issueDate: parsed.issueDate,
       rating: parsed.rating,
+      email: parsed.email,
+      membershipStatus: parsed.membershipStatus,
       userAgent: truncateUserAgent(request.headers.get("user-agent")),
     },
     select: { id: true },

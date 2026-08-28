@@ -2,10 +2,13 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   assembleIssueSummaries,
+  attachCommentsToIssues,
   isFeedbackRating,
+  normalizeMembershipStatus,
   parseNewsletterSlug,
   type FeedbackCommentListItem,
   type IssueSummary,
+  type IssueWithComments,
 } from "@/lib/feedback";
 
 const CONFIRMED = { confirmedAt: { not: null } } as const;
@@ -32,6 +35,16 @@ export async function listIssueSummaries(
   });
 
   return assembleIssueSummaries(rows);
+}
+
+export async function listIssuesWithComments(
+  newsletter: string,
+): Promise<IssueWithComments[]> {
+  const [issues, { comments }] = await Promise.all([
+    listIssueSummaries(newsletter),
+    listFeedbackComments({ newsletter, take: 10_000 }),
+  ]);
+  return attachCommentsToIssues(issues, comments);
 }
 
 export async function listFeedbackComments(input: {
@@ -68,6 +81,8 @@ export async function listFeedbackComments(input: {
       rating: true,
       comment: true,
       commentAddedAt: true,
+      email: true,
+      membershipStatus: true,
     },
   });
 
@@ -85,6 +100,8 @@ export async function listFeedbackComments(input: {
       rating: row.rating,
       comment: row.comment,
       commentAddedAt: row.commentAddedAt.toISOString(),
+      email: row.email,
+      membershipStatus: normalizeMembershipStatus(row.membershipStatus),
     });
   }
   return { comments, hasMore };

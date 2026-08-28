@@ -679,6 +679,10 @@ model FeedbackResponse {
   issueDate      String
   rating         Rating
   comment        String?
+  /// Mailchimp *|EMAIL|* from the click link. Optional for already-sent campaigns.
+  email          String?
+  /// Mailchimp membership merge: 1 = member, 0 or empty = not a member, -1 = former.
+  membershipStatus Int?
   userAgent      String?
   createdAt      DateTime @default(now())
   commentAddedAt DateTime?
