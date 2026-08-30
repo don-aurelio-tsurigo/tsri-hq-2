@@ -10,10 +10,11 @@ import {
   newsletterLabel,
   type FeedbackCommentListItem,
   type FeedbackRating,
+  type FeedbackVoteListItem,
   type IssueWithComments,
 } from "@/lib/feedback";
 
-type Tab = "issues" | "comments";
+type Tab = "issues" | "comments" | "votes";
 
 const RATING_COLORS: Record<FeedbackRating, string> = {
   POSITIVE: "#2f9e44",
@@ -118,7 +119,7 @@ function hrefFor(input: {
   const params = new URLSearchParams();
   if (input.tab !== "issues") params.set("tab", input.tab);
   if (input.newsletter) params.set("newsletter", input.newsletter);
-  if (input.tab === "comments") {
+  if (input.tab === "comments" || input.tab === "votes") {
     if (input.rating) params.set("rating", input.rating);
     if (input.q) params.set("q", input.q);
   }
@@ -126,8 +127,14 @@ function hrefFor(input: {
   return qs ? `/feedback?${qs}` : "/feedback";
 }
 
-function exportHref(input: { newsletter: string; rating: string; q: string }) {
+function exportHref(input: {
+  newsletter: string;
+  rating: string;
+  q: string;
+  kind?: "votes";
+}) {
   const params = new URLSearchParams();
+  if (input.kind) params.set("kind", input.kind);
   if (input.newsletter) params.set("newsletter", input.newsletter);
   if (input.rating) params.set("rating", input.rating);
   if (input.q) params.set("q", input.q);
@@ -142,6 +149,8 @@ export function FeedbackDashboard({
   issues,
   comments,
   commentsHasMore,
+  votes,
+  votesHasMore,
   ratingFilter,
   q,
 }: {
@@ -151,6 +160,8 @@ export function FeedbackDashboard({
   issues: IssueWithComments[];
   comments: FeedbackCommentListItem[];
   commentsHasMore: boolean;
+  votes: FeedbackVoteListItem[];
+  votesHasMore: boolean;
   ratingFilter: string;
   q: string;
 }) {
@@ -176,6 +187,7 @@ export function FeedbackDashboard({
     newsletter,
     rating: ratingFilter,
     q,
+    ...(tab === "votes" ? { kind: "votes" as const } : {}),
   });
 
   return (
@@ -194,6 +206,13 @@ export function FeedbackDashboard({
           onClick={() => go({ tab: "comments" })}
         >
           Kommentare
+        </button>
+        <button
+          type="button"
+          className={tabClass(tab === "votes")}
+          onClick={() => go({ tab: "votes" })}
+        >
+          Stimmen
         </button>
       </div>
 
@@ -219,7 +238,7 @@ export function FeedbackDashboard({
           </select>
         </label>
 
-        {tab === "comments" ? (
+        {tab === "comments" || tab === "votes" ? (
           <>
             <label className="field min-w-[10rem]">
               <span className="text-sm font-semibold text-[var(--muted)]">
@@ -251,7 +270,11 @@ export function FeedbackDashboard({
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Kommentar durchsuchen…"
+                  placeholder={
+                    tab === "votes"
+                      ? "E-Mail durchsuchen…"
+                      : "Kommentar durchsuchen…"
+                  }
                 />
                 <button type="submit" className="btn btn-primary shrink-0">
                   Suchen
@@ -355,6 +378,63 @@ export function FeedbackDashboard({
               Score 0–100 aus Gut = 1, Geht so = 0, Nicht so gut = −1.
               Balken: grün Gut, grau Geht so, rot Nicht so gut.
             </p>
+          </div>
+        )
+      ) : tab === "votes" ? (
+        votes.length === 0 ? (
+          <p className="text-[var(--muted)]">Keine Stimmen für diese Filter.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="card overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-[var(--muted)]">
+                    <th className="px-4 py-3 font-semibold">Ausgabe</th>
+                    <th className="px-4 py-3 font-semibold">Bewertung</th>
+                    <th className="px-4 py-3 font-semibold">E-Mail</th>
+                    <th className="px-4 py-3 font-semibold">Zeitpunkt</th>
+                    <th className="px-4 py-3 font-semibold">Mitgliedschaft</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {votes.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-[var(--border)] last:border-b-0"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold">
+                        {formatIssueDateFull(row.issueDate)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span
+                          className="font-semibold"
+                          style={{ color: RATING_COLORS[row.rating] }}
+                        >
+                          {FEEDBACK_RATING_LABELS[row.rating]}
+                        </span>
+                      </td>
+                      <td className="max-w-[16rem] px-4 py-3 break-all">
+                        {row.email ?? (
+                          <span className="text-[var(--muted)]">—</span>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-[var(--muted)]">
+                        {new Date(row.confirmedAt).toLocaleString("de-CH")}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--muted)]">
+                        {`${FEEDBACK_MEMBERSHIP_LABELS[row.membershipStatus]} (${row.membershipStatus})`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {votesHasMore ? (
+              <p className="text-sm text-[var(--muted)]">
+                Weitere Stimmen vorhanden — Filter eingrenzen oder CSV
+                exportieren.
+              </p>
+            ) : null}
           </div>
         )
       ) : comments.length === 0 ? (

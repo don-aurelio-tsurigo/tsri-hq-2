@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  FEEDBACK_RATING_LABELS,
+  FEEDBACK_RATING_NEWSLETTER_LABELS,
   formatIssueDateLabel,
   parseFeedbackId,
   type FeedbackRating,
@@ -135,7 +135,7 @@ export function FeedbackThanks({ id }: { id: string }) {
             </h1>
             <p className="text-[var(--muted)]">
               {vote
-                ? `Du hast «${FEEDBACK_RATING_LABELS[vote.rating]}» gewählt.`
+                ? `Du hast ${FEEDBACK_RATING_NEWSLETTER_LABELS[vote.rating]} gewählt.`
                 : "Wir haben deine Stimme erhalten."}
             </p>
 
@@ -146,14 +146,19 @@ export function FeedbackThanks({ id }: { id: string }) {
                     ? `Ausgabe vom ${formatIssueDateLabel(issueDate)}`
                     : "Diese Ausgabe"}
                 </p>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {RATING_ORDER.map((rating) => (
-                    <li key={rating} className="flex items-center gap-3 text-sm">
-                      <span className="w-28 shrink-0 text-[var(--muted)]">
-                        {FEEDBACK_RATING_LABELS[rating]}
-                      </span>
+                    <li key={rating} className="space-y-1.5">
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="text-[var(--muted)]">
+                          {FEEDBACK_RATING_NEWSLETTER_LABELS[rating]}
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          {stats.percentages[rating]}%
+                        </span>
+                      </div>
                       <span
-                        className="h-2 flex-1 overflow-hidden rounded-full bg-white"
+                        className="block h-2 overflow-hidden rounded-full bg-white"
                         aria-hidden
                       >
                         <span
@@ -162,9 +167,6 @@ export function FeedbackThanks({ id }: { id: string }) {
                             width: `${stats.percentages[rating]}%`,
                           }}
                         />
-                      </span>
-                      <span className="w-10 text-right font-semibold tabular-nums">
-                        {stats.percentages[rating]}%
                       </span>
                     </li>
                   ))}

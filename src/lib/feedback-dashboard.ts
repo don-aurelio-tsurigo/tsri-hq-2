@@ -7,6 +7,7 @@ import {
   normalizeMembershipStatus,
   parseNewsletterSlug,
   type FeedbackCommentListItem,
+  type FeedbackVoteListItem,
   type IssueSummary,
   type IssueWithComments,
 } from "@/lib/feedback";
@@ -105,4 +106,61 @@ export async function listFeedbackComments(input: {
     });
   }
   return { comments, hasMore };
+}
+
+export async function listFeedbackVotes(input: {
+  newsletter?: string | null;
+  rating?: string | null;
+  q?: string | null;
+  take?: number;
+}): Promise<{ votes: FeedbackVoteListItem[]; hasMore: boolean }> {
+  const take = Math.min(Math.max(input.take ?? 500, 1), 10_000);
+  const newsletter = parseNewsletterSlug(input.newsletter ?? null);
+  const ratingRaw = input.rating?.trim().toUpperCase() ?? "";
+  const rating = isFeedbackRating(ratingRaw) ? ratingRaw : null;
+  const q = input.q?.trim().slice(0, 200) || null;
+
+  const where: Prisma.FeedbackResponseWhereInput = {
+    ...CONFIRMED,
+    ...(newsletter ? { newsletter } : {}),
+    ...(rating ? { rating } : {}),
+    ...(q
+      ? { email: { contains: q, mode: "insensitive" } }
+      : {}),
+  };
+
+  const rows = await prisma.feedbackResponse.findMany({
+    where,
+    orderBy: { confirmedAt: "desc" },
+    take: take + 1,
+    select: {
+      id: true,
+      newsletter: true,
+      campaignId: true,
+      issueDate: true,
+      rating: true,
+      email: true,
+      membershipStatus: true,
+      confirmedAt: true,
+    },
+  });
+
+  const hasMore = rows.length > take;
+  const sliced = hasMore ? rows.slice(0, take) : rows;
+  const votes: FeedbackVoteListItem[] = [];
+  for (const row of sliced) {
+    if (!row.confirmedAt) continue;
+    if (!isFeedbackRating(row.rating)) continue;
+    votes.push({
+      id: row.id,
+      newsletter: row.newsletter,
+      campaignId: row.campaignId,
+      issueDate: row.issueDate,
+      rating: row.rating,
+      email: row.email,
+      membershipStatus: normalizeMembershipStatus(row.membershipStatus),
+      confirmedAt: row.confirmedAt.toISOString(),
+    });
+  }
+  return { votes, hasMore };
 }

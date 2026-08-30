@@ -6,6 +6,7 @@ import {
   buildFeedbackStats,
   consumeFeedbackRateLimit,
   feedbackCommentsToCsv,
+  feedbackVotesToCsv,
   formatIssueDateLabel,
   parseFeedbackClickInput,
   parseFeedbackId,
@@ -291,6 +292,26 @@ describe("feedbackCommentsToCsv", () => {
     assert.match(csv, /issueDate;rating;comment;email;membershipStatus/);
     assert.match(csv, /"Bitte ""mehr"" Zürich; danke"/);
     assert.match(csv, /reader@tsri.ch;1/);
+  });
+});
+
+describe("feedbackVotesToCsv", () => {
+  it("emits semicolon csv with email and timestamp", () => {
+    const csv = feedbackVotesToCsv([
+      {
+        id: "v1",
+        newsletter: "zueri-briefing",
+        campaignId: "camp-1",
+        issueDate: "2026-08-28",
+        rating: "POSITIVE",
+        email: "reader@tsri.ch",
+        membershipStatus: 1,
+        confirmedAt: "2026-08-28T15:33:28.000Z",
+      },
+    ]);
+    assert.ok(csv.startsWith("\uFEFF"));
+    assert.match(csv, /issueDate;rating;email;membershipStatus;confirmedAt/);
+    assert.match(csv, /reader@tsri.ch;1;2026-08-28T15:33:28.000Z/);
   });
 });
 

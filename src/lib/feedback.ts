@@ -9,6 +9,14 @@ export const FEEDBACK_RATING_LABELS: Record<FeedbackRating, string> = {
   NEGATIVE: "Nicht so gut",
 };
 
+/** Labels as printed in the newsletter. Used on the public thanks page. */
+export const FEEDBACK_RATING_NEWSLETTER_LABELS: Record<FeedbackRating, string> =
+  {
+    POSITIVE: "🎯 Volltreffer!",
+    NEUTRAL: "🎲 Könnt ihr so machen",
+    NEGATIVE: "🗑 Zum vergessen",
+  };
+
 const NEWSLETTER_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const CAMPAIGN_RE = /^[A-Za-z0-9._-]{1,128}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -298,6 +306,17 @@ export type FeedbackCommentListItem = {
   membershipStatus: FeedbackMembershipStatus;
 };
 
+export type FeedbackVoteListItem = {
+  id: string;
+  newsletter: string;
+  campaignId: string;
+  issueDate: string;
+  rating: FeedbackRating;
+  email: string | null;
+  membershipStatus: FeedbackMembershipStatus;
+  confirmedAt: string;
+};
+
 export type IssueWithComments = IssueSummary & {
   comments: FeedbackCommentListItem[];
 };
@@ -336,6 +355,26 @@ export function feedbackCommentsToCsv(rows: FeedbackCommentCsvRow[]): string {
       csvCell(row.comment),
       csvCell(row.email ?? ""),
       csvCell(String(row.membershipStatus)),
+    ].join(";"),
+  );
+  return `\uFEFF${[header, ...lines].join("\n")}`;
+}
+
+export function feedbackVotesToCsv(rows: FeedbackVoteListItem[]): string {
+  const header = [
+    "issueDate",
+    "rating",
+    "email",
+    "membershipStatus",
+    "confirmedAt",
+  ].join(";");
+  const lines = rows.map((row) =>
+    [
+      csvCell(row.issueDate),
+      csvCell(row.rating),
+      csvCell(row.email ?? ""),
+      csvCell(String(row.membershipStatus)),
+      csvCell(row.confirmedAt),
     ].join(";"),
   );
   return `\uFEFF${[header, ...lines].join("\n")}`;

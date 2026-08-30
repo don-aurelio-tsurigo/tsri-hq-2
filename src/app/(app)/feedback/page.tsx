@@ -4,6 +4,7 @@ import { isFeedbackRating, parseNewsletterSlug } from "@/lib/feedback";
 import {
   listConfirmedNewsletters,
   listFeedbackComments,
+  listFeedbackVotes,
   listIssuesWithComments,
 } from "@/lib/feedback-dashboard";
 import { requireMembership } from "@/lib/session";
@@ -24,7 +25,12 @@ export default async function FeedbackPage({
 }) {
   await requireMembership();
   const params = await searchParams;
-  const tab = params.tab === "comments" ? "comments" : "issues";
+  const tab =
+    params.tab === "comments"
+      ? "comments"
+      : params.tab === "votes"
+        ? "votes"
+        : "issues";
   const newsletters = await listConfirmedNewsletters();
   const requested = parseNewsletterSlug(params.newsletter);
   const newsletter =
@@ -35,7 +41,7 @@ export default async function FeedbackPage({
   const ratingFilter = isFeedbackRating(ratingRaw) ? ratingRaw : "";
   const q = params.q?.trim().slice(0, 200) ?? "";
 
-  const [issues, commentResult] = await Promise.all([
+  const [issues, commentResult, voteResult] = await Promise.all([
     tab === "issues" && newsletter
       ? listIssuesWithComments(newsletter)
       : Promise.resolve([]),
@@ -46,6 +52,13 @@ export default async function FeedbackPage({
           q: q || null,
         })
       : Promise.resolve({ comments: [], hasMore: false }),
+    tab === "votes"
+      ? listFeedbackVotes({
+          newsletter,
+          rating: ratingFilter || null,
+          q: q || null,
+        })
+      : Promise.resolve({ votes: [], hasMore: false }),
   ]);
 
   return (
@@ -65,6 +78,8 @@ export default async function FeedbackPage({
         issues={issues}
         comments={commentResult.comments}
         commentsHasMore={commentResult.hasMore}
+        votes={voteResult.votes}
+        votesHasMore={voteResult.hasMore}
         ratingFilter={ratingFilter}
         q={q}
       />
