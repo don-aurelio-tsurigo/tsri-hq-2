@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   AI_KEYWORD_MAX,
   applyKeywordChanges,
+  fillSeriesKeywordGaps,
   sanitizeAiKeywords,
   uniqueKeywords,
 } from "./keywords.ts";
@@ -36,10 +37,10 @@ describe("applyKeywordChanges", () => {
 });
 
 describe("sanitizeAiKeywords", () => {
-  it("lowercases, drops long phrases, and caps at 12", () => {
+  it("lowercases, truncates long phrases to three words, and caps at 12", () => {
     assert.deepEqual(
       sanitizeAiKeywords([" Zürich ", "zürich", "Velo auf der Brücke am Abend"]),
-      ["zürich"],
+      ["zürich", "velo auf der"],
     );
     assert.equal(
       sanitizeAiKeywords(Array.from({ length: 20 }, (_, i) => `k${i}`)).length,
@@ -51,6 +52,23 @@ describe("sanitizeAiKeywords", () => {
     assert.deepEqual(sanitizeAiKeywords(["Limmatquai", "rote Fahne"]), [
       "limmatquai",
       "rote fahne",
+    ]);
+  });
+});
+
+describe("fillSeriesKeywordGaps", () => {
+  it("fills empty slots from neighboring tagged photos in sequence", () => {
+    const items = [
+      { r2Key: "a", sequence: 1, keywords: ["demo", "zürich"] },
+      { r2Key: "b", sequence: 2, keywords: [] },
+      { r2Key: "c", sequence: 3, keywords: [] },
+      { r2Key: "d", sequence: 4, keywords: ["podcast"] },
+    ];
+    assert.deepEqual(fillSeriesKeywordGaps(items), [
+      { r2Key: "a", sequence: 1, keywords: ["demo", "zürich"] },
+      { r2Key: "b", sequence: 2, keywords: ["demo", "zürich"] },
+      { r2Key: "c", sequence: 3, keywords: ["demo", "zürich"] },
+      { r2Key: "d", sequence: 4, keywords: ["podcast"] },
     ]);
   });
 });

@@ -48,8 +48,10 @@ export type QuotaResult =
 export async function consumeMemberQuota(
   userId: string,
   kind: QuotaKind,
+  options?: { max?: number },
 ): Promise<QuotaResult> {
   const spec = specFor(kind);
+  const max = options?.max ?? spec.max;
   const windowStart = new Date(Date.now() - spec.windowMinutes * 60_000);
   const prismaKind = kind as MemberUsageKind;
 
@@ -60,7 +62,7 @@ export async function consumeMemberQuota(
   const used = await prisma.memberUsage.count({
     where: { userId, kind: prismaKind, createdAt: { gte: windowStart } },
   });
-  if (used >= spec.max) {
+  if (used >= max) {
     const oldest = await prisma.memberUsage.findFirst({
       where: { userId, kind: prismaKind, createdAt: { gte: windowStart } },
       orderBy: { createdAt: "asc" },
@@ -72,7 +74,7 @@ export async function consumeMemberQuota(
     const retryMin = Math.max(1, Math.ceil(retryMs / 60_000));
     return {
       ok: false,
-      error: `Limit erreicht: maximal ${spec.max} ${spec.label} pro ${spec.windowMinutes} Min. Wieder in ca. ${retryMin} Min.`,
+      error: `Limit erreicht: maximal ${max} ${spec.label} pro ${spec.windowMinutes} Min. Wieder in ca. ${retryMin} Min.`,
     };
   }
 

@@ -15,7 +15,7 @@ import {
 import { DamCombobox } from "@/components/dam-combobox";
 import { DamKeywordEditor } from "@/components/dam-meta-edit";
 import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
-import { uniqueKeywords } from "@/lib/dam/keywords";
+import { uniqueKeywords, fillSeriesKeywordGaps } from "@/lib/dam/keywords";
 import { previewUrlForFile } from "@/lib/dam/preview-url";
 import {
   defaultCollectionName,
@@ -709,6 +709,9 @@ export function DamUploadWizard({
       await Promise.all(
         Array.from({ length: Math.min(2, pending.length) }, () => worker()),
       );
+      if (!cancelled) {
+        setDrafts((prev) => fillSeriesKeywordGaps(prev));
+      }
     }
 
     void runPool();
@@ -1038,7 +1041,8 @@ export function DamUploadWizard({
         },
       );
       await Promise.all(workers);
-      setDrafts(taggedDrafts);
+      const filledDrafts = fillSeriesKeywordGaps(taggedDrafts);
+      setDrafts(filledDrafts);
       const batchNames = namesFrom(newCollectionName);
       const res = await fetch("/api/dam/complete", {
         method: "POST",
@@ -1050,7 +1054,7 @@ export function DamUploadWizard({
           notes: notes.trim(),
           collectionIds,
           newCollections: batchNames,
-          assets: taggedDrafts.map((d) => ({
+          assets: filledDrafts.map((d) => ({
             r2Key: d.r2Key,
             sequence: d.sequence,
             fileName: d.fileName,
@@ -1550,8 +1554,8 @@ export function DamUploadWizard({
           </p>
           {Object.values(tagStatus).includes("quota") ? (
             <p className="text-sm text-[var(--muted)]">
-              KI-Limit erreicht (30 Aufrufe / Stunde). Keywords kannst du manuell
-              setzen.
+              KI-Limit für Keyword-Vorschläge erreicht. Keywords kannst du manuell
+              setzen oder später erneut versuchen.
             </p>
           ) : null}
           <MetadataPhotoGrid

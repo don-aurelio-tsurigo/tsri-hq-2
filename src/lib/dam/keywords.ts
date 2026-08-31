@@ -19,18 +19,47 @@ export function uniqueKeywords(values: string[]): string[] {
 }
 
 /** Conservative AI tags: lowercase, short, visible-subject nouns only. */
+function truncateAiKeyword(raw: string): string | null {
+  const words = raw
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return null;
+  return words.slice(0, AI_KEYWORD_WORDS).join(" ").slice(0, AI_KEYWORD_LENGTH);
+}
+
 export function sanitizeAiKeywords(values: string[]): string[] {
-  const cleaned = values.filter((raw) => {
-    const words = raw
-      .trim()
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(Boolean);
-    return words.length > 0 && words.length <= AI_KEYWORD_WORDS;
-  });
-  return uniqueKeywords(
-    cleaned.map((raw) => raw.trim().toLowerCase().slice(0, AI_KEYWORD_LENGTH)),
-  ).slice(0, AI_KEYWORD_MAX);
+  const cleaned = values
+    .map(truncateAiKeyword)
+    .filter((keyword): keyword is string => Boolean(keyword));
+  return uniqueKeywords(cleaned).slice(0, AI_KEYWORD_MAX);
+}
+
+/** Copy keywords across empty neighbors in upload sequence (series photos). */
+export function fillSeriesKeywordGaps<
+  T extends { r2Key: string; sequence: number; keywords: string[] },
+>(items: T[]): T[] {
+  if (items.length <= 1) return items;
+  const sorted = [...items].sort((a, b) => a.sequence - b.sequence);
+  const byKey = new Map(items.map((item) => [item.r2Key, [...item.keywords]]));
+
+  let last: string[] = [];
+  for (const item of sorted) {
+    const current = byKey.get(item.r2Key)!;
+    if (current.length > 0) last = current;
+    else if (last.length > 0) byKey.set(item.r2Key, [...last]);
+  }
+  last = [];
+  for (const item of [...sorted].reverse()) {
+    const current = byKey.get(item.r2Key)!;
+    if (current.length > 0) last = current;
+    else if (last.length > 0) byKey.set(item.r2Key, [...last]);
+  }
+  return items.map((item) => ({
+    ...item,
+    keywords: byKey.get(item.r2Key) ?? item.keywords,
+  }));
 }
 
 export function applyKeywordChanges(
