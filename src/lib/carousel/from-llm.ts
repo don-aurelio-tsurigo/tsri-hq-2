@@ -6,6 +6,7 @@ import {
   DEFAULT_CATEGORY,
 } from "@/lib/carousel/categories";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { isQuoteCascadeFormat } from "@/lib/carousel/format";
 import {
   createEmptyCoverSlide,
   createEmptyOutroSlide,
@@ -93,7 +94,7 @@ export function parseLlmCarouselDraft(
   if (format === "6ibrief") {
     return llmSixibriefSchema.parse(input);
   }
-  if (format === "kolumne" || format === "interview") {
+  if (isQuoteCascadeFormat(format)) {
     return llmKolumneSchema.parse(input);
   }
   return llmCarouselSchema.parse(input);

@@ -6,6 +6,7 @@ import {
   type LlmCarouselDraft,
 } from "@/lib/carousel/from-llm";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { isQuoteCascadeFormat } from "@/lib/carousel/format";
 import type { Slide } from "@/lib/carousel/types";
 import type { FetchedArticle } from "@/lib/wepublish/article";
 
@@ -185,7 +186,7 @@ function articleToPrompt(
     source === "paste"
       ? null
       : article.lead
-        ? format === "interview" || format === "kolumne"
+        ? isQuoteCascadeFormat(format)
           ? `Lead (nicht als Slide verwenden): ${article.lead}`
           : `Lead: ${article.lead}`
         : null;
@@ -233,7 +234,7 @@ async function generateSlidesFromSource(
       ? tsueritippToolInputSchema
       : format === "6ibrief"
         ? sixibriefToolInputSchema
-        : format === "kolumne" || format === "interview"
+        : isQuoteCascadeFormat(format)
           ? kolumneToolInputSchema
           : standardToolInputSchema;
   const maxTokens = format === "tsueritipp" ? 8192 : 4096;

@@ -8,6 +8,7 @@ import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { isQuoteCascadeFormat } from "@/lib/carousel/format";
 import { fileToCompressedDataUrl } from "@/lib/carousel/image";
 import {
   DEFAULT_IMAGE_OVERLAY,
@@ -44,6 +45,11 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
 };
 
 const ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "quote", "outro"];
+const QUOTE_CASCADE_ADDABLE_SLIDE_TYPES: SlideType[] = [
+  "cover",
+  "quote",
+  "outro",
+];
 const SIXIBRIEF_ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "outro"];
 
 const PREVIEW_SCALE = 0.42;
@@ -411,7 +417,9 @@ export function CarouselEditor({
             <div className="flex flex-wrap items-center justify-center gap-2">
               {(format === "6ibrief"
                 ? SIXIBRIEF_ADDABLE_SLIDE_TYPES
-                : ADDABLE_SLIDE_TYPES
+                : isQuoteCascadeFormat(format)
+                  ? QUOTE_CASCADE_ADDABLE_SLIDE_TYPES
+                  : ADDABLE_SLIDE_TYPES
               ).map((type) => (
                 <button
                   key={type}

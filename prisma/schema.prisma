@@ -935,7 +935,7 @@ model CarouselPost {
   sourceTitle    String?
   sourceLead     String?  @db.Text
   sourceBody     String?  @db.Text
-  /// "standard" | "kolumne" | "interview" | "tsueritipp" | "6ibrief"
+  /// "standard" | "kolumne" | "kommentar" | "interview" | "tsueritipp" | "6ibrief"
   format         String   @default("standard")
   createdById    String
   createdAt      DateTime @default(now())
