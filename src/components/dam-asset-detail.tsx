@@ -295,6 +295,78 @@ export function DamAssetDetail({
             />
 
             <DamMetaRow
+              label="Kontext"
+              display={asset.notes ?? ""}
+              field="notes"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("notes")}>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  rows={4}
+                  maxLength={4000}
+                  placeholder="Ereignis, Hintergrund, beteiligte Personen…"
+                  autoFocus
+                  aria-label="Kontext"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Alt-Text"
+              display={asset.altText ?? ""}
+              field="altText"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("altText")}>
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  rows={3}
+                  autoFocus
+                  aria-label="Alt-Text"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
+              label="Keywords"
+              display={asset.keywords.join(", ")}
+              displayNode={
+                <DamKeywordPills
+                  keywords={asset.keywords}
+                  onRemove={(keyword) =>
+                    onPatch(asset.id, {
+                      keywords: asset.keywords.filter((item) => item !== keyword),
+                    })
+                  }
+                />
+              }
+              field="keywords"
+              editing={editing}
+              onEdit={startEdit}
+            >
+              <DamEditControl onSave={() => saveField("keywords")}>
+                <input
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onDraftKey}
+                  onBlur={onDraftBlur}
+                  placeholder="zürich, velo, podium"
+                  autoFocus
+                  aria-label="Keywords"
+                />
+              </DamEditControl>
+            </DamMetaRow>
+
+            <DamMetaRow
               label="Credit"
               display={asset.credit}
               field="credit"
@@ -365,78 +437,6 @@ export function DamAssetDetail({
                   onBlur={onDraftBlur}
                   autoFocus
                   aria-label="Aufgenommen"
-                />
-              </DamEditControl>
-            </DamMetaRow>
-
-            <DamMetaRow
-              label="Alt-Text"
-              display={asset.altText ?? ""}
-              field="altText"
-              editing={editing}
-              onEdit={startEdit}
-            >
-              <DamEditControl onSave={() => saveField("altText")}>
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={onDraftKey}
-                  onBlur={onDraftBlur}
-                  rows={3}
-                  autoFocus
-                  aria-label="Alt-Text"
-                />
-              </DamEditControl>
-            </DamMetaRow>
-
-            <DamMetaRow
-              label="Keywords"
-              display={asset.keywords.join(", ")}
-              displayNode={
-                <DamKeywordPills
-                  keywords={asset.keywords}
-                  onRemove={(keyword) =>
-                    onPatch(asset.id, {
-                      keywords: asset.keywords.filter((item) => item !== keyword),
-                    })
-                  }
-                />
-              }
-              field="keywords"
-              editing={editing}
-              onEdit={startEdit}
-            >
-              <DamEditControl onSave={() => saveField("keywords")}>
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={onDraftKey}
-                  onBlur={onDraftBlur}
-                  placeholder="zürich, velo, podium"
-                  autoFocus
-                  aria-label="Keywords"
-                />
-              </DamEditControl>
-            </DamMetaRow>
-
-            <DamMetaRow
-              label="Kontext"
-              display={asset.notes ?? ""}
-              field="notes"
-              editing={editing}
-              onEdit={startEdit}
-            >
-              <DamEditControl onSave={() => saveField("notes")}>
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={onDraftKey}
-                  onBlur={onDraftBlur}
-                  rows={4}
-                  maxLength={4000}
-                  placeholder="Ereignis, Hintergrund, beteiligte Personen…"
-                  autoFocus
-                  aria-label="Kontext"
                 />
               </DamEditControl>
             </DamMetaRow>
