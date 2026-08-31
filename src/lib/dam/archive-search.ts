@@ -181,7 +181,7 @@ export async function listArchiveFacets(): Promise<ArchiveFacets> {
     prisma.collection.findMany({
       where: { assets: { some: { asset: { status: "published" } } } },
       select: { id: true, name: true },
-      orderBy: { name: "asc" },
+      orderBy: [{ createdAt: "desc" }, { name: "asc" }],
       take: ARCHIVE_FACET_LIMIT,
     }),
     prisma.$queryRaw<{ keyword: string }[]>`
@@ -240,7 +240,7 @@ export async function searchArchiveCollections(
       name: { contains: query, mode: "insensitive" },
     },
     select: { id: true, name: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ createdAt: "desc" }, { name: "asc" }],
     take,
   });
   return rows.map((row) => ({ value: row.id, label: row.name }));
