@@ -92,7 +92,7 @@ function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
     <p
       className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.06em] uppercase"
       style={{
-        top: 72,
+        top: 67,
         fontSize: 30,
         lineHeight: 1.2,
         fontFamily: CAROUSEL_FONT,
@@ -190,21 +190,24 @@ function withCalendarEmoji(meta: string): {
   return { icon: true, text: stripped };
 }
 
+const BRAND_LOGO_WIDTH = Math.round(231 * 1.27);
+const BRAND_LOGO_HEIGHT = Math.round(76 * 1.27);
+
 function BrandMark({ ink = "light" }: { ink?: SlideInk }) {
   return (
     <div
       className="pointer-events-none absolute left-0 right-0 z-20 flex justify-center"
-      style={{ bottom: 56 }}
+      style={{ bottom: 7 }}
     >
       <img
         src={BRAND_LOGO_SRC}
         alt={BRAND_MARK}
-        width={231}
-        height={76}
+        width={BRAND_LOGO_WIDTH}
+        height={BRAND_LOGO_HEIGHT}
         className="object-contain object-center"
         style={{
-          width: 231,
-          height: 76,
+          width: BRAND_LOGO_WIDTH,
+          height: BRAND_LOGO_HEIGHT,
           // white on dark slides / black on bright category colors
           filter: ink === "dark" ? "brightness(0)" : "brightness(0) invert(1)",
         }}
@@ -521,7 +524,7 @@ function CoverPreview({
               style={{
                 fontSize: isSixi ? 41 : 35,
                 lineHeight: 1.2,
-                marginBottom: isSixi ? 18 : 40,
+                marginBottom: isSixi ? 18 : 20,
                 fontFamily: isSixi ? INSTRUMENT_SANS_STACK : undefined,
                 fontWeight: isSixi ? 400 : undefined,
               }}

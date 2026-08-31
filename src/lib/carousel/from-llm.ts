@@ -93,7 +93,7 @@ export function parseLlmCarouselDraft(
   if (format === "6ibrief") {
     return llmSixibriefSchema.parse(input);
   }
-  if (format === "kolumne") {
+  if (format === "kolumne" || format === "interview") {
     return llmKolumneSchema.parse(input);
   }
   return llmCarouselSchema.parse(input);

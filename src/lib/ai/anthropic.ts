@@ -6,7 +6,6 @@ import {
   type LlmCarouselDraft,
 } from "@/lib/carousel/from-llm";
 import type { CarouselFormat } from "@/lib/carousel/format";
-import { enforceSlideTextLimits } from "@/lib/carousel/text-limits";
 import type { Slide } from "@/lib/carousel/types";
 import type { FetchedArticle } from "@/lib/wepublish/article";
 
@@ -185,13 +184,11 @@ function articleToPrompt(
   const leadLine =
     source === "paste"
       ? null
-      : format === "interview"
-        ? article.lead
-          ? `Lead (für Interview verwenden): ${article.lead}`
-          : null
-        : article.lead
-          ? `Lead: ${article.lead}`
-          : null;
+      : article.lead
+        ? format === "interview" || format === "kolumne"
+          ? `Lead (nicht als Slide verwenden): ${article.lead}`
+          : `Lead: ${article.lead}`
+        : null;
 
   const bodyLabel =
     source === "paste"
@@ -236,7 +233,7 @@ async function generateSlidesFromSource(
       ? tsueritippToolInputSchema
       : format === "6ibrief"
         ? sixibriefToolInputSchema
-        : format === "kolumne"
+        : format === "kolumne" || format === "interview"
           ? kolumneToolInputSchema
           : standardToolInputSchema;
   const maxTokens = format === "tsueritipp" ? 8192 : 4096;
@@ -290,10 +287,7 @@ async function generateSlidesFromSource(
   }
 
   try {
-    return enforceSlideTextLimits(
-      llmDraftToSlides(draft, { coverImageUrl: article.imageUrl, format }),
-      format,
-    );
+    return llmDraftToSlides(draft, { coverImageUrl: article.imageUrl, format });
   } catch (error) {
     throw new AiGenerationError(
       error instanceof Error ? error.message : "Slide-Mapping fehlgeschlagen.",
