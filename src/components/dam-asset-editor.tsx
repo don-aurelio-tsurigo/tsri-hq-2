@@ -2,8 +2,6 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  FlipHorizontal,
-  FlipVertical,
   RotateCcw,
   RotateCw,
   Undo2,
@@ -339,24 +337,6 @@ export function DamAssetEditor({
                   }
                 >
                   <RotateCw className="size-4" />
-                </IconToggle>
-                <IconToggle
-                  label="Horizontal spiegeln"
-                  pressed={draft.flipHorizontal}
-                  onClick={() =>
-                    setDraft((p) => ({ ...p, flipHorizontal: !p.flipHorizontal }))
-                  }
-                >
-                  <FlipHorizontal className="size-4" />
-                </IconToggle>
-                <IconToggle
-                  label="Vertikal spiegeln"
-                  pressed={draft.flipVertical}
-                  onClick={() =>
-                    setDraft((p) => ({ ...p, flipVertical: !p.flipVertical }))
-                  }
-                >
-                  <FlipVertical className="size-4" />
                 </IconToggle>
               </div>
             </div>
