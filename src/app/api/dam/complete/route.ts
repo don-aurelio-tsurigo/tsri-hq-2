@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { RightsType } from "@/generated/prisma/client";
 import { MAX_FILES, rejectReason, normalizedContentType, outputExtension } from "@/lib/dam/accept";
+import { backfillAssetExif } from "@/lib/dam/backfill-exif";
 import { buildFileName } from "@/lib/dam/filename";
 import { uniqueKeywords } from "@/lib/dam/keywords";
 import { enqueueDamProcessing } from "@/lib/dam/process-queue";
@@ -267,6 +268,7 @@ export async function POST(request: Request) {
       return ids;
     });
 
+    await Promise.all(createdIds.map((id) => backfillAssetExif(id)));
     enqueueDamProcessing(createdIds);
 
     return NextResponse.json({ batchId: batch.id, assetIds: createdIds });

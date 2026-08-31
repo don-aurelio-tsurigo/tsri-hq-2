@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
+import { extractExif } from "@/lib/dam/exif";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { parseUploadObjectRequest } from "@/lib/dam/upload-object-body";
 import { putObject, R2AccessError, R2ConfigError } from "@/lib/r2";
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
 
   try {
     let bytes = parsed.bytes;
+    const exif = await extractExif(bytes);
+    const metadata =
+      exif.takenAt != null ? { "taken-at": exif.takenAt.toISOString() } : undefined;
     let contentType =
       sniffImageContentType(bytes) ?? parsed.contentType;
     if (looksLikeHeicBytes(bytes)) {
@@ -37,7 +41,7 @@ export async function POST(request: Request) {
         contentType = "image/heic";
       }
     }
-    await putObject(parsed.r2Key, bytes, contentType);
+    await putObject(parsed.r2Key, bytes, contentType, metadata);
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof R2ConfigError || error instanceof R2AccessError) {

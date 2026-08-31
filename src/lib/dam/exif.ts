@@ -1,4 +1,5 @@
 import exifr from "exifr";
+import sharp from "sharp";
 import type { Prisma } from "@/generated/prisma/client";
 
 export type ExtractedExif = {
@@ -32,41 +33,111 @@ function asString(value: unknown): string | null {
   return trimmed || null;
 }
 
-export async function extractExif(buffer: Buffer): Promise<ExtractedExif> {
-  let parsed: Record<string, unknown> | undefined;
+function takenAtFromParsed(parsed: Record<string, unknown>): Date | null {
+  return (
+    asDate(parsed.DateTimeOriginal) ??
+    asDate(parsed.CreateDate) ??
+    asDate(parsed.ModifyDate) ??
+    asDate(parsed.DateTime) ??
+    asDate(parsed.DateCreated) ??
+    asDate(parsed.CreationTime) ??
+    asDate(parsed.MetadataDate)
+  );
+}
+
+async function parseExifBuffer(buffer: Buffer): Promise<Record<string, unknown> | undefined> {
   try {
-    parsed = (await exifr.parse(buffer, {
+    return (await exifr.parse(buffer, {
       tiff: true,
       xmp: true,
-      icc: false,
       iptc: true,
       gps: true,
+      jfif: true,
       translateKeys: true,
       translateValues: true,
       reviveValues: true,
+      mergeOutput: true,
+      firstChunkSize: buffer.length,
+      chunkLimit: 1,
     })) as Record<string, unknown> | undefined;
   } catch {
-    parsed = undefined;
+    return undefined;
+  }
+}
+
+async function parseViaSharpExifSegment(
+  buffer: Buffer,
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    const meta = await sharp(buffer, { failOn: "none" }).metadata();
+    if (!meta.exif || meta.exif.length <= 8) return undefined;
+    const tiff = meta.exif.subarray(6);
+    if (tiff.length <= 4) return undefined;
+    return (await exifr.parse(tiff, {
+      tiff: true,
+      translateKeys: true,
+      translateValues: true,
+      reviveValues: true,
+      mergeOutput: true,
+      firstChunkSize: tiff.length,
+      chunkLimit: 1,
+    })) as Record<string, unknown> | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function takenAtFromObjectMetadata(
+  metadata?: Record<string, string>,
+): Date | null {
+  const raw = metadata?.["taken-at"];
+  return raw ? asDate(raw) : null;
+}
+
+export function resolveTakenAt(opts: {
+  exifTakenAt?: Date | null;
+  metadata?: Record<string, string>;
+  existing?: Date | null;
+}): Date | null {
+  return (
+    opts.exifTakenAt ??
+    takenAtFromObjectMetadata(opts.metadata) ??
+    opts.existing ??
+    null
+  );
+}
+
+export async function extractExif(buffer: Buffer): Promise<ExtractedExif> {
+  let parsed = await parseExifBuffer(buffer);
+  if (!parsed || !takenAtFromParsed(parsed)) {
+    const viaSharp = await parseViaSharpExifSegment(buffer);
+    if (viaSharp) parsed = { ...parsed, ...viaSharp };
   }
 
   if (!parsed) {
     return { takenAt: null, width: null, height: null, json: null };
   }
 
-  const takenAt =
-    asDate(parsed.DateTimeOriginal) ??
-    asDate(parsed.CreateDate) ??
-    asDate(parsed.ModifyDate) ??
-    asDate(parsed.DateTime);
+  const takenAt = takenAtFromParsed(parsed);
 
-  const width =
+  let width =
     asNumber(parsed.ExifImageWidth) ??
     asNumber(parsed.ImageWidth) ??
     asNumber(parsed.PixelXDimension);
-  const height =
+  let height =
     asNumber(parsed.ExifImageHeight) ??
     asNumber(parsed.ImageHeight) ??
     asNumber(parsed.PixelYDimension);
+
+  if (!width || !height) {
+    try {
+      const meta = await sharp(buffer, { failOn: "none" }).metadata();
+      width = width ?? meta.width ?? null;
+      height = height ?? meta.height ?? null;
+    } catch {
+      /* keep exif dimensions */
+    }
+  }
 
   const json: Record<string, unknown> = {};
   const make = asString(parsed.Make);

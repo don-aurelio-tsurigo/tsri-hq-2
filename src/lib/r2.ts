@@ -174,6 +174,7 @@ export async function putObject(
   key: string,
   body: Buffer,
   contentType: string,
+  metadata?: Record<string, string>,
 ): Promise<void> {
   try {
     await getClient().send(
@@ -182,6 +183,7 @@ export async function putObject(
         Key: key,
         Body: body,
         ContentType: contentType,
+        ...(metadata && Object.keys(metadata).length > 0 ? { Metadata: metadata } : {}),
       }),
     );
   } catch (error) {
@@ -192,6 +194,7 @@ export async function putObject(
 export async function getObject(key: string): Promise<{
   buffer: Buffer;
   contentType: string;
+  metadata: Record<string, string>;
 }> {
   const res = await getClient().send(
     new GetObjectCommand({
@@ -206,6 +209,7 @@ export async function getObject(key: string): Promise<{
   return {
     buffer: Buffer.from(bytes),
     contentType: res.ContentType || "application/octet-stream",
+    metadata: res.Metadata ?? {},
   };
 }
 

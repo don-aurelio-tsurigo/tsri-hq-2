@@ -60,7 +60,15 @@ export function DamPersonalGrid({
   }, [initialAssets]);
 
   useEffect(() => {
-    if (!initialAssets.some((asset) => !asset.altText?.trim())) return;
+    const needsRefresh = (items: PersonalAssetCard[]) =>
+      items.some(
+        (asset) =>
+          !asset.altText?.trim() ||
+          !asset.takenAt ||
+          !asset.width ||
+          !asset.height,
+      );
+    if (!needsRefresh(initialAssets)) return;
     let ticks = 0;
     let cancelled = false;
     const id = window.setInterval(() => {
@@ -72,8 +80,7 @@ export function DamPersonalGrid({
           const data = (await res.json()) as { assets?: typeof initialAssets };
           if (cancelled || !Array.isArray(data.assets)) return;
           setAssets(data.assets);
-          const stillPending = data.assets.some((asset) => !asset.altText?.trim());
-          if (!stillPending) window.clearInterval(id);
+          if (!needsRefresh(data.assets)) window.clearInterval(id);
         } catch {
           /* keep current cards */
         }

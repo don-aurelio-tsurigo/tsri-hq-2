@@ -1,13 +1,14 @@
 import sharp from "sharp";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
+import { backfillAssetExif } from "@/lib/dam/backfill-exif";
 import { autotagFromImageBuffer } from "@/lib/dam/autotag";
-import { extractExif } from "@/lib/dam/exif";
+import { extractExif, resolveTakenAt } from "@/lib/dam/exif";
 import { derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
 import { uniqueKeywords } from "@/lib/dam/keywords";
 import { createMasterImage } from "@/lib/dam/master";
 import { beginDamAsset, endDamAsset } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
-import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
+import { deleteObject, getObject, putObject } from "@/lib/r2";
 
 const CONCURRENCY = 1;
 
@@ -40,7 +41,7 @@ async function processOne(assetId: string): Promise<void> {
 }
 
 async function processOneInner(assetId: string): Promise<void> {
-  const asset = await prisma.asset.findUnique({
+  let asset = await prisma.asset.findUnique({
     where: { id: assetId },
     select: {
       id: true,
@@ -50,9 +51,28 @@ async function processOneInner(assetId: string): Promise<void> {
       altText: true,
       keywords: true,
       width: true,
+      takenAt: true,
     },
   });
   if (!asset) return;
+
+  if (!asset.takenAt) {
+    await backfillAssetExif(assetId);
+    asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+      select: {
+        id: true,
+        r2Key: true,
+        fileName: true,
+        uploadedBy: true,
+        altText: true,
+        keywords: true,
+        width: true,
+        takenAt: true,
+      },
+    });
+    if (!asset) return;
+  }
 
   let r2Key = asset.r2Key;
   let fileName = asset.fileName;
@@ -60,13 +80,18 @@ async function processOneInner(assetId: string): Promise<void> {
   let autotagSource: Buffer | undefined;
 
   if (!width) {
-    const original = await getObjectBuffer(asset.r2Key);
+    const { buffer: original, metadata } = await getObject(asset.r2Key);
     if (!looksLikeImageBytes(original)) {
       console.warn(`[dam] skip non-image bytes for ${asset.id}`);
       return;
     }
 
     const exif = await extractExif(original);
+    const takenAt = resolveTakenAt({
+      exifTakenAt: exif.takenAt,
+      metadata,
+      existing: asset.takenAt,
+    });
     let height = exif.height;
     width = exif.width;
 
@@ -110,7 +135,7 @@ async function processOneInner(assetId: string): Promise<void> {
       data: {
         r2Key,
         fileName,
-        takenAt: exif.takenAt,
+        takenAt,
         width,
         height,
         exif: exif.json ?? undefined,
@@ -122,7 +147,7 @@ async function processOneInner(assetId: string): Promise<void> {
   if (asset.altText?.trim() && asset.keywords.length > 0) return;
 
   try {
-    const source = autotagSource ?? (await getObjectBuffer(r2Key));
+    const source = autotagSource ?? (await getObject(r2Key)).buffer;
     const tags = await autotagFromImageBuffer(asset.uploadedBy, source);
     if (!tags.altText && tags.keywords.length === 0) return;
 
@@ -131,7 +156,6 @@ async function processOneInner(assetId: string): Promise<void> {
     await prisma.asset.update({
       where: { id: asset.id },
       data: {
-        // Journalist notes stay as uploaded — autotag only writes altText + keywords.
         ...(tags.altText ? { altText: tags.altText } : {}),
         ...(mergedKeywords.length > 0 ? { keywords: mergedKeywords } : {}),
         status: "staging",
