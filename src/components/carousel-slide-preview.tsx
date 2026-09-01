@@ -941,7 +941,7 @@ function OutroPreview({
         />
         {isSixi ? null : (
           <p
-            className="text-right font-medium tracking-[0.05em] uppercase"
+            className="text-right font-normal tracking-[0.05em] uppercase"
             style={{
               fontSize: 40,
               lineHeight: 1.2,
