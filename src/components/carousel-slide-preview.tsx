@@ -90,7 +90,7 @@ function slideHtml(input: string): string {
 function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
   return (
     <p
-      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.06em] uppercase"
+      className="pointer-events-none absolute left-0 right-0 z-20 text-center font-normal tracking-[0.02em] uppercase"
       style={{
         top: 55,
         fontSize: 30,
