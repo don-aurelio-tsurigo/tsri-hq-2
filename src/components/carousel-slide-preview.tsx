@@ -92,7 +92,7 @@ function Category({ text, ink = "light" }: { text: string; ink?: SlideInk }) {
     <p
       className="pointer-events-none absolute left-0 right-0 z-20 text-center font-medium tracking-[0.06em] uppercase"
       style={{
-        top: 67,
+        top: 55,
         fontSize: 30,
         lineHeight: 1.2,
         fontFamily: CAROUSEL_FONT,
