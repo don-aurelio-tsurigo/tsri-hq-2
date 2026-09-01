@@ -4,20 +4,23 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { DamArchiveCollectionsGrid } from "@/components/dam-archive-collections-grid";
 import { DamArchiveDeleteCollectionsDialog } from "@/components/dam-archive-delete-collections";
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import { DamCombobox, type DamComboboxOption } from "@/components/dam-combobox";
 import { useToast } from "@/components/toast";
 import {
   EMPTY_ARCHIVE_FILTERS,
+  archiveCollectionsHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveHref,
   hiddenArchiveFilterCount,
   parseArchiveFiltersFromSearchParams,
   type ArchiveFilters,
+  type ArchiveView,
 } from "@/lib/dam/archive-filters";
-import type { ArchiveFacets } from "@/lib/dam/archive-search";
+import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-search";
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
@@ -102,7 +105,9 @@ async function fetchFacetOptions(
 }
 
 export function DamArchiveView({
+  view: initialView,
   assets,
+  collections,
   facets,
   publishedCount,
   total,
@@ -111,7 +116,9 @@ export function DamArchiveView({
   pageSize,
   canReview = false,
 }: {
+  view: ArchiveView;
   assets: ArchiveAssetCard[];
+  collections: ArchiveCollectionCard[];
   facets: ArchiveFacets;
   publishedCount: number;
   total: number;
@@ -130,6 +137,9 @@ export function DamArchiveView({
     () => parseArchiveFiltersFromSearchParams(searchParams),
     [searchParams],
   );
+  const view = useMemo((): ArchiveView => {
+    return searchParams.get("view") === "collections" ? "collections" : initialView;
+  }, [initialView, searchParams]);
   const [queryInput, setQueryInput] = useState(filters.q);
   const [prevQ, setPrevQ] = useState(filters.q);
   if (filters.q !== prevQ) {
@@ -143,31 +153,31 @@ export function DamArchiveView({
   const rangeTo = Math.min(page * pageSize, total);
 
   const apply = useCallback(
-    (next: ArchiveFilters, nextPage = 1, scroll = false) => {
+    (next: ArchiveFilters, nextPage = 1, scroll = false, nextView = view) => {
       startTransition(() => {
-        router.replace(archiveHref(next, nextPage), { scroll });
+        router.replace(archiveHref(next, nextPage, nextView), { scroll });
       });
     },
-    [router],
+    [router, view],
   );
 
   const commit = useCallback(
     (patch: Partial<ArchiveFilters>) => {
       const q =
         patch.q !== undefined ? patch.q : queryInput.trim().slice(0, 120);
-      apply({ ...filters, ...patch, q });
+      apply({ ...filters, ...patch, q }, 1, false, view);
     },
-    [apply, filters, queryInput],
+    [apply, filters, queryInput, view],
   );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const next = queryInput.trim().slice(0, 120);
       if (next === filters.q) return;
-      apply({ ...filters, q: next });
+      apply({ ...filters, q: next }, 1, false, view);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [apply, filters, queryInput]);
+  }, [apply, filters, queryInput, view]);
 
   const collectionOptions = useMemo<DamComboboxOption[]>(
     () => [
@@ -223,43 +233,90 @@ export function DamArchiveView({
 
   return (
     <div className="space-y-3">
+      <div
+        className="flex flex-wrap gap-1 rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] p-1 w-fit"
+        role="tablist"
+        aria-label="Archiv-Ansicht"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "photos"}
+          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+            view === "photos"
+              ? "bg-[var(--panel)] text-[var(--fg)] shadow-sm"
+              : "text-[var(--muted)] hover:text-[var(--fg)]"
+          }`}
+          onClick={() => apply(filters, 1, false, "photos")}
+        >
+          Bilder
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "collections"}
+          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+            view === "collections"
+              ? "bg-[var(--panel)] text-[var(--fg)] shadow-sm"
+              : "text-[var(--muted)] hover:text-[var(--fg)]"
+          }`}
+          onClick={() =>
+            startTransition(() => {
+              router.replace(archiveCollectionsHref(filters), { scroll: false });
+            })
+          }
+        >
+          Collections
+        </button>
+      </div>
+
       <div className="relative space-y-2">
         <div className="flex flex-wrap items-end gap-2">
           <div className="field min-w-[16rem] flex-1">
-            <label htmlFor="dam-q">Suche</label>
+            <label htmlFor="dam-q">
+              {view === "collections" ? "Collection suchen" : "Suche"}
+            </label>
             <input
               id="dam-q"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Dateiname, Keywords, Alt-Text, Credit, Kontext"
+              placeholder={
+                view === "collections"
+                  ? "Collection-Name…"
+                  : "Dateiname, Keywords, Alt-Text, Credit, Kontext"
+              }
               autoComplete="off"
             />
           </div>
-          <div className="min-w-[14rem] flex-1">
-            <DamCombobox
-              id="dam-collection"
-              label="Collection"
-              emptyLabel="Alle Collections"
-              placeholder="Collection suchen…"
-              options={collectionOptions}
-              value={filters.collectionId ? [filters.collectionId] : []}
-              onChange={(next) => commit({ collectionId: next[0] ?? "" })}
-              remote={facets.collectionsTruncated}
-              onSearch={searchCollections}
-            />
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            aria-expanded={moreOpen}
-            onClick={() => setMoreOpen((prev) => !prev)}
-          >
-            <SlidersHorizontal className="size-4" aria-hidden />
-            {extraCount > 0 ? `Filter (${extraCount})` : "Filter"}
-          </button>
+          {view === "photos" ? (
+            <>
+              <div className="min-w-[14rem] flex-1">
+                <DamCombobox
+                  id="dam-collection"
+                  label="Collection"
+                  emptyLabel="Alle Collections"
+                  placeholder="Collection suchen…"
+                  options={collectionOptions}
+                  value={filters.collectionId ? [filters.collectionId] : []}
+                  onChange={(next) => commit({ collectionId: next[0] ?? "" })}
+                  remote={facets.collectionsTruncated}
+                  onSearch={searchCollections}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((prev) => !prev)}
+              >
+                <SlidersHorizontal className="size-4" aria-hidden />
+                {extraCount > 0 ? `Filter (${extraCount})` : "Filter"}
+              </button>
+            </>
+          ) : null}
         </div>
 
-        {moreOpen ? (
+        {view === "photos" && moreOpen ? (
           <div className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="sm:col-span-2">
               <DamCombobox
@@ -330,7 +387,7 @@ export function DamArchiveView({
           </div>
         ) : null}
 
-        {chipCount > 0 ? (
+        {view === "photos" && chipCount > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {chips.map((chip) => (
               <button
@@ -367,7 +424,75 @@ export function DamArchiveView({
         ) : null}
       </div>
 
-      {assets.length === 0 ? (
+      {view === "collections" ? (
+        collections.length === 0 ? (
+          <p className="card p-8 text-center text-[var(--muted)]">
+            {pending
+              ? "Suche wird aktualisiert…"
+              : filters.q
+                ? "Keine Collections für diese Suche."
+                : "Noch keine Collections mit publizierten Bildern."}
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-[var(--border)]" aria-hidden />
+              <h2 className="text-sm font-semibold tracking-wide text-[var(--muted)] uppercase">
+                Collections
+              </h2>
+              <div className="h-px flex-1 bg-[var(--border)]" aria-hidden />
+            </div>
+            <p className="text-sm text-[var(--muted)]">
+              {pending ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="size-3.5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--fg)]" />
+                  Aktualisiere…
+                </span>
+              ) : (
+                <>
+                  {pageCount > 1
+                    ? `${rangeFrom}–${rangeTo} von ${total} ${
+                        total === 1 ? "Collection" : "Collections"
+                      }`
+                    : `${total} ${total === 1 ? "Collection" : "Collections"}`}
+                  . Klick öffnet alle Bilder der Collection.
+                </>
+              )}
+            </p>
+            <div className={pending ? "pointer-events-none opacity-50" : ""}>
+              <DamArchiveCollectionsGrid collections={collections} />
+            </div>
+            {pageCount > 1 ? (
+              <nav
+                className="flex flex-wrap items-center justify-between gap-2"
+                aria-label="Seiten"
+              >
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={pending || page <= 1}
+                  onClick={() => apply(filters, page - 1, true, "collections")}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                  Zurück
+                </button>
+                <p className="text-sm font-medium text-[var(--muted)]">
+                  Seite {page} von {pageCount}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={pending || page >= pageCount}
+                  onClick={() => apply(filters, page + 1, true, "collections")}
+                >
+                  Weiter
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+              </nav>
+            ) : null}
+          </div>
+        )
+      ) : assets.length === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
           {pending
             ? "Suche wird aktualisiert…"

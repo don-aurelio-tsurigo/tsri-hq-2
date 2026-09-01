@@ -3,11 +3,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DamArchiveView } from "@/components/dam-archive-view";
 import {
+  archiveCollectionsHref,
   archiveHref,
   countPublishedAssets,
+  listArchiveCollectionCards,
   listArchiveFacets,
   parseArchiveFilters,
   parseArchivePage,
+  parseArchiveView,
   searchPublishedAssets,
 } from "@/lib/dam/archive-search";
 import { canReviewDamArchive } from "@/lib/dam/review";
@@ -22,14 +25,28 @@ export default async function DamArchivePage({
   const params = await searchParams;
   const filters = parseArchiveFilters(params);
   const page = parseArchivePage(params);
-  const [result, facets, publishedCount] = await Promise.all([
-    searchPublishedAssets(filters, page),
+  const view = parseArchiveView(params);
+  const [result, collectionResult, facets, publishedCount] = await Promise.all([
+    view === "photos"
+      ? searchPublishedAssets(filters, page)
+      : Promise.resolve(null),
+    view === "collections"
+      ? listArchiveCollectionCards(filters.q, page)
+      : Promise.resolve(null),
     listArchiveFacets(),
     countPublishedAssets(),
   ]);
 
-  if (result.pageCount > 0 && page > result.pageCount) {
-    redirect(archiveHref(filters, result.pageCount));
+  const pageCount =
+    view === "collections"
+      ? (collectionResult?.pageCount ?? 0)
+      : (result?.pageCount ?? 0);
+  if (pageCount > 0 && page > pageCount) {
+    redirect(
+      view === "collections"
+        ? archiveCollectionsHref(filters, pageCount)
+        : archiveHref(filters, pageCount),
+    );
   }
 
   return (
@@ -50,13 +67,27 @@ export default async function DamArchivePage({
 
       <Suspense>
         <DamArchiveView
-          assets={result.assets}
+          view={view}
+          assets={result?.assets ?? []}
+          collections={collectionResult?.collections ?? []}
           facets={facets}
           publishedCount={publishedCount}
-          total={result.total}
-          page={result.page}
-          pageCount={result.pageCount}
-          pageSize={result.pageSize}
+          total={
+            view === "collections"
+              ? (collectionResult?.total ?? 0)
+              : (result?.total ?? 0)
+          }
+          page={
+            view === "collections"
+              ? (collectionResult?.page ?? 1)
+              : (result?.page ?? 1)
+          }
+          pageCount={pageCount}
+          pageSize={
+            view === "collections"
+              ? (collectionResult?.pageSize ?? result?.pageSize ?? 120)
+              : (result?.pageSize ?? 120)
+          }
           canReview={canReviewDamArchive(membership)}
         />
       </Suspense>

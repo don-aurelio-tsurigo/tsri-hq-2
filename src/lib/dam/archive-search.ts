@@ -14,6 +14,7 @@ export type { ArchiveAssetCard, ArchiveFilters };
 export {
   ARCHIVE_PAGE_SIZE,
   archiveCollectionHref,
+  archiveCollectionsHref,
   archiveFilterChipCount,
   archiveFiltersActive,
   archiveFiltersToSearchParams,
@@ -23,6 +24,8 @@ export {
   parseArchiveFiltersFromSearchParams,
   parseArchivePage,
   parseArchivePageFromSearchParams,
+  parseArchiveView,
+  type ArchiveView,
 } from "@/lib/dam/archive-filters";
 
 export type ArchiveFacetOption = { value: string; label: string };
@@ -89,6 +92,82 @@ function publishedWhere(
   }
 
   return where;
+}
+
+export type ArchiveCollectionCard = {
+  id: string;
+  name: string;
+  assetCount: number;
+  preview: { id: string; editParams: ReturnType<typeof parseEditParams> } | null;
+};
+
+export type ArchiveCollectionCardsResult = {
+  collections: ArchiveCollectionCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+export async function listArchiveCollectionCards(
+  q = "",
+  page = 1,
+  pageSize = ARCHIVE_PAGE_SIZE,
+): Promise<ArchiveCollectionCardsResult> {
+  const query = q.trim().slice(0, 120);
+  const where = {
+    assets: { some: { asset: { status: "published" as const } } },
+    ...(query ? { name: { contains: query, mode: "insensitive" as const } } : {}),
+  };
+  const safePage = Math.max(1, page);
+  const skip = (safePage - 1) * pageSize;
+
+  const [total, rows] = await Promise.all([
+    prisma.collection.count({ where }),
+    prisma.collection.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { name: "asc" }],
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        assets: {
+          where: { asset: { status: "published" } },
+          orderBy: { asset: { takenAt: "desc" } },
+          take: 1,
+          select: {
+            asset: { select: { id: true, editParams: true } },
+          },
+        },
+        _count: {
+          select: {
+            assets: { where: { asset: { status: "published" } } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const pageCount = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+  return {
+    collections: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      assetCount: row._count.assets,
+      preview: row.assets[0]?.asset
+        ? {
+            id: row.assets[0].asset.id,
+            editParams: parseEditParams(row.assets[0].asset.editParams),
+          }
+        : null,
+    })),
+    total,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
 }
 
 export async function searchPublishedAssets(

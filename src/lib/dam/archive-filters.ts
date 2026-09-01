@@ -16,6 +16,8 @@ export type ArchiveFilters = {
   to: string;
 };
 
+export type ArchiveView = "photos" | "collections";
+
 export const EMPTY_ARCHIVE_FILTERS: ArchiveFilters = {
   q: "",
   keywords: [],
@@ -51,6 +53,12 @@ function many(
     out.push(trimmed);
   }
   return out;
+}
+
+export function parseArchiveView(
+  params: Record<string, string | string[] | undefined>,
+): ArchiveView {
+  return one(params, "view") === "collections" ? "collections" : "photos";
 }
 
 export function parseArchiveFilters(
@@ -125,9 +133,19 @@ export function archiveFiltersToSearchParams(
   return params;
 }
 
-export function archiveHref(filters: ArchiveFilters, page = 1): string {
-  const qs = archiveFiltersToSearchParams(filters, page).toString();
+export function archiveHref(
+  filters: ArchiveFilters,
+  page = 1,
+  view: ArchiveView = "photos",
+): string {
+  const params = archiveFiltersToSearchParams(filters, page);
+  if (view === "collections") params.set("view", "collections");
+  const qs = params.toString();
   return qs ? `/dam/archive?${qs}` : "/dam/archive";
+}
+
+export function archiveCollectionsHref(filters: ArchiveFilters, page = 1): string {
+  return archiveHref(filters, page, "collections");
 }
 
 export function archiveCollectionHref(collectionId: string): string {
