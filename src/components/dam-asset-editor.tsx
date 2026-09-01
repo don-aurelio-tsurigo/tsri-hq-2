@@ -281,29 +281,35 @@ export function DamAssetEditor({
                       height: stage.boxH || undefined,
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imageSrc}
-                      alt=""
-                      onLoad={(e) => rememberSize(e.currentTarget)}
-                      ref={(el) => {
-                        if (el) rememberSize(el);
-                      }}
+                    <div
                       style={{
                         position: stage.boxW ? "absolute" : "static",
                         left: "50%",
                         top: "50%",
-                        width: stage.imgW || undefined,
-                        height: stage.imgH || undefined,
-                        maxHeight: stage.boxW ? undefined : "65vh",
-                        maxWidth: stage.boxW ? undefined : "100%",
-                        filter: cssFilter(preview),
                         transform: stage.boxW
                           ? `translate(-50%, -50%) ${transform ?? ""}`.trim()
                           : transform,
                         transformOrigin: "center center",
                       }}
-                    />
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageSrc}
+                        alt=""
+                        onLoad={(e) => rememberSize(e.currentTarget)}
+                        ref={(el) => {
+                          if (el) rememberSize(el);
+                        }}
+                        style={{
+                          display: "block",
+                          width: stage.imgW || undefined,
+                          height: "auto",
+                          maxWidth: stage.boxW ? "none" : "100%",
+                          maxHeight: stage.boxW ? undefined : "65vh",
+                          filter: cssFilter(preview),
+                        }}
+                      />
+                    </div>
                   </div>
                 </ReactCrop>
               )}
