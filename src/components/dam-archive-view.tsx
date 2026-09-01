@@ -233,33 +233,17 @@ export function DamArchiveView({
 
   return (
     <div className="space-y-3">
-      <div
-        className="flex flex-wrap gap-1 rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] p-1 w-fit"
-        role="tablist"
-        aria-label="Archiv-Ansicht"
-      >
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          role="tab"
-          aria-selected={view === "photos"}
-          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
-            view === "photos"
-              ? "bg-[var(--panel)] text-[var(--fg)] shadow-sm"
-              : "text-[var(--muted)] hover:text-[var(--fg)]"
-          }`}
+          className={view === "photos" ? "btn btn-primary" : "btn btn-ghost"}
           onClick={() => apply(filters, 1, false, "photos")}
         >
           Bilder
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={view === "collections"}
-          className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
-            view === "collections"
-              ? "bg-[var(--panel)] text-[var(--fg)] shadow-sm"
-              : "text-[var(--muted)] hover:text-[var(--fg)]"
-          }`}
+          className={view === "collections" ? "btn btn-primary" : "btn btn-ghost"}
           onClick={() =>
             startTransition(() => {
               router.replace(archiveCollectionsHref(filters), { scroll: false });
