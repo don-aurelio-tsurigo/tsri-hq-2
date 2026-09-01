@@ -306,3 +306,22 @@ export function temperatureToRgb(temp: number): { r: number; g: number; b: numbe
     b: 255,
   };
 }
+
+/** Match cssFilter temperature ops when baking edits with sharp.modulate(). */
+export function sharpTemperatureModulate(
+  temperature: number,
+): { hue: number; saturation: number } | null {
+  if (temperature === 0) return null;
+  if (temperature > 0) {
+    const t = temperature / 100;
+    return {
+      hue: Math.round(-12 * t),
+      saturation: 1 + t * 0.08,
+    };
+  }
+  const t = -temperature / 100;
+  return {
+    hue: Math.round(160 * t),
+    saturation: 1 + t * 0.12,
+  };
+}

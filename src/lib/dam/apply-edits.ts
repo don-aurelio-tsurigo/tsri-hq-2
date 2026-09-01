@@ -3,8 +3,8 @@ import {
   clampExtract,
   cropToExtract,
   parseEditParams,
+  sharpTemperatureModulate,
   straightenCoverExtract,
-  temperatureToRgb,
   type DamEditParams,
 } from "@/lib/dam/edit-params";
 import { decodeHeicIfNeeded } from "@/lib/dam/heic";
@@ -86,7 +86,13 @@ export async function applyDamEditsToOriented(
   }
 
   if (params.temperature !== 0) {
-    pipeline = pipeline.tint(temperatureToRgb(params.temperature));
+    const temperature = sharpTemperatureModulate(params.temperature);
+    if (temperature) {
+      pipeline = pipeline.modulate({
+        hue: temperature.hue,
+        saturation: temperature.saturation,
+      });
+    }
   }
 
   return pipeline.toBuffer();

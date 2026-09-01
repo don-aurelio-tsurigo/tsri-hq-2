@@ -503,6 +503,7 @@ export function DamArchiveGrid({
 
       {editorAsset ? (
         <DamAssetEditor
+          assetId={editorAsset.id}
           fileName={editorAsset.fileName}
           imageSrc={damFileSrc(editorAsset.id, "original")}
           initial={editorAsset.editParams}

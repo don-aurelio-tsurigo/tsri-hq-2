@@ -622,6 +622,7 @@ export function DamPersonalGrid({
 
       {editorAsset ? (
         <DamAssetEditor
+          assetId={editorAsset.id}
           fileName={editorAsset.fileName}
           imageSrc={damFileSrc(editorAsset.id, "original")}
           initial={editorAsset.editParams}

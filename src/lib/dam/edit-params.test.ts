@@ -12,6 +12,7 @@ import {
   splitRotate,
   straightenCoverExtract,
   straightenCoverScale,
+  sharpTemperatureModulate,
   temperatureToRgb,
 } from "./edit-params.ts";
 
@@ -157,6 +158,17 @@ describe("temperatureToRgb", () => {
     const cool = temperatureToRgb(-100);
     assert.ok(warm.b < warm.r);
     assert.ok(cool.r < cool.b);
+  });
+});
+
+describe("sharpTemperatureModulate", () => {
+  it("returns null for neutral temperature", () => {
+    assert.equal(sharpTemperatureModulate(0), null);
+  });
+
+  it("maps warm and cool temperatures to hue shifts", () => {
+    assert.deepEqual(sharpTemperatureModulate(20), { hue: -2, saturation: 1.016 });
+    assert.deepEqual(sharpTemperatureModulate(-20), { hue: 32, saturation: 1.024 });
   });
 });
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import {
   RotateCcw,
   RotateCw,
+  Sparkles,
   Undo2,
 } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -36,6 +37,18 @@ function toPercentCrop(params: DamEditParams): PercentCrop {
   return { unit: "%", x: 0, y: 0, width: 100, height: 100 };
 }
 
+function defaultAspectCrop(
+  aspect: number,
+  mediaWidth: number,
+  mediaHeight: number,
+): PercentCrop {
+  return centerCrop(
+    makeAspectCrop({ unit: "%", width: 100 }, aspect, mediaWidth, mediaHeight),
+    mediaWidth,
+    mediaHeight,
+  );
+}
+
 function Slider({
   label,
   value,
@@ -44,6 +57,7 @@ function Slider({
   unit = "%",
   defaultValue,
   onChange,
+  onInteractionChange,
 }: {
   label: string;
   value: number;
@@ -52,6 +66,7 @@ function Slider({
   unit?: string;
   defaultValue: number;
   onChange: (n: number) => void;
+  onInteractionChange?: (active: boolean) => void;
 }) {
   const dirty = value !== defaultValue;
   const formatted =
@@ -80,6 +95,10 @@ function Slider({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerDown={() => onInteractionChange?.(true)}
+        onPointerUp={() => onInteractionChange?.(false)}
+        onPointerCancel={() => onInteractionChange?.(false)}
+        onBlur={() => onInteractionChange?.(false)}
         className="mt-1 w-full"
       />
     </label>
@@ -110,7 +129,51 @@ function IconToggle({
   );
 }
 
+function StraightenGuides({ emphasized }: { emphasized: boolean }) {
+  const strong = emphasized ? "bg-white/90" : "bg-white/45";
+  const faint = emphasized ? "bg-white/55" : "bg-white/25";
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+      <div className={`absolute inset-x-0 top-1/2 h-px -translate-y-1/2 ${strong}`} />
+      <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 ${strong}`} />
+      <div className={`absolute inset-x-0 top-1/3 h-px ${faint}`} />
+      <div className={`absolute inset-x-0 top-2/3 h-px ${faint}`} />
+      <div className={`absolute inset-y-0 left-1/3 w-px ${faint}`} />
+      <div className={`absolute inset-y-0 left-2/3 w-px ${faint}`} />
+    </div>
+  );
+}
+
+/** 16:9 crop → two equal squares (8×8 in a 16×9 frame), centered vertically. */
+function SixteenNineCropGuide({ crop }: { crop: PercentCrop }) {
+  const squareHeightPct = (8 / 9) * 100;
+  const insetPct = (100 - squareHeightPct) / 2;
+  return (
+    <div
+      className="pointer-events-none absolute z-20"
+      style={{
+        left: `${crop.x}%`,
+        top: `${crop.y}%`,
+        width: `${crop.width}%`,
+        height: `${crop.height}%`,
+      }}
+      aria-hidden
+    >
+      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/85" />
+      <div
+        className="absolute inset-x-0 h-px bg-white/55"
+        style={{ top: `${insetPct}%` }}
+      />
+      <div
+        className="absolute inset-x-0 h-px bg-white/55"
+        style={{ top: `${100 - insetPct}%` }}
+      />
+    </div>
+  );
+}
+
 export function DamAssetEditor({
+  assetId,
   fileName,
   imageSrc,
   initial,
@@ -118,6 +181,7 @@ export function DamAssetEditor({
   onClose,
   onSave,
 }: {
+  assetId: string;
   fileName: string;
   imageSrc: string;
   initial: DamEditParams;
@@ -128,6 +192,9 @@ export function DamAssetEditor({
   const [draft, setDraft] = useState<DamEditParams>(() => parseEditParams(initial));
   const [natural, setNatural] = useState({ width: 0, height: 0 });
   const [compare, setCompare] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
+  const [straightenActive, setStraightenActive] = useState(false);
   const crop = useMemo(() => toPercentCrop(draft), [draft]);
   const preview = compare ? DEFAULT_EDIT_PARAMS : draft;
   const { straighten } = splitRotate(draft.rotate);
@@ -147,6 +214,31 @@ export function DamAssetEditor({
       imgH: natural.height * fit,
     };
   }, [natural.height, natural.width, preview.rotate]);
+
+  useEffect(() => {
+    if (compare || stage.boxW <= 0 || stage.boxH <= 0) return;
+    const value = aspectRatioValue(draft.aspectRatio);
+    if (!value) return;
+    const crop = draft.crop;
+    const isFullFrame =
+      !crop ||
+      (crop.x <= 0.01 &&
+        crop.y <= 0.01 &&
+        crop.width >= 99.5 &&
+        crop.height >= 99.5);
+    if (!isFullFrame) return;
+    const next = defaultAspectCrop(value, stage.boxW, stage.boxH);
+    setDraft((prev) => ({
+      ...prev,
+      crop: {
+        unit: "%",
+        x: next.x,
+        y: next.y,
+        width: next.width,
+        height: next.height,
+      },
+    }));
+  }, [compare, draft.aspectRatio, draft.crop, stage.boxH, stage.boxW]);
 
   function rememberSize(img: HTMLImageElement) {
     if (!img.naturalWidth) return;
@@ -181,11 +273,7 @@ export function DamAssetEditor({
       setDraft((prev) => ({ ...prev, aspectRatio: nextRatio }));
       return;
     }
-    const next = centerCrop(
-      makeAspectCrop({ unit: "%", width: 90 }, value, stage.boxW, stage.boxH),
-      stage.boxW,
-      stage.boxH,
-    );
+    const next = defaultAspectCrop(value, stage.boxW, stage.boxH);
     setDraft((prev) => ({
       ...prev,
       aspectRatio: nextRatio,
@@ -200,6 +288,45 @@ export function DamAssetEditor({
   }
 
   const transform = cssTransform(preview, natural);
+  const showStraightenGuides =
+    !compare && (straightenActive || Math.abs(straighten) > 0.01);
+  const showSixteenNineCropGuide =
+    !compare && draft.aspectRatio === "16:9" && crop.width > 0 && crop.height > 0;
+
+  async function applyAutoEnhance() {
+    setEnhancing(true);
+    setEnhanceError(null);
+    try {
+      const response = await fetch(`/api/dam/assets/${assetId}/auto-enhance-suggestion`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        brightness?: number;
+        contrast?: number;
+        saturation?: number;
+        temperature?: number;
+        sharpen?: number;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Automatische Verbesserung fehlgeschlagen.");
+      }
+      setDraft((prev) => ({
+        ...prev,
+        brightness: payload.brightness ?? prev.brightness,
+        contrast: payload.contrast ?? prev.contrast,
+        saturation: payload.saturation ?? prev.saturation,
+        temperature: payload.temperature ?? prev.temperature,
+        sharpen: payload.sharpen ?? prev.sharpen,
+      }));
+    } catch (error) {
+      setEnhanceError(
+        error instanceof Error ? error.message : "Automatische Verbesserung fehlgeschlagen.",
+      );
+    } finally {
+      setEnhancing(false);
+    }
+  }
 
   return (
     <div
@@ -310,6 +437,12 @@ export function DamAssetEditor({
                         }}
                       />
                     </div>
+                    {showStraightenGuides ? (
+                      <StraightenGuides emphasized={Math.abs(straighten) > 0.01} />
+                    ) : null}
+                    {showSixteenNineCropGuide ? (
+                      <SixteenNineCropGuide crop={crop} />
+                    ) : null}
                   </div>
                 </ReactCrop>
               )}
@@ -350,6 +483,7 @@ export function DamAssetEditor({
               max={45}
               unit="°"
               defaultValue={0}
+              onInteractionChange={setStraightenActive}
               onChange={(value) =>
                 setDraft((p) => {
                   const { quarter } = splitRotate(p.rotate);
@@ -399,7 +533,20 @@ export function DamAssetEditor({
             />
             <button
               type="button"
+              className="btn btn-highlight w-full"
+              disabled={pending || enhancing}
+              onClick={() => void applyAutoEnhance()}
+            >
+              <Sparkles className="size-4" aria-hidden />
+              {enhancing ? "Analysiert…" : "Verbessern"}
+            </button>
+            {enhanceError ? (
+              <p className="text-sm text-red-600">{enhanceError}</p>
+            ) : null}
+            <button
+              type="button"
               className="btn btn-ghost w-full"
+              disabled={pending || enhancing}
               onClick={() => setDraft({ ...DEFAULT_EDIT_PARAMS })}
             >
               Alles zurücksetzen
@@ -407,7 +554,7 @@ export function DamAssetEditor({
             <button
               type="button"
               className="btn btn-primary w-full"
-              disabled={pending}
+              disabled={pending || enhancing}
               onClick={() => onSave(parseEditParams(draft))}
             >
               {pending ? "Speichert…" : "Speichern"}

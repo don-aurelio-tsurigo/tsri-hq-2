@@ -85,6 +85,37 @@ describe("renderDamPreviewWebp", () => {
     assert.ok(meta.width && meta.height);
     assert.ok(Math.abs(meta.width / meta.height - 2) < 0.08);
   });
+
+  it("preserves color when baking temperature adjustments", async () => {
+    const input = await solidPng(120, 80, { r: 180, g: 120, b: 60 });
+    const output = await applyDamEditsToOriented(input, {
+      ...DEFAULT_EDIT_PARAMS,
+      brightness: 105,
+      contrast: 125,
+      saturation: 108,
+      temperature: -8,
+      sharpen: 17,
+    });
+    const { data, info } = await sharp(output)
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let satSum = 0;
+    let samples = 0;
+    for (let i = 0; i < info.width * info.height; i += 1) {
+      const r = data[i * 3];
+      const g = data[i * 3 + 1];
+      const b = data[i * 3 + 2];
+      const max = Math.max(r, g, b) / 255;
+      const min = Math.min(r, g, b) / 255;
+      if (max > 0) {
+        satSum += (max - min) / max;
+        samples += 1;
+      }
+    }
+    const avgSat = satSum / samples;
+    assert.ok(avgSat > 0.35, "temperature bake should not desaturate to greyscale");
+  });
 });
 
 describe("renderPublishedMaster", () => {
