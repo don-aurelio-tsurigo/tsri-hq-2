@@ -308,15 +308,11 @@ export function DamAssetEditor({
                 </ReactCrop>
               )}
             </div>
-            <p className="text-xs text-[var(--muted)]">
-              Vorher gedrückt halten. Begradigen zoomt automatisch, damit keine
-              Ecken entstehen.
-            </p>
           </div>
 
           <div className="space-y-4">
             <p className="text-sm text-[var(--muted)]">
-              Non-destruktiv: Werte liegen in <code>editParams</code>, das Original bleibt.
+              Das Originalbild bleibt bestehen.
             </p>
 
             <div>
