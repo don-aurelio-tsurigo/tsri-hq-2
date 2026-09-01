@@ -344,11 +344,7 @@ export function DamArchivePreview({
             </button>
             {downloadError ? (
               <p className="text-sm text-red-600">{downloadError}</p>
-            ) : (
-              <p className="text-xs text-[var(--muted)]">
-                Volle Auflösung, direkt von R2. Der Link gilt zwei Minuten.
-              </p>
-            )}
+            ) : null}
 
             <button
               type="button"
