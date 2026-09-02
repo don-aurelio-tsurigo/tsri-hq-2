@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Pin } from "lucide-react";
+import { Check, GripVertical, ListOrdered, Pin } from "lucide-react";
 import {
   createWikiPage,
   deleteWikiPage,
+  reorderWikiSiblings,
   toggleWikiPin,
   updateWikiPage,
 } from "@/lib/wiki-actions";
-import { buildWikiTree, type WikiPageNode } from "@/lib/wiki-shared";
+import {
+  buildWikiTree,
+  reorderWikiSiblingNodes,
+  type WikiPageNode,
+} from "@/lib/wiki-shared";
 import {
   WikiRichEditor,
   type WikiRichEditorHandle,
@@ -23,6 +28,8 @@ type WikiPageView = WikiPageNode & {
   createdBy: { id: string; name: string };
   updatedBy: { id: string; name: string };
 };
+
+const WIKI_DRAG_TYPE = "application/x-wiki-page-id";
 
 function formatEditedAt(iso: string) {
   try {
@@ -115,46 +122,131 @@ function TreeList({
   spaceId,
   currentSlug,
   depth = 0,
+  reorderMode = false,
+  draggingId = null,
+  dropTarget = null,
+  onDragPage,
+  onDragOverPage,
+  onDropPage,
+  onDragEnd,
 }: {
   byParent: Map<string | null, WikiPageNode[]>;
   parentId: string | null;
   spaceId: string;
   currentSlug: string | null;
   depth?: number;
+  reorderMode?: boolean;
+  draggingId?: string | null;
+  dropTarget?: { id: string; place: "before" | "after" } | null;
+  onDragPage?: (id: string) => void;
+  onDragOverPage?: (id: string, place: "before" | "after") => void;
+  onDropPage?: (targetId: string, place: "before" | "after") => void;
+  onDragEnd?: () => void;
 }) {
   const children = byParent.get(parentId) ?? [];
   if (children.length === 0) return null;
 
   return (
-    <ul className={depth === 0 ? "space-y-0.5" : "mt-0.5 ml-3 space-y-0.5 border-l border-[var(--border)] pl-2"}>
+    <ul
+      className={
+        depth === 0
+          ? "space-y-0.5"
+          : "mt-0.5 ml-3 space-y-0.5 border-l border-[var(--border)] pl-2"
+      }
+    >
       {children.map((page) => {
         const active = page.slug === currentSlug;
+        const isDragging = draggingId === page.id;
+        const dropBefore =
+          dropTarget?.id === page.id && dropTarget.place === "before";
+        const dropAfter =
+          dropTarget?.id === page.id && dropTarget.place === "after";
+
+        const rowClass = [
+          "flex items-center gap-1 rounded-lg px-1.5 py-1.5 text-sm transition-colors",
+          active && !reorderMode
+            ? "bg-[var(--highlight)] font-semibold text-[#0a0a0a]"
+            : "text-[var(--fg)]",
+          !reorderMode ? "hover:bg-black/5" : "",
+          reorderMode ? "cursor-grab active:cursor-grabbing hover:bg-black/5" : "",
+          isDragging ? "opacity-40" : "",
+          dropBefore ? "shadow-[inset_0_2px_0_0_var(--accent)]" : "",
+          dropAfter ? "shadow-[inset_0_-2px_0_0_var(--accent)]" : "",
+        ].join(" ");
+
+        const label = (
+          <>
+            {reorderMode && (
+              <GripVertical
+                aria-hidden
+                className="size-3.5 shrink-0 text-[var(--muted)]"
+                strokeWidth={1.75}
+              />
+            )}
+            {page.pinned && (
+              <Pin
+                aria-label="Angepinnt"
+                className="size-3.5 shrink-0 opacity-70"
+                strokeWidth={1.75}
+              />
+            )}
+            <span className="min-w-0 truncate">{page.title}</span>
+          </>
+        );
+
         return (
           <li key={page.id}>
-            <Link
-              href={wikiPagePath(spaceId, page.slug)}
-              className={[
-                "flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm transition-colors",
-                active
-                  ? "bg-[var(--highlight)] font-semibold text-[#0a0a0a]"
-                  : "text-[var(--fg)] hover:bg-black/5",
-              ].join(" ")}
-            >
-              {page.pinned && (
-                <Pin
-                  aria-label="Angepinnt"
-                  className="size-3.5 shrink-0 opacity-70"
-                  strokeWidth={1.75}
-                />
-              )}
-              <span className="min-w-0 truncate">{page.title}</span>
-            </Link>
+            {reorderMode ? (
+              <div
+                role="button"
+                tabIndex={0}
+                draggable
+                aria-grabbed={isDragging}
+                aria-label={`${page.title} verschieben`}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(WIKI_DRAG_TYPE, page.id);
+                  e.dataTransfer.effectAllowed = "move";
+                  onDragPage?.(page.id);
+                }}
+                onDragEnd={() => onDragEnd?.()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const place =
+                    e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                  onDragOverPage?.(page.id, place);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const place =
+                    e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+                  onDropPage?.(page.id, place);
+                }}
+                className={rowClass}
+              >
+                {label}
+              </div>
+            ) : (
+              <Link href={wikiPagePath(spaceId, page.slug)} className={rowClass}>
+                {label}
+              </Link>
+            )}
             <TreeList
               byParent={byParent}
               parentId={page.id}
               spaceId={spaceId}
               currentSlug={currentSlug}
               depth={depth + 1}
+              reorderMode={reorderMode}
+              draggingId={draggingId}
+              dropTarget={dropTarget}
+              onDragPage={onDragPage}
+              onDragOverPage={onDragOverPage}
+              onDropPage={onDropPage}
+              onDragEnd={onDragEnd}
             />
           </li>
         );
@@ -185,8 +277,20 @@ export function WikiSpace({
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [reorderMode, setReorderMode] = useState(false);
+  const [orderedPages, setOrderedPages] = useState(pages);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    id: string;
+    place: "before" | "after";
+  } | null>(null);
 
-  const byParent = useMemo(() => buildWikiTree(pages), [pages]);
+  useEffect(() => {
+    if (!reorderMode) setOrderedPages(pages);
+  }, [pages, reorderMode]);
+
+  const treePages = reorderMode ? orderedPages : pages;
+  const byParent = useMemo(() => buildWikiTree(treePages), [treePages]);
   const pinned = useMemo(
     () => pages.filter((p) => p.pinned).slice(0, 8),
     [pages],
@@ -286,6 +390,44 @@ export function WikiSpace({
     });
   }
 
+  function persistSiblingOrder(nextPages: WikiPageNode[], parentId: string | null) {
+    const orderedIds = nextPages
+      .filter((page) => page.parentId === parentId)
+      .sort(
+        (a, b) =>
+          a.sortOrder - b.sortOrder || a.title.localeCompare(b.title, "de"),
+      )
+      .map((page) => page.id);
+
+    startTransition(async () => {
+      const result = await reorderWikiSiblings({ parentId, orderedIds });
+      if (result?.error) {
+        setError(result.error);
+        setOrderedPages(pages);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function handleDropPage(targetId: string, place: "before" | "after") {
+    if (!draggingId) return;
+    const next = reorderWikiSiblingNodes(
+      orderedPages,
+      draggingId,
+      targetId,
+      place,
+    );
+    setDropTarget(null);
+    setDraggingId(null);
+    if (!next) return;
+    const dragged = orderedPages.find((page) => page.id === draggingId);
+    if (!dragged) return;
+    setOrderedPages(next);
+    setError(null);
+    persistSiblingOrder(next, dragged.parentId);
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="card h-fit space-y-3 p-3 lg:sticky lg:top-4">
@@ -296,23 +438,62 @@ export function WikiSpace({
           >
             Wiki
           </Link>
-          <button
-            type="button"
-            className="btn btn-secondary !px-2 !py-1 text-xs"
-            onClick={() => {
-              setNewOpen(true);
-              setError(null);
-            }}
-          >
-            + Seite
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className={[
+                "inline-flex size-7 items-center justify-center rounded-md transition-colors",
+                reorderMode
+                  ? "bg-[var(--highlight)] text-[#0a0a0a]"
+                  : "text-[var(--fg)] hover:bg-black/5",
+              ].join(" ")}
+              title={reorderMode ? "Anordnen beenden" : "Seiten anordnen"}
+              aria-label={reorderMode ? "Anordnen beenden" : "Seiten anordnen"}
+              aria-pressed={reorderMode}
+              disabled={pending || Boolean(query.trim())}
+              onClick={() => {
+                setReorderMode((value) => {
+                  const next = !value;
+                  if (next) setOrderedPages(pages);
+                  return next;
+                });
+                setDraggingId(null);
+                setDropTarget(null);
+                setQuery("");
+                setError(null);
+              }}
+            >
+              {reorderMode ? (
+                <Check className="size-3.5" strokeWidth={2.25} />
+              ) : (
+                <ListOrdered className="size-3.5" strokeWidth={1.75} />
+              )}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary !px-2 !py-1 text-xs"
+              disabled={reorderMode}
+              onClick={() => {
+                setNewOpen(true);
+                setError(null);
+              }}
+            >
+              + Seite
+            </button>
+          </div>
         </div>
+        {reorderMode && (
+          <p className="px-1 text-xs text-[var(--muted)]">
+            Seiten per Drag & Drop neu sortieren (gleiche Ebene).
+          </p>
+        )}
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Seiten suchen…"
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm"
+          disabled={reorderMode}
+          className="w-full rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm disabled:opacity-50"
         />
         {filtered ? (
           <ul className="space-y-0.5">
@@ -338,6 +519,21 @@ export function WikiSpace({
             parentId={null}
             spaceId={spaceId}
             currentSlug={currentPage?.slug ?? null}
+            reorderMode={reorderMode}
+            draggingId={draggingId}
+            dropTarget={dropTarget}
+            onDragPage={(id) => {
+              setDraggingId(id);
+              setDropTarget(null);
+            }}
+            onDragOverPage={(id, place) => {
+              setDropTarget({ id, place });
+            }}
+            onDropPage={handleDropPage}
+            onDragEnd={() => {
+              setDraggingId(null);
+              setDropTarget(null);
+            }}
           />
         )}
       </aside>

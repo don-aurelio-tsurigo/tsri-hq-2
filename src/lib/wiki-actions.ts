@@ -242,6 +242,62 @@ export async function moveWikiPage(formData: FormData) {
   return { ok: true as const };
 }
 
+const reorderSiblingsSchema = z.object({
+  parentId: z.string().nullable(),
+  orderedIds: z.array(z.string().min(1)).min(1),
+});
+
+/** Persist a new sort order for all direct children of one parent. */
+export async function reorderWikiSiblings(input: {
+  parentId: string | null;
+  orderedIds: string[];
+}) {
+  const { session, membership } = await requireMembership();
+  const parsed = reorderSiblingsSchema.safeParse(input);
+  if (!parsed.success) return { error: "Ungültige Eingabe." };
+
+  const space = await getWikiSpace(membership.organizationId);
+  if (!space) return { error: "Wiki-Space nicht gefunden." };
+
+  if (parsed.data.parentId) {
+    const parent = await loadOwnedPage(
+      parsed.data.parentId,
+      membership.organizationId,
+    );
+    if (!parent || parent.spaceId !== space.id) {
+      return { error: "Übergeordnete Seite nicht gefunden." };
+    }
+  }
+
+  const siblings = await prisma.wikiPage.findMany({
+    where: {
+      organizationId: membership.organizationId,
+      spaceId: space.id,
+      parentId: parsed.data.parentId,
+    },
+    select: { id: true },
+  });
+  const siblingIds = new Set(siblings.map((page) => page.id));
+  if (
+    parsed.data.orderedIds.length !== siblingIds.size ||
+    parsed.data.orderedIds.some((id) => !siblingIds.has(id))
+  ) {
+    return { error: "Reihenfolge passt nicht zu den Geschwister-Seiten." };
+  }
+
+  await prisma.$transaction(
+    parsed.data.orderedIds.map((id, sortOrder) =>
+      prisma.wikiPage.update({
+        where: { id },
+        data: { sortOrder, updatedById: session.user.id },
+      }),
+    ),
+  );
+
+  await revalidateWiki(membership.organizationId, space.id);
+  return { ok: true as const };
+}
+
 export async function deleteWikiPage(formData: FormData) {
   const { membership } = await requireMembership();
   const id = String(formData.get("id") ?? "");
