@@ -36,7 +36,6 @@ import {
   DEFAULT_BG,
   TIPP_LOGO_TEAL_SRC,
   TIPP_LOGO_WHITE_SRC,
-  TIPP_TEAL,
   type EditableLayer,
   type ImageOverlay,
   type LayerTransform,
@@ -504,34 +503,18 @@ function CoverPreview({
         onPointerUp={textDrag.onPointerUp}
       >
         {slide.overline ? (
-          isTipp ? (
-            <p
-              className="inline-block font-medium"
-              style={{
-                fontSize: 28,
-                lineHeight: 1.2,
-                marginBottom: 28,
-                backgroundColor: "#ffffff",
-                color: TIPP_TEAL,
-                padding: "10px 18px",
-              }}
-            >
-              {decodeHtmlEntities(slide.overline)}
-            </p>
-          ) : (
-            <p
-              className="font-normal"
-              style={{
-                fontSize: isSixi ? 41 : 35,
-                lineHeight: 1.2,
-                marginBottom: isSixi ? 18 : 20,
-                fontFamily: isSixi ? INSTRUMENT_SANS_STACK : undefined,
-                fontWeight: isSixi ? 400 : undefined,
-              }}
-            >
-              {decodeHtmlEntities(slide.overline)}
-            </p>
-          )
+          <p
+            className="font-normal"
+            style={{
+              fontSize: isSixi ? 41 : 35,
+              lineHeight: 1.2,
+              marginBottom: isSixi ? 18 : 20,
+              fontFamily: isSixi ? INSTRUMENT_SANS_STACK : undefined,
+              fontWeight: isSixi ? 400 : undefined,
+            }}
+          >
+            {decodeHtmlEntities(slide.overline)}
+          </p>
         ) : null}
         <p
           className={isSixi ? "font-medium" : "font-bold"}
