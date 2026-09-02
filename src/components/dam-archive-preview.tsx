@@ -284,7 +284,7 @@ export function DamArchivePreview({
           </div>
         </div>
 
-        <aside className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--border)] lg:w-[22rem] lg:border-t-0 lg:border-l">
+        <aside className="flex w-full shrink-0 flex-col overflow-hidden border-t border-[var(--border)] lg:w-[22rem] lg:border-t-0 lg:border-l">
           <div className="flex items-start justify-between gap-3 p-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
@@ -330,31 +330,32 @@ export function DamArchivePreview({
             </button>
           </div>
 
-          <div className="space-y-4 px-4 pb-5">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5">
             <DamRatingStars rating={asset.rating} />
 
-            <button
-              type="button"
-              className="btn btn-primary w-full"
-              disabled={downloading}
-              onClick={downloadOriginal}
-            >
-              <Download className="size-4" aria-hidden />
-              {downloading ? "Wird vorbereitet…" : "Herunterladen"}
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="btn btn-primary px-3 py-2 text-sm"
+                disabled={downloading}
+                onClick={downloadOriginal}
+              >
+                <Download className="size-3.5 shrink-0" aria-hidden />
+                {downloading ? "Lädt…" : "Herunterladen"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary px-3 py-2 text-sm"
+                disabled={exporting}
+                onClick={() => void sendToWepublish()}
+              >
+                <Send className="size-3.5 shrink-0" aria-hidden />
+                {exporting ? "Sendet…" : "WePublish"}
+              </button>
+            </div>
             {downloadError ? (
               <p className="text-sm text-red-600">{downloadError}</p>
             ) : null}
-
-            <button
-              type="button"
-              className="btn btn-highlight w-full"
-              disabled={exporting}
-              onClick={() => void sendToWepublish()}
-            >
-              <Send className="size-4" aria-hidden />
-              {exporting ? "Sendet…" : "An WePublish senden"}
-            </button>
             {exportError ? (
               <p className="text-sm text-red-600">{exportError}</p>
             ) : exportSuccess ? (
@@ -364,17 +365,6 @@ export function DamArchivePreview({
               <p className="text-xs text-[var(--muted)]">
                 {damWepublishExportedHint(asset.lastWepublishExportedAt)}
               </p>
-            ) : null}
-
-            {onTrash ? (
-              <button
-                type="button"
-                className="btn btn-ghost w-full"
-                onClick={() => onTrash(asset.id)}
-              >
-                <Trash2 className="size-4" aria-hidden />
-                In den Papierkorb
-              </button>
             ) : null}
 
             <div>
@@ -624,6 +614,19 @@ export function DamArchivePreview({
               E Bildeditor.
             </p>
           </div>
+
+          {onTrash ? (
+            <div className="shrink-0 border-t border-[var(--border)] px-4 py-2.5">
+              <button
+                type="button"
+                className="flex w-full items-center justify-center gap-1.5 py-1 text-xs font-semibold text-[var(--muted)] transition hover:text-[var(--danger)]"
+                onClick={() => onTrash(asset.id)}
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+                In den Papierkorb
+              </button>
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>
