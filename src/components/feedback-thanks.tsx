@@ -7,28 +7,22 @@ import {
   parseFeedbackId,
   type FeedbackRating,
   type FeedbackStats,
+  type PublicFeedbackVote,
 } from "@/lib/feedback";
 
-type ConfirmPayload = {
-  id: string;
-  newsletter: string;
-  campaignId: string;
-  issueDate: string;
-  rating: FeedbackRating;
-};
-
-type Status = "loading" | "ready" | "error";
+type Status = "loading" | "pending" | "ready" | "error";
 
 const RATING_ORDER: FeedbackRating[] = ["POSITIVE", "NEUTRAL", "NEGATIVE"];
 
 export function FeedbackThanks({ id }: { id: string }) {
   const [status, setStatus] = useState<Status>("loading");
-  const [vote, setVote] = useState<ConfirmPayload | null>(null);
+  const [vote, setVote] = useState<PublicFeedbackVote | null>(null);
   const [stats, setStats] = useState<FeedbackStats | null>(null);
   const [comment, setComment] = useState("");
   const [commentState, setCommentState] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     const parsedId = parseFeedbackId(id);
@@ -39,38 +33,59 @@ export function FeedbackThanks({ id }: { id: string }) {
 
     let cancelled = false;
 
-    async function confirmAndLoad(feedbackId: string) {
+    async function loadVote(feedbackId: string) {
       try {
-        const confirmRes = await fetch("/api/feedback/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: feedbackId }),
-        });
-        if (!confirmRes.ok) {
+        const res = await fetch(`/api/feedback/${feedbackId}`);
+        if (!res.ok) {
           if (!cancelled) setStatus("error");
           return;
         }
-        const confirmed = (await confirmRes.json()) as ConfirmPayload;
+        const nextVote = (await res.json()) as PublicFeedbackVote;
         if (cancelled) return;
-        setVote(confirmed);
-        setStatus("ready");
-
-        const statsRes = await fetch(
-          `/api/feedback/stats?newsletter=${encodeURIComponent(confirmed.newsletter)}&campaign=${encodeURIComponent(confirmed.campaignId)}`,
-        );
-        if (!statsRes.ok || cancelled) return;
-        const nextStats = (await statsRes.json()) as FeedbackStats;
-        if (!cancelled) setStats(nextStats);
+        setVote(nextVote);
+        if (nextVote.confirmed) {
+          setStatus("ready");
+          const nextStats = await fetchFeedbackStats(nextVote);
+          if (!cancelled && nextStats) setStats(nextStats);
+        } else {
+          setStatus("pending");
+        }
       } catch {
         if (!cancelled) setStatus("error");
       }
     }
 
-    void confirmAndLoad(parsedId);
+    void loadVote(parsedId);
     return () => {
       cancelled = true;
     };
   }, [id]);
+
+  async function onConfirm() {
+    const feedbackId = vote?.id;
+    if (!feedbackId || confirming || vote?.confirmed) return;
+    setConfirming(true);
+    try {
+      const confirmRes = await fetch("/api/feedback/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: feedbackId }),
+      });
+      if (!confirmRes.ok) {
+        setStatus("error");
+        return;
+      }
+      const confirmed = (await confirmRes.json()) as PublicFeedbackVote;
+      setVote({ ...confirmed, confirmed: true });
+      setStatus("ready");
+      const nextStats = await fetchFeedbackStats(confirmed);
+      if (nextStats) setStats(nextStats);
+    } catch {
+      setStatus("error");
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   async function onSubmitComment(e: React.FormEvent) {
     e.preventDefault();
@@ -96,6 +111,9 @@ export function FeedbackThanks({ id }: { id: string }) {
   }
 
   const issueDate = stats?.issueDate ?? vote?.issueDate ?? null;
+  const ratingLabel = vote
+    ? FEEDBACK_RATING_NEWSLETTER_LABELS[vote.rating]
+    : null;
 
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-16">
@@ -113,7 +131,7 @@ export function FeedbackThanks({ id }: { id: string }) {
         />
 
         {status === "loading" ? (
-          <p className="text-[var(--muted)]">Dein Feedback wird gespeichert…</p>
+          <p className="text-[var(--muted)]">Einen Moment…</p>
         ) : null}
 
         {status === "error" ? (
@@ -128,14 +146,33 @@ export function FeedbackThanks({ id }: { id: string }) {
           </>
         ) : null}
 
+        {status === "pending" && ratingLabel ? (
+          <>
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+              Bitte bestätige deine Stimme
+            </h1>
+            <p className="text-[var(--muted)]">
+              Du hast {ratingLabel} gewählt. Ein Tipp genügt, dann zählt sie.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void onConfirm()}
+              disabled={confirming}
+            >
+              {confirming ? "Wird gespeichert…" : "Stimme speichern"}
+            </button>
+          </>
+        ) : null}
+
         {status === "ready" ? (
           <>
             <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
               Danke für dein Feedback
             </h1>
             <p className="text-[var(--muted)]">
-              {vote
-                ? `Du hast ${FEEDBACK_RATING_NEWSLETTER_LABELS[vote.rating]} gewählt.`
+              {ratingLabel
+                ? `Du hast ${ratingLabel} gewählt.`
                 : "Wir haben deine Stimme erhalten."}
             </p>
 
@@ -219,4 +256,14 @@ export function FeedbackThanks({ id }: { id: string }) {
       </div>
     </div>
   );
+}
+
+async function fetchFeedbackStats(
+  vote: Pick<PublicFeedbackVote, "newsletter" | "campaignId">,
+): Promise<FeedbackStats | null> {
+  const statsRes = await fetch(
+    `/api/feedback/stats?newsletter=${encodeURIComponent(vote.newsletter)}&campaign=${encodeURIComponent(vote.campaignId)}`,
+  );
+  if (!statsRes.ok) return null;
+  return (await statsRes.json()) as FeedbackStats;
 }

@@ -5,12 +5,58 @@ import {
   consumeFeedbackRateLimit,
   parseFeedbackId,
   sanitizeFeedbackComment,
+  toPublicFeedbackVote,
 } from "@/lib/feedback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const NO_STORE = { "Cache-Control": "no-store" } as const;
+
 type CommentBody = { comment?: unknown };
+
+export async function GET(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const ip = clientIp(request);
+  if (!consumeFeedbackRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: NO_STORE },
+    );
+  }
+
+  const { id: rawId } = await ctx.params;
+  const id = parseFeedbackId(rawId);
+  if (!id) {
+    return NextResponse.json(
+      { error: "not found" },
+      { status: 404, headers: NO_STORE },
+    );
+  }
+
+  const existing = await prisma.feedbackResponse.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      newsletter: true,
+      campaignId: true,
+      issueDate: true,
+      rating: true,
+      confirmedAt: true,
+    },
+  });
+  const vote = existing ? toPublicFeedbackVote(existing) : null;
+  if (!vote) {
+    return NextResponse.json(
+      { error: "not found" },
+      { status: 404, headers: NO_STORE },
+    );
+  }
+
+  return NextResponse.json(vote, { headers: NO_STORE });
+}
 
 export async function PATCH(
   request: Request,

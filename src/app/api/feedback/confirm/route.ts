@@ -4,6 +4,7 @@ import {
   clientIp,
   consumeFeedbackRateLimit,
   parseFeedbackId,
+  toPublicFeedbackVote,
 } from "@/lib/feedback";
 
 export const runtime = "nodejs";
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
       campaignId: true,
       issueDate: true,
       rating: true,
+      email: true,
       confirmedAt: true,
     },
   });
@@ -44,18 +46,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  if (!existing.confirmedAt) {
-    await prisma.feedbackResponse.update({
-      where: { id },
-      data: { confirmedAt: new Date() },
-    });
+  const vote = toPublicFeedbackVote(existing);
+  if (!vote) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    id: existing.id,
-    newsletter: existing.newsletter,
-    campaignId: existing.campaignId,
-    issueDate: existing.issueDate,
-    rating: existing.rating,
-  });
+  if (!existing.confirmedAt) {
+    const confirmedAt = new Date();
+    await prisma.$transaction([
+      ...(existing.email
+        ? [
+            prisma.feedbackResponse.updateMany({
+              where: {
+                newsletter: existing.newsletter,
+                campaignId: existing.campaignId,
+                email: existing.email,
+                id: { not: id },
+                confirmedAt: { not: null },
+              },
+              data: { confirmedAt: null },
+            }),
+          ]
+        : []),
+      prisma.feedbackResponse.update({
+        where: { id },
+        data: { confirmedAt },
+      }),
+    ]);
+  }
+
+  return NextResponse.json({ ...vote, confirmed: true });
 }

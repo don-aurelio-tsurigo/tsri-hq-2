@@ -172,6 +172,34 @@ export function parseFeedbackId(value: string | null | undefined): string | null
   return UUID_RE.test(id) ? id : null;
 }
 
+export type PublicFeedbackVote = {
+  id: string;
+  newsletter: string;
+  campaignId: string;
+  issueDate: string;
+  rating: FeedbackRating;
+  confirmed: boolean;
+};
+
+export function toPublicFeedbackVote(row: {
+  id: string;
+  newsletter: string;
+  campaignId: string;
+  issueDate: string;
+  rating: string;
+  confirmedAt: Date | string | null;
+}): PublicFeedbackVote | null {
+  if (!isFeedbackRating(row.rating)) return null;
+  return {
+    id: row.id,
+    newsletter: row.newsletter,
+    campaignId: row.campaignId,
+    issueDate: row.issueDate,
+    rating: row.rating,
+    confirmed: row.confirmedAt != null,
+  };
+}
+
 export function parseFeedbackStatsQuery(params: {
   newsletter: string | null;
   campaign: string | null;

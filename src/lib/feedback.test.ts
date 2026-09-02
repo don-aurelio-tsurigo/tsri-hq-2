@@ -11,6 +11,7 @@ import {
   parseFeedbackClickInput,
   parseFeedbackId,
   parseIssueDate,
+  toPublicFeedbackVote,
   resetFeedbackRateLimit,
   resolveFeedbackIssueDate,
   sanitizeFeedbackComment,
@@ -170,6 +171,29 @@ describe("parseIssueDate / resolveFeedbackIssueDate", () => {
     assert.equal(
       resolveFeedbackIssueDate({ parsedDate: null, now }),
       "2026-09-02",
+    );
+  });
+});
+
+describe("toPublicFeedbackVote", () => {
+  it("maps confirmedAt to a public flag", () => {
+    const base = {
+      id: "2c1b8e1a-4d3f-4a91-9c0e-1f2a3b4c5d6e",
+      newsletter: "zueri-briefing",
+      campaignId: "abc",
+      issueDate: "2026-09-02",
+      rating: "POSITIVE",
+    };
+    assert.equal(
+      toPublicFeedbackVote({ ...base, confirmedAt: null })?.confirmed,
+      false,
+    );
+    assert.equal(
+      toPublicFeedbackVote({
+        ...base,
+        confirmedAt: new Date("2026-09-02T06:10:00Z"),
+      })?.confirmed,
+      true,
     );
   });
 });

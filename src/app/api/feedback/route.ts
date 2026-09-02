@@ -38,6 +38,25 @@ export async function GET(request: Request) {
     });
   }
 
+  if (parsed.email) {
+    const reusable = await prisma.feedbackResponse.findFirst({
+      where: {
+        newsletter: parsed.newsletter,
+        campaignId: parsed.campaignId,
+        email: parsed.email,
+        rating: parsed.rating,
+      },
+      orderBy: [{ confirmedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+    if (reusable) {
+      const dest = new URL(`/feedback/danke?id=${reusable.id}`, getPublicAppOrigin());
+      const response = NextResponse.redirect(dest, 302);
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    }
+  }
+
   let existingDate: string | null = null;
   if (!parsed.issueDate) {
     const existing = await prisma.feedbackResponse.findFirst({
