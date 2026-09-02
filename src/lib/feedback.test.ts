@@ -10,7 +10,9 @@ import {
   formatIssueDateLabel,
   parseFeedbackClickInput,
   parseFeedbackId,
+  parseIssueDate,
   resetFeedbackRateLimit,
+  resolveFeedbackIssueDate,
   sanitizeFeedbackComment,
   satisfactionScore,
 } from "@/lib/feedback";
@@ -82,6 +84,42 @@ describe("parseFeedbackClickInput", () => {
     );
   });
 
+  it("treats unreplaced Mailchimp DATE tags as omitted, not invalid", () => {
+    const parsed = parseFeedbackClickInput({
+      newsletter: "zueri-briefing",
+      campaign: "675a3dd4a0",
+      date: "*|DATE:Y-m-d|*",
+      rating: "POSITIVE",
+      email: "elio.donauer@tsri.ch",
+      membership: "-1",
+    });
+    assert.equal(parsed?.campaignId, "675a3dd4a0");
+    assert.equal(parsed?.issueDate, null);
+    assert.equal(parsed?.email, "elio.donauer@tsri.ch");
+    assert.equal(parsed?.membershipStatus, -1);
+  });
+
+  it("accepts Mailchimp DATE formats that actually get replaced", () => {
+    assert.equal(
+      parseFeedbackClickInput({
+        newsletter: "zueri-briefing",
+        campaign: "x",
+        date: "20260902",
+        rating: "POSITIVE",
+      })?.issueDate,
+      "2026-09-02",
+    );
+    assert.equal(
+      parseFeedbackClickInput({
+        newsletter: "zueri-briefing",
+        campaign: "x",
+        date: "2026/09/02",
+        rating: "POSITIVE",
+      })?.issueDate,
+      "2026-09-02",
+    );
+  });
+
   it("rejects missing or malformed values", () => {
     assert.equal(
       parseFeedbackClickInput({
@@ -98,7 +136,7 @@ describe("parseFeedbackClickInput", () => {
         campaign: "x",
         date: "28.08.2026",
         rating: "POSITIVE",
-      }),
+      })?.issueDate,
       null,
     );
     assert.equal(
@@ -109,6 +147,29 @@ describe("parseFeedbackClickInput", () => {
         rating: "GOOD",
       }),
       null,
+    );
+  });
+});
+
+describe("parseIssueDate / resolveFeedbackIssueDate", () => {
+  it("ignores unreplaced merge tags", () => {
+    assert.equal(parseIssueDate("*|DATE:Y-m-d|*"), null);
+    assert.equal(parseIssueDate(""), null);
+  });
+
+  it("reuses an existing campaign date before falling back to today", () => {
+    const now = new Date("2026-09-02T08:00:00Z");
+    assert.equal(
+      resolveFeedbackIssueDate({
+        parsedDate: null,
+        existingDate: "2026-08-18",
+        now,
+      }),
+      "2026-08-18",
+    );
+    assert.equal(
+      resolveFeedbackIssueDate({ parsedDate: null, now }),
+      "2026-09-02",
     );
   });
 });

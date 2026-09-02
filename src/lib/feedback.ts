@@ -20,6 +20,9 @@ export const FEEDBACK_RATING_NEWSLETTER_LABELS: Record<FeedbackRating, string> =
 const NEWSLETTER_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const CAMPAIGN_RE = /^[A-Za-z0-9._-]{1,128}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_YMD_RE = /^\d{8}$/;
+const DATE_SLASH_RE = /^(\d{4})\/(\d{2})\/(\d{2})$/;
+const MAILCHIMP_MERGE_TAG_RE = /^\*\|.+\|\*$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,7 +44,8 @@ export const FEEDBACK_MEMBERSHIP_LABELS: Record<
 export type FeedbackClickInput = {
   newsletter: string;
   campaignId: string;
-  issueDate: string;
+  /** Null when Mailchimp left the date merge tag unreplaced or omitted it. */
+  issueDate: string | null;
   rating: FeedbackRating;
   email: string | null;
   membershipStatus: FeedbackMembershipStatus;
@@ -86,6 +90,61 @@ function parseMembershipStatus(
   return false;
 }
 
+function isCalendarDay(iso: string): boolean {
+  if (!DATE_RE.test(iso)) return false;
+  const [year, month, day] = iso.split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  return (
+    utc.getUTCFullYear() === year &&
+    utc.getUTCMonth() === month - 1 &&
+    utc.getUTCDate() === day
+  );
+}
+
+/** Calendar day YYYY-MM-DD in Europe/Zurich. */
+export function todayZurichDateKey(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Zurich",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/**
+ * Mailchimp does not replace `*|DATE:Y-m-d|*` inside click-tracked URLs
+ * (hyphens in the format string). Compact `*|DATE:Ymd|*` and slashed
+ * `*|DATE:Y/m/d|*` do get replaced. Unreplaced merge tags and empty values
+ * are treated as omitted.
+ */
+export function parseIssueDate(value: string | null | undefined): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw || MAILCHIMP_MERGE_TAG_RE.test(raw)) return null;
+  if (isCalendarDay(raw)) return raw;
+  if (DATE_YMD_RE.test(raw)) {
+    const iso = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+    return isCalendarDay(iso) ? iso : null;
+  }
+  const slashed = raw.match(DATE_SLASH_RE);
+  if (slashed) {
+    const iso = `${slashed[1]}-${slashed[2]}-${slashed[3]}`;
+    return isCalendarDay(iso) ? iso : null;
+  }
+  return null;
+}
+
+/** Prefer the parsed date, else an existing vote for this campaign, else today. */
+export function resolveFeedbackIssueDate(input: {
+  parsedDate: string | null;
+  existingDate?: string | null;
+  now?: Date;
+}): string {
+  if (input.parsedDate) return input.parsedDate;
+  const existing = input.existingDate?.trim() ?? "";
+  if (isCalendarDay(existing)) return existing;
+  return todayZurichDateKey(input.now);
+}
+
 export function parseFeedbackClickInput(params: {
   newsletter: string | null;
   campaign: string | null;
@@ -96,14 +155,13 @@ export function parseFeedbackClickInput(params: {
 }): FeedbackClickInput | null {
   const newsletter = params.newsletter?.trim() ?? "";
   const campaignId = params.campaign?.trim() ?? "";
-  const issueDate = params.date?.trim() ?? "";
+  const issueDate = parseIssueDate(params.date);
   const rating = params.rating?.trim().toUpperCase() ?? "";
   const email = parseOptionalEmail(params.email);
   const membershipStatus = parseMembershipStatus(params.membership);
 
   if (!NEWSLETTER_RE.test(newsletter)) return null;
   if (!CAMPAIGN_RE.test(campaignId)) return null;
-  if (!DATE_RE.test(issueDate)) return null;
   if (!isFeedbackRating(rating)) return null;
   if (email === false || membershipStatus === false) return null;
   return { newsletter, campaignId, issueDate, rating, email, membershipStatus };

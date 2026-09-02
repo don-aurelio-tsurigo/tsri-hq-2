@@ -5,6 +5,7 @@ import {
   clientIp,
   consumeFeedbackRateLimit,
   parseFeedbackClickInput,
+  resolveFeedbackIssueDate,
   truncateUserAgent,
 } from "@/lib/feedback";
 
@@ -37,11 +38,27 @@ export async function GET(request: Request) {
     });
   }
 
+  let existingDate: string | null = null;
+  if (!parsed.issueDate) {
+    const existing = await prisma.feedbackResponse.findFirst({
+      where: {
+        newsletter: parsed.newsletter,
+        campaignId: parsed.campaignId,
+      },
+      orderBy: { createdAt: "asc" },
+      select: { issueDate: true },
+    });
+    existingDate = existing?.issueDate ?? null;
+  }
+
   const created = await prisma.feedbackResponse.create({
     data: {
       newsletter: parsed.newsletter,
       campaignId: parsed.campaignId,
-      issueDate: parsed.issueDate,
+      issueDate: resolveFeedbackIssueDate({
+        parsedDate: parsed.issueDate,
+        existingDate,
+      }),
       rating: parsed.rating,
       email: parsed.email,
       membershipStatus: parsed.membershipStatus,
