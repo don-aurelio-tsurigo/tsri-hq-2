@@ -41,11 +41,17 @@ describe("wiki-markdown-tables", () => {
     assert.equal(md.includes("\u00a0"), false);
   });
 
-  it("converts a newly inserted empty TipTap table without crashing", () => {
+  it("converts a newly inserted empty TipTap table to valid GFM", () => {
     const html = `<table class="wiki-table"><colgroup><col><col><col></colgroup><tbody><tr><th><p></p></th><th><p></p></th><th><p></p></th></tr><tr><td><p></p></td><td><p></p></td><td><p></p></td></tr></tbody></table>`;
     const md = htmlToWikiMarkdown(html);
-    assert.match(md, /\|/);
-    assert.match(md, /\| --- \|/);
+    assert.equal(md, "|  |  |  |\n| --- | --- | --- |\n|  |  |  |");
+  });
+
+  it("keeps empty cells next to filled cells on one GFM row", () => {
+    const md = htmlToWikiMarkdown(
+      `<table><tbody><tr><th><p>A</p></th><th><p></p></th></tr><tr><td><p></p></td><td><p>2</p></td></tr></tbody></table>`,
+    );
+    assert.equal(md, "| A |  |\n| --- | --- |\n|  | 2 |");
   });
 
   it("drops empty table rows", () => {
@@ -60,6 +66,7 @@ describe("wiki-markdown-tables", () => {
       `<table><tbody><tr><th><p>Kopf</p></th></tr><tr><td><p>Zelle 1</p><p>Zelle 2</p></td></tr></tbody></table>`,
     );
     assert.match(md, /Zelle 1<br>Zelle 2/);
+    assert.equal(md.includes("\nZelle"), false);
   });
 
   it("strips empty blocks from html", () => {

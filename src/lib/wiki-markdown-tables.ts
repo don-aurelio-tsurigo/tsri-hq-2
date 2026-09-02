@@ -1,11 +1,13 @@
 import TurndownService from "turndown";
 import { tables as turndownTables } from "turndown-plugin-gfm";
 
-function isTableCell(node: HTMLElement): boolean {
-  const parent = node.parentNode;
-  return (
-    !!parent && (parent.nodeName === "TD" || parent.nodeName === "TH")
-  );
+function isInsideTableCell(node: Node): boolean {
+  let current: Node | null = node.parentNode;
+  while (current) {
+    if (current.nodeName === "TD" || current.nodeName === "TH") return true;
+    current = current.parentNode;
+  }
+  return false;
 }
 
 const turndown = new TurndownService({
@@ -15,22 +17,13 @@ const turndown = new TurndownService({
 });
 turndown.use(turndownTables);
 
-// TipTap wraps every cell in <p>; GFM cells are inline — join with <br>.
-turndown.addRule("tableCellParagraph", {
+// Keep <br> inside cells — turndown's default "  \n" breaks GFM rows.
+turndown.addRule("tableCellBreak", {
   filter(node) {
-    return node.nodeName === "P" && isTableCell(node);
+    return node.nodeName === "BR" && isInsideTableCell(node);
   },
-  replacement(content, node) {
-    const text = content.replace(/\n+/g, " ").trim();
-    if (!text) return "";
-    const parent = node.parentNode;
-    if (!parent) return text;
-    const siblings = Array.from(parent.childNodes).filter(
-      (child) => child.nodeName === "P",
-    );
-    const index = siblings.indexOf(node);
-    const isLast = index === siblings.length - 1;
-    return isLast ? text : `${text}<br>`;
+  replacement() {
+    return "<br>";
   },
 });
 
@@ -49,6 +42,40 @@ function stripEmptyParagraphsOutsideTables(html: string): string {
       return part.replace(/<p\b[^>]*>(?:\s|<br[^>]*\/?>)*<\/p>/gi, "");
     })
     .join("");
+}
+
+/**
+ * TipTap wraps every cell in <p>. Those block paragraphs make turndown emit
+ * newlines inside cells, which shatters GFM table rows into bare "| |" lines.
+ * Flatten cells to inline content first.
+ */
+export function flattenTipTapTableCells(html: string): string {
+  if (!html.includes("<table")) return html;
+  return html.replace(
+    /<(td|th)\b([^>]*)>([\s\S]*?)<\/\1>/gi,
+    (_full, tag: string, attrs: string, inner: string) => {
+      const paragraphs = [
+        ...inner.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi),
+      ].map((match) => match[1] ?? "");
+
+      let content: string;
+      if (paragraphs.length > 0) {
+        content = paragraphs
+          .map((paragraph) =>
+            paragraph
+              .replace(/<br\b[^>]*\/?>/gi, "<br>")
+              .replace(/\n+/g, " ")
+              .trim(),
+          )
+          .filter((paragraph) => cellText(paragraph) !== "")
+          .join("<br>");
+      } else {
+        content = inner.replace(/\n+/g, " ").trim();
+      }
+
+      return `<${tag}${attrs}>${content}</${tag}>`;
+    },
+  );
 }
 
 /** Drop empty TipTap paragraphs and table rows before markdown conversion. */
@@ -86,11 +113,13 @@ export function stripEmptyWikiBlocks(html: string): string {
  */
 export function sanitizeTablesForMarkdown(html: string): string {
   if (!html.includes("<table")) return html;
-  return html
-    .replace(/<colgroup\b[^>]*>[\s\S]*?<\/colgroup>/gi, "")
-    .replace(/<\/?col\b[^>]*\/?>/gi, "")
-    .replace(/\s(?:style|colspan|rowspan)="[^"]*"/gi, "")
-    .replace(/\s(?:style|colspan|rowspan)='[^']*'/gi, "");
+  return flattenTipTapTableCells(
+    html
+      .replace(/<colgroup\b[^>]*>[\s\S]*?<\/colgroup>/gi, "")
+      .replace(/<\/?col\b[^>]*\/?>/gi, "")
+      .replace(/\s(?:style|colspan|rowspan)="[^"]*"/gi, "")
+      .replace(/\s(?:style|colspan|rowspan)='[^']*'/gi, ""),
+  );
 }
 
 export function htmlToWikiMarkdown(html: string): string {
