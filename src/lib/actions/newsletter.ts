@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { migrateCampaignsAfterWeekdayChange, isShiftPlanManagedType } from "@/lib/shift-plan";
+import { migrateCampaignsAfterWeekdayChange } from "@/lib/shift-plan";
 import { requireEditorialLead, requireMembership } from "@/lib/session";
 import { membershipInTagPool } from "@/lib/membership-grants";
 import {
@@ -59,6 +59,7 @@ export async function createNewsletterType(formData: FormData) {
         where: { id: existing.id },
         data: {
           active: true,
+          isNewsletter: true,
           frequency,
           weekdays: parsed.data.weekdays,
           requiresWordle: parsed.data.requiresWordle,
@@ -66,6 +67,8 @@ export async function createNewsletterType(formData: FormData) {
       });
       revalidatePath("/settings/newsletter");
       revalidatePath("/newsletter");
+      revalidatePath("/schichtplan");
+      revalidatePath("/settings/schichtplan");
       return { ok: true as const, id: existing.id };
     }
     return { error: "Diesen Newsletter-Typ gibt es schon." };
@@ -89,6 +92,8 @@ export async function createNewsletterType(formData: FormData) {
 
   revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");
+  revalidatePath("/schichtplan");
+  revalidatePath("/settings/schichtplan");
   return { ok: true as const, id: created.id };
 }
 
@@ -163,18 +168,13 @@ export async function deleteNewsletterType(formData: FormData) {
   });
   if (!type) return { error: "Typ nicht gefunden." };
 
-  if (isShiftPlanManagedType(type.name)) {
-    // Schichtplan-Typen bleiben aktiv, verschwinden nur aus dem Newsletter-Kalender.
-    await prisma.newsletterType.update({
-      where: { id },
-      data: { isNewsletter: false },
-    });
-  } else {
-    await prisma.newsletterType.update({
-      where: { id },
-      data: { active: false },
-    });
-  }
+  await prisma.newsletterType.update({
+    where: { id },
+    data: {
+      active: false,
+      isNewsletter: false,
+    },
+  });
 
   revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");

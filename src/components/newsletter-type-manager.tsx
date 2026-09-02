@@ -25,10 +25,8 @@ const DEFAULT_WEEKDAYS: Weekday[] = [2];
 
 export function NewsletterTypeManager({
   types,
-  managedTypeNames = [],
 }: {
   types: NewsletterTypeRow[];
-  managedTypeNames?: string[];
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -90,12 +88,9 @@ export function NewsletterTypeManager({
   }
 
   function removeType(type: NewsletterTypeRow) {
-    const isManaged = managedTypeNames.includes(type.name);
     if (
       !confirm(
-        isManaged
-          ? `«${type.name}» aus dem Newsletter-Kalender entfernen?\nDer Typ bleibt im Schichtplan verfügbar; bestehende Ausgaben bleiben erhalten.`
-          : `«${type.name}» wirklich löschen?\nDer Typ verschwindet aus der Planung; bestehende Ausgaben bleiben erhalten.`,
+        `«${type.name}» wirklich löschen?\nDer Typ verschwindet aus Newsletter-Kalender und Schichtplan; bestehende Ausgaben bleiben erhalten.`,
       )
     ) {
       return;

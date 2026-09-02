@@ -166,9 +166,14 @@ export async function ensureShiftPlanTypes(organizationId: string) {
   }
 }
 
+/** Active types that participate in shift planning (newsletters + Repo). */
 export async function listShiftPlanTypes(organizationId: string) {
   return prisma.newsletterType.findMany({
-    where: { organizationId, active: true },
+    where: {
+      organizationId,
+      active: true,
+      OR: [{ isNewsletter: true }, { name: REPO_TYPE_NAME }],
+    },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }

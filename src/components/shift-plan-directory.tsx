@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -63,6 +63,15 @@ export function ShiftPlanDirectory({
   const [flash, setFlash] = useState<string | null>(null);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  useEffect(() => {
+    const typeIds = new Set(types.map((t) => t.id));
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => typeIds.has(id));
+      if (next.length === 0) return types.map((t) => t.id);
+      return next;
+    });
+  }, [types]);
 
   const [year, month] = calendar.monthKey.split("-").map(Number);
 

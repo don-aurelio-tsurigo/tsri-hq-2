@@ -5,7 +5,6 @@ import {
   getNewsletterCalendarSettings,
   listNewsletterTypes,
 } from "@/lib/newsletter";
-import { SHIFT_PLAN_MANAGED_TYPE_NAMES } from "@/lib/shift-plan";
 import { requireEditorialLead } from "@/lib/session";
 
 export default async function NewsletterSettingsPage() {
@@ -29,7 +28,6 @@ export default async function NewsletterSettingsPage() {
       </header>
 
       <NewsletterTypeManager
-        managedTypeNames={[...SHIFT_PLAN_MANAGED_TYPE_NAMES]}
         types={types.map((t) => ({
           id: t.id,
           name: t.name,
