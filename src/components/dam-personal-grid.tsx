@@ -17,7 +17,7 @@ import { DamAssetEditor } from "@/components/dam-asset-editor";
 import { DamCombobox } from "@/components/dam-combobox";
 import { DamPublishDialog } from "@/components/dam-publish-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
-import { damFileSrc } from "@/lib/dam/edit-params";
+import { damEditorSrc, damFileSrc } from "@/lib/dam/edit-params";
 import {
   RATING_FILTERS,
   matchesRatingFilter,
@@ -624,7 +624,7 @@ export function DamPersonalGrid({
         <DamAssetEditor
           assetId={editorAsset.id}
           fileName={editorAsset.fileName}
-          imageSrc={damFileSrc(editorAsset.id, "original")}
+          imageSrc={damEditorSrc(editorAsset.id)}
           initial={editorAsset.editParams}
           pending={pending}
           onClose={() => setEditorId(null)}

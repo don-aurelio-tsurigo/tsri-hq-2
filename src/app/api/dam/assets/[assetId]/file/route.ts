@@ -11,7 +11,11 @@ import {
   derivativeKey,
   replaceKeyExtension,
 } from "@/lib/dam/filename";
-import { editParamsRev, parseEditParams } from "@/lib/dam/edit-params";
+import {
+  DEFAULT_EDIT_PARAMS,
+  editParamsRev,
+  parseEditParams,
+} from "@/lib/dam/edit-params";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
 import { getObject } from "@/lib/r2";
@@ -48,6 +52,8 @@ export async function GET(
   const url = new URL(request.url);
   const variant = url.searchParams.get("variant") ?? "thumb";
   const clientRev = url.searchParams.get("r");
+  /** Editor canvas: orientation-baked, no stored edit recipe (CSS preview applies draft). */
+  const baseOnly = url.searchParams.get("base") === "1";
   const asset = await prisma.asset.findFirst({
     where: {
       id: assetId,
@@ -64,12 +70,14 @@ export async function GET(
 
   try {
     if (variant === "thumb" || variant === "web") {
-      const params = parseEditParams(asset.editParams);
+      const params = baseOnly
+        ? { ...DEFAULT_EDIT_PARAMS }
+        : parseEditParams(asset.editParams);
       const serverRev = editParamsRev(params);
       // Avoid poisoning the browser cache when the client optimistic `r=` is ahead
       // of the DB write, or points at a stale recipe.
       const cacheControl =
-        clientRev && clientRev !== serverRev
+        !baseOnly && clientRev && clientRev !== serverRev
           ? "private, no-store"
           : "private, max-age=86400";
 
@@ -102,10 +110,12 @@ export async function GET(
         variant === "thumb" ? 480 : 2000,
         variant === "thumb" ? 72 : 80,
       );
-      try {
-        await writeEditedDerivatives(asset.r2Key, original.buffer, params);
-      } catch (error) {
-        console.warn("[dam] derivative backfill failed", error);
+      if (!baseOnly) {
+        try {
+          await writeEditedDerivatives(asset.r2Key, original.buffer, params);
+        } catch (error) {
+          console.warn("[dam] derivative backfill failed", error);
+        }
       }
       return imageResponse(buffer, "image/webp", {
         "Cache-Control": cacheControl,

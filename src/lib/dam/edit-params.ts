@@ -162,7 +162,23 @@ export function parseEditParams(raw: unknown): DamEditParams {
   };
 }
 
-export function cssFilter(params: DamEditParams): string {
+/** True when colour/sharpen sliders match the neutral defaults. */
+export function isNeutralColourParams(params: DamEditParams): boolean {
+  return (
+    params.brightness === DEFAULT_EDIT_PARAMS.brightness &&
+    params.saturation === DEFAULT_EDIT_PARAMS.saturation &&
+    params.contrast === DEFAULT_EDIT_PARAMS.contrast &&
+    params.sharpen === DEFAULT_EDIT_PARAMS.sharpen &&
+    params.temperature === DEFAULT_EDIT_PARAMS.temperature
+  );
+}
+
+/**
+ * CSS filter for live preview. Returns undefined at neutral values so browsers
+ * keep EXIF orientation (applying even identity filters can ignore Orientation).
+ */
+export function cssFilter(params: DamEditParams): string | undefined {
+  if (isNeutralColourParams(params)) return undefined;
   const extraContrast = 1 + params.sharpen / 400;
   const contrast = (params.contrast / 100) * extraContrast;
   const parts = [
@@ -208,7 +224,7 @@ export function cssPreviewStyle(
   params: DamEditParams,
   media?: DamMediaSize,
 ): {
-  filter: string;
+  filter?: string;
   transform?: string;
   clipPath?: string;
 } {
@@ -245,6 +261,11 @@ export function damFileSrc(
   if (variant === "original" || !params) return path;
   // `v=2` busts browsers that cached unedited thumbs under an optimistic `r=`.
   return `${path}&r=${editParamsRev(params)}&v=2`;
+}
+
+/** Orientation-baked web preview without stored edit recipe (editor canvas). */
+export function damEditorSrc(assetId: string): string {
+  return `/api/dam/assets/${assetId}/file?variant=web&base=1`;
 }
 
 export function rotatedBoundingBox(

@@ -19,7 +19,7 @@ import {
 } from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
-import { damFileSrc } from "@/lib/dam/edit-params";
+import { damEditorSrc, damFileSrc } from "@/lib/dam/edit-params";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import {
   damRightsLabel,
@@ -505,7 +505,7 @@ export function DamArchiveGrid({
         <DamAssetEditor
           assetId={editorAsset.id}
           fileName={editorAsset.fileName}
-          imageSrc={damFileSrc(editorAsset.id, "original")}
+          imageSrc={damEditorSrc(editorAsset.id)}
           initial={editorAsset.editParams}
           pending={pending}
           onClose={() => setEditorId(null)}

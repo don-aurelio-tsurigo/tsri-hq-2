@@ -4,6 +4,7 @@ import {
   cropToExtract,
   cssFilter,
   cssTransform,
+  damEditorSrc,
   damFileSrc,
   DEFAULT_EDIT_PARAMS,
   joinRotate,
@@ -81,15 +82,19 @@ describe("rotate split/join", () => {
 });
 
 describe("css preview helpers", () => {
+  it("omits filter when colour params are neutral (keeps EXIF orientation)", () => {
+    assert.equal(cssFilter({ ...DEFAULT_EDIT_PARAMS }), undefined);
+  });
+
   it("approximates sharpen via extra contrast", () => {
     const filter = cssFilter({ ...DEFAULT_EDIT_PARAMS, sharpen: 80 });
-    assert.match(filter, /contrast\(1\.2\)/);
+    assert.match(filter ?? "", /contrast\(1\.2\)/);
   });
 
   it("approximates warm temperature with sepia", () => {
     const filter = cssFilter({ ...DEFAULT_EDIT_PARAMS, temperature: 40 });
-    assert.match(filter, /sepia\(/);
-    assert.match(filter, /hue-rotate\(/);
+    assert.match(filter ?? "", /sepia\(/);
+    assert.match(filter ?? "", /hue-rotate\(/);
   });
 
   it("applies rotate after flips so CSS matches sharp order", () => {
@@ -179,6 +184,13 @@ describe("damFileSrc", () => {
     assert.equal(src.includes("&r="), true);
     assert.equal(src.includes("&v=2"), true);
     assert.equal(damFileSrc("abc", "original").includes("&r="), false);
+  });
+
+  it("builds editor src with base=1 so stored recipes are not baked twice", () => {
+    assert.equal(
+      damEditorSrc("abc"),
+      "/api/dam/assets/abc/file?variant=web&base=1",
+    );
   });
 });
 

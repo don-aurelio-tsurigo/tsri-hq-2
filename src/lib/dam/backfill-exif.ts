@@ -33,8 +33,8 @@ export async function backfillAssetExif(assetId: string): Promise<void> {
     const data: Prisma.AssetUpdateInput = {};
     if (takenAt && !asset.takenAt) data.takenAt = takenAt;
     if (exif.json) data.exif = exif.json;
-    if (!asset.width && exif.width) data.width = exif.width;
-    if (!asset.height && exif.height) data.height = exif.height;
+    // Do not persist width/height here — process.ts uses missing width as the
+    // signal to bake EXIF orientation into a master and write thumb/web.
     if (Object.keys(data).length === 0) return;
 
     await prisma.asset.update({ where: { id: assetId }, data });
