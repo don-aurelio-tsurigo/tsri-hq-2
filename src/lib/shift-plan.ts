@@ -10,7 +10,10 @@ import { monthParamKey, parseMonthParam } from "@/lib/newsletter";
 import {
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
   isoWeekdayFromDateKey,
+  pickClosestWeekday,
   scheduledDateKeysInMonth,
+  scheduledOrCampaignDateKeysInMonth,
+  shiftDateKeyToWeekday,
   WEEKDAY_LABELS,
   type Weekday,
 } from "@/lib/newsletter-constants";
@@ -72,6 +75,12 @@ const SHIFT_PLAN_TYPES: {
   },
 ];
 
+export const SHIFT_PLAN_MANAGED_TYPE_NAMES = SHIFT_PLAN_TYPES.map((t) => t.name);
+
+export function isShiftPlanManagedType(name: string): boolean {
+  return SHIFT_PLAN_MANAGED_TYPE_NAMES.includes(name);
+}
+
 export const COUNCIL_TYPE_NAME = "Gemeinderats-Briefing";
 export const BRIEFING_TYPE_NAME = "Züri Briefing";
 export const REPO_TYPE_NAME = "Repo";
@@ -113,8 +122,10 @@ export async function ensureShiftPlanTypes(organizationId: string) {
       continue;
     }
 
+    // Respect soft-deletes and user-hidden newsletter types.
+    if (!row.active) continue;
+
     const patch: {
-      active?: boolean;
       isNewsletter?: boolean;
       isEveningShift?: boolean;
       schedulingMode?: NewsletterSchedulingMode;
@@ -122,8 +133,8 @@ export async function ensureShiftPlanTypes(organizationId: string) {
       frequency?: NewsletterFrequency;
     } = {};
 
-    if (!row.active) patch.active = true;
-    if (row.isNewsletter !== def.isNewsletter) {
+    // Only force isNewsletter=false (e.g. Repo); never re-enable newsletter calendar.
+    if (row.isNewsletter !== def.isNewsletter && def.isNewsletter === false) {
       patch.isNewsletter = def.isNewsletter;
     }
     if (row.isEveningShift !== def.isEveningShift) {
@@ -258,7 +269,15 @@ export async function listShiftPlanMonth(
         .map((c) => c.date.toISOString().slice(0, 10));
       keys = [...new Set(keys)].sort();
     } else {
-      keys = scheduledDateKeysInMonth(type.weekdays, year, monthIndex0);
+      const campaignKeys = campaigns
+        .filter((c) => c.typeId === type.id)
+        .map((c) => c.date.toISOString().slice(0, 10));
+      keys = scheduledOrCampaignDateKeysInMonth(
+        type.weekdays,
+        year,
+        monthIndex0,
+        campaignKeys,
+      );
     }
 
     for (const dateKey of keys) {
@@ -357,5 +376,77 @@ export function parseIsoDateKey(value: string | undefined): Date | null {
     return parseISO(`${value}T12:00:00.000Z`);
   } catch {
     return null;
+  }
+}
+
+/**
+ * When rhythm weekdays change, move future campaigns from old weekdays to the
+ * new schedule (same calendar week). Keeps Schichtplan and Newsletter in sync.
+ */
+export async function migrateCampaignsAfterWeekdayChange(
+  typeId: string,
+  newWeekdays: number[],
+) {
+  const allowed = newWeekdays.filter(
+    (d): d is Weekday => d >= 1 && d <= 7,
+  );
+  if (allowed.length === 0) return;
+
+  const from = startOfMonth(new Date());
+  const campaigns = await prisma.newsletterCampaign.findMany({
+    where: {
+      typeId,
+      date: { gte: from },
+      status: { not: "skipped" },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  for (const campaign of campaigns) {
+    const dateKey = campaign.date.toISOString().slice(0, 10);
+    const currentWd = isoWeekdayFromDateKey(dateKey);
+    if (currentWd != null && allowed.includes(currentWd)) continue;
+
+    const targetWd = pickClosestWeekday(currentWd, allowed);
+    if (targetWd == null) continue;
+
+    const newDateKey = shiftDateKeyToWeekday(dateKey, targetWd);
+    if (!newDateKey || newDateKey === dateKey) continue;
+
+    const newDate = new Date(`${newDateKey}T12:00:00.000Z`);
+    const existing = await prisma.newsletterCampaign.findFirst({
+      where: { typeId, date: newDate },
+    });
+
+    if (existing) {
+      if (existing.id === campaign.id) continue;
+      const patch: {
+        authorId?: string | null;
+        status?: typeof campaign.status;
+        note?: string | null;
+      } = {};
+      if (!existing.authorId && campaign.authorId) {
+        patch.authorId = campaign.authorId;
+      }
+      if (existing.status === "planned" && campaign.status === "proposed") {
+        patch.status = "proposed";
+      }
+      if (!existing.note && campaign.note) {
+        patch.note = campaign.note;
+      }
+      if (Object.keys(patch).length > 0) {
+        await prisma.newsletterCampaign.update({
+          where: { id: existing.id },
+          data: patch,
+        });
+      }
+      await prisma.newsletterCampaign.delete({ where: { id: campaign.id } });
+      continue;
+    }
+
+    await prisma.newsletterCampaign.update({
+      where: { id: campaign.id },
+      data: { date: newDate },
+    });
   }
 }

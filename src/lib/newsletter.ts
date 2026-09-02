@@ -9,6 +9,7 @@ import {
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
   NEWSLETTER_VISIBLE_STATUSES,
   scheduledDateKeysInMonth,
+  scheduledOrCampaignDateKeysInMonth,
   type NewsletterCampaignStatusValue,
   type NewsletterFrequencyValue,
   WEEKDAY_LABELS,
@@ -262,7 +263,15 @@ export async function listNewsletterCalendarMonth(
   const byDate = new Map<string, NewsletterCalendarSlot[]>();
 
   for (const type of types) {
-    const keys = scheduledDateKeysInMonth(type.weekdays, year, monthIndex0);
+    const campaignKeys = campaigns
+      .filter((c) => c.typeId === type.id)
+      .map((c) => c.date.toISOString().slice(0, 10));
+    const keys = scheduledOrCampaignDateKeysInMonth(
+      type.weekdays,
+      year,
+      monthIndex0,
+      campaignKeys,
+    );
     for (const dateKey of keys) {
       const [y, m, d] = dateKey.split("-").map(Number);
       const holidayName = holidayNameForDate(

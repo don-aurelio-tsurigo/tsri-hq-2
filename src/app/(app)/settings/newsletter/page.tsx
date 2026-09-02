@@ -5,13 +5,12 @@ import {
   getNewsletterCalendarSettings,
   listNewsletterTypes,
 } from "@/lib/newsletter";
-import { ensureShiftPlanTypes } from "@/lib/shift-plan";
+import { SHIFT_PLAN_MANAGED_TYPE_NAMES } from "@/lib/shift-plan";
 import { requireEditorialLead } from "@/lib/session";
 
 export default async function NewsletterSettingsPage() {
   const { membership } = await requireEditorialLead();
   await ensureDefaultNewsletterTypes(membership.organizationId);
-  await ensureShiftPlanTypes(membership.organizationId);
 
   const [types, calendarSettings] = await Promise.all([
     listNewsletterTypes(membership.organizationId),
@@ -30,6 +29,7 @@ export default async function NewsletterSettingsPage() {
       </header>
 
       <NewsletterTypeManager
+        managedTypeNames={[...SHIFT_PLAN_MANAGED_TYPE_NAMES]}
         types={types.map((t) => ({
           id: t.id,
           name: t.name,

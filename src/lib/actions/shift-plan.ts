@@ -20,7 +20,7 @@ import {
   type SolverType,
   type SolverVacation,
 } from "@/lib/shift-plan-solver";
-import { scheduledDateKeysInMonth } from "@/lib/newsletter-constants";
+import { scheduledOrCampaignDateKeysInMonth } from "@/lib/newsletter-constants";
 
 function revalidateShiftPaths() {
   revalidatePath("/schichtplan");
@@ -427,7 +427,15 @@ export async function generateShiftPlanProposal(formData: FormData) {
         .map((c) => c.date.toISOString().slice(0, 10));
       slotDateKeys = [...new Set(slotDateKeys)].sort();
     } else {
-      slotDateKeys = scheduledDateKeysInMonth(t.weekdays, year, month - 1);
+      const campaignKeys = campaigns
+        .filter((c) => c.typeId === t.id)
+        .map((c) => c.date.toISOString().slice(0, 10));
+      slotDateKeys = scheduledOrCampaignDateKeysInMonth(
+        t.weekdays,
+        year,
+        month - 1,
+        campaignKeys,
+      );
     }
     return {
       id: t.id,

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { migrateCampaignsAfterWeekdayChange, isShiftPlanManagedType } from "@/lib/shift-plan";
 import { requireEditorialLead, requireMembership } from "@/lib/session";
 import { membershipInTagPool } from "@/lib/membership-grants";
 import {
@@ -115,6 +116,12 @@ export async function updateNewsletterType(formData: FormData) {
   });
   if (clash) return { error: "Diesen Namen gibt es schon." };
 
+  const oldWeekdays = [...type.weekdays].sort((a, b) => a - b);
+  const newWeekdays = [...parsed.data.weekdays].sort((a, b) => a - b);
+  const weekdaysChanged =
+    oldWeekdays.length !== newWeekdays.length ||
+    oldWeekdays.some((d, i) => d !== newWeekdays[i]);
+
   await prisma.newsletterType.update({
     where: { id },
     data: {
@@ -125,8 +132,18 @@ export async function updateNewsletterType(formData: FormData) {
     },
   });
 
+  if (
+    weekdaysChanged &&
+    type.schedulingMode !== "manualDates" &&
+    parsed.data.weekdays.length > 0
+  ) {
+    await migrateCampaignsAfterWeekdayChange(id, parsed.data.weekdays);
+  }
+
   revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");
+  revalidatePath("/schichtplan");
+  revalidatePath("/settings/schichtplan");
   return { ok: true as const };
 }
 
@@ -141,17 +158,28 @@ export async function deleteNewsletterType(formData: FormData) {
       id,
       organizationId: membership.organizationId,
       active: true,
+      isNewsletter: true,
     },
   });
   if (!type) return { error: "Typ nicht gefunden." };
 
-  await prisma.newsletterType.update({
-    where: { id },
-    data: { active: false },
-  });
+  if (isShiftPlanManagedType(type.name)) {
+    // Schichtplan-Typen bleiben aktiv, verschwinden nur aus dem Newsletter-Kalender.
+    await prisma.newsletterType.update({
+      where: { id },
+      data: { isNewsletter: false },
+    });
+  } else {
+    await prisma.newsletterType.update({
+      where: { id },
+      data: { active: false },
+    });
+  }
 
   revalidatePath("/settings/newsletter");
   revalidatePath("/newsletter");
+  revalidatePath("/schichtplan");
+  revalidatePath("/settings/schichtplan");
   return { ok: true as const };
 }
 

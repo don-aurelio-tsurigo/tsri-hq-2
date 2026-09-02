@@ -215,6 +215,42 @@ export function scheduledDateKeysInMonth(
   });
 }
 
+/** Rhythm slots plus any existing campaign dates in the month (keeps off-schedule rows visible). */
+export function scheduledOrCampaignDateKeysInMonth(
+  weekdays: number[],
+  year: number,
+  monthIndex0: number,
+  campaignDateKeys: string[],
+): string[] {
+  const scheduled = scheduledDateKeysInMonth(weekdays, year, monthIndex0);
+  const inMonth = new Set(dateKeysInCalendarMonth(year, monthIndex0));
+  const extra = campaignDateKeys.filter((key) => inMonth.has(key));
+  return [...new Set([...scheduled, ...extra])].sort();
+}
+
+/** Move a date key to another ISO weekday in the same calendar week (Mon–Sun). */
+export function shiftDateKeyToWeekday(
+  dateKey: string,
+  targetWeekday: Weekday,
+): string | null {
+  const current = isoWeekdayFromDateKey(dateKey);
+  if (current == null) return null;
+  return addDaysToDateKey(dateKey, targetWeekday - current);
+}
+
+export function pickClosestWeekday(
+  current: Weekday | null,
+  candidates: number[],
+): Weekday | null {
+  const allowed = candidates.filter(isWeekday);
+  if (allowed.length === 0) return null;
+  if (allowed.length === 1) return allowed[0]!;
+  if (current == null) return allowed[0]!;
+  return allowed.reduce((best, wd) =>
+    Math.abs(wd - current) < Math.abs(best - current) ? wd : best,
+  ) as Weekday;
+}
+
 /** Inclusive date keys matching ISO weekdays from `fromKey` for `weeksAhead` weeks. */
 export function scheduledDateKeysForWeeks(
   weekdays: number[],
