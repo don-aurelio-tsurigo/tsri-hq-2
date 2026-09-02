@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
@@ -153,13 +161,17 @@ function BlockStyleSelect({
   );
 }
 
-export function WikiRichEditor({
-  initialMarkdown,
-  onChange,
-}: {
-  initialMarkdown: string;
-  onChange: (markdown: string) => void;
-}) {
+export type WikiRichEditorHandle = {
+  getMarkdown: () => string;
+};
+
+export const WikiRichEditor = forwardRef<
+  WikiRichEditorHandle,
+  {
+    initialMarkdown: string;
+    onChange: (markdown: string) => void;
+  }
+>(function WikiRichEditor({ initialMarkdown, onChange }, ref) {
   const [, bump] = useReducer((n: number) => n + 1, 0);
 
   const editor = useEditor({
@@ -213,6 +225,15 @@ export function WikiRichEditor({
       editor?.destroy();
     };
   }, [editor]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getMarkdown: () =>
+        editor ? htmlToWikiMarkdown(editor.getHTML()) : initialMarkdown,
+    }),
+    [editor, initialMarkdown],
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -456,4 +477,4 @@ export function WikiRichEditor({
       </p>
     </div>
   );
-}
+});

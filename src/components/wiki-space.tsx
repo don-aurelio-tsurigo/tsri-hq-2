@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Pin } from "lucide-react";
 import {
   createWikiPage,
@@ -11,7 +11,10 @@ import {
   updateWikiPage,
 } from "@/lib/wiki-actions";
 import { buildWikiTree, type WikiPageNode } from "@/lib/wiki-shared";
-import { WikiRichEditor } from "@/components/wiki-rich-editor";
+import {
+  WikiRichEditor,
+  type WikiRichEditorHandle,
+} from "@/components/wiki-rich-editor";
 import { WikiMarkdown } from "@/components/wiki-markdown";
 
 type WikiPageView = WikiPageNode & {
@@ -177,6 +180,7 @@ export function WikiSpace({
   const [title, setTitle] = useState(currentPage?.title ?? "");
   const [body, setBody] = useState(currentPage?.body ?? "");
   const [editorNonce, setEditorNonce] = useState(0);
+  const editorRef = useRef<WikiRichEditorHandle>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -208,7 +212,7 @@ export function WikiSpace({
     const fd = new FormData();
     fd.set("id", currentPage.id);
     fd.set("title", title);
-    fd.set("body", body);
+    fd.set("body", editorRef.current?.getMarkdown() ?? body);
     startTransition(async () => {
       const result = await updateWikiPage(fd);
       if (result?.error) {
@@ -484,6 +488,7 @@ export function WikiSpace({
 
             {editing ? (
               <WikiRichEditor
+                ref={editorRef}
                 key={`${currentPage.id}-${editorNonce}`}
                 initialMarkdown={body}
                 onChange={setBody}

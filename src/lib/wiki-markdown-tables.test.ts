@@ -5,6 +5,7 @@ import {
   normalizeWikiMarkdown,
   normalizeWikiMarkdownTables,
   sanitizeTablesForMarkdown,
+  stripEmptyWikiBlocks,
 } from "@/lib/wiki-markdown-tables";
 
 describe("wiki-markdown-tables", () => {
@@ -32,13 +33,26 @@ describe("wiki-markdown-tables", () => {
     assert.match(out, /Text\./);
   });
 
-  it("preserves separate paragraphs and empty spacers", () => {
+  it("drops empty paragraphs instead of preserving them as spacers", () => {
     const md = htmlToWikiMarkdown(
-      `<p>Eins</p><p>Zwei</p><p><br class="ProseMirror-trailingBreak"></p><p>Drei</p>`,
+      `<p>Eins</p><p></p><p>Drei</p><p><br class="ProseMirror-trailingBreak"></p>`,
     );
-    assert.match(md, /Eins\n\nZwei/);
-    assert.match(md, /Drei/);
-    assert.equal(md.includes("EinsZwei"), false);
+    assert.equal(md, "Eins\n\nDrei");
+    assert.equal(md.includes("\u00a0"), false);
+  });
+
+  it("converts a newly inserted empty TipTap table without crashing", () => {
+    const html = `<table class="wiki-table"><colgroup><col><col><col></colgroup><tbody><tr><th><p></p></th><th><p></p></th><th><p></p></th></tr><tr><td><p></p></td><td><p></p></td><td><p></p></td></tr></tbody></table>`;
+    const md = htmlToWikiMarkdown(html);
+    assert.match(md, /\|/);
+    assert.match(md, /\| --- \|/);
+  });
+
+  it("drops empty table rows", () => {
+    const md = htmlToWikiMarkdown(
+      `<table><tbody><tr><th><p>A</p></th></tr><tr><td><p>1</p></td></tr><tr><td><p></p></td></tr></tbody></table>`,
+    );
+    assert.equal(md, "| A |\n| --- |\n| 1 |");
   });
 
   it("keeps multiple paragraphs inside a table cell", () => {
@@ -48,13 +62,17 @@ describe("wiki-markdown-tables", () => {
     assert.match(md, /Zelle 1<br>Zelle 2/);
   });
 
-  it("normalizes leftover HTML paragraphs in stored bodies", () => {
-    const out = normalizeWikiMarkdown(
-      `<p>Hallo</p><p>Welt</p>\n\nNormaler Markdown-Absatz.`,
+  it("strips empty blocks from html", () => {
+    const cleaned = stripEmptyWikiBlocks(
+      `<p>A</p><p> </p><table><tbody><tr><td><p>x</p></td></tr><tr><td></td></tr></tbody></table>`,
     );
-    assert.match(out, /Hallo/);
-    assert.match(out, /Welt/);
-    assert.equal(out.includes("<p>"), false);
-    assert.match(out, /Normaler Markdown-Absatz/);
+    assert.equal(cleaned.includes("<p> </p>"), false);
+    assert.match(cleaned, /<tr><td><p>x<\/p><\/td><\/tr>/);
+    assert.equal((cleaned.match(/<tr/gi) ?? []).length, 1);
+  });
+
+  it("removes legacy nbsp-only lines when normalizing", () => {
+    const out = normalizeWikiMarkdown("Eins\n\n\u00a0\n\nZwei");
+    assert.equal(out, "Eins\n\nZwei");
   });
 });
