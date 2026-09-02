@@ -71,6 +71,25 @@ export function normalizeMembershipStatus(
   return 0;
 }
 
+export const FEEDBACK_NON_MEMBER_THANK_YOU_URL = "https://tsri.ch/merci-feedback";
+
+export const FEEDBACK_MEMBER_SHOP_OFFER = {
+  heading: "Merci für dein Feedback! 💙",
+  body: "Deine Meinung hilft uns, das Züri Briefing jeden Tag ein bisschen besser zu machen. Als kleines Dankeschön schenken wir dir 15% Rabatt im Tsüri-Shop. Gib beim Checkout einfach diesen Code ein:",
+  code: "briefing-feedback",
+  buttonLabel: "Rabatt einlösen!",
+  url: "https://shop.tsri.ch/discount/briefing-feedback?utm_campaign=67842f&utm_source=discount_shareable_link",
+} as const;
+
+/** After a written comment: non-members go to the public thank-you page. */
+export function feedbackCommentRedirectUrl(
+  membershipStatus: number | null | undefined,
+): string | null {
+  return normalizeMembershipStatus(membershipStatus) === 1
+    ? null
+    : FEEDBACK_NON_MEMBER_THANK_YOU_URL;
+}
+
 function parseOptionalEmail(value: string | null | undefined): string | null | false {
   const raw = value?.trim() ?? "";
   if (!raw) return null;

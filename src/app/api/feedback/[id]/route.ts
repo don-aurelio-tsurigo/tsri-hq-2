@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   clientIp,
   consumeFeedbackRateLimit,
+  feedbackCommentRedirectUrl,
   parseFeedbackId,
   sanitizeFeedbackComment,
   toPublicFeedbackVote,
@@ -87,7 +88,12 @@ export async function PATCH(
 
   const existing = await prisma.feedbackResponse.findUnique({
     where: { id },
-    select: { id: true, confirmedAt: true, commentAddedAt: true },
+    select: {
+      id: true,
+      confirmedAt: true,
+      commentAddedAt: true,
+      membershipStatus: true,
+    },
   });
   if (!existing || !existing.confirmedAt) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -101,5 +107,8 @@ export async function PATCH(
     data: { comment, commentAddedAt: new Date() },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    redirectTo: feedbackCommentRedirectUrl(existing.membershipStatus),
+  });
 }

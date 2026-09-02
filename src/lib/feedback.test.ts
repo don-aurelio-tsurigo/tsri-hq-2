@@ -11,6 +11,7 @@ import {
   parseFeedbackClickInput,
   parseFeedbackId,
   parseIssueDate,
+  feedbackCommentRedirectUrl,
   toPublicFeedbackVote,
   resetFeedbackRateLimit,
   resolveFeedbackIssueDate,
@@ -171,6 +172,27 @@ describe("parseIssueDate / resolveFeedbackIssueDate", () => {
     assert.equal(
       resolveFeedbackIssueDate({ parsedDate: null, now }),
       "2026-09-02",
+    );
+  });
+});
+
+describe("feedbackCommentRedirectUrl", () => {
+  it("sends non-members to the public thank-you page", () => {
+    assert.equal(
+      feedbackCommentRedirectUrl(1),
+      null,
+    );
+    assert.equal(
+      feedbackCommentRedirectUrl(0),
+      "https://tsri.ch/merci-feedback",
+    );
+    assert.equal(
+      feedbackCommentRedirectUrl(-1),
+      "https://tsri.ch/merci-feedback",
+    );
+    assert.equal(
+      feedbackCommentRedirectUrl(null),
+      "https://tsri.ch/merci-feedback",
     );
   });
 });

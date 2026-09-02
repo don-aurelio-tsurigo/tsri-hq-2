@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  FEEDBACK_MEMBER_SHOP_OFFER,
   FEEDBACK_RATING_NEWSLETTER_LABELS,
   formatIssueDateLabel,
   parseFeedbackId,
@@ -104,6 +105,11 @@ export function FeedbackThanks({ id }: { id: string }) {
         setCommentState("error");
         return;
       }
+      const payload = (await res.json()) as { redirectTo?: string | null };
+      if (payload.redirectTo) {
+        window.location.assign(payload.redirectTo);
+        return;
+      }
       setCommentState("saved");
     } catch {
       setCommentState("error");
@@ -167,16 +173,38 @@ export function FeedbackThanks({ id }: { id: string }) {
 
         {status === "ready" ? (
           <>
-            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
-              Danke für dein Feedback
-            </h1>
-            <p className="text-[var(--muted)]">
-              {ratingLabel
-                ? `Du hast ${ratingLabel} gewählt.`
-                : "Wir haben deine Stimme erhalten."}
-            </p>
+            {commentState === "saved" ? (
+              <>
+                <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+                  {FEEDBACK_MEMBER_SHOP_OFFER.heading}
+                </h1>
+                <p className="text-[var(--muted)]">
+                  {FEEDBACK_MEMBER_SHOP_OFFER.body}{" "}
+                  <span className="font-semibold text-[var(--fg)]">
+                    {FEEDBACK_MEMBER_SHOP_OFFER.code}
+                  </span>
+                </p>
+                <a
+                  className="btn btn-primary"
+                  href={FEEDBACK_MEMBER_SHOP_OFFER.url}
+                >
+                  {FEEDBACK_MEMBER_SHOP_OFFER.buttonLabel}
+                </a>
+              </>
+            ) : (
+              <>
+                <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+                  Danke für dein Feedback
+                </h1>
+                <p className="text-[var(--muted)]">
+                  {ratingLabel
+                    ? `Du hast ${ratingLabel} gewählt.`
+                    : "Wir haben deine Stimme erhalten."}
+                </p>
+              </>
+            )}
 
-            {stats ? (
+            {commentState !== "saved" && stats ? (
               <div className="card-panel space-y-3 p-4">
                 <p className="text-sm font-semibold">
                   {issueDate
@@ -216,11 +244,7 @@ export function FeedbackThanks({ id }: { id: string }) {
               </div>
             ) : null}
 
-            {commentState === "saved" ? (
-              <p className="text-sm font-semibold">
-                Danke, wir haben deine Rückmeldung erhalten.
-              </p>
-            ) : (
+            {commentState === "saved" ? null : (
               <form className="space-y-3" onSubmit={onSubmitComment}>
                 <div className="field">
                   <label htmlFor="feedback-comment">
