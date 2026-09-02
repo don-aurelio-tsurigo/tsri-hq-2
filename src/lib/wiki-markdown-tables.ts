@@ -44,37 +44,73 @@ function stripEmptyParagraphsOutsideTables(html: string): string {
     .join("");
 }
 
+/** Inline-safe cell fragment: keep formatting tags, drop block wrappers/newlines. */
+function stripCellBlockWrappers(html: string): string {
+  return html
+    .replace(/<br\b[^>]*\/?>/gi, "<br>")
+    .replace(
+      /<\/?(?:p|div|li|ul|ol|blockquote|h[1-6]|section)\b[^>]*>/gi,
+      "",
+    )
+    .replace(/\n+/g, " ")
+    .trim();
+}
+
+function flattenListItems(listInner: string): string[] {
+  return [...listInner.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)]
+    .map((match) => stripCellBlockWrappers(match[1] ?? ""))
+    .filter((item) => cellText(item) !== "");
+}
+
 /**
- * TipTap wraps every cell in <p>. Those block paragraphs make turndown emit
- * newlines inside cells, which shatters GFM table rows into bare "| |" lines.
- * Flatten cells to inline content first.
+ * Collapse TipTap cell HTML (paragraphs, lists, hard breaks) into a single
+ * inline fragment. Block newlines inside cells shatter GFM table rows.
+ */
+export function flattenCellContent(inner: string): string {
+  let content = inner;
+
+  // Nested lists first (innermost match via repetition).
+  for (let pass = 0; pass < 6; pass += 1) {
+    const next = content
+      .replace(/<ul\b[^>]*>([\s\S]*?)<\/ul>/gi, (_m, listInner: string) =>
+        flattenListItems(listInner)
+          .map((item) => `• ${item}`)
+          .join("<br>"),
+      )
+      .replace(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi, (_m, listInner: string) =>
+        flattenListItems(listInner)
+          .map((item, index) => `${index + 1}. ${item}`)
+          .join("<br>"),
+      );
+    if (next === content) break;
+    content = next;
+  }
+
+  if (/<p\b/i.test(content)) {
+    content = content.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_m, paragraph: string) => {
+      const text = stripCellBlockWrappers(paragraph);
+      return cellText(text) !== "" ? `${text}<br>` : "";
+    });
+  }
+
+  content = stripCellBlockWrappers(content)
+    .replace(/(?:<br>\s*)+/g, "<br>")
+    .replace(/^<br>|<br>$/g, "")
+    .trim();
+
+  return content;
+}
+
+/**
+ * TipTap wraps every cell in <p> and may nest lists. Those blocks make
+ * turndown emit newlines inside cells, which shatters GFM table rows.
  */
 export function flattenTipTapTableCells(html: string): string {
   if (!html.includes("<table")) return html;
   return html.replace(
     /<(td|th)\b([^>]*)>([\s\S]*?)<\/\1>/gi,
-    (_full, tag: string, attrs: string, inner: string) => {
-      const paragraphs = [
-        ...inner.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi),
-      ].map((match) => match[1] ?? "");
-
-      let content: string;
-      if (paragraphs.length > 0) {
-        content = paragraphs
-          .map((paragraph) =>
-            paragraph
-              .replace(/<br\b[^>]*\/?>/gi, "<br>")
-              .replace(/\n+/g, " ")
-              .trim(),
-          )
-          .filter((paragraph) => cellText(paragraph) !== "")
-          .join("<br>");
-      } else {
-        content = inner.replace(/\n+/g, " ").trim();
-      }
-
-      return `<${tag}${attrs}>${content}</${tag}>`;
-    },
+    (_full, tag: string, attrs: string, inner: string) =>
+      `<${tag}${attrs}>${flattenCellContent(inner)}</${tag}>`,
   );
 }
 

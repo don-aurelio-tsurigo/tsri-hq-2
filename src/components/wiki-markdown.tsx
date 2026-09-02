@@ -65,6 +65,20 @@ function soleAnchorHref(children: ReactNode): string | null {
   return typeof only.props.href === "string" ? only.props.href : null;
 }
 
+/** Turn literal "&lt;br&gt;" / "<br>" from GFM table cells into real line breaks. */
+function withHtmlBreaks(children: ReactNode): ReactNode {
+  return Children.map(children, (child, childIndex) => {
+    if (typeof child !== "string") return child;
+    const parts = child.split(/<br\s*\/?>/i);
+    if (parts.length === 1) return child;
+    return parts.flatMap((part, index) =>
+      index === 0
+        ? [part]
+        : [<br key={`${childIndex}-${index}`} />, part],
+    );
+  });
+}
+
 function WikiAnchor({
   href,
   children,
@@ -149,6 +163,12 @@ const markdownComponents: Components = {
         </table>
       </div>
     );
+  },
+  th({ children, ...props }) {
+    return <th {...props}>{withHtmlBreaks(children)}</th>;
+  },
+  td({ children, ...props }) {
+    return <td {...props}>{withHtmlBreaks(children)}</td>;
   },
 };
 
