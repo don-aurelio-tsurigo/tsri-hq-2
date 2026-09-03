@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FEEDBACK_MEMBER_SHOP_OFFER,
   FEEDBACK_RATING_NEWSLETTER_LABELS,
@@ -24,6 +24,7 @@ export function FeedbackThanks({ id }: { id: string }) {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [confirming, setConfirming] = useState(false);
+  const botTrapRef = useRef(false);
 
   useEffect(() => {
     const parsedId = parseFeedbackId(id);
@@ -62,8 +63,19 @@ export function FeedbackThanks({ id }: { id: string }) {
     };
   }, [id]);
 
+  useEffect(() => {
+    botTrapRef.current = false;
+  }, [id]);
+
+  function onBotTrap(e: React.SyntheticEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    botTrapRef.current = true;
+  }
+
   async function onConfirm() {
     const feedbackId = vote?.id;
+    if (botTrapRef.current) return;
     if (!feedbackId || confirming || vote?.confirmed) return;
     setConfirming(true);
     try {
@@ -154,6 +166,16 @@ export function FeedbackThanks({ id }: { id: string }) {
 
         {status === "pending" && ratingLabel ? (
           <>
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="btn btn-primary feedback-bot-trap"
+              onPointerDown={onBotTrap}
+              onClick={onBotTrap}
+            >
+              Stimme speichern
+            </button>
             <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
               Bitte bestätige deine Stimme
             </h1>
