@@ -195,6 +195,7 @@ import {
   setCookingSlot as setCookingSlotAction,
   clearCookingSlot as clearCookingSlotAction,
   updateSlackCookingNotificationSettings as updateSlackCookingNotificationSettingsAction,
+  updateSlackFeedbackNotificationSettings as updateSlackFeedbackNotificationSettingsAction,
 } from "./actions/chores";
 
 export async function createChore(formData: FormData) {
@@ -219,6 +220,12 @@ export async function updateSlackCookingNotificationSettings(
   formData: FormData,
 ) {
   return updateSlackCookingNotificationSettingsAction(formData);
+}
+
+export async function updateSlackFeedbackNotificationSettings(
+  formData: FormData,
+) {
+  return updateSlackFeedbackNotificationSettingsAction(formData);
 }
 
 import {

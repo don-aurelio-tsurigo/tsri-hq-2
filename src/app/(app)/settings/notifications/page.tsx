@@ -1,4 +1,5 @@
 import { SlackCookingNotificationSettings } from "@/components/slack-cooking-notification-settings";
+import { SlackFeedbackNotificationSettings } from "@/components/slack-feedback-notification-settings";
 import { prisma } from "@/lib/db";
 import { isSlackWebhookConfigured } from "@/lib/notifications/slack";
 import { requireAdmin } from "@/lib/session";
@@ -13,6 +14,8 @@ export default async function NotificationsSettingsPage() {
       slackCookingMonthlyEnabled: true,
       slackCookingWeeklyWebhookUrl: true,
       slackCookingMonthlyWebhookUrl: true,
+      slackFeedbackDigestEnabled: true,
+      slackFeedbackDigestWebhookUrl: true,
     },
   });
 
@@ -32,6 +35,12 @@ export default async function NotificationsSettingsPage() {
         monthlyEnabled={org.slackCookingMonthlyEnabled}
         weeklyWebhookUrl={org.slackCookingWeeklyWebhookUrl ?? ""}
         monthlyWebhookUrl={org.slackCookingMonthlyWebhookUrl ?? ""}
+        envWebhookConfigured={isSlackWebhookConfigured(null)}
+      />
+
+      <SlackFeedbackNotificationSettings
+        enabled={org.slackFeedbackDigestEnabled}
+        webhookUrl={org.slackFeedbackDigestWebhookUrl ?? ""}
         envWebhookConfigured={isSlackWebhookConfigured(null)}
       />
     </div>

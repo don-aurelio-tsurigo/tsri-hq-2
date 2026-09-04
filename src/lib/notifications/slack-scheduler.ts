@@ -6,7 +6,7 @@ const globalForScheduler = globalThis as unknown as {
 };
 
 /**
- * Starts an in-process timer for Slack Kochplan digests.
+ * Starts an in-process timer for Slack Kochplan and feedback digests.
  * Only meaningful while the Node server process stays up (dev / next start).
  */
 export function startSlackCookingScheduler() {
@@ -27,14 +27,24 @@ export function startSlackCookingScheduler() {
       const { runSlackCookingNotificationsForAllOrgs } = await import(
         "@/lib/notifications/cooking-slack"
       );
-      const summary = await runSlackCookingNotificationsForAllOrgs();
+      const cooking = await runSlackCookingNotificationsForAllOrgs();
       if (
-        summary.weeklySent > 0 ||
-        summary.monthlySent > 0 ||
-        summary.errors > 0
+        cooking.weeklySent > 0 ||
+        cooking.monthlySent > 0 ||
+        cooking.errors > 0
       ) {
         console.log(
-          `[slack-cooking] tick: orgs=${summary.orgs} weekly=${summary.weeklySent} monthly=${summary.monthlySent} skipped=${summary.skipped} errors=${summary.errors}`,
+          `[slack-cooking] tick: orgs=${cooking.orgs} weekly=${cooking.weeklySent} monthly=${cooking.monthlySent} skipped=${cooking.skipped} errors=${cooking.errors}`,
+        );
+      }
+
+      const { runSlackFeedbackDigestForAllOrgs } = await import(
+        "@/lib/notifications/feedback-slack"
+      );
+      const feedback = await runSlackFeedbackDigestForAllOrgs();
+      if (feedback.sent > 0 || feedback.errors > 0) {
+        console.log(
+          `[slack-feedback] tick: orgs=${feedback.orgs} sent=${feedback.sent} skipped=${feedback.skipped} errors=${feedback.errors}`,
         );
       }
     } catch (err) {

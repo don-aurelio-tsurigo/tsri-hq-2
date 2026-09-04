@@ -155,6 +155,12 @@ model Organization {
   slackCookingWeeklyLastKey     String?
   /// Dedup-Key letzte Monats-Nachricht, z.B. 2026-09 (Folgemonat)
   slackCookingMonthlyLastKey    String?
+  /// Slack: Newsletter-Feedback-Digest (Mo–Fr, Vortag / am Montag Freitag)
+  slackFeedbackDigestEnabled    Boolean  @default(false)
+  /// Incoming Webhook URL for feedback digest (overrides SLACK_WEBHOOK_URL)
+  slackFeedbackDigestWebhookUrl String?
+  /// Dedup-Key letzter Feedback-Digest, z.B. 2026-09-02 (berichteter Tag)
+  slackFeedbackDigestLastKey    String?
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 

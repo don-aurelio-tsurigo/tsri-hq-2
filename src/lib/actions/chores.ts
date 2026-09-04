@@ -279,3 +279,27 @@ export async function updateSlackCookingNotificationSettings(
   revalidatePath("/settings/notifications");
   return { ok: true as const };
 }
+
+export async function updateSlackFeedbackNotificationSettings(
+  formData: FormData,
+) {
+  const { membership } = await requireAdmin();
+  const enabled =
+    formData.get("slackFeedbackDigestEnabled") === "on" ||
+    formData.get("slackFeedbackDigestEnabled") === "true";
+  const webhook = normalizeSlackWebhookInput(
+    String(formData.get("slackFeedbackDigestWebhookUrl") ?? ""),
+  );
+  if (!webhook.ok) return { error: webhook.error };
+
+  await prisma.organization.update({
+    where: { id: membership.organizationId },
+    data: {
+      slackFeedbackDigestEnabled: enabled,
+      slackFeedbackDigestWebhookUrl: webhook.value,
+    },
+  });
+
+  revalidatePath("/settings/notifications");
+  return { ok: true as const };
+}
