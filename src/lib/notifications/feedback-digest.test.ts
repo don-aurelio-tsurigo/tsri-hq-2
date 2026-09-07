@@ -35,28 +35,33 @@ describe("buildFeedbackSlackDigestText", () => {
           issueDate: "2026-09-02",
           rating: "POSITIVE",
           comment: "Mehr Züri bitte",
+          email: "reader@tsri.ch",
         },
         {
           newsletter: "zueri-briefing",
           issueDate: "2026-09-02",
           rating: "NEGATIVE",
           comment: null,
+          email: "other@tsri.ch",
         },
         {
           newsletter: "tsueritipp",
           issueDate: "2026-09-02",
           rating: "NEUTRAL",
           comment: "Geht so",
+          email: null,
         },
       ],
     });
-    assert.match(text, /Newsletter-Feedback — Mittwoch, 2\. September 2026/);
+    assert.match(text, /📬 \*Newsletter-Feedback — Mittwoch, 2\. September 2026\*/);
     assert.match(text, /Züri Briefing/);
-    assert.match(text, /Gut 1/);
-    assert.match(text, /Nicht so gut 1/);
-    assert.match(text, /• Gut: Mehr Züri bitte/);
+    assert.match(text, /🎯 Gut 1/);
+    assert.match(text, /🗑 Nicht so gut 1/);
+    assert.match(text, /• 🎯 Gut · reader@tsri\.ch: Mehr Züri bitte/);
     assert.match(text, /Tsüritipp/);
-    assert.match(text, /Geht so 1/);
+    assert.match(text, /🎲 Geht so 1/);
+    assert.match(text, /• 🎲 Geht so · ohne E-Mail: Geht so/);
+    assert.match(text, /💬 Kommentare:/);
     assert.match(text, /Im Feedback-Dashboard öffnen/);
   });
 

@@ -47,6 +47,7 @@ export async function runSlackFeedbackDigestForAllOrgs(now: Date = new Date()) {
       issueDate: true,
       rating: true,
       comment: true,
+      email: true,
     },
     orderBy: [{ newsletter: "asc" }, { createdAt: "asc" }],
   });

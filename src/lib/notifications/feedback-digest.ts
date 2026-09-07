@@ -23,6 +23,13 @@ export type FeedbackDigestRow = {
   issueDate: string;
   rating: string;
   comment: string | null;
+  email: string | null;
+};
+
+const RATING_EMOJI: Record<FeedbackRating, string> = {
+  POSITIVE: "🎯",
+  NEUTRAL: "🎲",
+  NEGATIVE: "🗑",
 };
 
 /** Previous weekday in Zurich: Mon → Friday, Tue–Fri → yesterday. Null on Sat/Sun. */
@@ -50,12 +57,25 @@ function truncateComment(value: string, max = 280) {
   return `${text.slice(0, max - 1)}…`;
 }
 
+function ratingLabel(rating: FeedbackRating) {
+  return `${RATING_EMOJI[rating]} ${FEEDBACK_RATING_LABELS[rating]}`;
+}
+
 function countsLine(counts: FeedbackCounts) {
   return [
-    `${FEEDBACK_RATING_LABELS.POSITIVE} ${counts.POSITIVE}`,
-    `${FEEDBACK_RATING_LABELS.NEUTRAL} ${counts.NEUTRAL}`,
-    `${FEEDBACK_RATING_LABELS.NEGATIVE} ${counts.NEGATIVE}`,
+    `${ratingLabel("POSITIVE")} ${counts.POSITIVE}`,
+    `${ratingLabel("NEUTRAL")} ${counts.NEUTRAL}`,
+    `${ratingLabel("NEGATIVE")} ${counts.NEGATIVE}`,
   ].join("  ·  ");
+}
+
+function commentLine(item: {
+  rating: FeedbackRating;
+  comment: string;
+  email: string | null;
+}) {
+  const who = item.email?.trim() || "ohne E-Mail";
+  return `• ${ratingLabel(item.rating)} · ${who}: ${item.comment}`;
 }
 
 export function buildFeedbackSlackDigestText(input: {
@@ -64,7 +84,10 @@ export function buildFeedbackSlackDigestText(input: {
 }): string {
   const byNewsletter = new Map<
     string,
-    { counts: FeedbackCounts; comments: { rating: FeedbackRating; comment: string }[] }
+    {
+      counts: FeedbackCounts;
+      comments: { rating: FeedbackRating; comment: string; email: string | null }[];
+    }
   >();
 
   for (const row of input.rows) {
@@ -77,7 +100,11 @@ export function buildFeedbackSlackDigestText(input: {
     bucket.counts[row.rating] += 1;
     const comment = row.comment?.trim();
     if (comment) {
-      bucket.comments.push({ rating: row.rating, comment: truncateComment(comment) });
+      bucket.comments.push({
+        rating: row.rating,
+        comment: truncateComment(comment),
+        email: row.email,
+      });
     }
   }
 
@@ -86,7 +113,7 @@ export function buildFeedbackSlackDigestText(input: {
   );
 
   const lines = [
-    `*Newsletter-Feedback — ${formatDigestDateLabel(input.dateKey)}*`,
+    `📬 *Newsletter-Feedback — ${formatDigestDateLabel(input.dateKey)}*`,
     "",
   ];
 
@@ -97,14 +124,14 @@ export function buildFeedbackSlackDigestText(input: {
       const bucket = byNewsletter.get(slug)!;
       const total =
         bucket.counts.POSITIVE + bucket.counts.NEUTRAL + bucket.counts.NEGATIVE;
-      lines.push(`*${newsletterLabel(slug)}*  (${total} ${total === 1 ? "Stimme" : "Stimmen"})`);
+      lines.push(
+        `*${newsletterLabel(slug)}*  (${total} ${total === 1 ? "Stimme" : "Stimmen"})`,
+      );
       lines.push(countsLine(bucket.counts));
       if (bucket.comments.length > 0) {
-        lines.push("Kommentare:");
+        lines.push("💬 Kommentare:");
         for (const item of bucket.comments) {
-          lines.push(
-            `• ${FEEDBACK_RATING_LABELS[item.rating]}: ${item.comment}`,
-          );
+          lines.push(commentLine(item));
         }
       }
       lines.push("");
