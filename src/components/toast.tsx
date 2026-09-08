@@ -138,11 +138,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    // Soft fallback for SSR / Suspense edges outside ToastProvider.
-    return {
-      showToast: (_options: ShowToastOptions) => "",
-      dismissToast: (_id: string) => {},
-    };
+    throw new Error("useToast must be used within ToastProvider");
   }
   return ctx;
 }

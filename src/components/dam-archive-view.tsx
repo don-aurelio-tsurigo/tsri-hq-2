@@ -2,14 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { SlidersHorizontal, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DamArchiveCollectionsGrid } from "@/components/dam-archive-collections-grid";
 import { DamArchiveDeleteCollectionsDialog } from "@/components/dam-archive-delete-collections";
@@ -21,25 +14,18 @@ import {
   archiveCollectionsHref,
   archiveFilterChipCount,
   archiveFiltersActive,
-  archiveFiltersToSearchParams,
   archiveHref,
   hiddenArchiveFilterCount,
   parseArchiveFiltersFromSearchParams,
-  parseArchivePageFromSearchParams,
   type ArchiveFilters,
   type ArchiveView,
 } from "@/lib/dam/archive-filters";
-import { ARCHIVE_FTS_MIN_CHARS } from "@/lib/dam/archive-fts-query";
-import type {
-  ArchiveCollectionCard,
-  ArchiveFacets,
-  ArchiveSearchResult,
-} from "@/lib/dam/archive-search";
+import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-search";
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
-/** Pause after typing before search; Enter commits immediately. */
-const ARCHIVE_QUERY_DEBOUNCE_MS = 280;
+/** Pause after typing before URL search; Enter commits immediately. */
+const ARCHIVE_QUERY_DEBOUNCE_MS = 700;
 
 type Chip = {
   key: string;
@@ -163,81 +149,19 @@ export function DamArchiveView({
     setPrevQ(filters.q);
     setQueryInput(filters.q);
   }
-
-  const [photoAssets, setPhotoAssets] = useState(assets);
-  const [photoTotal, setPhotoTotal] = useState(total);
-  const [photoPage, setPhotoPage] = useState(page);
-  const [photoPageCount, setPhotoPageCount] = useState(pageCount);
-  const [relaxedMatch, setRelaxedMatch] = useState(false);
-  const [searchPending, setSearchPending] = useState(false);
-  const searchAbortRef = useRef<AbortController | null>(null);
-  const searchSeqRef = useRef(0);
-  /** Skip duplicate fetches when we already loaded this key before router sync. */
-  const lastFetchedKeyRef = useRef<string | null>(null);
-
   const filtered = archiveFiltersActive(filters);
   const extraCount = hiddenArchiveFilterCount(filters);
   const chipCount = archiveFilterChipCount(filters);
-  const urlPage = useMemo(
-    () => parseArchivePageFromSearchParams(searchParams),
-    [searchParams],
-  );
-  const effectiveTotal = view === "photos" ? photoTotal : total;
-  const effectivePage = view === "photos" ? photoPage : page;
-  const effectivePageCount = view === "photos" ? photoPageCount : pageCount;
-  const rangeFrom =
-    effectiveTotal === 0 ? 0 : (effectivePage - 1) * pageSize + 1;
-  const rangeTo = Math.min(effectivePage * pageSize, effectiveTotal);
-  const photosBusy = pending || searchPending;
-
-  const fetchPhotos = useCallback(
-    (nextFilters: ArchiveFilters, nextPage: number, fetchKey: string) => {
-      lastFetchedKeyRef.current = fetchKey;
-      const controller = new AbortController();
-      searchAbortRef.current?.abort();
-      searchAbortRef.current = controller;
-      const seq = ++searchSeqRef.current;
-      setSearchPending(true);
-
-      const params = archiveFiltersToSearchParams(nextFilters, nextPage);
-      void fetch(`/api/dam/archive/search?${params.toString()}`, {
-        signal: controller.signal,
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error("search_failed");
-          return (await res.json()) as ArchiveSearchResult;
-        })
-        .then((result) => {
-          if (seq !== searchSeqRef.current) return;
-          setPhotoAssets(result.assets);
-          setPhotoTotal(result.total);
-          setPhotoPage(result.page);
-          setPhotoPageCount(result.pageCount);
-          setRelaxedMatch(Boolean(result.relaxedMatch));
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          if (seq !== searchSeqRef.current) return;
-          console.warn("[dam] archive search fetch failed", error);
-        })
-        .finally(() => {
-          if (seq === searchSeqRef.current) setSearchPending(false);
-        });
-    },
-    [],
-  );
+  const rangeFrom = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeTo = Math.min(page * pageSize, total);
 
   const apply = useCallback(
     (next: ArchiveFilters, nextPage = 1, scroll = false, nextView = view) => {
-      if (nextView === "photos") {
-        const key = archiveFiltersToSearchParams(next, nextPage).toString();
-        fetchPhotos(next, nextPage, key);
-      }
       startTransition(() => {
         router.replace(archiveHref(next, nextPage, nextView), { scroll });
       });
     },
-    [fetchPhotos, router, view],
+    [router, view],
   );
 
   const commit = useCallback(
@@ -251,7 +175,6 @@ export function DamArchiveView({
 
   const commitQuery = useCallback(() => {
     const next = queryInput.trim().slice(0, 120);
-    if (next.length > 0 && next.length < ARCHIVE_FTS_MIN_CHARS) return;
     if (next === filters.q) return;
     apply({ ...filters, q: next }, 1, false, view);
   }, [apply, filters, queryInput, view]);
@@ -260,14 +183,6 @@ export function DamArchiveView({
     const timer = window.setTimeout(commitQuery, ARCHIVE_QUERY_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [commitQuery]);
-
-  // Back/forward or external URL changes: fetch only if we did not just prefetch.
-  const filterKey = searchParams.toString();
-  useEffect(() => {
-    if (view !== "photos") return;
-    if (lastFetchedKeyRef.current === filterKey) return;
-    fetchPhotos(filters, urlPage, filterKey);
-  }, [fetchPhotos, filterKey, filters, urlPage, view]);
 
   const collectionOptions = useMemo<DamComboboxOption[]>(
     () => [
@@ -571,45 +486,36 @@ export function DamArchiveView({
             ) : null}
           </div>
         )
-      ) : photoAssets.length === 0 ? (
+      ) : assets.length === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
-          {photosBusy
+          {pending
             ? "Suche wird aktualisiert…"
             : "Keine Treffer für diese Suche. Filter anpassen oder zurücksetzen."}
         </p>
       ) : (
         <div className="space-y-3">
-          {relaxedMatch && filters.q ? (
-            <p
-              className="rounded-lg border border-[var(--border)] bg-[var(--panel-muted)] px-3 py-2 text-sm text-[var(--muted)]"
-              role="status"
-            >
-              Keine exakten Treffer für alle Begriffe — hier Ergebnisse mit
-              mindestens einem passenden Wort.
-            </p>
-          ) : null}
           <p className="text-sm text-[var(--muted)]">
-            {photosBusy ? (
+            {pending ? (
               <span className="inline-flex items-center gap-2">
                 <span className="size-3.5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--fg)]" />
                 Aktualisiere…
               </span>
             ) : (
               <>
-                {effectivePageCount > 1
-                  ? `${rangeFrom}–${rangeTo} von ${effectiveTotal} ${
-                      effectiveTotal === 1 ? "Bild" : "Bildern"
+                {pageCount > 1
+                  ? `${rangeFrom}–${rangeTo} von ${total} ${
+                      total === 1 ? "Bild" : "Bildern"
                     }`
-                  : `${effectiveTotal} ${effectiveTotal === 1 ? "Bild" : "Bilder"}`}
+                  : `${total} ${total === 1 ? "Bild" : "Bilder"}`}
                 {filtered ? " gefunden" : ""}. Checkbox oder Shift-Klick wählt,
                 Doppelklick oder Enter öffnet die Vorschau.
               </>
             )}
           </p>
-          <div className={photosBusy ? "pointer-events-none opacity-50" : ""}>
-            <DamArchiveGrid assets={photoAssets} facets={facets} />
+          <div className={pending ? "pointer-events-none opacity-50" : ""}>
+            <DamArchiveGrid assets={assets} facets={facets} />
           </div>
-          {effectivePageCount > 1 ? (
+          {pageCount > 1 ? (
             <nav
               className="flex flex-wrap items-center justify-between gap-2"
               aria-label="Seiten"
@@ -617,20 +523,20 @@ export function DamArchiveView({
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={photosBusy || effectivePage <= 1}
-                onClick={() => apply(filters, effectivePage - 1, true)}
+                disabled={pending || page <= 1}
+                onClick={() => apply(filters, page - 1, true)}
               >
                 <ChevronLeft className="size-4" aria-hidden />
                 Zurück
               </button>
               <p className="text-sm font-medium text-[var(--muted)]">
-                Seite {effectivePage} von {effectivePageCount}
+                Seite {page} von {pageCount}
               </p>
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={photosBusy || effectivePage >= effectivePageCount}
-                onClick={() => apply(filters, effectivePage + 1, true)}
+                disabled={pending || page >= pageCount}
+                onClick={() => apply(filters, page + 1, true)}
               >
                 Weiter
                 <ChevronRight className="size-4" aria-hidden />
