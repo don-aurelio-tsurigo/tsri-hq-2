@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { buildArchiveFtsQuery } from "@/lib/dam/archive-fts-query";
 import {
   ARCHIVE_FACET_LIMIT,
   ARCHIVE_FACET_SEARCH_LIMIT,
@@ -39,16 +40,30 @@ export type ArchiveFacets = {
 };
 
 async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
-  const query = q.trim();
-  if (!query) return null;
+  const ftsQuery = buildArchiveFtsQuery(q);
+  if (!ftsQuery) return null;
   try {
-    // Keep in sync with dam_asset_fts() in prisma/migrations (fileName, altText, credit, keywords, notes).
+    // Keep in sync with dam_asset_fts() / dam_search_normalize() in prisma/migrations.
+    // Prefix match (token:*) + collection names, so Bingo_08.jpg matches "bingo".
     const rows = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id
-      FROM "asset"
-      WHERE status = 'published'::"AssetStatus"
-        AND dam_asset_fts("fileName", "altText", "credit", keywords, notes)
-          @@ websearch_to_tsquery('simple'::regconfig, ${query})
+      FROM (
+        SELECT a.id, a."createdAt"
+        FROM "asset" a
+        WHERE a.status = 'published'::"AssetStatus"
+          AND dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
+            @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+        UNION
+        SELECT a.id, a."createdAt"
+        FROM "asset" a
+        INNER JOIN "asset_collection" ac ON ac."assetId" = a.id
+        INNER JOIN "collection" c ON c.id = ac."collectionId"
+        WHERE a.status = 'published'::"AssetStatus"
+          AND to_tsvector(
+            'simple'::regconfig,
+            public.dam_search_normalize(c.name)
+          ) @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+      ) matched
       ORDER BY "createdAt" DESC
       LIMIT 20000
     `;
