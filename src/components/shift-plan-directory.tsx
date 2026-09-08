@@ -205,31 +205,31 @@ export function ShiftPlanDirectory({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
           <Link
             href={`/schichtplan?month=${calendar.prevMonth}`}
-            className="btn btn-ghost"
+            className="btn btn-ghost px-2 py-1 text-sm"
           >
             ←
           </Link>
-          <h2 className="min-w-[10rem] text-center font-[family-name:var(--font-display)] text-xl font-semibold capitalize">
+          <h2 className="min-w-[9rem] text-center font-[family-name:var(--font-display)] text-lg font-semibold capitalize">
             {calendar.monthLabel}
           </h2>
           <Link
             href={`/schichtplan?month=${calendar.nextMonth}`}
-            className="btn btn-ghost"
+            className="btn btn-ghost px-2 py-1 text-sm"
           >
             →
           </Link>
         </div>
 
         {canManage && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary px-3 py-1.5 text-sm"
               disabled={pending}
               onClick={generate}
             >
@@ -237,21 +237,24 @@ export function ShiftPlanDirectory({
             </button>
             <button
               type="button"
-              className="btn"
+              className="btn px-3 py-1.5 text-sm"
               disabled={pending || proposedCount === 0}
               onClick={confirmMonth}
             >
               Monat bestätigen
               {proposedCount > 0 ? ` (${proposedCount})` : ""}
             </button>
-            <Link href="/settings/schichtplan" className="btn btn-ghost">
+            <Link
+              href="/settings/schichtplan"
+              className="btn btn-ghost px-3 py-1.5 text-sm"
+            >
               Einstellungen
             </Link>
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1">
         {types.map((t) => {
           const active = selectedSet.has(t.id);
           return (
@@ -260,8 +263,8 @@ export function ShiftPlanDirectory({
               type="button"
               className={
                 active
-                  ? "rounded-full border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-1 text-sm"
-                  : "rounded-full border border-[var(--border)] px-3 py-1 text-sm text-[var(--muted)]"
+                  ? "rounded-full border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-0.5 text-xs"
+                  : "rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
               }
               onClick={() => toggleType(t.id)}
             >
@@ -272,19 +275,19 @@ export function ShiftPlanDirectory({
       </div>
 
       {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-800">
           {error}
         </p>
       )}
       {flash && (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-900">
           {flash}
         </p>
       )}
       {warnings.length > 0 && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-950">
           <p className="font-medium">Hinweise vom Solver</p>
-          <ul className="mt-1 list-disc pl-5">
+          <ul className="mt-0.5 list-disc pl-4">
             {warnings.map((w) => (
               <li key={w}>{w}</li>
             ))}
@@ -292,13 +295,15 @@ export function ShiftPlanDirectory({
         </div>
       )}
 
-      <div className="space-y-4">
-        {filteredDays.map((day) => (
+      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        {filteredDays.map((day, dayIndex) => (
           <section
             key={day.dateKey}
-            className="rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+            className={
+              dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
+            }
           >
-            <header className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium">
+            <header className="bg-black/[0.03] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--muted)]">
               {day.weekdayLabel} · {day.dateKey}
             </header>
             <ul className="divide-y divide-[var(--border)]">
@@ -308,32 +313,37 @@ export function ShiftPlanDirectory({
                 return (
                   <li
                     key={`${slot.typeId}:${slot.dateKey}`}
-                    className={
+                    className={[
+                      "flex items-center gap-2 px-3 py-1",
                       proposed
-                        ? "flex flex-wrap items-center gap-3 border-l-4 border-amber-400 bg-amber-50/40 px-4 py-3"
+                        ? "border-l-2 border-amber-400 bg-amber-50/50"
                         : skipped
-                          ? "flex flex-wrap items-center gap-3 px-4 py-3 opacity-60"
-                          : "flex flex-wrap items-center gap-3 px-4 py-3"
-                    }
+                          ? "opacity-55"
+                          : "",
+                    ].join(" ")}
                   >
-                    <div className="min-w-[8rem]">
-                      <p className="text-sm font-medium">{slot.typeName}</p>
-                      {proposed && (
-                        <p className="text-xs text-amber-800">Vorschlag</p>
-                      )}
-                      {skipped && (
-                        <p className="text-xs text-[var(--muted)]">
-                          Fällt aus
-                        </p>
-                      )}
+                    <div className="min-w-0 w-36 shrink-0 sm:w-44">
+                      <p className="truncate text-sm leading-tight">
+                        {slot.typeName}
+                        {proposed ? (
+                          <span className="ml-1.5 text-[10px] font-medium text-amber-800">
+                            Vorschlag
+                          </span>
+                        ) : null}
+                        {skipped ? (
+                          <span className="ml-1.5 text-[10px] text-[var(--muted)]">
+                            fällt aus
+                          </span>
+                        ) : null}
+                      </p>
                       {slot.campaign?.note ? (
-                        <p className="text-xs text-[var(--muted)]">
+                        <p className="truncate text-[10px] leading-tight text-[var(--muted)]">
                           {slot.campaign.note}
                         </p>
                       ) : null}
                     </div>
                     <select
-                      className="input grow sm:max-w-xs"
+                      className="input h-7 min-w-0 grow py-0 text-sm sm:max-w-xs"
                       disabled={pending || skipped}
                       value={slot.campaign?.authorId ?? ""}
                       onChange={(e) => assignAuthor(slot, e.target.value)}
@@ -345,15 +355,17 @@ export function ShiftPlanDirectory({
                         </option>
                       ))}
                     </select>
-                    {slot.campaign && !skipped && (
+                    {slot.campaign && !skipped ? (
                       <button
                         type="button"
-                        className="text-sm text-[var(--muted)] underline-offset-2 hover:underline"
+                        className="shrink-0 text-xs text-[var(--muted)] underline-offset-2 hover:underline"
                         disabled={pending}
                         onClick={() => clearSlot(slot)}
                       >
                         Leeren
                       </button>
+                    ) : (
+                      <span className="w-10 shrink-0" aria-hidden />
                     )}
                   </li>
                 );
@@ -362,7 +374,7 @@ export function ShiftPlanDirectory({
           </section>
         ))}
         {filteredDays.length === 0 && (
-          <p className="text-sm text-[var(--muted)]">
+          <p className="px-3 py-4 text-sm text-[var(--muted)]">
             Keine Schichten in diesem Monat für die gewählten Typen. Für
             Gemeinderat zuerst Sitzungstermine unter Einstellungen erfassen.
           </p>
