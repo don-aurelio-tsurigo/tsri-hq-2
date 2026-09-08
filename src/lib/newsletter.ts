@@ -16,6 +16,7 @@ import {
   type Weekday,
 } from "@/lib/newsletter-constants";
 import { holidayNameForDate } from "@/lib/time-tracking";
+import { defaultColorForNewsletterType } from "@/lib/newsletter-colors";
 
 export {
   NEWSLETTER_FREQUENCIES,
@@ -72,6 +73,7 @@ export async function ensureDefaultNewsletterTypes(organizationId: string) {
         name: t.name,
         frequency: t.frequency,
         weekdays: t.weekdays,
+        color: defaultColorForNewsletterType(t.name, index),
         sortOrder: index,
       })),
     });
@@ -134,6 +136,7 @@ export type NewsletterCalendarSlot = {
   dateKey: string;
   typeId: string;
   typeName: string;
+  typeColor: string;
   requiresWordle: boolean;
   holidayName: string | null;
   campaign: {
@@ -290,6 +293,7 @@ export async function listNewsletterCalendarMonth(
         dateKey,
         typeId: type.id,
         typeName: type.name,
+        typeColor: type.color,
         requiresWordle: type.requiresWordle,
         holidayName,
         campaign: existing

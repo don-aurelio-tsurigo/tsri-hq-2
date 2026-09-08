@@ -17,6 +17,10 @@ import {
   WEEKDAY_LABELS,
   type Weekday,
 } from "@/lib/newsletter-constants";
+import {
+  defaultColorForNewsletterType,
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+} from "@/lib/newsletter-colors";
 
 export { parseMonthParam, monthParamKey };
 
@@ -96,6 +100,7 @@ export async function ensureShiftPlanTypes(organizationId: string) {
       isEveningShift: true,
       schedulingMode: true,
       weekdays: true,
+      color: true,
       sortOrder: true,
     },
   });
@@ -115,6 +120,7 @@ export async function ensureShiftPlanTypes(organizationId: string) {
           isNewsletter: def.isNewsletter,
           isEveningShift: def.isEveningShift,
           schedulingMode: def.schedulingMode,
+          color: defaultColorForNewsletterType(def.name, nextSort),
           sortOrder: nextSort++,
           active: true,
         },
@@ -131,6 +137,7 @@ export async function ensureShiftPlanTypes(organizationId: string) {
       schedulingMode?: NewsletterSchedulingMode;
       weekdays?: number[];
       frequency?: NewsletterFrequency;
+      color?: string;
     } = {};
 
     // Only force isNewsletter=false (e.g. Repo); never re-enable newsletter calendar.
@@ -156,6 +163,13 @@ export async function ensureShiftPlanTypes(organizationId: string) {
     ) {
       patch.weekdays = [];
     }
+    // One-time named color when still on schema default
+    if (row.color === NEWSLETTER_TYPE_COLOR_DEFAULT) {
+      const named = defaultColorForNewsletterType(def.name, row.sortOrder);
+      if (named !== NEWSLETTER_TYPE_COLOR_DEFAULT) {
+        patch.color = named;
+      }
+    }
 
     if (Object.keys(patch).length > 0) {
       await prisma.newsletterType.update({
@@ -163,6 +177,21 @@ export async function ensureShiftPlanTypes(organizationId: string) {
         data: patch,
       });
     }
+  }
+
+  // Backfill named colors for other active types still on default
+  for (const row of existing) {
+    if (!row.active) continue;
+    if (row.color !== NEWSLETTER_TYPE_COLOR_DEFAULT) continue;
+    if (byName.get(row.name) && SHIFT_PLAN_TYPES.some((t) => t.name === row.name)) {
+      continue;
+    }
+    const named = defaultColorForNewsletterType(row.name, row.sortOrder);
+    if (named === NEWSLETTER_TYPE_COLOR_DEFAULT) continue;
+    await prisma.newsletterType.update({
+      where: { id: row.id },
+      data: { color: named },
+    });
   }
 }
 
@@ -198,12 +227,14 @@ export type ShiftPlanSlot = {
   dateKey: string;
   typeId: string;
   typeName: string;
+  typeColor: string;
   isEveningShift: boolean;
   isNewsletter: boolean;
   campaign: {
     id: string;
     authorId: string | null;
     authorName: string | null;
+    campaignUrl: string | null;
     status: NewsletterCampaignStatus;
     note: string | null;
   } | null;
@@ -291,6 +322,7 @@ export async function listShiftPlanMonth(
         dateKey,
         typeId: type.id,
         typeName: type.name,
+        typeColor: type.color,
         isEveningShift: type.isEveningShift,
         isNewsletter: type.isNewsletter,
         campaign: existing
@@ -298,6 +330,7 @@ export async function listShiftPlanMonth(
               id: existing.id,
               authorId: existing.authorId,
               authorName: existing.author?.name ?? null,
+              campaignUrl: existing.campaignUrl,
               status: existing.status,
               note: existing.note,
             }

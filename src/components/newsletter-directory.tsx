@@ -10,34 +10,33 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import {
   clearNewsletterSlot,
   skipNewsletterSlot,
   upsertNewsletterSlot,
 } from "@/lib/actions";
 import { todayDateKey } from "@/lib/newsletter-constants";
+import {
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+  newsletterTypeSoftBackground,
+} from "@/lib/newsletter-colors";
 import type {
   NewsletterCalendarDay,
   NewsletterCalendarSlot,
 } from "@/lib/newsletter";
 
 type Member = { id: string; name: string };
-type NewsletterTypeOption = { id: string; name: string };
+type NewsletterTypeOption = { id: string; name: string; color: string };
 
 type CalendarMonth = {
   monthLabel: string;
-  /** Currently viewed month `yyyy-MM` */
   monthKey: string;
   prevMonth: string;
   nextMonth: string;
   currentMonth: string;
   days: NewsletterCalendarDay[];
 };
-
-function formatDayLabel(dateKey: string) {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return `${d}.${m}.${y}`;
-}
 
 function monthHref(month: string, selectedTypeIds: string[] | null) {
   const params = new URLSearchParams();
@@ -52,7 +51,6 @@ function isValidCampaignUrl(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return true;
   try {
-    // Match server Zod `.url()` expectation for absolute URLs
     const parsed = new URL(trimmed);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
@@ -103,7 +101,7 @@ function MoreMenu({
     <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
+        className="inline-flex size-7 items-center justify-center rounded text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
         aria-label="Weitere Aktionen"
         aria-expanded={open}
         disabled={pending}
@@ -112,19 +110,19 @@ function MoreMenu({
           setOpen((v) => !v);
         }}
       >
-        <span aria-hidden className="text-lg leading-none">
+        <span aria-hidden className="text-base leading-none">
           ···
         </span>
       </button>
       {open && (
         <div
-          className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-[var(--border)] bg-white py-1 shadow-lg"
+          className="absolute right-0 z-20 mt-1 min-w-[11rem] rounded-lg border border-[var(--border)] bg-white py-1 shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
           {!skipped && (
             <button
               type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
               disabled={pending}
               onClick={() => {
                 setOpen(false);
@@ -137,7 +135,7 @@ function MoreMenu({
           {!skipped && holidayName && (
             <button
               type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
               disabled={pending}
               onClick={() => {
                 setOpen(false);
@@ -150,18 +148,18 @@ function MoreMenu({
           {hasCampaign && (
             <button
               type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-black/5"
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-black/5"
               disabled={pending}
               onClick={() => {
                 setOpen(false);
                 onClear();
               }}
             >
-              {skipped ? "Wieder öffnen" : "Vorbereitung löschen"}
+              {skipped ? "Wieder öffnen" : "Leeren"}
             </button>
           )}
           {skipped && !hasCampaign && (
-            <p className="px-3 py-2 text-xs text-[var(--muted)]">
+            <p className="px-3 py-1.5 text-xs text-[var(--muted)]">
               Keine weiteren Aktionen
             </p>
           )}
@@ -171,7 +169,7 @@ function MoreMenu({
   );
 }
 
-function SlotCard({
+function SlotRow({
   slot,
   members,
 }: {
@@ -179,63 +177,38 @@ function SlotCard({
   members: Member[];
 }) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [authorId, setAuthorId] = useState(slot.campaign?.authorId ?? "");
   const [url, setUrl] = useState(slot.campaign?.campaignUrl ?? "");
   const [note, setNote] = useState(slot.campaign?.note ?? "");
   const [wordleWord, setWordleWord] = useState(
     slot.campaign?.wordleWord ?? "",
   );
-  const [noteOpen, setNoteOpen] = useState(
-    () => !!(slot.campaign?.note?.trim()),
-  );
   const [error, setError] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
   const [pending, startTransition] = useTransition();
   const saveGen = useRef(0);
 
   const skipped = slot.campaign?.status === "skipped";
+  const color = slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT;
+  const complete =
+    !skipped &&
+    !!authorId &&
+    !!url.trim() &&
+    isValidCampaignUrl(url) &&
+    (!slot.requiresWordle ||
+      (!!wordleWord.trim() && isValidWordleWord(wordleWord)));
   const prepared =
     !!slot.campaign &&
     slot.campaign.status !== "skipped" &&
     (!!slot.campaign.authorId || !!slot.campaign.campaignUrl);
-  /** Open slots always show fields; prepared only while editing. */
-  const showFields = !skipped && (!prepared || editing);
-
-  function isComplete(values: {
-    authorId: string;
-    url: string;
-    wordleWord: string;
-  }) {
-    if (!values.authorId) return false;
-    if (!values.url.trim() || !isValidCampaignUrl(values.url)) return false;
-    if (slot.requiresWordle) {
-      if (!values.wordleWord.trim() || !isValidWordleWord(values.wordleWord)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  const complete = skipped
-    ? false
-    : showFields
-      ? isComplete({ authorId, url, wordleWord })
-      : isComplete({
-          authorId: slot.campaign?.authorId ?? "",
-          url: slot.campaign?.campaignUrl ?? "",
-          wordleWord: slot.campaign?.wordleWord ?? "",
-        });
+  const incomplete = prepared && !complete && !skipped;
 
   useEffect(() => {
     setAuthorId(slot.campaign?.authorId ?? "");
     setUrl(slot.campaign?.campaignUrl ?? "");
     setNote(slot.campaign?.note ?? "");
     setWordleWord(slot.campaign?.wordleWord ?? "");
-    setNoteOpen(!!(slot.campaign?.note?.trim()));
     setError(null);
-    if (!prepared) setEditing(false);
-  }, [slot, prepared]);
+  }, [slot]);
 
   function baseline() {
     return {
@@ -257,7 +230,6 @@ function SlotCard({
     );
   }
 
-  /** Format-only checks — empty fields are allowed and save as draft-ish. */
   function validateForSave(
     next = { authorId, url, note, wordleWord },
   ): string | null {
@@ -297,8 +269,6 @@ function SlotCard({
         setError(result.error);
         return;
       }
-      setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 1200);
       router.refresh();
     });
   }
@@ -320,7 +290,6 @@ function SlotCard({
         setError(result.error);
         return;
       }
-      setEditing(false);
       router.refresh();
     });
   }
@@ -341,250 +310,165 @@ function SlotCard({
       setUrl("");
       setNote("");
       setWordleWord("");
-      setNoteOpen(false);
-      setEditing(false);
       router.refresh();
     });
   }
 
-  function beginEditPrepared() {
-    setAuthorId(slot.campaign?.authorId ?? "");
-    setUrl(slot.campaign?.campaignUrl ?? "");
-    setNote(slot.campaign?.note ?? "");
-    setWordleWord(slot.campaign?.wordleWord ?? "");
-    setNoteOpen(!!(slot.campaign?.note?.trim()));
-    setError(null);
-    setEditing(true);
-  }
-
-  function cancelEditPrepared() {
-    setAuthorId(slot.campaign?.authorId ?? "");
-    setUrl(slot.campaign?.campaignUrl ?? "");
-    setNote(slot.campaign?.note ?? "");
-    setWordleWord(slot.campaign?.wordleWord ?? "");
-    setError(null);
-    setEditing(false);
-  }
-
-  function onFieldKeyDown(e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) {
+  function onFieldKeyDown(
+    e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
+  ) {
     if (e.key === "Enter") {
       e.preventDefault();
       (e.target as HTMLElement).blur();
     }
-    if (e.key === "Escape" && prepared && editing) {
-      e.preventDefault();
-      cancelEditPrepared();
-    }
   }
 
-  const fields = (
-    <div className="mt-2 space-y-1.5">
-      <div
-        className={[
-          "grid gap-1.5",
-          slot.requiresWordle
-            ? "sm:grid-cols-[minmax(6.5rem,8rem)_minmax(0,1fr)_5.5rem]"
-            : "sm:grid-cols-[minmax(6.5rem,8rem)_minmax(0,1fr)]",
-        ].join(" ")}
-      >
-        <label className="min-w-0 text-[0.65rem] font-semibold tracking-wide text-[var(--muted)] uppercase">
-          Autor:in
-          <select
-            className="mt-0.5 w-full rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm font-medium text-[var(--fg)]"
-            value={authorId}
-            disabled={pending}
-            onChange={(e) => {
-              const nextAuthor = e.target.value;
-              setAuthorId(nextAuthor);
-              persist({
-                authorId: nextAuthor,
-                url,
-                note,
-                wordleWord,
-              });
-            }}
-            onKeyDown={onFieldKeyDown}
+  return (
+    <li
+      className={[
+        "border-l-[3px] px-3 py-1",
+        skipped ? "opacity-55" : "",
+        complete ? "bg-emerald-50/40" : "",
+      ].join(" ")}
+      style={{
+        borderLeftColor: color,
+        background: skipped
+          ? undefined
+          : complete
+            ? undefined
+            : newsletterTypeSoftBackground(color, 8),
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 w-36 shrink-0 sm:w-40">
+          <p
+            className={[
+              "truncate text-sm leading-tight",
+              skipped ? "line-through text-[var(--muted)]" : "",
+            ].join(" ")}
           >
-            <option value="">—</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="min-w-0 text-[0.65rem] font-semibold tracking-wide text-[var(--muted)] uppercase">
-          Kampagnen-Link
+            <span
+              className="mr-1.5 inline-block size-2 rounded-full align-middle"
+              style={{ background: color }}
+              aria-hidden
+            />
+            {slot.typeName}
+            {skipped ? (
+              <span className="ml-1.5 text-[10px] no-underline text-[var(--muted)]">
+                fällt aus
+              </span>
+            ) : null}
+            {incomplete ? (
+              <span className="ml-1.5 text-[10px] font-medium text-[var(--muted)]">
+                unvollständig
+              </span>
+            ) : null}
+            {slot.holidayName && !skipped ? (
+              <span className="ml-1.5 text-[10px] text-[var(--muted)]">
+                {slot.holidayName}
+              </span>
+            ) : null}
+          </p>
+          {error ? (
+            <p className="truncate text-[10px] text-[var(--danger)]">{error}</p>
+          ) : slot.campaign?.note || note ? (
+            <p className="truncate text-[10px] leading-tight text-[var(--muted)]">
+              {note || slot.campaign?.note}
+            </p>
+          ) : null}
+        </div>
+
+        <select
+          className="input h-7 min-w-0 grow py-0 text-sm sm:max-w-[10rem]"
+          disabled={pending || skipped}
+          value={authorId}
+          onChange={(e) => {
+            const nextAuthor = e.target.value;
+            setAuthorId(nextAuthor);
+            persist({
+              authorId: nextAuthor,
+              url,
+              note,
+              wordleWord,
+            });
+          }}
+          onKeyDown={onFieldKeyDown}
+        >
+          <option value="">— Offen —</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex min-w-0 grow basis-[12rem] items-center gap-1.5 sm:max-w-xs">
           <input
-            className="mt-0.5 w-full rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm font-medium text-[var(--fg)]"
+            className="input h-7 min-w-0 grow py-0 text-sm"
             type="url"
+            disabled={pending || skipped}
             value={url}
-            disabled={pending}
             onChange={(e) => setUrl(e.target.value)}
             onBlur={() => persist()}
             onKeyDown={onFieldKeyDown}
             placeholder="https://…"
           />
-        </label>
-        {slot.requiresWordle && (
-          <label className="min-w-0 text-[0.65rem] font-semibold tracking-wide text-[var(--muted)] uppercase">
-            Wordle
-            <input
-              className="mt-0.5 w-full rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm font-medium tracking-wide text-[var(--fg)]"
-              type="text"
-              value={wordleWord}
-              disabled={pending}
-              onChange={(e) => setWordleWord(e.target.value)}
-              onBlur={() => persist()}
-              onKeyDown={onFieldKeyDown}
-              placeholder="5 Buchstaben"
-              maxLength={5}
-              autoCapitalize="characters"
-              spellCheck={false}
-            />
-          </label>
-        )}
-      </div>
-      {noteOpen ? (
-        <label className="block text-[0.65rem] font-semibold tracking-wide text-[var(--muted)] uppercase">
-          Notiz
+          {url.trim() && isValidCampaignUrl(url) ? (
+            <a
+              href={url.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-[var(--accent-hover)] underline underline-offset-2"
+              title="Kampagne öffnen"
+            >
+              Kampagne
+              <ExternalLink className="size-3 shrink-0" aria-hidden />
+            </a>
+          ) : (
+            <span className="w-[5.5rem] shrink-0 text-xs text-[var(--muted)]">
+              —
+            </span>
+          )}
+        </div>
+
+        {slot.requiresWordle ? (
           <input
-            className="mt-0.5 w-full rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-sm font-medium text-[var(--fg)]"
+            className="input h-7 w-[5.5rem] shrink-0 py-0 text-center text-sm tracking-wide"
             type="text"
-            value={note}
-            disabled={pending}
-            onChange={(e) => setNote(e.target.value)}
+            disabled={pending || skipped}
+            value={wordleWord}
+            onChange={(e) => setWordleWord(e.target.value)}
             onBlur={() => persist()}
             onKeyDown={onFieldKeyDown}
-            placeholder={
-              slot.holidayName ? `z.B. ${slot.holidayName}` : "Optional"
-            }
+            placeholder="Wordle"
+            maxLength={5}
+            autoCapitalize="characters"
+            spellCheck={false}
           />
-        </label>
-      ) : (
-        <button
-          type="button"
-          className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--fg)]"
-          onClick={() => setNoteOpen(true)}
-        >
-          + Notiz
-        </button>
-      )}
-      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-    </div>
-  );
+        ) : null}
 
-  return (
-    <div
-      className={[
-        "rounded-xl border px-3 py-2 transition-colors",
-        savedFlash
-          ? "border-[var(--accent)] bg-[var(--accent-soft)]/50 ring-1 ring-[var(--accent)]/40"
-          : skipped
-            ? "border-dashed border-[var(--border)] bg-[var(--bg)]/50 opacity-80"
-            : complete
-              ? "border-emerald-500/50 bg-emerald-50/80"
-              : prepared
-                ? "border-[color-mix(in_oklab,var(--highlight)_65%,var(--border))] bg-[var(--highlight)]/55"
-                : "border-[var(--accent)]/40 bg-[var(--accent-soft)]/40",
-      ].join(" ")}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className={[
-                "font-semibold",
-                skipped ? "line-through text-[var(--muted)]" : "",
-              ].join(" ")}
-            >
-              {slot.typeName}
-            </p>
-            {prepared && !complete && !skipped && (
-              <span className="text-xs font-semibold text-[var(--fg)]/70">
-                Unvollständig
-              </span>
-            )}
-            {savedFlash && (
-              <span className="text-xs font-semibold text-[var(--accent-hover)]">
-                Gespeichert
-              </span>
-            )}
-            {pending && !savedFlash && (
-              <span className="text-xs text-[var(--muted)]">…</span>
-            )}
-          </div>
-          {skipped && (
-            <p className="text-sm text-[var(--muted)]">
-              Fällt aus
-              {slot.campaign?.note ? ` · ${slot.campaign.note}` : ""}
-            </p>
-          )}
-          {prepared && !editing && (
-            <p className="text-sm text-[var(--muted)]">
-              {slot.campaign?.authorName ?? "Ohne Autor"}
-              {slot.campaign?.campaignUrl ? (
-                <>
-                  {" · "}
-                  <a
-                    href={slot.campaign.campaignUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-[var(--accent-hover)] underline underline-offset-2"
-                  >
-                    Link
-                  </a>
-                </>
-              ) : null}
-              {slot.campaign?.wordleWord ? (
-                <>
-                  {" · "}
-                  <span className="font-semibold tracking-wide">
-                    Wordle {slot.campaign.wordleWord}
-                  </span>
-                </>
-              ) : null}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {prepared &&
-            (editing ? (
-              <button
-                type="button"
-                className="btn btn-ghost !px-2 !py-1 text-xs"
-                onClick={cancelEditPrepared}
-              >
-                Schliessen
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary !px-2 !py-1 text-xs"
-                onClick={beginEditPrepared}
-              >
-                Bearbeiten
-              </button>
-            ))}
-          <MoreMenu
-            pending={pending}
-            skipped={skipped}
-            holidayName={slot.holidayName}
-            hasCampaign={!!slot.campaign}
-            onSkip={() => skip(false)}
-            onSkipHoliday={() => skip(true)}
-            onClear={clear}
-          />
-        </div>
+        <input
+          className="input h-7 w-28 shrink-0 py-0 text-sm sm:w-36"
+          type="text"
+          disabled={pending || skipped}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={() => persist()}
+          onKeyDown={onFieldKeyDown}
+          placeholder="Notiz"
+        />
+
+        <MoreMenu
+          pending={pending}
+          skipped={skipped}
+          holidayName={slot.holidayName}
+          hasCampaign={!!slot.campaign}
+          onSkip={() => skip(false)}
+          onSkipHoliday={() => skip(true)}
+          onClear={clear}
+        />
       </div>
-
-      {showFields && fields}
-      {skipped && (
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          Über «···» wieder öffnen.
-        </p>
-      )}
-    </div>
+    </li>
   );
 }
 
@@ -595,7 +479,6 @@ export function NewsletterDirectory({
   calendar,
 }: {
   types: NewsletterTypeOption[];
-  /** Empty = alle Typen anzeigen */
   initialTypeIds: string[];
   members: Member[];
   calendar: CalendarMonth;
@@ -608,12 +491,22 @@ export function NewsletterDirectory({
   );
   const [fromTodayOnly, setFromTodayOnly] = useState(true);
 
+  useEffect(() => {
+    const typeIds = new Set(types.map((t) => t.id));
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => typeIds.has(id));
+      if (next.length === 0) return types.map((t) => t.id);
+      return next;
+    });
+  }, [types]);
+
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const filterActive =
     selectedIds.length > 0 && selectedIds.length < types.length;
+  const typeFilterParam = filterActive ? selectedIds : null;
+  const viewingCurrentMonth = calendar.monthKey === calendar.currentMonth;
 
   const filteredDays = useMemo(() => {
-    const viewingCurrent = calendar.monthKey === calendar.currentMonth;
     return calendar.days
       .map((day) => ({
         ...day,
@@ -622,12 +515,11 @@ export function NewsletterDirectory({
       .filter((day) => day.slots.length > 0)
       .filter(
         (day) =>
-          !fromTodayOnly || !viewingCurrent || day.dateKey >= today,
+          !fromTodayOnly || !viewingCurrentMonth || day.dateKey >= today,
       );
   }, [
     calendar.days,
-    calendar.monthKey,
-    calendar.currentMonth,
+    viewingCurrentMonth,
     selectedSet,
     fromTodayOnly,
     today,
@@ -656,8 +548,11 @@ export function NewsletterDirectory({
     if (nextIds.length > 0 && nextIds.length < types.length) {
       for (const id of nextIds) params.append("type", id);
     }
+    if (calendar.monthKey) params.set("month", calendar.monthKey);
     const qs = params.toString();
-    router.replace(qs ? `/newsletter?${qs}` : "/newsletter", { scroll: false });
+    router.replace(qs ? `/newsletter?${qs}` : "/newsletter", {
+      scroll: false,
+    });
   }
 
   function toggleType(typeId: string) {
@@ -666,8 +561,9 @@ export function NewsletterDirectory({
       const next = has
         ? prev.filter((id) => id !== typeId)
         : [...prev, typeId];
-      syncUrl(next);
-      return next;
+      const resolved = next.length === 0 ? allTypeIds : next;
+      syncUrl(resolved);
+      return resolved;
     });
   }
 
@@ -676,211 +572,136 @@ export function NewsletterDirectory({
     syncUrl(allTypeIds);
   }
 
-  const typeFilterParam = filterActive ? selectedIds : null;
-  const viewingCurrentMonth = calendar.monthKey === calendar.currentMonth;
-
   return (
-    <div className="space-y-8">
-      {types.length > 1 && (
-        <section className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-[var(--muted)] uppercase">
-              Filter
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Link
+            href={monthHref(calendar.prevMonth, typeFilterParam)}
+            className="btn btn-ghost px-2 py-1 text-sm"
+          >
+            ←
+          </Link>
+          <div className="min-w-[9rem] text-center">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold capitalize">
+              {calendar.monthLabel}
+            </h2>
+            <p className="text-[10px] text-[var(--muted)]">
+              {openCount} offen
+              {filterActive || (fromTodayOnly && viewingCurrentMonth)
+                ? " · gefiltert"
+                : ""}
             </p>
-            {filterActive && (
-              <button
-                type="button"
-                className="text-sm font-semibold text-[var(--accent)] hover:underline"
-                onClick={showAll}
-              >
-                Alle anzeigen
-              </button>
-            )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {types.map((type) => {
-              const active = selectedSet.has(type.id);
-              return (
-                <button
-                  key={type.id}
-                  type="button"
-                  aria-pressed={active}
-                  className={[
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                    active
-                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                      : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                  ].join(" ")}
-                  onClick={() => toggleType(type.id)}
-                >
-                  {type.name}
-                </button>
-              );
-            })}
-          </div>
-          {filterActive && (
-            <p className="text-xs text-[var(--muted)]">
-              {selectedIds.length === 1
-                ? "1 Newsletter-Typ sichtbar"
-                : `${selectedIds.length} Newsletter-Typen sichtbar`}
-            </p>
-          )}
-        </section>
-      )}
-
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Link
-              href={monthHref(calendar.prevMonth, typeFilterParam)}
-              className="btn btn-ghost"
-            >
-              ←
-            </Link>
-            <div>
-              <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold capitalize">
-                {calendar.monthLabel}
-              </h2>
-              <p className="text-sm text-[var(--muted)]">
-                {openCount} noch offen
-                {filterActive || (fromTodayOnly && viewingCurrentMonth)
-                  ? " (gefiltert)"
-                  : " in diesem Monat"}
-              </p>
-            </div>
-            <Link
-              href={monthHref(calendar.nextMonth, typeFilterParam)}
-              className="btn btn-ghost"
-            >
-              →
-            </Link>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {viewingCurrentMonth ? (
-              <button
-                type="button"
-                aria-pressed={fromTodayOnly}
-                title={
-                  fromTodayOnly
-                    ? "Nur Ausgaben ab heute — klicken für alle im Monat"
-                    : "Alle Ausgaben im Monat — klicken für nur ab heute"
-                }
-                className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
-                  fromTodayOnly
-                    ? "border-[var(--fg)] bg-[var(--fg)] text-white"
-                    : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
-                ].join(" ")}
-                onClick={() => setFromTodayOnly((v) => !v)}
-              >
-                Ab heute
-              </button>
-            ) : (
-              <Link
-                href={monthHref(calendar.currentMonth, typeFilterParam)}
-                className="text-sm font-semibold text-[var(--accent)] hover:underline"
-                onClick={() => setFromTodayOnly(true)}
-              >
-                Ab heute
-              </Link>
-            )}
-            <Link
-              href={monthHref(calendar.currentMonth, typeFilterParam)}
-              className="text-sm font-semibold text-[var(--accent)] hover:underline"
-            >
-              Dieser Monat
-            </Link>
-          </div>
+          <Link
+            href={monthHref(calendar.nextMonth, typeFilterParam)}
+            className="btn btn-ghost px-2 py-1 text-sm"
+          >
+            →
+          </Link>
         </div>
 
-        {calendar.days.length === 0 ? (
-          <div className="card px-4 py-8 text-sm text-[var(--muted)]">
-            Keine Erscheinungstage in diesem Monat. Die Redaktionsleitung legt
-            Typen und Wochentage unter Newslettereinstellungen fest.
-          </div>
-        ) : filteredDays.length === 0 ? (
-          <div className="card px-4 py-8 text-sm text-[var(--muted)]">
-            {selectedIds.length === 0 ? (
-              <>
-                Kein Newsletter-Typ ausgewählt.{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-[var(--accent)] hover:underline"
-                  onClick={showAll}
-                >
-                  Alle anzeigen
-                </button>
-              </>
-            ) : fromTodayOnly ? (
-              <>
-                Keine Ausgaben ab heute in diesem Monat.{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-[var(--accent)] hover:underline"
-                  onClick={() => setFromTodayOnly(false)}
-                >
-                  Vergangene einblenden
-                </button>
-              </>
-            ) : (
-              <>
-                Keine Slots für die gewählten Filter.{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-[var(--accent)] hover:underline"
-                  onClick={showAll}
-                >
-                  Alle anzeigen
-                </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <ul className="space-y-4">
-            {filteredDays.map((day) => {
-              const isToday = day.dateKey === today;
-              return (
-                <li
-                  key={day.dateKey}
-                  className={[
-                    "card space-y-3 p-4",
-                    day.holidayName ? "ring-1 ring-[var(--highlight)]" : "",
-                    isToday ? "bg-[var(--accent-soft)]/30" : "",
-                  ].join(" ")}
-                >
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <p className="font-bold">
-                      <span className="mr-2 text-[var(--muted)]">
-                        {day.weekdayLabel}
-                      </span>
-                      {formatDayLabel(day.dateKey)}
-                    </p>
-                    {isToday && (
-                      <span className="rounded-full bg-[var(--highlight)] px-2 py-0.5 text-[0.65rem] font-extrabold uppercase">
-                        Heute
-                      </span>
-                    )}
-                    {day.holidayName && (
-                      <span className="rounded-full bg-[var(--highlight-soft)] px-2 py-0.5 text-xs font-bold">
-                        {day.holidayName}
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid gap-2 xl:grid-cols-2">
-                    {day.slots.map((slot) => (
-                      <SlotCard
-                        key={`${slot.typeId}-${slot.dateKey}`}
-                        slot={slot}
-                        members={members}
-                      />
-                    ))}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+        <div className="flex flex-wrap items-center gap-2">
+          {viewingCurrentMonth ? (
+            <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+              <input
+                type="checkbox"
+                checked={fromTodayOnly}
+                onChange={(e) => setFromTodayOnly(e.target.checked)}
+              />
+              Ab heute
+            </label>
+          ) : null}
+          {filterActive ? (
+            <button
+              type="button"
+              className="text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+              onClick={showAll}
+            >
+              Alle anzeigen
+            </button>
+          ) : null}
+          <Link
+            href="/settings/newsletter"
+            className="btn btn-ghost px-3 py-1.5 text-sm"
+          >
+            Einstellungen
+          </Link>
+        </div>
+      </div>
+
+      {types.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {types.map((type) => {
+            const active = selectedSet.has(type.id);
+            const typeColor = type.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
+            return (
+              <button
+                key={type.id}
+                type="button"
+                aria-pressed={active}
+                className={
+                  active
+                    ? "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+                    : "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
+                }
+                style={
+                  active
+                    ? {
+                        borderColor: typeColor,
+                        background: newsletterTypeSoftBackground(typeColor, 18),
+                      }
+                    : undefined
+                }
+                onClick={() => toggleType(type.id)}
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: typeColor }}
+                  aria-hidden
+                />
+                {type.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        {filteredDays.map((day, dayIndex) => (
+          <section
+            key={day.dateKey}
+            className={
+              dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
+            }
+          >
+            <header className="bg-black/[0.03] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--muted)]">
+              {day.weekdayLabel} · {day.dateKey}
+              {day.holidayName ? (
+                <span className="ml-2 font-normal">· {day.holidayName}</span>
+              ) : null}
+            </header>
+            <ul className="divide-y divide-[var(--border)]">
+              {day.slots.map((slot) => (
+                <SlotRow
+                  key={`${slot.typeId}-${slot.dateKey}`}
+                  slot={slot}
+                  members={members}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+        {filteredDays.length === 0 && (
+          <p className="px-3 py-4 text-sm text-[var(--muted)]">
+            Keine Erscheinungstage in diesem Monat
+            {filterActive ? " für die gewählten Typen" : ""}.
+            {fromTodayOnly && viewingCurrentMonth
+              ? " Oder «Ab heute» ausschalten."
+              : ""}
+          </p>
         )}
-      </section>
+      </div>
     </div>
   );
 }
