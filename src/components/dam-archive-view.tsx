@@ -24,6 +24,9 @@ import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-sea
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
+/** Pause after typing before URL search; Enter commits immediately. */
+const ARCHIVE_QUERY_DEBOUNCE_MS = 700;
+
 type Chip = {
   key: string;
   label: string;
@@ -170,14 +173,16 @@ export function DamArchiveView({
     [apply, filters, queryInput, view],
   );
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const next = queryInput.trim().slice(0, 120);
-      if (next === filters.q) return;
-      apply({ ...filters, q: next }, 1, false, view);
-    }, 300);
-    return () => window.clearTimeout(timer);
+  const commitQuery = useCallback(() => {
+    const next = queryInput.trim().slice(0, 120);
+    if (next === filters.q) return;
+    apply({ ...filters, q: next }, 1, false, view);
   }, [apply, filters, queryInput, view]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(commitQuery, ARCHIVE_QUERY_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [commitQuery]);
 
   const collectionOptions = useMemo<DamComboboxOption[]>(
     () => [
@@ -264,6 +269,11 @@ export function DamArchiveView({
               id="dam-q"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                commitQuery();
+              }}
               placeholder={
                 view === "collections"
                   ? "Collection-Name…"
