@@ -4,6 +4,7 @@ import {
   generateProposal,
   isRestrictedProfile,
   isTypeEligible,
+  pickSpreadDate,
   type SolverInput,
 } from "@/lib/shift-plan-solver";
 
@@ -300,5 +301,53 @@ describe("generateProposal", () => {
         (a) => a.userId === "alice" && a.typeId === "repo",
       ),
     );
+  });
+
+  it("pickSpreadDate starts near the middle then maximizes gaps", () => {
+    const slots = [
+      "2026-09-01",
+      "2026-09-08",
+      "2026-09-15",
+      "2026-09-22",
+      "2026-09-29",
+    ];
+    assert.equal(pickSpreadDate(slots, undefined), "2026-09-15");
+    assert.equal(
+      pickSpreadDate(slots, new Set(["2026-09-15"])),
+      "2026-09-01",
+    );
+  });
+
+  it("spreads fixed quota briefings instead of stacking earliest weeks", () => {
+    const result = generateProposal(
+      baseInput({
+        members: [{ userId: "dana", name: "Dana", fixedDayOff: null }],
+        types: [briefing],
+        councilTypeId: null,
+        quotas: [
+          {
+            userId: "dana",
+            typeId: "briefing",
+            minCount: 4,
+            maxCount: 4,
+            isFixed: true,
+          },
+        ],
+      }),
+    );
+    const dates = result.assignments
+      .filter((a) => a.userId === "dana" && a.typeId === "briefing")
+      .map((a) => a.dateKey)
+      .sort();
+    assert.equal(dates.length, 4);
+    // Old greedy earliest would be 01,08,15,22 — ensure we do not take that block
+    assert.notDeepEqual(dates, [
+      "2026-09-01",
+      "2026-09-08",
+      "2026-09-15",
+      "2026-09-22",
+    ]);
+    // Must include the last slot when spreading 4 of 5 weekly dates
+    assert.ok(dates.includes("2026-09-29"));
   });
 });

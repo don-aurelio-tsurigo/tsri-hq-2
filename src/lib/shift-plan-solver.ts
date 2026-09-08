@@ -222,6 +222,60 @@ function availableDates(
   );
 }
 
+/** Absolute day distance between two yyyy-MM-dd keys. */
+function dayDistance(a: string, b: string): number {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  const aMs = Date.UTC(ay!, am! - 1, ad!);
+  const bMs = Date.UTC(by!, bm! - 1, bd!);
+  return Math.abs(Math.round((aMs - bMs) / 86_400_000));
+}
+
+/** Minimum distance from dateKey to any already assigned day of this user. */
+function minGapToUserDays(
+  dateKey: string,
+  userDays: Set<string> | undefined,
+): number {
+  if (!userDays || userDays.size === 0) return Number.POSITIVE_INFINITY;
+  let min = Number.POSITIVE_INFINITY;
+  for (const d of userDays) {
+    const gap = dayDistance(dateKey, d);
+    if (gap < min) min = gap;
+  }
+  return min;
+}
+
+/**
+ * Prefer dates spread across the month: maximize gap to existing assignments.
+ * With no prior days, start near the middle of the candidate list so later
+ * picks can fan out to both ends.
+ */
+export function pickSpreadDate(
+  candidates: string[],
+  userDays: Set<string> | undefined,
+): string {
+  if (candidates.length === 0) {
+    throw new Error("pickSpreadDate requires at least one candidate");
+  }
+  if (candidates.length === 1) return candidates[0]!;
+
+  if (!userDays || userDays.size === 0) {
+    return candidates[Math.floor((candidates.length - 1) / 2)]!;
+  }
+
+  let best = candidates[0]!;
+  let bestGap = -1;
+  for (const dateKey of candidates) {
+    const gap = minGapToUserDays(dateKey, userDays);
+    // Prefer larger gap; on ties keep chronological earlier for stability
+    if (gap > bestGap) {
+      bestGap = gap;
+      best = dateKey;
+    }
+  }
+  return best;
+}
+
 function memberById(members: SolverMember[], userId: string) {
   return members.find((m) => m.userId === userId);
 }
@@ -234,7 +288,8 @@ function typeById(types: SolverType[], typeId: string) {
  * Pure shift-plan proposal generator (no DB).
  * Hard rules: max 1 assignment per person/day, vacations + fixedDayOff,
  * fixed quotas, quota caps, restricted profiles, ≥1 evening shift,
- * council only on non-skipped stubs.
+ * council only on non-skipped stubs. Soft: spread a person's shifts
+ * across the month instead of stacking earliest dates.
  */
 export function generateProposal(input: SolverInput): SolverResult {
   const warnings: string[] = [];
@@ -339,8 +394,11 @@ export function generateProposal(input: SolverInput): SolverResult {
         );
         break;
       }
-      // Prefer dates that don't already overload evening if this isn't evening
-      const pick = dates[0]!;
+      // Prefer dates spread across the month for this person
+      const pick = pickSpreadDate(
+        dates,
+        state.userDays.get(member.userId),
+      );
       assign(state, member.userId, type.id, pick);
       have += 1;
     }
@@ -370,7 +428,12 @@ export function generateProposal(input: SolverInput): SolverResult {
             );
             break;
           }
-          assign(state, member.userId, briefingType.id, dates[0]!);
+          assign(
+            state,
+            member.userId,
+            briefingType.id,
+            pickSpreadDate(dates, state.userDays.get(member.userId)),
+          );
           have += 1;
         }
       }
@@ -396,7 +459,12 @@ export function generateProposal(input: SolverInput): SolverResult {
         typeCount,
       );
       if (dates.length === 0) continue;
-      assign(state, member.userId, type.id, dates[0]!);
+      assign(
+        state,
+        member.userId,
+        type.id,
+        pickSpreadDate(dates, state.userDays.get(member.userId)),
+      );
       placed = true;
       break;
     }
@@ -430,7 +498,12 @@ export function generateProposal(input: SolverInput): SolverResult {
         );
         break;
       }
-      assign(state, member.userId, type.id, dates[0]!);
+      assign(
+        state,
+        member.userId,
+        type.id,
+        pickSpreadDate(dates, state.userDays.get(member.userId)),
+      );
       have += 1;
     }
   }
@@ -452,7 +525,12 @@ export function generateProposal(input: SolverInput): SolverResult {
         typeCount,
       );
       if (dates.length === 0) break;
-      assign(state, member.userId, type.id, dates[0]!);
+      assign(
+        state,
+        member.userId,
+        type.id,
+        pickSpreadDate(dates, state.userDays.get(member.userId)),
+      );
       have += 1;
     }
   }
@@ -479,12 +557,20 @@ export function generateProposal(input: SolverInput): SolverResult {
           const overCap = cap != null && count >= cap ? 1 : 0;
           const totalShifts =
             state.userDays.get(m.userId)?.size ?? 0;
-          return { member: m, count, overCap, totalShifts };
+          const gap = minGapToUserDays(
+            dateKey,
+            state.userDays.get(m.userId),
+          );
+          const recentGap =
+            gap === Number.POSITIVE_INFINITY ? 999 : gap;
+          return { member: m, count, overCap, totalShifts, recentGap };
         })
         .sort(
           (a, b) =>
             a.overCap - b.overCap ||
             a.count - b.count ||
+            // Prefer people who are not recently scheduled
+            b.recentGap - a.recentGap ||
             a.totalShifts - b.totalShifts ||
             a.member.name.localeCompare(b.member.name, "de"),
         );
