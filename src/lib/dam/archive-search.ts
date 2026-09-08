@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { Prisma as PrismaSql } from "@/generated/prisma/client";
 import {
+  archiveSearchPhrase,
   buildArchiveFtsQuery,
   tokenizeArchiveQuery,
 } from "@/lib/dam/archive-fts-query";
@@ -148,20 +149,15 @@ function facetWhereSql(filters: ArchiveFilters): PrismaSql.Sql {
   return PrismaSql.join(parts, " AND ");
 }
 
-/** Rank weights only (after GIN filter). Collections omitted here — costly correlated subquery. */
-const RANK_DOCUMENT_SQL = PrismaSql.sql`
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.notes, ''))), 'A') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."altText", ''))), 'B') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(array_to_string(a.keywords, ' '), ''))), 'B') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.credit, ''))), 'C') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."fileName", ''))), 'D')
+/** Indexed document used for both match (GIN) and cheap ranking. */
+const INDEXED_DOCUMENT_SQL = PrismaSql.sql`
+  dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
 `;
 
 /** Indexed match via dam_asset_fts GIN, plus collection-name hits. */
 function ftsMatchSql(ftsQuery: string): PrismaSql.Sql {
   return PrismaSql.sql`(
-    dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
-      @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+    ${INDEXED_DOCUMENT_SQL} @@ to_tsquery('simple'::regconfig, ${ftsQuery})
     OR EXISTS (
       SELECT 1
       FROM "asset_collection" ac
@@ -173,16 +169,42 @@ function ftsMatchSql(ftsQuery: string): PrismaSql.Sql {
   )`;
 }
 
+/**
+ * Prefer editorial phrase hits (notes/alt/keywords/fileName/collections), then
+ * index rank, then upload time. Avoid rebuilding weighted tsvectors per row.
+ */
 async function rankedFtsPage(
   filters: ArchiveFilters,
   ftsQuery: string,
   page: number,
   pageSize: number,
+  rawQuery: string,
 ): Promise<{ ids: string[]; headlines: Map<string, string>; total: number }> {
   const whereSql = facetWhereSql(filters);
   const matchSql = ftsMatchSql(ftsQuery);
+  const phrase = archiveSearchPhrase(rawQuery);
+  const phrasePattern = phrase ? `%${phrase}%` : null;
   const safePage = Math.max(1, page);
   const skip = (safePage - 1) * pageSize;
+
+  const phraseBoostSql = phrasePattern
+    ? PrismaSql.sql`(
+        CASE
+          WHEN public.dam_search_normalize(coalesce(a.notes, '')) LIKE ${phrasePattern} THEN 4
+          WHEN public.dam_search_normalize(coalesce(a."altText", '')) LIKE ${phrasePattern} THEN 3
+          WHEN public.dam_search_normalize(coalesce(array_to_string(a.keywords, ' '), '')) LIKE ${phrasePattern} THEN 3
+          WHEN public.dam_search_normalize(coalesce(a."fileName", '')) LIKE ${phrasePattern} THEN 2
+          WHEN EXISTS (
+            SELECT 1
+            FROM "asset_collection" ac_p
+            INNER JOIN "collection" c_p ON c_p.id = ac_p."collectionId"
+            WHERE ac_p."assetId" = a.id
+              AND public.dam_search_normalize(c_p.name) LIKE ${phrasePattern}
+          ) THEN 2
+          ELSE 0
+        END
+      )`
+    : PrismaSql.sql`0`;
 
   const [countRows, pageRows] = await Promise.all([
     prisma.$queryRaw<{ total: bigint }[]>`
@@ -191,7 +213,28 @@ async function rankedFtsPage(
       WHERE ${whereSql}
         AND ${matchSql}
     `,
-    prisma.$queryRaw<{ id: string; headline: string | null }[]>`
+    prisma.$queryRaw<{ id: string }[]>`
+      SELECT a.id
+      FROM "asset" a
+      WHERE ${whereSql}
+        AND ${matchSql}
+      ORDER BY
+        ${phraseBoostSql} DESC,
+        ts_rank(${INDEXED_DOCUMENT_SQL}, to_tsquery('simple'::regconfig, ${ftsQuery})) DESC,
+        a."createdAt" DESC
+      LIMIT ${pageSize}
+      OFFSET ${skip}
+    `,
+  ]);
+
+  const total = Number(countRows[0]?.total ?? 0);
+  const ids = pageRows.map((row) => row.id);
+  const headlines = new Map<string, string>();
+
+  if (ids.length > 0) {
+    const headlineRows = await prisma.$queryRaw<
+      { id: string; headline: string | null }[]
+    >`
       SELECT
         a.id,
         ts_headline(
@@ -206,29 +249,17 @@ async function rankedFtsPage(
           'MaxFragments=1, MaxWords=18, MinWords=4, StartSel=<mark>, StopSel=</mark>'
         ) AS headline
       FROM "asset" a
-      WHERE ${whereSql}
-        AND ${matchSql}
-      ORDER BY
-        ts_rank(
-          (${RANK_DOCUMENT_SQL}),
-          to_tsquery('simple'::regconfig, ${ftsQuery})
-        ) DESC,
-        a."createdAt" DESC
-      LIMIT ${pageSize}
-      OFFSET ${skip}
-    `,
-  ]);
-
-  const total = Number(countRows[0]?.total ?? 0);
-  const headlines = new Map<string, string>();
-  for (const row of pageRows) {
-    if (row.headline?.trim()) headlines.set(row.id, row.headline.trim());
+      WHERE a.id IN (${PrismaSql.join(
+        ids.map((id) => PrismaSql.sql`${id}`),
+        ", ",
+      )})
+    `;
+    for (const row of headlineRows) {
+      if (row.headline?.trim()) headlines.set(row.id, row.headline.trim());
+    }
   }
-  return {
-    ids: pageRows.map((row) => row.id),
-    headlines,
-    total,
-  };
+
+  return { ids, headlines, total };
 }
 
 function publishedWhere(
@@ -344,13 +375,25 @@ export async function searchPublishedAssets(
 
   if (andQuery) {
     try {
-      let ranked = await rankedFtsPage(filters, andQuery, safePage, pageSize);
+      let ranked = await rankedFtsPage(
+        filters,
+        andQuery,
+        safePage,
+        pageSize,
+        filters.q,
+      );
       let relaxedMatch = false;
       const tokenCount = tokenizeArchiveQuery(filters.q).length;
       if (ranked.total === 0 && tokenCount > 1) {
         const orQuery = buildArchiveFtsQuery(filters.q, "or");
         if (orQuery) {
-          ranked = await rankedFtsPage(filters, orQuery, safePage, pageSize);
+          ranked = await rankedFtsPage(
+            filters,
+            orQuery,
+            safePage,
+            pageSize,
+            filters.q,
+          );
           relaxedMatch = ranked.total > 0;
         }
       }
