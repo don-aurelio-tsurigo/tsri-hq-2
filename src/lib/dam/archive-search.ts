@@ -1,5 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { buildArchiveFtsQuery } from "@/lib/dam/archive-fts-query";
+import { Prisma as PrismaSql } from "@/generated/prisma/client";
+import {
+  buildArchiveFtsQuery,
+  tokenizeArchiveQuery,
+} from "@/lib/dam/archive-fts-query";
 import {
   ARCHIVE_FACET_LIMIT,
   ARCHIVE_FACET_SEARCH_LIMIT,
@@ -39,48 +43,184 @@ export type ArchiveFacets = {
   keywordsTruncated: boolean;
 };
 
-async function publishedIdsMatchingFts(q: string): Promise<string[] | null> {
-  const ftsQuery = buildArchiveFtsQuery(q);
-  if (!ftsQuery) return null;
-  try {
-    // Keep in sync with dam_asset_fts() / dam_search_normalize() in prisma/migrations.
-    // Prefix match (token:*) + collection names, so Bingo_08.jpg matches "bingo".
-    const rows = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT id
-      FROM (
-        SELECT a.id, a."createdAt"
-        FROM "asset" a
-        WHERE a.status = 'published'::"AssetStatus"
-          AND dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
-            @@ to_tsquery('simple'::regconfig, ${ftsQuery})
-        UNION
-        SELECT a.id, a."createdAt"
-        FROM "asset" a
-        INNER JOIN "asset_collection" ac ON ac."assetId" = a.id
-        INNER JOIN "collection" c ON c.id = ac."collectionId"
-        WHERE a.status = 'published'::"AssetStatus"
-          AND to_tsvector(
-            'simple'::regconfig,
-            public.dam_search_normalize(c.name)
-          ) @@ to_tsquery('simple'::regconfig, ${ftsQuery})
-      ) matched
-      ORDER BY "createdAt" DESC
-      LIMIT 20000
-    `;
-    return rows.map((row) => row.id);
-  } catch (error) {
-    console.warn("[dam] archive FTS failed", error);
-    return [];
-  }
-}
-
 export type ArchiveSearchResult = {
   assets: ArchiveAssetCard[];
   total: number;
   page: number;
   pageSize: number;
   pageCount: number;
+  /** True when AND found nothing and OR fallback returned hits. */
+  relaxedMatch?: boolean;
 };
+
+const assetCardSelect = {
+  id: true,
+  fileName: true,
+  credit: true,
+  rating: true,
+  altText: true,
+  keywords: true,
+  notes: true,
+  takenAt: true,
+  publishedAt: true,
+  width: true,
+  height: true,
+  rightsType: true,
+  editParams: true,
+  collections: {
+    select: { collection: { select: { id: true, name: true } } },
+  },
+  exports: wepublishExportLogSelect,
+} satisfies Prisma.AssetSelect;
+
+function mapAssetCard(
+  row: {
+    id: string;
+    fileName: string;
+    credit: string;
+    rating: number | null;
+    altText: string | null;
+    keywords: string[];
+    notes: string | null;
+    takenAt: Date | null;
+    publishedAt: Date | null;
+    width: number | null;
+    height: number | null;
+    rightsType: ArchiveAssetCard["rightsType"];
+    editParams: unknown;
+    collections: { collection: { id: string; name: string } }[];
+    exports: { exportedAt: Date; targetUrl: string | null }[];
+  },
+  searchHeadline?: string | null,
+): ArchiveAssetCard {
+  return {
+    id: row.id,
+    fileName: row.fileName,
+    credit: row.credit,
+    rating: row.rating,
+    altText: row.altText,
+    keywords: row.keywords,
+    notes: row.notes,
+    takenAt: row.takenAt ? row.takenAt.toISOString() : null,
+    publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
+    width: row.width,
+    height: row.height,
+    rightsType: row.rightsType,
+    collections: row.collections.map((link) => link.collection),
+    lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
+    editParams: parseEditParams(row.editParams),
+    ...(searchHeadline ? { searchHeadline } : {}),
+  };
+}
+
+function facetWhereSql(filters: ArchiveFilters): PrismaSql.Sql {
+  const parts: PrismaSql.Sql[] = [PrismaSql.sql`a.status = 'published'::"AssetStatus"`];
+  if (filters.credit) {
+    parts.push(PrismaSql.sql`a.credit = ${filters.credit}`);
+  }
+  if (filters.rightsType) {
+    parts.push(
+      PrismaSql.sql`a."rightsType" = ${filters.rightsType}::"RightsType"`,
+    );
+  }
+  if (filters.collectionId) {
+    parts.push(PrismaSql.sql`EXISTS (
+      SELECT 1 FROM "asset_collection" ac_f
+      WHERE ac_f."assetId" = a.id AND ac_f."collectionId" = ${filters.collectionId}
+    )`);
+  }
+  if (filters.keywords.length > 0) {
+    const keywordMatches = filters.keywords.map(
+      (keyword) => PrismaSql.sql`${keyword} = ANY (a.keywords)`,
+    );
+    parts.push(PrismaSql.sql`(${PrismaSql.join(keywordMatches, " OR ")})`);
+  }
+  if (filters.from) {
+    parts.push(
+      PrismaSql.sql`a."takenAt" >= ${new Date(`${filters.from}T00:00:00`)}`,
+    );
+  }
+  if (filters.to) {
+    parts.push(
+      PrismaSql.sql`a."takenAt" <= ${new Date(`${filters.to}T23:59:59.999`)}`,
+    );
+  }
+  return PrismaSql.join(parts, " AND ");
+}
+
+/** Weighted document: A notes, B alt+keywords, C credit, D fileName+collections. */
+const WEIGHTED_DOCUMENT_SQL = PrismaSql.sql`
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.notes, ''))), 'A') ||
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."altText", ''))), 'B') ||
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(array_to_string(a.keywords, ' '), ''))), 'B') ||
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.credit, ''))), 'C') ||
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."fileName", ''))), 'D') ||
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce((
+    SELECT string_agg(c.name, ' ')
+    FROM "asset_collection" ac
+    INNER JOIN "collection" c ON c.id = ac."collectionId"
+    WHERE ac."assetId" = a.id
+  ), ''))), 'D')
+`;
+
+async function rankedFtsPage(
+  filters: ArchiveFilters,
+  ftsQuery: string,
+  page: number,
+  pageSize: number,
+): Promise<{ ids: string[]; headlines: Map<string, string>; total: number }> {
+  const whereSql = facetWhereSql(filters);
+  const safePage = Math.max(1, page);
+  const skip = (safePage - 1) * pageSize;
+
+  const [countRows, pageRows] = await Promise.all([
+    prisma.$queryRaw<{ total: bigint }[]>`
+      SELECT COUNT(*)::bigint AS total
+      FROM "asset" a
+      WHERE ${whereSql}
+        AND (${WEIGHTED_DOCUMENT_SQL})
+          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+    `,
+    prisma.$queryRaw<{ id: string; headline: string | null }[]>`
+      SELECT
+        a.id,
+        ts_headline(
+          'simple'::regconfig,
+          concat_ws(
+            E'\n',
+            NULLIF(trim(coalesce(a.notes, '')), ''),
+            NULLIF(trim(coalesce(a."altText", '')), ''),
+            NULLIF(trim(coalesce(array_to_string(a.keywords, ', '), '')), '')
+          ),
+          to_tsquery('simple'::regconfig, ${ftsQuery}),
+          'MaxFragments=1, MaxWords=18, MinWords=4, StartSel=<mark>, StopSel=</mark>'
+        ) AS headline
+      FROM "asset" a
+      WHERE ${whereSql}
+        AND (${WEIGHTED_DOCUMENT_SQL})
+          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+      ORDER BY
+        ts_rank(
+          (${WEIGHTED_DOCUMENT_SQL}),
+          to_tsquery('simple'::regconfig, ${ftsQuery})
+        ) DESC,
+        a."createdAt" DESC
+      LIMIT ${pageSize}
+      OFFSET ${skip}
+    `,
+  ]);
+
+  const total = Number(countRows[0]?.total ?? 0);
+  const headlines = new Map<string, string>();
+  for (const row of pageRows) {
+    if (row.headline?.trim()) headlines.set(row.id, row.headline.trim());
+  }
+  return {
+    ids: pageRows.map((row) => row.id),
+    headlines,
+    total,
+  };
+}
 
 function publishedWhere(
   filters: ArchiveFilters,
@@ -190,13 +330,61 @@ export async function searchPublishedAssets(
   page = 1,
   pageSize = ARCHIVE_PAGE_SIZE,
 ): Promise<ArchiveSearchResult> {
-  const ftsIds = await publishedIdsMatchingFts(filters.q);
-  if (ftsIds && ftsIds.length === 0) {
-    return { assets: [], total: 0, page: 1, pageSize, pageCount: 0 };
+  const safePage = Math.max(1, page);
+  const andQuery = buildArchiveFtsQuery(filters.q, "and");
+
+  if (andQuery) {
+    try {
+      let ranked = await rankedFtsPage(filters, andQuery, safePage, pageSize);
+      let relaxedMatch = false;
+      const tokenCount = tokenizeArchiveQuery(filters.q).length;
+      if (ranked.total === 0 && tokenCount > 1) {
+        const orQuery = buildArchiveFtsQuery(filters.q, "or");
+        if (orQuery) {
+          ranked = await rankedFtsPage(filters, orQuery, safePage, pageSize);
+          relaxedMatch = ranked.total > 0;
+        }
+      }
+
+      if (ranked.total === 0 || ranked.ids.length === 0) {
+        return {
+          assets: [],
+          total: 0,
+          page: 1,
+          pageSize,
+          pageCount: 0,
+          relaxedMatch: false,
+        };
+      }
+
+      const rows = await prisma.asset.findMany({
+        where: { id: { in: ranked.ids } },
+        select: assetCardSelect,
+      });
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      const assets = ranked.ids
+        .map((id) => {
+          const row = byId.get(id);
+          if (!row) return null;
+          return mapAssetCard(row, ranked.headlines.get(id) ?? null);
+        })
+        .filter((row): row is ArchiveAssetCard => Boolean(row));
+
+      return {
+        assets,
+        total: ranked.total,
+        page: safePage,
+        pageSize,
+        pageCount: Math.ceil(ranked.total / pageSize),
+        relaxedMatch,
+      };
+    } catch (error) {
+      console.warn("[dam] archive FTS failed", error);
+      return { assets: [], total: 0, page: 1, pageSize, pageCount: 0 };
+    }
   }
 
-  const where = publishedWhere(filters, ftsIds);
-  const safePage = Math.max(1, page);
+  const where = publishedWhere(filters, null);
   const skip = (safePage - 1) * pageSize;
 
   const [total, rows] = await Promise.all([
@@ -206,48 +394,14 @@ export async function searchPublishedAssets(
       orderBy: [{ createdAt: "desc" }],
       skip,
       take: pageSize,
-      select: {
-        id: true,
-        fileName: true,
-        credit: true,
-        rating: true,
-        altText: true,
-        keywords: true,
-        notes: true,
-        takenAt: true,
-        publishedAt: true,
-        width: true,
-        height: true,
-        rightsType: true,
-        editParams: true,
-        collections: {
-          select: { collection: { select: { id: true, name: true } } },
-        },
-        exports: wepublishExportLogSelect,
-      },
+      select: assetCardSelect,
     }),
   ]);
 
   const pageCount = total === 0 ? 0 : Math.ceil(total / pageSize);
 
   return {
-    assets: rows.map((row) => ({
-      id: row.id,
-      fileName: row.fileName,
-      credit: row.credit,
-      rating: row.rating,
-      altText: row.altText,
-      keywords: row.keywords,
-      notes: row.notes,
-      takenAt: row.takenAt ? row.takenAt.toISOString() : null,
-      publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
-      width: row.width,
-      height: row.height,
-      rightsType: row.rightsType,
-      collections: row.collections.map((link) => link.collection),
-      lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
-      editParams: parseEditParams(row.editParams),
-    })),
+    assets: rows.map((row) => mapAssetCard(row)),
     total,
     page: safePage,
     pageSize,

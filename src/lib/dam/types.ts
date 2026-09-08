@@ -82,4 +82,6 @@ export type ArchiveAssetCard = {
   collections: { id: string; name: string }[];
   lastWepublishExportedAt: string | null;
   editParams: DamEditParams;
+  /** Optional FTS highlight snippet (HTML with <mark>). */
+  searchHeadline?: string | null;
 };

@@ -376,6 +376,12 @@ export function DamArchiveGrid({
                 <div className="space-y-1 p-2">
                   <DamRatingStars rating={asset.rating} />
                   <p className="truncate text-sm font-semibold">{asset.fileName}</p>
+                  {asset.searchHeadline ? (
+                    <p
+                      className="line-clamp-2 text-[0.7rem] leading-snug text-[var(--muted)] [&_mark]:rounded-sm [&_mark]:bg-[var(--accent-soft)] [&_mark]:px-0.5 [&_mark]:text-[var(--fg)]"
+                      dangerouslySetInnerHTML={{ __html: asset.searchHeadline }}
+                    />
+                  ) : null}
                   <p className="truncate text-xs text-[var(--muted)]">{asset.credit}</p>
                   <p className="text-[0.65rem] text-[var(--muted)]">
                     {damRightsLabel(asset.rightsType)}
