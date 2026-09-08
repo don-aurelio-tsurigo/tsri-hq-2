@@ -1300,18 +1300,10 @@ export function DamUploadWizard({
             Batch-Metadaten
           </h2>
 
-          <div className="space-y-4 border-b border-[var(--border)] pb-5">
-            <h3 className="font-[family-name:var(--font-display)] text-base font-semibold">
-              Credit / Fotograf:in
-            </h3>
-            <p className="text-sm text-[var(--muted)]">
-              Standard ist dein Name. Wähle einen bereits erfassten Credit oder
-              gib einen neuen ein. Gilt für alle Bilder dieses Batches und die
-              Dateinamen.
-            </p>
+          <div className="field">
             <DamCombobox
               id="upload-credit"
-              label="Credit"
+              label="Fotograf:in/Credit *"
               emptyLabel="Credit wählen…"
               placeholder="Credit suchen oder neu…"
               options={creditOptions}
@@ -1324,11 +1316,11 @@ export function DamUploadWizard({
                 return { value: trimmed, label: trimmed };
               }}
             />
-            {selectedCredit ? (
-              <p className="text-sm">
-                Aktiv: <strong>{selectedCredit}</strong>
-              </p>
-            ) : null}
+            <p className="pt-1 text-xs leading-snug text-[var(--muted)]">
+              Standard ist dein Name. Wähle einen bereits erfassten Credit oder
+              gib einen neuen ein. Gilt für alle Bilder dieses Batches und die
+              Dateinamen.
+            </p>
           </div>
 
           <MetaFields
