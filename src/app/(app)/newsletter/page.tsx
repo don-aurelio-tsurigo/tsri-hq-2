@@ -70,14 +70,20 @@ export default async function NewsletterPage({
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header>
-        <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
-          Redaktion
+    <div className="mx-auto max-w-6xl space-y-3">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
+            Redaktion
+          </p>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+            Newsletter-Plan
+          </h1>
+        </div>
+        <p className="max-w-md text-xs text-[var(--muted)]">
+          Autor, Kampagnen-Link und Wordle — gleiche Tabellenansicht wie der
+          Schichtplan.
         </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Newsletter-Plan
-        </h1>
       </header>
 
       <NewsletterDirectory
