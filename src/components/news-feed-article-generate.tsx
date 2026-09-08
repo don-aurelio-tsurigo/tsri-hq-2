@@ -57,6 +57,7 @@ export function NewsFeedArticleGenerate({
 
   function generate() {
     if (!pasteReady) {
+      setShowManualPaste(true);
       setState({
         ...emptyState(),
         error: `Bitte mindestens ${MIN_PASTE_CHARS} Zeichen Artikeltext einfügen.`,
@@ -116,56 +117,63 @@ export function NewsFeedArticleGenerate({
 
   return (
     <div className="space-y-2">
-      {autoFulltext ? (
-        <div className="space-y-1">
-          <p className="text-[11px] text-[var(--muted)]">
-            Volltext wird beim Generieren automatisch geladen.
-            {" · "}
-            <button
-              type="button"
-              className="underline"
-              onClick={() => setShowManualPaste((v) => !v)}
-            >
-              {showManualPaste ? "Fallback ausblenden" : "Text manuell einfügen"}
-            </button>
-          </p>
-          {showManualPaste && (
-            <textarea
-              className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--fg)]"
-              placeholder="Optional: Volltext manuell einfügen…"
-              value={pastedText}
-              onChange={(e) => setPastedText(e.target.value)}
-            />
-          )}
-        </div>
-      ) : (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button
+          type="button"
+          className="btn btn-ghost !px-2.5 !py-1 text-xs"
+          disabled={pending || state.loading || !pasteReady}
+          onClick={generate}
+        >
+          {state.loading || pending ? "Generiere…" : "Kurz-News generieren"}
+        </button>
+        <button
+          type="button"
+          className="text-[11px] text-[var(--muted)] underline"
+          onClick={() => setShowManualPaste((v) => !v)}
+        >
+          {showManualPaste
+            ? "Textfeld ausblenden"
+            : autoFulltext
+              ? "Text manuell einfügen"
+              : "Artikeltext einfügen"}
+        </button>
+        {autoFulltext && !showManualPaste && (
+          <span className="text-[11px] text-[var(--muted)]">
+            Volltext wird automatisch geladen
+          </span>
+        )}
+        {!autoFulltext && !showManualPaste && (
+          <span className="text-[11px] text-[var(--muted)]">
+            Pflicht bei Paywall/Teaser
+          </span>
+        )}
+      </div>
+
+      {showManualPaste && (
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-[var(--muted)]">
-            Vollständigen Artikeltext einfügen (Pflicht bei Paywall/Teaser-Quellen)
+            {autoFulltext
+              ? "Volltext manuell einfügen (optional)"
+              : "Vollständigen Artikeltext einfügen (Pflicht bei Paywall/Teaser-Quellen)"}
           </span>
           <textarea
-            className="min-h-28 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--fg)]"
-            placeholder="Artikel von der Quellseite kopieren und hier einfügen…"
+            className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm leading-relaxed text-[var(--fg)]"
+            placeholder={
+              autoFulltext
+                ? "Optional: Volltext manuell einfügen…"
+                : "Artikel von der Quellseite kopieren und hier einfügen…"
+            }
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
           />
           <span className="text-[11px] text-[var(--muted)]">
             {pastedText.trim().length} Zeichen
-            {pastedText.trim().length < MIN_PASTE_CHARS
+            {!autoFulltext && pastedText.trim().length < MIN_PASTE_CHARS
               ? ` (min. ${MIN_PASTE_CHARS})`
               : ""}
           </span>
         </label>
       )}
-
-      <button
-        type="button"
-        className="btn btn-ghost !px-2.5 !py-1 text-xs"
-        disabled={pending || state.loading || !pasteReady}
-        onClick={generate}
-      >
-        {state.loading || pending ? "Generiere…" : "Kurz-News generieren"}
-      </button>
 
       {open && (
         <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--highlight-soft)] p-3">
