@@ -626,6 +626,8 @@ model NewsletterType {
   /// Abend-Newsletter / Abendeinsatz (Briefings, Wohnbrief, Tsüritipp, Gemeinderat)
   isEveningShift Boolean                  @default(false)
   schedulingMode NewsletterSchedulingMode @default(newsletter)
+  /// Farbe für Schichtplan- und Newsletter-Kalender (hex, z.B. #1d4ed8)
+  color          String                   @default("#64748b")
   sortOrder      Int                      @default(0)
   active         Boolean                  @default(true)
   createdAt      DateTime                 @default(now())

@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { migrateCampaignsAfterWeekdayChange } from "@/lib/shift-plan";
+import {
+  defaultColorForNewsletterType,
+  isNewsletterTypeColor,
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+} from "@/lib/newsletter-colors";
 import { requireEditorialLead, requireMembership } from "@/lib/session";
 import { membershipInTagPool } from "@/lib/membership-grants";
 import {
@@ -26,6 +31,14 @@ const newsletterTypeSchema = z.object({
     .union([z.literal("true"), z.literal("on"), z.literal("false"), z.null()])
     .optional()
     .transform((v) => v === "true" || v === "on"),
+  color: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      return isNewsletterTypeColor(v) ? v : undefined;
+    }),
 });
 
 function parseNewsletterTypeForm(formData: FormData) {
@@ -33,6 +46,7 @@ function parseNewsletterTypeForm(formData: FormData) {
     name: formData.get("name"),
     weekdays: formData.getAll("weekdays"),
     requiresWordle: formData.get("requiresWordle") ?? null,
+    color: formData.get("color") ?? undefined,
   });
 }
 
@@ -55,6 +69,11 @@ export async function createNewsletterType(formData: FormData) {
   });
   if (existing) {
     if (!existing.active) {
+      const color =
+        parsed.data.color ??
+        (existing.color !== NEWSLETTER_TYPE_COLOR_DEFAULT
+          ? existing.color
+          : defaultColorForNewsletterType(parsed.data.name, existing.sortOrder));
       await prisma.newsletterType.update({
         where: { id: existing.id },
         data: {
@@ -63,6 +82,7 @@ export async function createNewsletterType(formData: FormData) {
           frequency,
           weekdays: parsed.data.weekdays,
           requiresWordle: parsed.data.requiresWordle,
+          color,
         },
       });
       revalidatePath("/settings/newsletter");
@@ -78,6 +98,10 @@ export async function createNewsletterType(formData: FormData) {
     where: { organizationId: membership.organizationId },
     _max: { sortOrder: true },
   });
+  const nextSort = (maxSort._max.sortOrder ?? -1) + 1;
+  const color =
+    parsed.data.color ??
+    defaultColorForNewsletterType(parsed.data.name, nextSort);
 
   const created = await prisma.newsletterType.create({
     data: {
@@ -86,7 +110,8 @@ export async function createNewsletterType(formData: FormData) {
       frequency,
       weekdays: parsed.data.weekdays,
       requiresWordle: parsed.data.requiresWordle,
-      sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+      color,
+      sortOrder: nextSort,
     },
   });
 
@@ -134,6 +159,7 @@ export async function updateNewsletterType(formData: FormData) {
       frequency: frequencyFromWeekdays(parsed.data.weekdays),
       weekdays: parsed.data.weekdays,
       requiresWordle: parsed.data.requiresWordle,
+      ...(parsed.data.color ? { color: parsed.data.color } : {}),
     },
   });
 

@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 43; // v43: Organization slack feedback digest
+const PRISMA_CLIENT_SCHEMA_VERSION = 44; // v44: NewsletterType.color
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -33,6 +33,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
     "isNewsletter",
     "isEveningShift",
     "schedulingMode",
+    "color",
   ],
   NewsletterCampaign: ["wordleWord"],
   NewsletterBlockedRange: ["newsletterTypeId"],

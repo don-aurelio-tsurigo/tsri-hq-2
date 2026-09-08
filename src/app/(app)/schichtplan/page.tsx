@@ -55,7 +55,11 @@ export default async function SchichtplanPage({
     ),
   );
 
-  const typeOptions = types.map((t) => ({ id: t.id, name: t.name }));
+  const typeOptions = types.map((t) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+  }));
   const validFilter = typeFilter.filter((id) =>
     typeOptions.some((t) => t.id === id),
   );

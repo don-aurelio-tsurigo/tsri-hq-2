@@ -16,13 +16,17 @@ import {
   upsertNewsletterSlot,
 } from "@/lib/actions";
 import { todayDateKey } from "@/lib/newsletter-constants";
+import {
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+  newsletterTypeSoftBackground,
+} from "@/lib/newsletter-colors";
 import type {
   NewsletterCalendarDay,
   NewsletterCalendarSlot,
 } from "@/lib/newsletter";
 
 type Member = { id: string; name: string };
-type NewsletterTypeOption = { id: string; name: string };
+type NewsletterTypeOption = { id: string; name: string; color: string };
 
 type CalendarMonth = {
   monthLabel: string;
@@ -477,17 +481,44 @@ function SlotCard({
   return (
     <div
       className={[
-        "rounded-xl border px-3 py-2 transition-colors",
+        "rounded-xl border border-l-[4px] px-3 py-2 transition-colors",
         savedFlash
-          ? "border-[var(--accent)] bg-[var(--accent-soft)]/50 ring-1 ring-[var(--accent)]/40"
+          ? "ring-1 ring-[var(--accent)]/40"
           : skipped
-            ? "border-dashed border-[var(--border)] bg-[var(--bg)]/50 opacity-80"
+            ? "border-dashed opacity-80"
             : complete
-              ? "border-emerald-500/50 bg-emerald-50/80"
+              ? "border-emerald-500/40"
               : prepared
-                ? "border-[color-mix(in_oklab,var(--highlight)_65%,var(--border))] bg-[var(--highlight)]/55"
-                : "border-[var(--accent)]/40 bg-[var(--accent-soft)]/40",
+                ? ""
+                : "",
       ].join(" ")}
+      style={{
+        borderLeftColor: slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT,
+        borderColor: savedFlash
+          ? undefined
+          : skipped
+            ? undefined
+            : complete
+              ? undefined
+              : prepared
+                ? `color-mix(in oklab, ${slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT} 45%, var(--border))`
+                : `color-mix(in oklab, ${slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT} 35%, var(--border))`,
+        background: savedFlash
+          ? "color-mix(in oklab, var(--accent-soft) 50%, transparent)"
+          : skipped
+            ? "color-mix(in oklab, var(--bg) 50%, transparent)"
+            : complete
+              ? "color-mix(in oklab, #10b981 10%, transparent)"
+              : prepared
+                ? newsletterTypeSoftBackground(
+                    slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT,
+                    22,
+                  )
+                : newsletterTypeSoftBackground(
+                    slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT,
+                    12,
+                  ),
+      }}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
@@ -498,6 +529,13 @@ function SlotCard({
                 skipped ? "line-through text-[var(--muted)]" : "",
               ].join(" ")}
             >
+              <span
+                className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
+                style={{
+                  background: slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT,
+                }}
+                aria-hidden
+              />
               {slot.typeName}
             </p>
             {prepared && !complete && !skipped && (
@@ -700,19 +738,33 @@ export function NewsletterDirectory({
           <div className="flex flex-wrap gap-1.5">
             {types.map((type) => {
               const active = selectedSet.has(type.id);
+              const color = type.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
               return (
                 <button
                   key={type.id}
                   type="button"
                   aria-pressed={active}
                   className={[
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition",
                     active
-                      ? "border-[var(--fg)] bg-[var(--fg)] text-white"
+                      ? "text-[var(--fg)]"
                       : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
                   ].join(" ")}
+                  style={
+                    active
+                      ? {
+                          borderColor: color,
+                          background: newsletterTypeSoftBackground(color, 20),
+                        }
+                      : undefined
+                  }
                   onClick={() => toggleType(type.id)}
                 >
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: color }}
+                    aria-hidden
+                  />
                   {type.name}
                 </button>
               );

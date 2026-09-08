@@ -3,12 +3,17 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import {
   clearShiftSlot,
   confirmShiftPlanMonth,
   generateShiftPlanProposal,
   upsertShiftSlot,
 } from "@/lib/actions";
+import {
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+  newsletterTypeSoftBackground,
+} from "@/lib/newsletter-colors";
 
 type Member = { id: string; name: string };
 
@@ -16,11 +21,13 @@ type Slot = {
   dateKey: string;
   typeId: string;
   typeName: string;
+  typeColor: string;
   isEveningShift: boolean;
   campaign: {
     id: string;
     authorId: string | null;
     authorName: string | null;
+    campaignUrl: string | null;
     status: string;
     note: string | null;
   } | null;
@@ -32,7 +39,7 @@ type Day = {
   slots: Slot[];
 };
 
-type TypeOption = { id: string; name: string };
+type TypeOption = { id: string; name: string; color: string };
 
 export function ShiftPlanDirectory({
   types,
@@ -257,17 +264,31 @@ export function ShiftPlanDirectory({
       <div className="flex flex-wrap gap-1">
         {types.map((t) => {
           const active = selectedSet.has(t.id);
+          const color = t.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
           return (
             <button
               key={t.id}
               type="button"
               className={
                 active
-                  ? "rounded-full border border-[var(--accent)] bg-[var(--accent)]/10 px-2 py-0.5 text-xs"
-                  : "rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
+                  ? "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+                  : "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
+              }
+              style={
+                active
+                  ? {
+                      borderColor: color,
+                      background: newsletterTypeSoftBackground(color, 18),
+                    }
+                  : undefined
               }
               onClick={() => toggleType(t.id)}
             >
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: color }}
+                aria-hidden
+              />
               {t.name}
             </button>
           );
@@ -310,20 +331,30 @@ export function ShiftPlanDirectory({
               {day.slots.map((slot) => {
                 const proposed = slot.campaign?.status === "proposed";
                 const skipped = slot.campaign?.status === "skipped";
+                const color = slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT;
                 return (
                   <li
                     key={`${slot.typeId}:${slot.dateKey}`}
                     className={[
-                      "flex items-center gap-2 px-3 py-1",
-                      proposed
-                        ? "border-l-2 border-amber-400 bg-amber-50/50"
-                        : skipped
-                          ? "opacity-55"
-                          : "",
+                      "flex items-center gap-2 border-l-[3px] px-3 py-1",
+                      proposed ? "bg-amber-50/50" : skipped ? "opacity-55" : "",
                     ].join(" ")}
+                    style={{
+                      borderLeftColor: color,
+                      background: proposed
+                        ? undefined
+                        : skipped
+                          ? undefined
+                          : newsletterTypeSoftBackground(color, 8),
+                    }}
                   >
                     <div className="min-w-0 w-36 shrink-0 sm:w-44">
                       <p className="truncate text-sm leading-tight">
+                        <span
+                          className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                          style={{ background: color }}
+                          aria-hidden
+                        />
                         {slot.typeName}
                         {proposed ? (
                           <span className="ml-1.5 text-[10px] font-medium text-amber-800">
@@ -355,6 +386,21 @@ export function ShiftPlanDirectory({
                         </option>
                       ))}
                     </select>
+                    <div className="w-[5.5rem] shrink-0 text-xs">
+                      {slot.campaign?.campaignUrl ? (
+                        <a
+                          href={slot.campaign.campaignUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-[var(--accent-hover)] underline underline-offset-2"
+                        >
+                          Kampagne
+                          <ExternalLink className="size-3 shrink-0" aria-hidden />
+                        </a>
+                      ) : (
+                        <span className="text-[var(--muted)]">—</span>
+                      )}
+                    </div>
                     {slot.campaign && !skipped ? (
                       <button
                         type="button"

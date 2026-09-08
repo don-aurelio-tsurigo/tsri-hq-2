@@ -13,12 +13,17 @@ import {
   WEEKDAYS,
   type Weekday,
 } from "@/lib/newsletter-constants";
+import {
+  defaultColorForNewsletterType,
+  NEWSLETTER_TYPE_COLOR_DEFAULT,
+} from "@/lib/newsletter-colors";
 
 export type NewsletterTypeRow = {
   id: string;
   name: string;
   weekdays: number[];
   requiresWordle: boolean;
+  color: string;
 };
 
 const DEFAULT_WEEKDAYS: Weekday[] = [2];
@@ -32,6 +37,7 @@ export function NewsletterTypeManager({
   const [name, setName] = useState("");
   const [weekdays, setWeekdays] = useState<Weekday[]>(DEFAULT_WEEKDAYS);
   const [requiresWordle, setRequiresWordle] = useState(false);
+  const [color, setColor] = useState(NEWSLETTER_TYPE_COLOR_DEFAULT);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [editId, setEditId] = useState<string | null>(null);
@@ -55,6 +61,7 @@ export function NewsletterTypeManager({
       ),
     );
     setRequiresWordle(type.requiresWordle);
+    setColor(type.color || NEWSLETTER_TYPE_COLOR_DEFAULT);
     setError(null);
   }
 
@@ -64,6 +71,7 @@ export function NewsletterTypeManager({
     setName("");
     setWeekdays(DEFAULT_WEEKDAYS);
     setRequiresWordle(false);
+    setColor(defaultColorForNewsletterType("", types.length));
     setError(null);
   }
 
@@ -74,6 +82,7 @@ export function NewsletterTypeManager({
     fd.set("name", name);
     for (const d of weekdays) fd.append("weekdays", String(d));
     if (requiresWordle) fd.set("requiresWordle", "true");
+    fd.set("color", color);
     startTransition(async () => {
       const result = editId
         ? await updateNewsletterType(fd)
@@ -139,12 +148,19 @@ export function NewsletterTypeManager({
             key={t.id}
             className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
           >
-            <div>
-              <p className="font-semibold">{t.name}</p>
-              <p className="text-sm text-[var(--muted)]">
-                {formatWeekdays(t.weekdays)}
-                {t.requiresWordle ? " · Wordle aktiv" : ""}
-              </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className="size-3 shrink-0 rounded-full border border-black/10"
+                style={{ background: t.color }}
+                aria-hidden
+              />
+              <div className="min-w-0">
+                <p className="font-semibold">{t.name}</p>
+                <p className="text-sm text-[var(--muted)]">
+                  {formatWeekdays(t.weekdays)}
+                  {t.requiresWordle ? " · Wordle aktiv" : ""}
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
@@ -193,6 +209,15 @@ export function NewsletterTypeManager({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="z.B. Züri Briefing"
+          />
+        </label>
+        <label className="field text-xs font-semibold text-[var(--muted)]">
+          Farbe
+          <input
+            type="color"
+            className="h-9 w-16 cursor-pointer rounded border border-[var(--border)] bg-transparent p-1"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
           />
         </label>
         <div>
