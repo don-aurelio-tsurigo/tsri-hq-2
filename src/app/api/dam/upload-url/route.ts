@@ -21,7 +21,7 @@ const fileSchema = z.object({
 });
 
 const bodySchema = z.object({
-  credit: z.string().trim().min(1).max(200),
+  credit: z.string().trim().max(200).optional().default(""),
   titleBase: z.string().trim().max(120).optional(),
   files: z.array(fileSchema).min(1).max(MAX_FILES),
 });
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Credit und mindestens eine Datei sind nötig." },
+      { error: "Mindestens eine Datei ist nötig." },
       { status: 400 },
     );
   }
@@ -77,10 +77,14 @@ export async function POST(request: Request) {
       console.warn("[dam] could not write R2 CORS policy", error);
     }
 
+    // Credit may still be pending (set on the metadata step). Empty is fine;
+    // complete() writes the final credit onto the batch and assets.
+    const batchCredit = credit || "—";
+
     const batch = await prisma.uploadBatch.create({
       data: {
         uploadedBy: ctx.session.user.id,
-        credit,
+        credit: batchCredit,
       },
       select: { id: true },
     });
@@ -90,7 +94,11 @@ export async function POST(request: Request) {
         const sequence = index + 1;
         const contentType = normalizedContentType(file.name, file.type);
         const ext = outputExtension(contentType, file.name);
-        const fileName = buildFileName(titleBase || credit, sequence, ext);
+        const fileName = buildFileName(
+          titleBase || credit || "foto",
+          sequence,
+          ext,
+        );
         const r2Key = buildR2Key({
           userId: ctx.session.user.id,
           batchId: batch.id,
@@ -109,7 +117,11 @@ export async function POST(request: Request) {
       }),
     );
 
-    return NextResponse.json({ batchId: batch.id, credit, files: uploaded });
+    return NextResponse.json({
+      batchId: batch.id,
+      credit: batchCredit,
+      files: uploaded,
+    });
   } catch (error) {
     if (error instanceof R2ConfigError) {
       return NextResponse.json({ error: error.message }, { status: 503 });

@@ -556,7 +556,7 @@ export function DamUploadWizard({
   );
   const collectionInputRef = useRef<HTMLInputElement>(null);
   const uploadStateRef = useRef<Record<string, FileUploadState>>({});
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [reached, setReached] = useState(1);
   const [credit, setCredit] = useState(meCredit);
   const [queued, setQueued] = useState<QueuedFile[]>([]);
@@ -660,7 +660,7 @@ export function DamUploadWizard({
   const allUploaded = prepared.length > 0 && doneCount === prepared.length;
 
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 2) return;
     const pending = prepared.filter(
       (file) => uploadStateRef.current[file.localId]?.status === "done",
     );
@@ -720,19 +720,23 @@ export function DamUploadWizard({
     };
   }, [step, prepared]);
 
-  const metadataReady = showPerFile
-    ? drafts.every(
-        (draft) =>
-          isRightsType(draft.rightsType) &&
-          hasNotes(draft.notes) &&
-          hasCollection(draft.collectionIds, draft.newCollections),
-      )
-    : isRightsType(rightsType) &&
-      hasNotes(notes) &&
-      hasCollection(collectionIds, newCollectionName);
+  const metadataReady =
+    canContinueCredit &&
+    (showPerFile
+      ? drafts.every(
+          (draft) =>
+            isRightsType(draft.rightsType) &&
+            hasNotes(draft.notes) &&
+            hasCollection(draft.collectionIds, draft.newCollections) &&
+            Boolean(draft.credit.trim()),
+        )
+      : isRightsType(rightsType) &&
+        hasNotes(notes) &&
+        hasCollection(collectionIds, newCollectionName));
   const metadataHint = (() => {
     if (metadataReady) return null;
     const missing: string[] = [];
+    if (!canContinueCredit) missing.push("Credit");
     const notesOk = showPerFile
       ? drafts.every((draft) => hasNotes(draft.notes))
       : hasNotes(notes);
@@ -751,11 +755,12 @@ export function DamUploadWizard({
   })();
 
   const fileNamesPreview = useMemo(() => {
+    if (queued.length === 0) return [];
     const title =
       newCollectionName.trim() ||
       collections.find((collection) => collection.id === collectionIds[0])?.name ||
-      creditDisplayName(selectedCredit);
-    if (!title || queued.length === 0) return [];
+      creditDisplayName(selectedCredit) ||
+      "foto";
     return queued.map((q, i) => {
       const ext = q.file.name.includes(".")
         ? q.file.name.slice(q.file.name.lastIndexOf(".") + 1).toLowerCase()
@@ -765,7 +770,9 @@ export function DamUploadWizard({
   }, [queued, selectedCredit, newCollectionName, collectionIds, collections]);
 
   function applyCredit(next: string) {
-    setCredit(next);
+    const trimmed = next.trim();
+    setCredit(trimmed);
+    setDrafts((prev) => prev.map((d) => ({ ...d, credit: trimmed })));
   }
 
   function changeNewCollection(name: string) {
@@ -873,15 +880,22 @@ export function DamUploadWizard({
     );
   }
 
-  function moveTo(n: 1 | 2 | 3 | 4) {
+  function moveTo(n: 1 | 2 | 3) {
     setStep(n);
     setReached((current) => Math.max(current, n));
   }
 
   function goToMetadata(files: PreparedFile[]) {
-    setDrafts((prev) => (prev.length === files.length ? prev : buildDrafts(files)));
-    moveTo(3);
-    window.setTimeout(() => document.getElementById("batch-notes")?.focus(), 0);
+    setDrafts((prev) => {
+      const next = prev.length === files.length ? prev : buildDrafts(files);
+      if (!selectedCredit) return next;
+      return next.map((d) => ({
+        ...d,
+        credit: d.credit.trim() || selectedCredit,
+      }));
+    });
+    moveTo(2);
+    window.setTimeout(() => document.getElementById("upload-credit")?.focus(), 0);
   }
 
   async function startUpload() {
@@ -894,8 +908,6 @@ export function DamUploadWizard({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            credit: selectedCredit,
-            titleBase: collectionTitle(),
             files: queued.map((q) => ({
               name: q.file.name,
               type: q.file.type,
@@ -1051,6 +1063,7 @@ export function DamUploadWizard({
           batchId,
           applyToAll: !showPerFile,
           rightsType: batchRights,
+          credit: selectedCredit,
           notes: notes.trim(),
           collectionIds,
           newCollections: batchNames,
@@ -1063,7 +1076,7 @@ export function DamUploadWizard({
             size: d.size,
             rightsType: d.rightsType || batchRights,
             notes: d.notes.trim(),
-            credit: d.credit,
+            credit: d.credit.trim() || selectedCredit,
             keywords: d.keywords,
             altText: d.altText,
             collectionIds: d.collectionIds,
@@ -1073,7 +1086,7 @@ export function DamUploadWizard({
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Speichern fehlgeschlagen.");
-      moveTo(4);
+      moveTo(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
     } finally {
@@ -1081,31 +1094,27 @@ export function DamUploadWizard({
     }
   }
 
-  function goToStep(n: 1 | 2 | 3) {
+  function goToStep(n: 1 | 2) {
     if (n === 1) moveTo(1);
-    else if (n === 2 && canContinueCredit) moveTo(2);
-    else if (n === 3 && allUploaded) {
-      goToMetadata(prepared);
-    }
+    else if (n === 2 && allUploaded) goToMetadata(prepared);
   }
 
   const steps = [
-    { n: 1 as const, label: "Credit", done: reached > 1 },
-    { n: 2 as const, label: "Upload", done: reached > 2 },
-    { n: 3 as const, label: "Metadaten", done: reached > 3 },
+    { n: 1 as const, label: "Upload", done: reached > 1 },
+    { n: 2 as const, label: "Metadaten", done: reached > 2 },
   ];
 
   return (
     <div className="space-y-6">
       <ol className="flex flex-wrap gap-2 text-sm font-semibold">
         {steps.map((s) => {
-          const active = step === s.n || (step === 4 && s.n === 3);
-          const clickable = s.n === 1 || (s.n === 2 && canContinueCredit) || (s.n === 3 && allUploaded);
+          const active = step === s.n || (step === 3 && s.n === 2);
+          const clickable = s.n === 1 || (s.n === 2 && allUploaded);
           return (
             <li key={s.n}>
               <button
                 type="button"
-                disabled={!clickable || step === 4}
+                disabled={!clickable || step === 3}
                 onClick={() => goToStep(s.n)}
                 className={[
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1",
@@ -1114,7 +1123,7 @@ export function DamUploadWizard({
                     : s.done
                       ? "bg-emerald-100 text-emerald-900"
                       : "bg-[var(--panel-muted)] text-[var(--muted)]",
-                  clickable && step !== 4 ? "cursor-pointer" : "",
+                  clickable && step !== 3 ? "cursor-pointer" : "",
                 ].join(" ")}
               >
                 {s.done ? <Check className="size-3.5" aria-hidden /> : <span>{s.n}.</span>}
@@ -1132,47 +1141,6 @@ export function DamUploadWizard({
       ) : null}
 
       {step === 1 ? (
-        <section className="card space-y-4 p-5">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Credit / Fotograf:in
-          </h2>
-          <p className="text-sm text-[var(--muted)]">
-            Standard ist dein Name. Wähle einen bereits erfassten Credit oder
-            gib einen neuen ein. Gilt für alle Bilder dieses Batches und die
-            Dateinamen.
-          </p>
-          <DamCombobox
-            id="upload-credit"
-            label="Credit"
-            emptyLabel="Credit wählen…"
-            placeholder="Credit suchen oder neu…"
-            options={creditOptions}
-            value={selectedCredit ? [selectedCredit] : []}
-            onChange={(next) => applyCredit(next[0]?.trim() ?? "")}
-            onCreate={async (name) => {
-              const trimmed = name.trim();
-              if (!trimmed) return null;
-              applyCredit(trimmed);
-              return { value: trimmed, label: trimmed };
-            }}
-          />
-          {selectedCredit ? (
-            <p className="text-sm">
-              Aktiv: <strong>{selectedCredit}</strong>
-            </p>
-          ) : null}
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!canContinueCredit}
-            onClick={() => moveTo(2)}
-          >
-            Weiter zum Upload
-          </button>
-        </section>
-      ) : null}
-
-      {step === 2 ? (
         <section className="card space-y-4 p-5">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             Bilder hochladen
@@ -1289,14 +1257,6 @@ export function DamUploadWizard({
             </ul>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={busy}
-              onClick={() => moveTo(1)}
-            >
-              Zurück
-            </button>
             {allUploaded ? (
               <button
                 type="button"
@@ -1334,11 +1294,43 @@ export function DamUploadWizard({
         </section>
       ) : null}
 
-      {step === 3 ? (
+      {step === 2 ? (
         <section className="card space-y-5 p-5">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
             Batch-Metadaten
           </h2>
+
+          <div className="space-y-4 border-b border-[var(--border)] pb-5">
+            <h3 className="font-[family-name:var(--font-display)] text-base font-semibold">
+              Credit / Fotograf:in
+            </h3>
+            <p className="text-sm text-[var(--muted)]">
+              Standard ist dein Name. Wähle einen bereits erfassten Credit oder
+              gib einen neuen ein. Gilt für alle Bilder dieses Batches und die
+              Dateinamen.
+            </p>
+            <DamCombobox
+              id="upload-credit"
+              label="Credit"
+              emptyLabel="Credit wählen…"
+              placeholder="Credit suchen oder neu…"
+              options={creditOptions}
+              value={selectedCredit ? [selectedCredit] : []}
+              onChange={(next) => applyCredit(next[0]?.trim() ?? "")}
+              onCreate={async (name) => {
+                const trimmed = name.trim();
+                if (!trimmed) return null;
+                applyCredit(trimmed);
+                return { value: trimmed, label: trimmed };
+              }}
+            />
+            {selectedCredit ? (
+              <p className="text-sm">
+                Aktiv: <strong>{selectedCredit}</strong>
+              </p>
+            ) : null}
+          </div>
+
           <MetaFields
             fieldId="batch"
             rightsType={rightsType}
@@ -1413,7 +1405,6 @@ export function DamUploadWizard({
               }
             }}
             collectionInputRef={collectionInputRef}
-            autoFocusCollection
           />
           <div className="flex flex-wrap gap-2">
             <button
@@ -1605,7 +1596,7 @@ export function DamUploadWizard({
               type="button"
               className="btn btn-ghost"
               disabled={busy}
-              onClick={() => moveTo(2)}
+              onClick={() => moveTo(1)}
             >
               Zurück
             </button>
@@ -1626,7 +1617,7 @@ export function DamUploadWizard({
         </section>
       ) : null}
 
-      {step === 4 && batchId ? <BatchStatus batchId={batchId} /> : null}
+      {step === 3 && batchId ? <BatchStatus batchId={batchId} /> : null}
     </div>
   );
 }

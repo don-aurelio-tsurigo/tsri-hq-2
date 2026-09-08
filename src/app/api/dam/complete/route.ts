@@ -61,6 +61,7 @@ const bodySchema = z
     batchId: z.string().min(1),
     applyToAll: z.boolean(),
     rightsType: rightsSchema,
+    credit: z.string().trim().max(200).optional(),
     keywords: z.array(z.string().trim().max(60)).max(24).default([]),
     notes: z.string().max(4000).optional(),
     collectionIds: z.array(z.string().min(1)).max(20).default([]),
@@ -68,7 +69,15 @@ const bodySchema = z
     assets: z.array(assetSchema).min(1).max(MAX_FILES),
   })
   .superRefine((body, ctx) => {
+    const batchCredit = body.credit?.trim() ?? "";
+    const hasBatchCredit = batchCredit.length > 0;
     if (body.applyToAll) {
+      if (!hasBatchCredit) {
+        const assetCredit = body.assets.some((asset) => asset.credit?.trim());
+        if (!assetCredit) {
+          ctx.addIssue({ code: "custom", path: ["credit"], message: "credit" });
+        }
+      }
       if (!hasNotes(body.notes)) {
         ctx.addIssue({ code: "custom", path: ["notes"], message: "notes" });
       }
@@ -82,6 +91,13 @@ const bodySchema = z
       return;
     }
     body.assets.forEach((asset, index) => {
+      if (!(asset.credit?.trim() || hasBatchCredit)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["assets", index, "credit"],
+          message: "credit",
+        });
+      }
       if (!hasNotes(asset.notes ?? body.notes)) {
         ctx.addIssue({
           code: "custom",
@@ -193,6 +209,18 @@ export async function POST(request: Request) {
         body.newCollections,
       );
 
+      const resolvedBatchCredit =
+        body.credit?.trim() ||
+        body.assets.find((asset) => asset.credit?.trim())?.credit?.trim() ||
+        batch.credit;
+
+      if (resolvedBatchCredit !== batch.credit) {
+        await tx.uploadBatch.update({
+          where: { id: batch.id },
+          data: { credit: resolvedBatchCredit },
+        });
+      }
+
       async function titleFor(collectionIds: string[], fallback: string) {
         const id = collectionIds[0];
         if (!id) return fallback;
@@ -204,7 +232,7 @@ export async function POST(request: Request) {
       }
 
       const batchTitle = body.applyToAll
-        ? await titleFor(batchCollectionIds, batch.credit)
+        ? await titleFor(batchCollectionIds, resolvedBatchCredit)
         : null;
 
       const ids: string[] = [];
@@ -222,9 +250,7 @@ export async function POST(request: Request) {
           body.applyToAll ? body.notes : (asset.notes ?? body.notes),
         );
         const credit =
-          !body.applyToAll && asset.credit?.trim()
-            ? asset.credit.trim()
-            : batch.credit;
+          asset.credit?.trim() || resolvedBatchCredit;
         const collectionIds = body.applyToAll
           ? batchCollectionIds
           : await resolveCollections(
