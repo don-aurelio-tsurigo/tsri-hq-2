@@ -307,7 +307,7 @@ export function ShiftPlanDirectory({
       )}
       {warnings.length > 0 && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-950">
-          <p className="font-medium">Hinweise vom Solver</p>
+          <p className="font-medium">Hinweise zum Vorschlag</p>
           <ul className="mt-0.5 list-disc pl-4">
             {warnings.map((w) => (
               <li key={w}>{w}</li>
