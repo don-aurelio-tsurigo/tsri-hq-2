@@ -196,7 +196,6 @@ function NavSection({
 
 export function AppSidebar({
   userName,
-  orgName,
   isAdmin,
   canFinance,
   canAds,
@@ -209,7 +208,6 @@ export function AppSidebar({
   onMobileClose,
 }: {
   userName: string;
-  orgName: string;
   isAdmin: boolean;
   canFinance: boolean;
   canAds: boolean;
@@ -321,8 +319,7 @@ export function AppSidebar({
             </button>
           )}
         </div>
-        <p className="mt-3 truncate text-sm font-bold">{orgName}</p>
-        <p className="mt-0.5 truncate text-xs font-medium opacity-80">
+        <p className="mt-3 truncate text-sm font-medium opacity-90">
           {userName}
         </p>
       </div>

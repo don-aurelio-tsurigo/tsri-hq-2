@@ -56,7 +56,6 @@ export default async function AppLayout({
     >
       <AppShell
         userName={session.user.name}
-        orgName={membership.organization.name}
         isAdmin={membership.role === "admin"}
         canFinance={hasCapability(membership, "finance")}
         canAds={canAccessCivicMedia(membership)}

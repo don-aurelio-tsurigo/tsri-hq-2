@@ -32,7 +32,6 @@ type NavTaskPin = {
 
 export function AppShell({
   userName,
-  orgName,
   isAdmin,
   canFinance,
   canAds,
@@ -44,7 +43,6 @@ export function AppShell({
   children,
 }: {
   userName: string;
-  orgName: string;
   isAdmin: boolean;
   canFinance: boolean;
   canAds: boolean;
@@ -105,7 +103,6 @@ export function AppShell({
               className="h-7 w-auto max-w-[9rem] object-contain object-left"
             />
           </Link>
-          <p className="ml-auto truncate text-xs font-bold opacity-90">{orgName}</p>
         </header>
 
         {mobileOpen && (
@@ -119,7 +116,6 @@ export function AppShell({
 
         <AppSidebar
           userName={userName}
-          orgName={orgName}
           isAdmin={isAdmin}
           canFinance={canFinance}
           canAds={canAds}
