@@ -3,15 +3,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DamArchiveView } from "@/components/dam-archive-view";
 import {
+  ARCHIVE_PAGE_SIZE,
   archiveCollectionsHref,
-  archiveHref,
   countPublishedAssets,
   listArchiveCollectionCards,
   listArchiveFacets,
   parseArchiveFilters,
   parseArchivePage,
   parseArchiveView,
-  searchPublishedAssets,
 } from "@/lib/dam/archive-search";
 import { canReviewDamArchive } from "@/lib/dam/review";
 import { requireMembership } from "@/lib/session";
@@ -26,10 +25,9 @@ export default async function DamArchivePage({
   const filters = parseArchiveFilters(params);
   const page = parseArchivePage(params);
   const view = parseArchiveView(params);
-  const [result, collectionResult, facets, publishedCount] = await Promise.all([
-    view === "photos"
-      ? searchPublishedAssets(filters, page)
-      : Promise.resolve(null),
+  const [collectionResult, facets, publishedCount] = await Promise.all([
+    // Photos load via client `/api/dam/archive/search` (AbortController).
+    // Skipping SSR photo search avoids doubling the expensive FTS round-trip.
     view === "collections"
       ? listArchiveCollectionCards(filters.q, page)
       : Promise.resolve(null),
@@ -38,15 +36,9 @@ export default async function DamArchivePage({
   ]);
 
   const pageCount =
-    view === "collections"
-      ? (collectionResult?.pageCount ?? 0)
-      : (result?.pageCount ?? 0);
-  if (pageCount > 0 && page > pageCount) {
-    redirect(
-      view === "collections"
-        ? archiveCollectionsHref(filters, pageCount)
-        : archiveHref(filters, pageCount),
-    );
+    view === "collections" ? (collectionResult?.pageCount ?? 0) : 0;
+  if (view === "collections" && pageCount > 0 && page > pageCount) {
+    redirect(archiveCollectionsHref(filters, pageCount));
   }
 
   return (
@@ -68,25 +60,17 @@ export default async function DamArchivePage({
       <Suspense>
         <DamArchiveView
           view={view}
-          assets={result?.assets ?? []}
+          assets={[]}
           collections={collectionResult?.collections ?? []}
           facets={facets}
           publishedCount={publishedCount}
-          total={
-            view === "collections"
-              ? (collectionResult?.total ?? 0)
-              : (result?.total ?? 0)
-          }
-          page={
-            view === "collections"
-              ? (collectionResult?.page ?? 1)
-              : (result?.page ?? 1)
-          }
+          total={view === "collections" ? (collectionResult?.total ?? 0) : 0}
+          page={view === "collections" ? (collectionResult?.page ?? 1) : page}
           pageCount={pageCount}
           pageSize={
             view === "collections"
-              ? (collectionResult?.pageSize ?? result?.pageSize ?? 120)
-              : (result?.pageSize ?? 120)
+              ? (collectionResult?.pageSize ?? ARCHIVE_PAGE_SIZE)
+              : ARCHIVE_PAGE_SIZE
           }
           canReview={canReviewDamArchive(membership)}
         />

@@ -148,20 +148,30 @@ function facetWhereSql(filters: ArchiveFilters): PrismaSql.Sql {
   return PrismaSql.join(parts, " AND ");
 }
 
-/** Weighted document: A notes, B alt+keywords, C credit, D fileName+collections. */
-const WEIGHTED_DOCUMENT_SQL = PrismaSql.sql`
+/** Rank weights only (after GIN filter). Collections omitted here — costly correlated subquery. */
+const RANK_DOCUMENT_SQL = PrismaSql.sql`
   setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.notes, ''))), 'A') ||
   setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."altText", ''))), 'B') ||
   setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(array_to_string(a.keywords, ' '), ''))), 'B') ||
   setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a.credit, ''))), 'C') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."fileName", ''))), 'D') ||
-  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce((
-    SELECT string_agg(c.name, ' ')
-    FROM "asset_collection" ac
-    INNER JOIN "collection" c ON c.id = ac."collectionId"
-    WHERE ac."assetId" = a.id
-  ), ''))), 'D')
+  setweight(to_tsvector('simple'::regconfig, public.dam_search_normalize(coalesce(a."fileName", ''))), 'D')
 `;
+
+/** Indexed match via dam_asset_fts GIN, plus collection-name hits. */
+function ftsMatchSql(ftsQuery: string): PrismaSql.Sql {
+  return PrismaSql.sql`(
+    dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
+      @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+    OR EXISTS (
+      SELECT 1
+      FROM "asset_collection" ac
+      INNER JOIN "collection" c ON c.id = ac."collectionId"
+      WHERE ac."assetId" = a.id
+        AND to_tsvector('simple'::regconfig, public.dam_search_normalize(c.name))
+          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+    )
+  )`;
+}
 
 async function rankedFtsPage(
   filters: ArchiveFilters,
@@ -170,6 +180,7 @@ async function rankedFtsPage(
   pageSize: number,
 ): Promise<{ ids: string[]; headlines: Map<string, string>; total: number }> {
   const whereSql = facetWhereSql(filters);
+  const matchSql = ftsMatchSql(ftsQuery);
   const safePage = Math.max(1, page);
   const skip = (safePage - 1) * pageSize;
 
@@ -178,8 +189,7 @@ async function rankedFtsPage(
       SELECT COUNT(*)::bigint AS total
       FROM "asset" a
       WHERE ${whereSql}
-        AND (${WEIGHTED_DOCUMENT_SQL})
-          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+        AND ${matchSql}
     `,
     prisma.$queryRaw<{ id: string; headline: string | null }[]>`
       SELECT
@@ -197,11 +207,10 @@ async function rankedFtsPage(
         ) AS headline
       FROM "asset" a
       WHERE ${whereSql}
-        AND (${WEIGHTED_DOCUMENT_SQL})
-          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+        AND ${matchSql}
       ORDER BY
         ts_rank(
-          (${WEIGHTED_DOCUMENT_SQL}),
+          (${RANK_DOCUMENT_SQL}),
           to_tsquery('simple'::regconfig, ${ftsQuery})
         ) DESC,
         a."createdAt" DESC
