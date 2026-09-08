@@ -62,7 +62,17 @@ export async function GET(
         { status: { in: ["published", "archived"] } },
       ],
     },
-    select: { r2Key: true, fileName: true, editParams: true },
+    select: {
+      r2Key: true,
+      fileName: true,
+      editParams: true,
+      credit: true,
+      altText: true,
+      keywords: true,
+      notes: true,
+      rightsType: true,
+      takenAt: true,
+    },
   });
   if (!asset) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -124,7 +134,14 @@ export async function GET(
 
     const original = await getObject(asset.r2Key);
     if (variant === "export") {
-      const rendered = await renderPublishedMaster(original.buffer, asset.editParams);
+      const rendered = await renderPublishedMaster(original.buffer, asset.editParams, {
+        credit: asset.credit,
+        altText: asset.altText,
+        keywords: asset.keywords,
+        notes: asset.notes,
+        rightsType: asset.rightsType,
+        takenAt: asset.takenAt,
+      });
       return imageResponse(rendered.buffer, "image/jpeg", {
         "Cache-Control": "private, no-store",
         "Content-Disposition": contentDispositionAttachment(

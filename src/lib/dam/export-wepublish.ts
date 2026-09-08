@@ -35,13 +35,24 @@ export async function exportPublishedAssetToWepublish(
       r2Key: true,
       credit: true,
       altText: true,
+      keywords: true,
+      notes: true,
+      rightsType: true,
+      takenAt: true,
       editParams: true,
     },
   });
   if (!asset) return { error: "Publiziertes Bild nicht gefunden." };
 
   const original = await getObjectBuffer(asset.r2Key);
-  const rendered = await renderPublishedMaster(original, asset.editParams);
+  const rendered = await renderPublishedMaster(original, asset.editParams, {
+    credit: asset.credit,
+    altText: asset.altText,
+    keywords: asset.keywords,
+    notes: asset.notes,
+    rightsType: asset.rightsType,
+    takenAt: asset.takenAt,
+  });
   const fileName = replaceKeyExtension(asset.fileName, "jpg");
   const uploaded = await uploadImageToWepublish(
     {

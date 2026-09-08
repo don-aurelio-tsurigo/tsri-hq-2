@@ -7,6 +7,10 @@ import {
   straightenCoverExtract,
   type DamEditParams,
 } from "@/lib/dam/edit-params";
+import {
+  buildDamExportMetadata,
+  type DamExportEditorial,
+} from "@/lib/dam/export-metadata";
 import { decodeHeicIfNeeded } from "@/lib/dam/heic";
 
 /**
@@ -115,9 +119,14 @@ export async function renderDamPreviewWebp(
 export async function renderPublishedMaster(
   original: Buffer,
   raw: unknown,
+  editorial?: DamExportEditorial | null,
 ): Promise<{ buffer: Buffer; width: number | null; height: number | null }> {
   const edited = await applyDamEdits(original, raw);
-  const buffer = await sharp(edited).jpeg({ quality: 88 }).toBuffer();
+  const metadata = editorial ? buildDamExportMetadata(editorial) : null;
+  let pipeline = sharp(edited).jpeg({ quality: 88 });
+  if (metadata?.exif) pipeline = pipeline.withExif(metadata.exif);
+  if (metadata?.xmp) pipeline = pipeline.withXmp(metadata.xmp);
+  const buffer = await pipeline.toBuffer();
   const meta = await sharp(buffer).metadata();
   return {
     buffer,
