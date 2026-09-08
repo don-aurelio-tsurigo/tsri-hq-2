@@ -38,8 +38,8 @@ import type {
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
-/** Pause after typing before URL search; Enter commits immediately. */
-const ARCHIVE_QUERY_DEBOUNCE_MS = 450;
+/** Pause after typing before search; Enter commits immediately. */
+const ARCHIVE_QUERY_DEBOUNCE_MS = 280;
 
 type Chip = {
   key: string;
@@ -172,10 +172,16 @@ export function DamArchiveView({
   const [searchPending, setSearchPending] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchSeqRef = useRef(0);
+  /** Skip duplicate fetches when we already loaded this key before router sync. */
+  const lastFetchedKeyRef = useRef<string | null>(null);
 
   const filtered = archiveFiltersActive(filters);
   const extraCount = hiddenArchiveFilterCount(filters);
   const chipCount = archiveFilterChipCount(filters);
+  const urlPage = useMemo(
+    () => parseArchivePageFromSearchParams(searchParams),
+    [searchParams],
+  );
   const effectiveTotal = view === "photos" ? photoTotal : total;
   const effectivePage = view === "photos" ? photoPage : page;
   const effectivePageCount = view === "photos" ? photoPageCount : pageCount;
@@ -184,13 +190,54 @@ export function DamArchiveView({
   const rangeTo = Math.min(effectivePage * pageSize, effectiveTotal);
   const photosBusy = pending || searchPending;
 
+  const fetchPhotos = useCallback(
+    (nextFilters: ArchiveFilters, nextPage: number, fetchKey: string) => {
+      lastFetchedKeyRef.current = fetchKey;
+      const controller = new AbortController();
+      searchAbortRef.current?.abort();
+      searchAbortRef.current = controller;
+      const seq = ++searchSeqRef.current;
+      setSearchPending(true);
+
+      const params = archiveFiltersToSearchParams(nextFilters, nextPage);
+      void fetch(`/api/dam/archive/search?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error("search_failed");
+          return (await res.json()) as ArchiveSearchResult;
+        })
+        .then((result) => {
+          if (seq !== searchSeqRef.current) return;
+          setPhotoAssets(result.assets);
+          setPhotoTotal(result.total);
+          setPhotoPage(result.page);
+          setPhotoPageCount(result.pageCount);
+          setRelaxedMatch(Boolean(result.relaxedMatch));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          if (seq !== searchSeqRef.current) return;
+          console.warn("[dam] archive search fetch failed", error);
+        })
+        .finally(() => {
+          if (seq === searchSeqRef.current) setSearchPending(false);
+        });
+    },
+    [],
+  );
+
   const apply = useCallback(
     (next: ArchiveFilters, nextPage = 1, scroll = false, nextView = view) => {
+      if (nextView === "photos") {
+        const key = archiveFiltersToSearchParams(next, nextPage).toString();
+        fetchPhotos(next, nextPage, key);
+      }
       startTransition(() => {
         router.replace(archiveHref(next, nextPage, nextView), { scroll });
       });
     },
-    [router, view],
+    [fetchPhotos, router, view],
   );
 
   const commit = useCallback(
@@ -214,52 +261,13 @@ export function DamArchiveView({
     return () => window.clearTimeout(timer);
   }, [commitQuery]);
 
-  // Photos: client fetch with AbortController + sequence guard (avoids stale races).
+  // Back/forward or external URL changes: fetch only if we did not just prefetch.
   const filterKey = searchParams.toString();
   useEffect(() => {
     if (view !== "photos") return;
-
-    const controller = new AbortController();
-    searchAbortRef.current?.abort();
-    searchAbortRef.current = controller;
-    const seq = ++searchSeqRef.current;
-    setSearchPending(true);
-
-    const liveFilters = parseArchiveFiltersFromSearchParams(
-      new URLSearchParams(filterKey),
-    );
-    const livePage = parseArchivePageFromSearchParams(
-      new URLSearchParams(filterKey),
-    );
-    const params = archiveFiltersToSearchParams(liveFilters, livePage);
-    void fetch(`/api/dam/archive/search?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("search_failed");
-        return (await res.json()) as ArchiveSearchResult;
-      })
-      .then((result) => {
-        if (seq !== searchSeqRef.current) return;
-        setPhotoAssets(result.assets);
-        setPhotoTotal(result.total);
-        setPhotoPage(result.page);
-        setPhotoPageCount(result.pageCount);
-        setRelaxedMatch(Boolean(result.relaxedMatch));
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        if (seq !== searchSeqRef.current) return;
-        console.warn("[dam] archive search fetch failed", error);
-      })
-      .finally(() => {
-        if (seq === searchSeqRef.current) setSearchPending(false);
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [filterKey, view]);
+    if (lastFetchedKeyRef.current === filterKey) return;
+    fetchPhotos(filters, urlPage, filterKey);
+  }, [fetchPhotos, filterKey, filters, urlPage, view]);
 
   const collectionOptions = useMemo<DamComboboxOption[]>(
     () => [

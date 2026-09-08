@@ -154,24 +154,26 @@ const INDEXED_DOCUMENT_SQL = PrismaSql.sql`
   dam_asset_fts(a."fileName", a."altText", a.credit, a.keywords, a.notes)
 `;
 
-/** Indexed match via dam_asset_fts GIN, plus collection-name hits. */
+/**
+ * GIN match on the asset, plus collection hits evaluated from the small
+ * collection set first (avoids per-asset to_tsvector).
+ */
 function ftsMatchSql(ftsQuery: string): PrismaSql.Sql {
   return PrismaSql.sql`(
     ${INDEXED_DOCUMENT_SQL} @@ to_tsquery('simple'::regconfig, ${ftsQuery})
-    OR EXISTS (
-      SELECT 1
-      FROM "asset_collection" ac
-      INNER JOIN "collection" c ON c.id = ac."collectionId"
-      WHERE ac."assetId" = a.id
-        AND to_tsvector('simple'::regconfig, public.dam_search_normalize(c.name))
-          @@ to_tsquery('simple'::regconfig, ${ftsQuery})
+    OR a.id IN (
+      SELECT ac."assetId"
+      FROM "collection" c
+      INNER JOIN "asset_collection" ac ON ac."collectionId" = c.id
+      WHERE to_tsvector('simple'::regconfig, public.dam_search_normalize(c.name))
+        @@ to_tsquery('simple'::regconfig, ${ftsQuery})
     )
   )`;
 }
 
 /**
- * Prefer editorial phrase hits (notes/alt/keywords/fileName/collections), then
- * index rank, then upload time. Avoid rebuilding weighted tsvectors per row.
+ * Prefer editorial phrase hits, then index rank, then upload time.
+ * Single round-trip (window count); no ts_headline on the hot path.
  */
 async function rankedFtsPage(
   filters: ArchiveFilters,
@@ -187,79 +189,77 @@ async function rankedFtsPage(
   const safePage = Math.max(1, page);
   const skip = (safePage - 1) * pageSize;
 
+  // One normalized haystack for phrase boost — no per-field EXISTS in ORDER BY.
   const phraseBoostSql = phrasePattern
     ? PrismaSql.sql`(
         CASE
-          WHEN public.dam_search_normalize(coalesce(a.notes, '')) LIKE ${phrasePattern} THEN 4
-          WHEN public.dam_search_normalize(coalesce(a."altText", '')) LIKE ${phrasePattern} THEN 3
-          WHEN public.dam_search_normalize(coalesce(array_to_string(a.keywords, ' '), '')) LIKE ${phrasePattern} THEN 3
-          WHEN public.dam_search_normalize(coalesce(a."fileName", '')) LIKE ${phrasePattern} THEN 2
-          WHEN EXISTS (
-            SELECT 1
-            FROM "asset_collection" ac_p
-            INNER JOIN "collection" c_p ON c_p.id = ac_p."collectionId"
-            WHERE ac_p."assetId" = a.id
-              AND public.dam_search_normalize(c_p.name) LIKE ${phrasePattern}
-          ) THEN 2
+          WHEN public.dam_search_normalize(
+            concat_ws(
+              ' ',
+              coalesce(a.notes, ''),
+              coalesce(a."altText", ''),
+              coalesce(array_to_string(a.keywords, ' '), ''),
+              coalesce(a."fileName", '')
+            )
+          ) LIKE ${phrasePattern} THEN 1
           ELSE 0
         END
       )`
     : PrismaSql.sql`0`;
 
-  const [countRows, pageRows] = await Promise.all([
-    prisma.$queryRaw<{ total: bigint }[]>`
+  const pageRows = await prisma.$queryRaw<
+    { id: string; total: bigint; snippet: string | null }[]
+  >`
+    SELECT
+      a.id,
+      COUNT(*) OVER()::bigint AS total,
+      NULLIF(
+        left(
+          coalesce(
+            NULLIF(trim(a.notes), ''),
+            NULLIF(trim(a."altText"), ''),
+            NULLIF(trim(array_to_string(a.keywords, ', ')), '')
+          ),
+          160
+        ),
+        ''
+      ) AS snippet
+    FROM "asset" a
+    WHERE ${whereSql}
+      AND ${matchSql}
+    ORDER BY
+      ${phraseBoostSql} DESC,
+      ts_rank(${INDEXED_DOCUMENT_SQL}, to_tsquery('simple'::regconfig, ${ftsQuery})) DESC,
+      a."createdAt" DESC
+    LIMIT ${pageSize}
+    OFFSET ${skip}
+  `;
+
+  const total = pageRows.length > 0 ? Number(pageRows[0]?.total ?? 0) : 0;
+  // Empty page but not first page: still need a total — cheap count only then.
+  let resolvedTotal = total;
+  if (pageRows.length === 0 && skip > 0) {
+    const countRows = await prisma.$queryRaw<{ total: bigint }[]>`
       SELECT COUNT(*)::bigint AS total
       FROM "asset" a
       WHERE ${whereSql}
         AND ${matchSql}
-    `,
-    prisma.$queryRaw<{ id: string }[]>`
-      SELECT a.id
-      FROM "asset" a
-      WHERE ${whereSql}
-        AND ${matchSql}
-      ORDER BY
-        ${phraseBoostSql} DESC,
-        ts_rank(${INDEXED_DOCUMENT_SQL}, to_tsquery('simple'::regconfig, ${ftsQuery})) DESC,
-        a."createdAt" DESC
-      LIMIT ${pageSize}
-      OFFSET ${skip}
-    `,
-  ]);
-
-  const total = Number(countRows[0]?.total ?? 0);
-  const ids = pageRows.map((row) => row.id);
-  const headlines = new Map<string, string>();
-
-  if (ids.length > 0) {
-    const headlineRows = await prisma.$queryRaw<
-      { id: string; headline: string | null }[]
-    >`
-      SELECT
-        a.id,
-        ts_headline(
-          'simple'::regconfig,
-          concat_ws(
-            E'\n',
-            NULLIF(trim(coalesce(a.notes, '')), ''),
-            NULLIF(trim(coalesce(a."altText", '')), ''),
-            NULLIF(trim(coalesce(array_to_string(a.keywords, ', '), '')), '')
-          ),
-          to_tsquery('simple'::regconfig, ${ftsQuery}),
-          'MaxFragments=1, MaxWords=18, MinWords=4, StartSel=<mark>, StopSel=</mark>'
-        ) AS headline
-      FROM "asset" a
-      WHERE a.id IN (${PrismaSql.join(
-        ids.map((id) => PrismaSql.sql`${id}`),
-        ", ",
-      )})
     `;
-    for (const row of headlineRows) {
-      if (row.headline?.trim()) headlines.set(row.id, row.headline.trim());
-    }
+    resolvedTotal = Number(countRows[0]?.total ?? 0);
+  } else if (pageRows.length === 0) {
+    resolvedTotal = 0;
   }
 
-  return { ids, headlines, total };
+  const headlines = new Map<string, string>();
+  for (const row of pageRows) {
+    if (row.snippet?.trim()) headlines.set(row.id, row.snippet.trim());
+  }
+
+  return {
+    ids: pageRows.map((row) => row.id),
+    headlines,
+    total: resolvedTotal,
+  };
 }
 
 function publishedWhere(
