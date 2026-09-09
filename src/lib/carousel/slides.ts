@@ -15,6 +15,7 @@ import {
 } from "@/lib/carousel/sixibrief";
 import {
   DEFAULT_OUTRO_CTA,
+  TSUERITIPP_DEFAULT_OVERLINE,
   type CoverSlide,
   type OutroSlide,
   type QuoteSlide,
@@ -134,6 +135,13 @@ export function applyFormatSlideDefaults(
   slide: Slide,
   format: CarouselFormat,
 ): Slide {
+  if (format === "tsueritipp") {
+    if (slide.type !== "cover") return slide;
+    return {
+      ...slide,
+      overline: slide.overline.trim() || TSUERITIPP_DEFAULT_OVERLINE,
+    };
+  }
   if (format !== "6ibrief") return slide;
   switch (slide.type) {
     case "cover":

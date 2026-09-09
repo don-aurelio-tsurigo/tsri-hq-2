@@ -346,8 +346,8 @@ Setze category auf genau einen Namen (GROSSBUCHSTABEN). Hinweis: Für das Tsüri
 FELD-REGELN:
 
 Cover:
+- overline genau: "Tsüritipp: Kultur für die Woche" (fix, nicht aus Pre-Title übernehmen).
 - headline = Artikel-Titel wortwörtlich (darf \\n enthalten).
-- Kein overline-Feld nötig/anzuzeigen.
 
 Pro Text-Slide:
 - STANDARD: Bis zu 2 (im Ausnahmefall 3) Termine pro Slide, aktiv genutzt, wann immer nötig, um die Slide-Obergrenze einzuhalten UND alle Termine unterzubringen (siehe oben, hat Vorrang vor Weglassen).

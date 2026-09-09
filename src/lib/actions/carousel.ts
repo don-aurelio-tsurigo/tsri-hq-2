@@ -10,7 +10,7 @@ import {
   generateSlidesFromPastedText,
 } from "@/lib/ai/anthropic";
 import { prisma } from "@/lib/db";
-import { createEmptyCoverSlide, defaultCategoryForFormat } from "@/lib/carousel/slides";
+import { createEmptySlide, defaultCategoryForFormat } from "@/lib/carousel/slides";
 import { parseSlides } from "@/lib/carousel";
 import { isAdmin } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
@@ -48,7 +48,11 @@ export async function createCarouselPost(
       title: resolvedTitle,
       format: resolvedFormat,
       slides: [
-        createEmptyCoverSlide(defaultCategoryForFormat(resolvedFormat)),
+        createEmptySlide(
+          "cover",
+          defaultCategoryForFormat(resolvedFormat),
+          resolvedFormat,
+        ),
       ] as unknown as Prisma.InputJsonValue,
       createdById: session.user.id,
     },

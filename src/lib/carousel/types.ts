@@ -13,6 +13,7 @@ export const TIPP_LOGO_SRC = "/brand/tsuri-tipp-logo.png";
 export const TIPP_LOGO_WHITE_SRC = "/brand/tsuri-tipp-logo-white.png";
 export const TIPP_LOGO_TEAL_SRC = "/brand/tsuri-tipp-logo-teal.png";
 export const TIPP_TEAL = "#00b8b6";
+export const TSUERITIPP_DEFAULT_OVERLINE = "Tsüritipp: Kultur für die Woche";
 
 export const CANVAS_WIDTH = 1080;
 export const CANVAS_HEIGHT = 1350;
