@@ -258,11 +258,6 @@ export function FeedbackThanks({ id }: { id: string }) {
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-[var(--muted)]">
-                  {stats.total === 1
-                    ? "1 Stimme bisher"
-                    : `${stats.total} Stimmen bisher`}
-                </p>
               </div>
             ) : null}
 
