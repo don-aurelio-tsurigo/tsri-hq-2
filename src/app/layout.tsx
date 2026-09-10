@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Syne } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { getPublicAppOrigin } from "@/lib/app-url";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/link-preview";
 import "./globals.css";
 
 const display = Syne({
@@ -16,14 +18,29 @@ const body = Figtree({
 });
 
 export const metadata: Metadata = {
-  title: "Tsüri HQ 2.0",
-  description:
-    "Internes Team-HQ für Tsüri — Redaktion, Projekte, Tasks und Büro.",
-  applicationName: "Tsüri HQ",
+  metadataBase: new URL(getPublicAppOrigin()),
+  title: {
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    locale: "de_CH",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tsüri HQ",
+    title: SITE_NAME,
   },
   formatDetection: {
     telephone: false,

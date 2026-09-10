@@ -1,5 +1,6 @@
 import { NewsletterBlockSettings } from "@/components/newsletter-block-settings";
 import { NewsletterTypeManager } from "@/components/newsletter-type-manager";
+import { pageTitle } from "@/lib/link-preview";
 import {
   ensureDefaultNewsletterTypes,
   getNewsletterCalendarSettings,
@@ -7,6 +8,8 @@ import {
 } from "@/lib/newsletter";
 import { ensureShiftPlanTypes } from "@/lib/shift-plan";
 import { requireEditorialLead } from "@/lib/session";
+
+export const metadata = pageTitle("Newslettereinstellungen");
 
 export default async function NewsletterSettingsPage() {
   const { membership } = await requireEditorialLead();

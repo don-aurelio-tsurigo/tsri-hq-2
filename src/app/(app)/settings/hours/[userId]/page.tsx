@@ -4,6 +4,7 @@ import { addDays, format, parseISO, startOfWeek } from "date-fns";
 import { de } from "date-fns/locale";
 import { TimeTrackingWeek } from "@/components/time-tracking-week";
 import { prisma } from "@/lib/db";
+import { pageTitle } from "@/lib/link-preview";
 import { requireAdmin } from "@/lib/session";
 import {
   dailyTargetHours,
@@ -16,6 +17,8 @@ import {
   getYearToDateTimeSummary,
   weekLabel,
 } from "@/lib/time-tracking";
+
+export const metadata = pageTitle("Teamarbeitszeit");
 
 function parseWeekParam(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {

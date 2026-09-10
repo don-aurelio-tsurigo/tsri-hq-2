@@ -1,8 +1,11 @@
 import { CarouselCreatePanel } from "@/components/carousel-create-panel";
 import { CarouselList } from "@/components/carousel-list";
 import { listCarouselPosts, parseSlides } from "@/lib/carousel";
+import { pageTitle } from "@/lib/link-preview";
 import { isAdmin } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Social Media");
 
 export default async function CarouselIndexPage() {
   const { session, membership } = await requireMembership();

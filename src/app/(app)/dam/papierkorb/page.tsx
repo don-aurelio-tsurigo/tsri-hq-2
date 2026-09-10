@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { DamTrashGrid } from "@/components/dam-trash-grid";
 import { listTrashedAssets } from "@/lib/dam/trash";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Papierkorb");
 
 export default async function DamTrashPage() {
   await requireMembership();

@@ -1,8 +1,11 @@
 import { NewsletterDirectory } from "@/components/newsletter-directory";
+import { pageTitle } from "@/lib/link-preview";
 import {
   listMembersInTagPool,
   mergePickerMembers,
 } from "@/lib/membership-grants";
+
+export const metadata = pageTitle("Newsletter");
 import {
   ensureDefaultNewsletterTypes,
   listNewsletterCalendarMonth,

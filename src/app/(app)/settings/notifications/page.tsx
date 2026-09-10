@@ -1,8 +1,11 @@
 import { SlackCookingNotificationSettings } from "@/components/slack-cooking-notification-settings";
 import { SlackFeedbackNotificationSettings } from "@/components/slack-feedback-notification-settings";
 import { prisma } from "@/lib/db";
+import { pageTitle } from "@/lib/link-preview";
 import { isSlackWebhookConfigured } from "@/lib/notifications/slack";
 import { requireAdmin } from "@/lib/session";
+
+export const metadata = pageTitle("Benachrichtigungen");
 
 export default async function NotificationsSettingsPage() {
   const { membership } = await requireAdmin();

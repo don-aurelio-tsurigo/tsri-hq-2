@@ -7,7 +7,10 @@ import {
 import { TeamMembersPanel } from "@/components/team-members";
 import { prisma } from "@/lib/db";
 import { getPublicAppOrigin } from "@/lib/app-url";
+import { pageTitle } from "@/lib/link-preview";
 import { requireAdmin } from "@/lib/session";
+
+export const metadata = pageTitle("Teamverwaltung");
 
 function roleLabel(role: string) {
   return role === "admin" ? "Admin" : "Mitglied";

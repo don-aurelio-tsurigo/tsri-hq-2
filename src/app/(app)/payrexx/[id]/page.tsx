@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PayrexxAssignForm } from "@/components/payrexx-assign-form";
 import { deletePayrexxPayout } from "@/lib/actions/payrexx";
+import { pageTitle } from "@/lib/link-preview";
 import {
   formatMoney,
   getPayoutDetail,
 } from "@/lib/payrexx";
 import { PAYOUT_FEE_KEY, UNMAPPED_KEY } from "@/lib/payrexx/types";
 import { requireCapability } from "@/lib/session";
+
+export const metadata = pageTitle("Finance");
 
 export default async function PayrexxDetailPage({
   params,

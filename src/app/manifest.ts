@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Tsüri HQ 2.0",
-    short_name: "Tsüri HQ",
+    name: "Tsüri Hub",
+    short_name: "Tsüri Hub",
     description:
-      "Internes Team-HQ für Tsüri — Redaktion, Projekte, Tasks und Büro.",
+      "Internes Tsüri-Tool für Redaktion, Projekte und Tasks",
     start_url: "/home",
     scope: "/",
     display: "standalone",

@@ -1,12 +1,15 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
+import { pageTitle } from "@/lib/link-preview";
 import {
   getArchivedMembership,
   getMembership,
   getSession,
 } from "@/lib/session";
 import { nameIsIncomplete } from "@/lib/user-name";
+
+export const metadata = pageTitle("Anmelden");
 
 export default async function LoginPage() {
   const session = await getSession();

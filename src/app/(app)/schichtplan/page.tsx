@@ -1,8 +1,11 @@
 import { ShiftPlanDirectory } from "@/components/shift-plan-directory";
+import { pageTitle } from "@/lib/link-preview";
 import {
   listMembersInTagPool,
   mergePickerMembers,
 } from "@/lib/membership-grants";
+
+export const metadata = pageTitle("Schichtplan");
 import { canManageEditorial } from "@/lib/permissions";
 import {
   ensureShiftPlanTypes,

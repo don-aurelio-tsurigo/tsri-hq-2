@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { CarouselEditor } from "@/components/carousel-editor";
 import { getCarouselPost, parseSlides } from "@/lib/carousel";
 import { parseCarouselFormat } from "@/lib/carousel/format";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Social Media");
 import { stripArticleHeaderFromBody, recoverPreTitleFromBody } from "@/lib/wepublish/article";
 
 export default async function CarouselEditorPage({

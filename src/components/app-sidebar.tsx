@@ -304,7 +304,7 @@ export function AppSidebar({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/tsuri-logo.png"
-              alt="Tsüri HQ"
+              alt="Tsüri Hub"
               className="h-9 w-auto max-w-[11rem] object-contain object-left"
             />
           </Link>

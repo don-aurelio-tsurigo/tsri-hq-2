@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DamArchiveView } from "@/components/dam-archive-view";
+import { pageTitle } from "@/lib/link-preview";
 import {
   archiveCollectionsHref,
   archiveHref,
@@ -15,6 +16,8 @@ import {
 } from "@/lib/dam/archive-search";
 import { canReviewDamArchive } from "@/lib/dam/review";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Alle Fotos");
 
 export default async function DamArchivePage({
   searchParams,

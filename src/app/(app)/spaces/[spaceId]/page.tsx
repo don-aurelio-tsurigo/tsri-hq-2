@@ -1,8 +1,11 @@
 import { addDays, format, getISOWeek, isBefore, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CreateTaskForm } from "@/components/task-form";
 import { TaskList } from "@/components/task-list";
+import { prisma } from "@/lib/db";
+import { pageTitle, titleForSpaceSlug } from "@/lib/link-preview";
 import { EditorialKanban } from "@/components/editorial-kanban";
 import { EditorialProgram } from "@/components/editorial-program";
 import { OfficeDirectory } from "@/components/office-directory";
@@ -59,7 +62,32 @@ import {
   listNewsItems,
 } from "@/lib/news-feed";
 import { isNewsItemStatus } from "@/lib/news-feed-constants";
-import { prisma } from "@/lib/db";
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ spaceId: string }>;
+  searchParams: Promise<{ page?: string }>;
+}): Promise<Metadata> {
+  const { spaceId } = await params;
+  const { page: pageSlug } = await searchParams;
+  const space = await prisma.space.findUnique({
+    where: { id: spaceId },
+    select: { slug: true, name: true },
+  });
+  if (!space) return {};
+
+  if (space.slug === "wiki" && pageSlug) {
+    const wikiPage = await prisma.wikiPage.findFirst({
+      where: { spaceId, slug: pageSlug },
+      select: { title: true },
+    });
+    if (wikiPage) return pageTitle(wikiPage.title);
+  }
+
+  return pageTitle(titleForSpaceSlug(space.slug) ?? space.name);
+}
 
 export default async function SpacePage({
   params,

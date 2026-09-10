@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { PayrexxAssignForm } from "@/components/payrexx-assign-form";
+import { pageTitle } from "@/lib/link-preview";
 import { formatMoney, listUnmappedLines } from "@/lib/payrexx";
 import { requireCapability } from "@/lib/session";
+
+export const metadata = pageTitle("Finance");
 
 export default async function PayrexxReviewPage() {
   const { membership } = await requireCapability("finance");

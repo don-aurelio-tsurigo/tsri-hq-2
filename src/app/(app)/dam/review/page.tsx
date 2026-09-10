@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import { DamArchiveReviewComplete } from "@/components/dam-archive-review-complete";
 import { listArchiveFacets, parseArchivePage } from "@/lib/dam/archive-search";
+import { pageTitle } from "@/lib/link-preview";
+
+export const metadata = pageTitle("Alle Fotos");
 import {
   canReviewDamArchive,
   getLastDamArchiveReview,

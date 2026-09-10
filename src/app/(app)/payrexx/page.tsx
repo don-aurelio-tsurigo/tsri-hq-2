@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { PayrexxUploadForm } from "@/components/payrexx-upload-form";
 import { deletePayrexxPayout } from "@/lib/actions/payrexx";
+import { pageTitle } from "@/lib/link-preview";
 import { countUnmapped, formatMoney, listPayouts } from "@/lib/payrexx";
 import { requireCapability } from "@/lib/session";
+
+export const metadata = pageTitle("Finance");
 
 export default async function PayrexxPage() {
   const { membership } = await requireCapability("finance");

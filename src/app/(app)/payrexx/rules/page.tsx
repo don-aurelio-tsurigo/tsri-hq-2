@@ -3,12 +3,15 @@ import {
   removePayrexxChannelRule,
   savePayrexxChannelRule,
 } from "@/lib/actions/payrexx";
+import { pageTitle } from "@/lib/link-preview";
 import {
   assignableCategoryKeys,
   categoryLabel,
   listChannelRules,
 } from "@/lib/payrexx";
 import { requireCapability } from "@/lib/session";
+
+export const metadata = pageTitle("Finance");
 
 export default async function PayrexxRulesPage() {
   const { membership } = await requireCapability("finance");

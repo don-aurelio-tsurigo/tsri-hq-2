@@ -1,6 +1,9 @@
 import { DamUploadWizard } from "@/components/dam-upload-wizard";
 import { listCollections, listKnownCredits } from "@/lib/dam/queries";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Upload");
 
 export default async function DamUploadPage() {
   const { session } = await requireMembership();

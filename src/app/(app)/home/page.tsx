@@ -19,6 +19,7 @@ import {
   MONTHLY_COOKING_TARGET,
 } from "@/lib/cooking";
 import { prisma } from "@/lib/db";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
 import { getCurrentDashboardItems } from "@/lib/tasks";
 import { listMyHomeArticles } from "@/lib/articles";
@@ -42,6 +43,9 @@ import {
   getCurrentWeekProgress,
   getPastWeekTimeGaps,
 } from "@/lib/time-tracking";
+
+export const metadata = pageTitle("Home");
+
 function isMidweekChoreReminderDay(date: Date = new Date()) {
   const day = date.getDay(); // 0=So … 3=Mi … 5=Fr
   return day >= 3 && day <= 5;

@@ -1,13 +1,31 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { ProjectActions } from "@/components/project-actions";
 import { ProjectEventMeta } from "@/components/project-event-meta";
+import { prisma } from "@/lib/db";
+import { pageTitle } from "@/lib/link-preview";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
 import { getProject } from "@/lib/projects";
 import { requireMembership } from "@/lib/session";
 import { listSpaceTasks, listTaskGroups } from "@/lib/tasks";
-import { prisma } from "@/lib/db";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const { projectId } = await params;
+  const project = await prisma.space.findUnique({
+    where: { id: projectId },
+    select: { name: true, type: true },
+  });
+  if (project?.type === "project") {
+    return pageTitle(project.name);
+  }
+  return pageTitle("Projekte");
+}
 
 export default async function ProjectDetailPage({
   params,

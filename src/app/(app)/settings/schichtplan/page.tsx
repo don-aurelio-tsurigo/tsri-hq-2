@@ -1,4 +1,5 @@
 import { ShiftPlanSettings } from "@/components/shift-plan-settings";
+import { pageTitle } from "@/lib/link-preview";
 import { listMembersInTagPool } from "@/lib/membership-grants";
 import {
   ensureShiftPlanTypes,
@@ -7,6 +8,8 @@ import {
   listShiftQuotas,
 } from "@/lib/shift-plan";
 import { requireEditorialLead } from "@/lib/session";
+
+export const metadata = pageTitle("Schichtplan-Einstellungen");
 
 export default async function ShiftPlanSettingsPage() {
   const { membership } = await requireEditorialLead();

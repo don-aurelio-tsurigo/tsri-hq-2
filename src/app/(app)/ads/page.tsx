@@ -1,7 +1,10 @@
 import { AdsAdmin } from "@/components/ads-admin";
 import { AdSlot } from "@/components/ad-slot";
 import { listAdCampaigns } from "@/lib/ads";
+import { pageTitle } from "@/lib/link-preview";
 import { requireCivicMediaAccess } from "@/lib/session";
+
+export const metadata = pageTitle("Werbung");
 
 export default async function AdsPage() {
   await requireCivicMediaAccess();

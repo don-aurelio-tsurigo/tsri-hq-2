@@ -3,6 +3,9 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { CreateProjectForm } from "@/components/create-project-form";
 import { ProjectActions } from "@/components/project-actions";
+import { pageTitle } from "@/lib/link-preview";
+
+export const metadata = pageTitle("Projekte");
 import {
   parseProjectKindFilter,
   ProjectKindFilter,

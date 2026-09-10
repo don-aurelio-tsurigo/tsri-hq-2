@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { FeedbackDashboard } from "@/components/feedback-dashboard";
 import { isFeedbackRating, parseNewsletterSlug } from "@/lib/feedback";
 import {
@@ -7,11 +6,10 @@ import {
   listFeedbackVotes,
   listIssuesWithComments,
 } from "@/lib/feedback-dashboard";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
 
-export const metadata: Metadata = {
-  title: "Newsletter-Feedback",
-};
+export const metadata = pageTitle("Feedback");
 
 export default async function FeedbackPage({
   searchParams,

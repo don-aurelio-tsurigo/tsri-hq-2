@@ -2,7 +2,10 @@ import Link from "next/link";
 import { DamPersonalGrid } from "@/components/dam-personal-grid";
 import { enqueueDamProcessing } from "@/lib/dam/process-queue";
 import { listCollections, listPersonalStagingAssets, toPersonalAssetCard } from "@/lib/dam/queries";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Meine Uploads");
 
 export default async function DamPersonalPage() {
   const { session } = await requireMembership();

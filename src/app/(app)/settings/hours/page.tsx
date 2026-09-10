@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { pageTitle } from "@/lib/link-preview";
 import { requireAdmin } from "@/lib/session";
 import { listTeamHoursOverview } from "@/lib/time-tracking";
+
+export const metadata = pageTitle("Teamarbeitszeit");
 import { formatHours } from "@/lib/time-tracking-constants";
 
 function signed(hours: number) {

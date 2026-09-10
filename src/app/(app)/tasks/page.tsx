@@ -1,5 +1,6 @@
 import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { prisma } from "@/lib/db";
+import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
 import { ensurePersonalSpace } from "@/lib/spaces";
 import {
@@ -8,6 +9,8 @@ import {
   listSpaceTasks,
   listTaskGroups,
 } from "@/lib/tasks";
+
+export const metadata = pageTitle("Alle Tasks");
 
 function toTaskRow(
   t: {

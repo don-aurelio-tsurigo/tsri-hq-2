@@ -3,6 +3,9 @@ import {
   CAROUSEL_FORMAT_LABELS,
   CAROUSEL_FORMATS,
 } from "@/lib/carousel/format";
+import { pageTitle } from "@/lib/link-preview";
+
+export const metadata = pageTitle("Social Media");
 
 /** Fallback-Route: Form-Action statt Mutation während RSC-Render. */
 export default function NewCarouselPage() {
