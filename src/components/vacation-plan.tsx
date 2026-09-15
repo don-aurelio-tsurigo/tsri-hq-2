@@ -24,6 +24,9 @@ export type VacationRow = {
 };
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"] as const;
+/** Compact lane height so several overlapping vacations stay visible. */
+const BAR_LANE_PX = 20;
+const BAR_LANE_GAP_PX = 2;
 const BAR_COLORS = [
   "bg-[#ffd9ce] border-[#f0b8a8]",
   "bg-[#ffe9a8] border-[#e8d078]",
@@ -536,13 +539,17 @@ export function VacationPlan({
               const bars = barsForWeek(week, calendarApproved);
               const laneCount =
                 bars.reduce((max, b) => Math.max(max, b.lane + 1), 0) || 0;
-              const barsHeight = Math.max(laneCount, 1) * 46 + 8;
+              const barsHeight =
+                laneCount > 0
+                  ? laneCount * BAR_LANE_PX +
+                    Math.max(0, laneCount - 1) * BAR_LANE_GAP_PX
+                  : 0;
 
               return (
                 <div
                   key={week[0]!.dateKey}
                   className="relative grid grid-cols-7 border-b border-[var(--border)] last:border-b-0"
-                  style={{ minHeight: 36 + barsHeight }}
+                  style={{ minHeight: 32 + barsHeight + (barsHeight > 0 ? 6 : 0) }}
                 >
                   {week.map((day) => (
                     <div
@@ -567,50 +574,55 @@ export function VacationPlan({
                     </div>
                   ))}
 
-                  <div
-                    className="absolute inset-x-0 top-8 grid grid-cols-7 gap-y-1 px-0.5"
-                    style={{ height: barsHeight }}
-                  >
-                    {bars.map((bar) => {
-                      const own = bar.vacation.user.id === currentUserId;
-                      return (
-                        <button
-                          type="button"
-                          key={`${week[0]!.dateKey}-${bar.vacation.id}`}
-                          title={`${bar.vacation.user.name}: ${formatRange(bar.vacation.startDate, bar.vacation.endDate)}${own ? " — klicken zum Bearbeiten" : ""}`}
-                          disabled={!own || pending}
-                          onClick={() => {
-                            if (own) openEditForm(bar.vacation);
-                          }}
-                          className={[
-                            "mx-0.5 flex min-w-0 flex-col justify-center gap-0.5 border px-1.5 py-1 text-left text-[0.7rem] leading-tight shadow-sm",
-                            colorForUser(bar.vacation.user.id),
-                            bar.continuesLeft ? "rounded-l-sm" : "rounded-l-md",
-                            bar.continuesRight
-                              ? "rounded-r-sm"
-                              : "rounded-r-md",
-                            own
-                              ? "cursor-pointer hover:brightness-95"
-                              : "cursor-default",
-                          ].join(" ")}
-                          style={{
-                            gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
-                            gridRow: bar.lane + 1,
-                          }}
-                        >
-                          <span className="truncate font-semibold">Ferien</span>
-                          <span className="flex min-w-0 items-center gap-1">
-                            <span className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-black/15 text-[0.55rem] font-bold">
+                  {laneCount > 0 && (
+                    <div
+                      className="absolute inset-x-0 top-8 grid grid-cols-7 px-0.5"
+                      style={{
+                        height: barsHeight,
+                        rowGap: BAR_LANE_GAP_PX,
+                        gridTemplateRows: `repeat(${laneCount}, ${BAR_LANE_PX}px)`,
+                      }}
+                    >
+                      {bars.map((bar) => {
+                        const own = bar.vacation.user.id === currentUserId;
+                        return (
+                          <button
+                            type="button"
+                            key={`${week[0]!.dateKey}-${bar.vacation.id}`}
+                            title={`${bar.vacation.user.name}: ${formatRange(bar.vacation.startDate, bar.vacation.endDate)}${own ? " — klicken zum Bearbeiten" : ""}`}
+                            disabled={!own || pending}
+                            onClick={() => {
+                              if (own) openEditForm(bar.vacation);
+                            }}
+                            className={[
+                              "mx-0.5 flex h-full min-w-0 items-center gap-1 overflow-hidden border px-1.5 text-left text-[0.65rem] leading-none shadow-sm",
+                              colorForUser(bar.vacation.user.id),
+                              bar.continuesLeft
+                                ? "rounded-l-sm"
+                                : "rounded-l-md",
+                              bar.continuesRight
+                                ? "rounded-r-sm"
+                                : "rounded-r-md",
+                              own
+                                ? "cursor-pointer hover:brightness-95"
+                                : "cursor-default",
+                            ].join(" ")}
+                            style={{
+                              gridColumn: `${bar.startCol + 1} / span ${bar.span}`,
+                              gridRow: bar.lane + 1,
+                            }}
+                          >
+                            <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-black/15 text-[0.5rem] font-bold">
                               {initials(bar.vacation.user.name)}
                             </span>
                             <span className="truncate font-semibold">
                               {bar.vacation.user.name}
                             </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
