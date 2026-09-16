@@ -88,10 +88,12 @@ export function DamCombobox({
   const exactMatch = useMemo(() => {
     if (!typed) return false;
     const q = typed.toLocaleLowerCase("de-CH");
-    return mergedOptions.some(
+    const source =
+      remote && typed ? [...mergedOptions, ...(remoteOptions ?? [])] : mergedOptions;
+    return source.some(
       (option) => option.label.toLocaleLowerCase("de-CH") === q,
     );
-  }, [mergedOptions, typed]);
+  }, [mergedOptions, remote, remoteOptions, typed]);
 
   const canCreate = Boolean(onCreate && typed && !exactMatch && !creating);
 
@@ -148,7 +150,13 @@ export function DamCombobox({
     };
   }, [onSearch, open, remote, typed]);
 
-  function toggle(nextValue: string) {
+  function toggle(option: DamComboboxOption) {
+    setCreatedOptions((prev) =>
+      prev.some((item) => item.value === option.value)
+        ? prev
+        : [...prev, option],
+    );
+    const nextValue = option.value;
     if (multiple) {
       onChange(
         value.includes(nextValue)
@@ -193,7 +201,7 @@ export function DamCombobox({
       return;
     }
     if (row.kind === "option") {
-      toggle(row.option.value);
+      toggle(row.option);
       return;
     }
     void createNamed();
@@ -374,7 +382,7 @@ export function DamCombobox({
                         "hover:bg-[var(--panel-muted)]",
                       ].join(" ")}
                       onMouseEnter={() => setActiveIndex(index)}
-                      onClick={() => toggle(row.option.value)}
+                      onClick={() => toggle(row.option)}
                     >
                       <Check
                         className={[

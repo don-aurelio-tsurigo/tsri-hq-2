@@ -158,6 +158,22 @@ function hasCollection(ids: string[], newName: string | string[]): boolean {
   return names.some((name) => name.trim().length > 0);
 }
 
+async function searchAllCollectionOptions(
+  q: string,
+): Promise<{ value: string; label: string }[]> {
+  const params = new URLSearchParams({
+    type: "collections",
+    scope: "all",
+    q,
+  });
+  const res = await fetch(`/api/dam/archive/facets?${params}`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as {
+    options?: { value: string; label: string }[];
+  };
+  return data.options ?? [];
+}
+
 function namesFrom(value: string): string[] {
   const name = value.trim();
   return name ? [name] : [];
@@ -312,6 +328,7 @@ function MetaFields({
   collectionIds,
   onCollectionIds,
   collections,
+  onKnownCollections,
   newCollectionName,
   onNewCollectionName,
   credit,
@@ -329,6 +346,7 @@ function MetaFields({
   collectionIds: string[];
   onCollectionIds: (ids: string[]) => void;
   collections: CollectionOption[];
+  onKnownCollections?: (items: CollectionOption[]) => void;
   newCollectionName: string;
   onNewCollectionName: (name: string) => void;
   credit?: string;
@@ -441,6 +459,19 @@ function MetaFields({
             options={collectionOptions}
             value={collectionIds}
             multiple
+            remote
+            onSearch={async (q) => {
+              const options = await searchAllCollectionOptions(q);
+              if (options.length > 0 && onKnownCollections) {
+                onKnownCollections(
+                  options.map((option) => ({
+                    id: option.value,
+                    name: option.label,
+                  })),
+                );
+              }
+              return options;
+            }}
             onChange={onCollectionIds}
           />
         ) : collectionIds.length > 0 ? (
@@ -570,6 +601,7 @@ export function DamUploadWizard({
   const [rightsType, setRightsType] = useState<DamRightsType | "">(EMPTY_RIGHTS);
   const [notes, setNotes] = useState("");
   const [collectionIds, setCollectionIds] = useState<string[]>([]);
+  const [collectionCatalog, setCollectionCatalog] = useState(collections);
   const [newCollectionName, setNewCollectionName] = useState(() =>
     defaultCollectionName(""),
   );
@@ -758,7 +790,8 @@ export function DamUploadWizard({
     if (queued.length === 0) return [];
     const title =
       newCollectionName.trim() ||
-      collections.find((collection) => collection.id === collectionIds[0])?.name ||
+      collectionCatalog.find((collection) => collection.id === collectionIds[0])
+        ?.name ||
       creditDisplayName(selectedCredit) ||
       "foto";
     return queued.map((q, i) => {
@@ -767,7 +800,7 @@ export function DamUploadWizard({
         : "jpg";
       return buildFileName(title, i + 1, ext);
     });
-  }, [queued, selectedCredit, newCollectionName, collectionIds, collections]);
+  }, [queued, selectedCredit, newCollectionName, collectionIds, collectionCatalog]);
 
   function applyCredit(next: string) {
     const trimmed = next.trim();
@@ -778,6 +811,15 @@ export function DamUploadWizard({
   function changeNewCollection(name: string) {
     setCollectionAuto(false);
     setNewCollectionName(name);
+  }
+
+  function rememberCollections(items: CollectionOption[]) {
+    if (items.length === 0) return;
+    setCollectionCatalog((prev) => {
+      const seen = new Set(prev.map((collection) => collection.id));
+      const next = items.filter((item) => !seen.has(item.id));
+      return next.length === 0 ? prev : [...prev, ...next];
+    });
   }
 
   function removeQueued(id: string) {
@@ -794,7 +836,7 @@ export function DamUploadWizard({
   ): string {
     const named = newName.trim();
     if (named) return named;
-    const match = collections.find((collection) => collection.id === ids[0]);
+    const match = collectionCatalog.find((collection) => collection.id === ids[0]);
     if (match?.name) return match.name;
     return creditDisplayName(selectedCredit) || "foto";
   }
@@ -1377,7 +1419,8 @@ export function DamUploadWizard({
                 );
               }
             }}
-            collections={collections}
+            collections={collectionCatalog}
+            onKnownCollections={rememberCollections}
             newCollectionName={newCollectionName}
             onNewCollectionName={(name) => {
               changeNewCollection(name);
@@ -1493,7 +1536,8 @@ export function DamUploadWizard({
                             ),
                           )
                         }
-                        collections={collections}
+                        collections={collectionCatalog}
+                        onKnownCollections={rememberCollections}
                         newCollectionName={draft.newCollections[0] ?? ""}
                         onNewCollectionName={(name) => {
                           setCollectionAuto(false);

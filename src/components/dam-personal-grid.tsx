@@ -564,6 +564,30 @@ export function DamPersonalGrid({
                     options={collectionOptions}
                     value={[]}
                     placement="top"
+                    remote
+                    onSearch={async (q) => {
+                      const params = new URLSearchParams({
+                        type: "collections",
+                        scope: "all",
+                        q,
+                      });
+                      const res = await fetch(`/api/dam/archive/facets?${params}`);
+                      if (!res.ok) return [];
+                      const data = (await res.json()) as {
+                        options?: { value: string; label: string }[];
+                      };
+                      const options = data.options ?? [];
+                      if (options.length > 0) {
+                        setCollections((prev) => {
+                          const seen = new Set(prev.map((c) => c.id));
+                          const next = options
+                            .filter((o) => !seen.has(o.value))
+                            .map((o) => ({ id: o.value, name: o.label }));
+                          return next.length === 0 ? prev : [...prev, ...next];
+                        });
+                      }
+                      return options;
+                    }}
                     onCreate={createCollection}
                     onChange={(ids) => {
                       const collectionId = ids[0];

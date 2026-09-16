@@ -138,6 +138,20 @@ export function DamPublishDialog({
                     options={collectionOptions}
                     value={collectionDrafts[asset.id] ?? []}
                     multiple
+                    remote
+                    onSearch={async (q) => {
+                      const params = new URLSearchParams({
+                        type: "collections",
+                        scope: "all",
+                        q,
+                      });
+                      const res = await fetch(`/api/dam/archive/facets?${params}`);
+                      if (!res.ok) return [];
+                      const data = (await res.json()) as {
+                        options?: { value: string; label: string }[];
+                      };
+                      return data.options ?? [];
+                    }}
                     onCreate={onCreateCollection}
                     onChange={(ids) =>
                       setCollectionDrafts((prev) => ({ ...prev, [asset.id]: ids }))

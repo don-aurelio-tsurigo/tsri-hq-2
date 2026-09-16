@@ -321,16 +321,20 @@ export async function searchArchiveKeywords(
 export async function searchArchiveCollections(
   q: string,
   take = ARCHIVE_FACET_SEARCH_LIMIT,
+  opts?: { publishedOnly?: boolean },
 ): Promise<ArchiveFacetOption[]> {
   const query = q.trim().slice(0, 80);
   if (!query) return [];
+  const publishedOnly = opts?.publishedOnly !== false;
   const rows = await prisma.collection.findMany({
     where: {
-      assets: { some: { asset: { status: "published" } } },
+      ...(publishedOnly
+        ? { assets: { some: { asset: { status: "published" } } } }
+        : {}),
       name: { contains: query, mode: "insensitive" },
     },
     select: { id: true, name: true },
-    orderBy: [{ createdAt: "desc" }, { name: "asc" }],
+    orderBy: [{ name: "asc" }],
     take,
   });
   return rows.map((row) => ({ value: row.id, label: row.name }));

@@ -21,7 +21,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ options: await searchArchiveKeywords(q) });
   }
   if (type === "collections") {
-    return NextResponse.json({ options: await searchArchiveCollections(q) });
+    const scope = url.searchParams.get("scope");
+    return NextResponse.json({
+      options: await searchArchiveCollections(q, undefined, {
+        publishedOnly: scope !== "all",
+      }),
+    });
   }
 
   return NextResponse.json({ error: "Ungültiger Typ." }, { status: 400 });
