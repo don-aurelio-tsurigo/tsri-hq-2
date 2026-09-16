@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 import { updateTask } from "@/lib/actions";
+import { useIsMobile } from "@/lib/use-media-query";
 
 export type AssigneeMember = {
   id: string;
@@ -65,6 +66,7 @@ export function TaskAssigneePicker({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
@@ -96,8 +98,8 @@ export function TaskAssigneePicker({
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!open || !buttonRef.current) {
-      setPos(null);
+    if (!open || !buttonRef.current || isMobile) {
+      if (!open) setPos(null);
       return;
     }
     function updatePos() {
@@ -109,7 +111,12 @@ export function TaskAssigneePicker({
         Math.max(8, r.right - width),
         window.innerWidth - width - 8,
       );
-      setPos({ top: r.bottom + 6, left: Math.max(8, left) });
+      const estimatedHeight = 320;
+      const top =
+        r.bottom + 6 + estimatedHeight > window.innerHeight - 8
+          ? Math.max(8, r.top - estimatedHeight - 6)
+          : r.bottom + 6;
+      setPos({ top, left: Math.max(8, left) });
     }
     updatePos();
     window.addEventListener("scroll", updatePos, true);
@@ -118,7 +125,7 @@ export function TaskAssigneePicker({
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,11 +140,14 @@ export function TaskAssigneePicker({
     }
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    if (isMobile) document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [open, isMobile]);
 
   function saveAssignee(nextId: string | null) {
     const fd = new FormData();
@@ -160,8 +170,8 @@ export function TaskAssigneePicker({
       aria-expanded={open}
       title={selected.name}
       className={[
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full transition hover:opacity-90 disabled:opacity-60",
-        compact ? "" : "pr-1.5",
+        "inline-flex size-10 shrink-0 items-center justify-center rounded-full transition hover:opacity-90 disabled:opacity-60 sm:size-7",
+        compact ? "" : "sm:w-auto sm:gap-1.5 sm:pr-1.5",
       ].join(" ")}
       onClick={(e) => {
         e.stopPropagation();
@@ -170,14 +180,14 @@ export function TaskAssigneePicker({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <span
-        className="inline-flex size-7 items-center justify-center rounded-full text-[0.65rem] font-semibold text-white"
+        className="inline-flex size-8 items-center justify-center rounded-full text-[0.7rem] font-semibold text-white sm:size-7 sm:text-[0.65rem]"
         style={{ backgroundColor: avatarColor(selected.id) }}
         aria-hidden
       >
         {initials(selected.name)}
       </span>
       {!compact && (
-        <span className="max-w-[7rem] truncate text-xs text-[var(--muted)]">
+        <span className="hidden max-w-[7rem] truncate text-xs text-[var(--muted)] sm:inline">
           {selected.name.split(" ")[0]}
         </span>
       )}
@@ -190,99 +200,130 @@ export function TaskAssigneePicker({
       aria-label="Zuständigkeit setzen"
       aria-expanded={open}
       title="Zuständig"
-      className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60"
+      className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60 sm:size-7"
       onClick={(e) => {
         e.stopPropagation();
         setOpen((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <User className="size-3.5" strokeWidth={1.75} />
+      <User className="size-4 sm:size-3.5" strokeWidth={1.75} />
     </button>
   );
 
-  const popover =
-    open && pos
-      ? createPortal(
-          <div
-            ref={popoverRef}
-            role="listbox"
-            aria-label="Zuständig"
-            style={{ top: pos.top, left: pos.left, width: 300 }}
-            className="fixed z-[80] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
+  const panel = (
+    <div
+      ref={popoverRef}
+      role="listbox"
+      aria-label="Zuständig"
+      className={
+        isMobile
+          ? "fixed inset-x-0 bottom-0 z-[81] flex max-h-[85dvh] flex-col overflow-hidden rounded-t-2xl border border-[var(--border)] bg-[var(--bg-elevated)] pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_40px_rgba(0,0,0,0.18)]"
+          : "fixed z-[80] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
+      }
+      style={
+        isMobile
+          ? undefined
+          : pos
+            ? { top: pos.top, left: pos.left, width: 300 }
+            : { display: "none" }
+      }
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {isMobile && (
+        <div className="flex justify-center pt-3">
+          <span className="h-1 w-10 rounded-full bg-[var(--border)]" aria-hidden />
+        </div>
+      )}
+      <div className="border-b border-[var(--border)] p-3 sm:p-2">
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Name oder E-Mail…"
+          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-base outline-none focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_28%,transparent)] sm:px-2.5 sm:py-1.5 sm:text-sm"
+        />
+      </div>
+      <ul className="max-h-[min(24rem,60dvh)] overflow-y-auto py-1 sm:max-h-64">
+        <li>
+          <button
+            type="button"
+            role="option"
+            aria-selected={!selected}
+            disabled={pending}
+            className="flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-black/5 disabled:opacity-60 sm:min-h-0 sm:py-2"
+            onClick={() => saveAssignee(null)}
           >
-            <div className="border-b border-[var(--border)] p-2">
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Name oder E-Mail…"
-                className="w-full rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_28%,transparent)]"
-              />
-            </div>
-            <ul className="max-h-64 overflow-y-auto py-1">
-              <li>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={!selected}
-                  disabled={pending}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-black/5 disabled:opacity-60"
-                  onClick={() => saveAssignee(null)}
+            <span className="inline-flex size-8 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] sm:size-7">
+              <User className="size-3.5" strokeWidth={1.75} />
+            </span>
+            <span className="font-medium text-[var(--muted)]">Niemand</span>
+          </button>
+        </li>
+        {filtered.map((member) => {
+          const active = member.id === selected?.id;
+          return (
+            <li key={member.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={active}
+                disabled={pending}
+                className={[
+                  "flex min-h-12 w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-black/5 disabled:opacity-60 sm:min-h-0 sm:py-2",
+                  active
+                    ? "bg-[color-mix(in_oklab,var(--accent)_10%,white)]"
+                    : "",
+                ].join(" ")}
+                onClick={() => saveAssignee(member.id)}
+              >
+                <span
+                  className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[0.7rem] font-semibold text-white sm:size-7 sm:text-[0.65rem]"
+                  style={{ backgroundColor: avatarColor(member.id) }}
+                  aria-hidden
                 >
-                  <span className="inline-flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)]">
-                    <User className="size-3.5" strokeWidth={1.75} />
+                  {initials(member.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">
+                    {member.name}
                   </span>
-                  <span className="font-medium text-[var(--muted)]">
-                    Niemand
-                  </span>
-                </button>
-              </li>
-              {filtered.map((member) => {
-                const active = member.id === selected?.id;
-                return (
-                  <li key={member.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={active}
-                      disabled={pending}
-                      className={[
-                        "flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-black/5 disabled:opacity-60",
-                        active ? "bg-[color-mix(in_oklab,var(--accent)_10%,white)]" : "",
-                      ].join(" ")}
-                      onClick={() => saveAssignee(member.id)}
-                    >
-                      <span
-                        className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-semibold text-white"
-                        style={{ backgroundColor: avatarColor(member.id) }}
-                        aria-hidden
-                      >
-                        {initials(member.name)}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">
-                          {member.name}
-                        </span>
-                        {member.email ? (
-                          <span className="block truncate text-xs text-[var(--muted)]">
-                            {member.email}
-                          </span>
-                        ) : null}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-              {filtered.length === 0 && (
-                <li className="px-3 py-4 text-center text-sm text-[var(--muted)]">
-                  Keine Treffer
-                </li>
-              )}
-            </ul>
-          </div>,
+                  {member.email ? (
+                    <span className="block truncate text-xs text-[var(--muted)]">
+                      {member.email}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {filtered.length === 0 && (
+          <li className="px-3 py-4 text-center text-sm text-[var(--muted)]">
+            Keine Treffer
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+
+  const popover =
+    open && (isMobile || pos)
+      ? createPortal(
+          isMobile ? (
+            <>
+              <button
+                type="button"
+                aria-label="Schliessen"
+                className="fixed inset-0 z-[80] bg-black/35"
+                onClick={() => setOpen(false)}
+              />
+              {panel}
+            </>
+          ) : (
+            panel
+          ),
           document.body,
         )
       : null;

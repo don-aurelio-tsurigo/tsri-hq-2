@@ -90,11 +90,11 @@ export function InlineTaskAdd({
     return (
       <button
         type="button"
-        className="flex w-full items-center gap-2.5 py-0.5 text-left text-sm text-[var(--muted)] transition hover:text-[var(--fg)]"
+        className="flex min-h-11 w-full items-center gap-2.5 py-1.5 text-left text-sm text-[var(--muted)] transition hover:text-[var(--fg)] sm:min-h-0 sm:py-0.5"
         onClick={() => setOpen(true)}
       >
         <span
-          className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none"
+          className="flex size-5 shrink-0 items-center justify-center text-base leading-none sm:size-[1.15rem]"
           aria-hidden
         >
           +
@@ -108,7 +108,7 @@ export function InlineTaskAdd({
     <div className="space-y-1">
       <div className="flex items-center gap-2.5">
         <span
-          className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none text-[var(--muted)]"
+          className="flex size-5 shrink-0 items-center justify-center text-base leading-none text-[var(--muted)] sm:size-[1.15rem]"
           aria-hidden
         >
           +
@@ -121,7 +121,7 @@ export function InlineTaskAdd({
           aria-label="Neue Aufgabe"
           aria-invalid={!!error}
           className={[
-            "min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-sm font-medium leading-snug outline-none transition",
+            "min-h-11 min-w-0 flex-1 rounded-md border bg-transparent px-2.5 py-2 text-base font-medium leading-snug outline-none transition sm:min-h-0 sm:px-2 sm:py-1 sm:text-sm",
             "placeholder:font-normal placeholder:text-[var(--muted)]",
             "disabled:opacity-60",
             error

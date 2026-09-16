@@ -85,9 +85,9 @@ export function ProjectTasksOverview({
         </h2>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+        <div className="space-y-2">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <span className="mr-1 hidden shrink-0 self-center text-xs font-semibold tracking-wide text-[var(--muted)] uppercase sm:inline">
             Anzeige
           </span>
           {(
@@ -103,7 +103,7 @@ export function ProjectTasksOverview({
                 type="button"
                 aria-pressed={active}
                 className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
                   active
                     ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                     : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
@@ -117,8 +117,8 @@ export function ProjectTasksOverview({
         </div>
 
         {scope === "all" && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="mr-1 hidden shrink-0 self-center text-xs font-semibold tracking-wide text-[var(--muted)] uppercase sm:inline">
               Gruppierung
             </span>
             {(
@@ -134,7 +134,7 @@ export function ProjectTasksOverview({
                   type="button"
                   aria-pressed={active}
                   className={[
-                    "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                    "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
                     active
                       ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                       : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",

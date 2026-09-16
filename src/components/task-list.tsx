@@ -20,6 +20,7 @@ import { TaskDuePicker } from "@/components/task-due-picker";
 import { TaskDoneCheckbox } from "@/components/task-form";
 import { useDeleteTaskWithUndo } from "@/components/use-delete-task-with-undo";
 import { cancelTask, updateTask } from "@/lib/actions";
+import { useFinePointer } from "@/lib/use-media-query";
 import type { TaskStatus } from "@/generated/prisma/client";
 
 const DRAWER_MS = 280;
@@ -201,7 +202,7 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex size-7 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
+        className="inline-flex size-10 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)] sm:size-7"
         aria-label="Task-Aktionen"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -260,6 +261,8 @@ export function TaskList({
 
   const selected = tasks.find((t) => t.id === selectedId) ?? null;
   const canDrop = enableDrag && !!onMoveToGroup && dropGroupId !== undefined;
+  const finePointer = useFinePointer();
+  const allowDrag = enableDrag && finePointer;
 
   function saveTask(fd: FormData) {
     setError(null);
@@ -384,48 +387,55 @@ export function TaskList({
           return (
             <li
               key={task.id}
-              draggable={enableDrag}
+              draggable={allowDrag}
               onDragStart={(e) => {
-                if (!enableDrag) return;
+                if (!allowDrag) return;
                 e.dataTransfer.setData(TASK_DRAG_TYPE, task.id);
                 e.dataTransfer.effectAllowed = "move";
               }}
               className={[
-                "flex items-center gap-2.5 transition-opacity duration-200",
-                compact ? "px-3 py-1.5" : "px-4 py-3 gap-3",
+                "flex flex-col gap-1.5 transition-opacity duration-200 sm:flex-row sm:items-center sm:gap-2.5",
+                compact ? "px-3 py-2.5 sm:py-1.5" : "px-4 py-3 gap-3",
                 active ? "bg-[color-mix(in_oklab,var(--accent)_8%,white)]" : "",
-                enableDrag
-                  ? "cursor-grab active:cursor-grabbing"
-                  : "",
+                allowDrag ? "sm:cursor-grab sm:active:cursor-grabbing" : "",
                 "has-[button[aria-pressed=true]]:opacity-70",
                 "has-[button[aria-pressed=true]]:[&_.task-title]:text-[var(--muted)]",
                 "has-[button[aria-pressed=true]]:[&_.task-title]:line-through",
               ].join(" ")}
             >
-              <div
-                className="shrink-0"
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <TaskDoneCheckbox id={task.id} status={task.status} />
-              </div>
-              <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:items-center">
                 <div
-                  className={
-                    compact
-                      ? "flex min-w-0 items-baseline gap-2"
-                      : undefined
-                  }
+                  className="shrink-0 pt-0.5 sm:pt-0"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
                 >
-                  {enableDrawer ? (
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => setSelectedId(task.id)}
-                    >
+                  <TaskDoneCheckbox id={task.id} status={task.status} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-start gap-2 sm:items-baseline">
+                    {enableDrawer ? (
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 py-0.5 text-left"
+                        onClick={() => setSelectedId(task.id)}
+                      >
+                        <p
+                          className={[
+                            "task-title line-clamp-2 leading-snug font-medium underline-offset-2 hover:underline sm:truncate sm:leading-snug",
+                            compact ? "text-sm" : "",
+                            task.status === "done" ||
+                            task.status === "cancelled"
+                              ? "text-[var(--muted)] line-through"
+                              : "",
+                          ].join(" ")}
+                        >
+                          {task.title}
+                        </p>
+                      </button>
+                    ) : (
                       <p
                         className={[
-                          "task-title truncate leading-snug font-medium underline-offset-2 hover:underline",
+                          "task-title min-w-0 flex-1 line-clamp-2 leading-snug font-medium sm:truncate",
                           compact ? "text-sm" : "",
                           task.status === "done" ||
                           task.status === "cancelled"
@@ -435,122 +445,121 @@ export function TaskList({
                       >
                         {task.title}
                       </p>
-                    </button>
-                  ) : (
-                    <p
-                      className={[
-                        "task-title min-w-0 flex-1 truncate leading-snug font-medium",
-                        compact ? "text-sm" : "",
-                        task.status === "done" ||
-                        task.status === "cancelled"
-                          ? "text-[var(--muted)] line-through"
-                          : "",
-                      ].join(" ")}
-                    >
-                      {task.title}
-                    </p>
-                  )}
-                  {compact && !showDueOffset && (
+                    )}
                     <div
-                      className="shrink-0 self-center"
+                      className="shrink-0 sm:hidden"
                       onClick={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
                     >
-                      <TaskDuePicker
-                        taskId={task.id}
-                        dueAt={task.dueAt}
-                        compact
-                      />
+                      <TaskRowMenu task={task} />
+                    </div>
+                  </div>
+                  {showDescription && task.description && !compact && (
+                    <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
+                      {task.description}
+                    </p>
+                  )}
+                  {!compact && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                      {showSpace && task.space && (
+                        <span
+                          className={[
+                            "badge",
+                            task.space.type === "project"
+                              ? "badge-space-project"
+                              : "badge-muted",
+                          ].join(" ")}
+                        >
+                          {task.space.name}
+                        </span>
+                      )}
+                      {!members &&
+                        task.assignee &&
+                        task.space?.type !== "personal" && (
+                          <span>→ {task.assignee.name}</span>
+                        )}
+                      {!showDueOffset && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <TaskDuePicker
+                            taskId={task.id}
+                            dueAt={task.dueAt}
+                            compact={false}
+                          />
+                        </div>
+                      )}
+                      {offset && <span>Relativ: {offset}</span>}
                     </div>
                   )}
-                  {compact && offset && (
-                    <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
-                      {offset}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:ml-0 sm:flex-nowrap sm:pl-0">
+                {compact && !showDueOffset && (
+                  <div
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <TaskDuePicker
+                      taskId={task.id}
+                      dueAt={task.dueAt}
+                      compact
+                    />
+                  </div>
+                )}
+                {compact && offset && (
+                  <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
+                    {offset}
+                  </span>
+                )}
+                {compact && showSpace && task.space && (
+                  task.space.type === "project" ? (
+                    <Link
+                      href={`/projects/${task.space.id}`}
+                      className="badge badge-space-project shrink-0 !px-1.5 !py-0.5 text-[0.65rem] hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {task.space.name}
+                    </Link>
+                  ) : (
+                    <span className="badge badge-muted shrink-0 !px-1.5 !py-0.5 text-[0.65rem]">
+                      {task.space.name}
                     </span>
-                  )}
-                  {compact && showSpace && task.space && (
-                    task.space.type === "project" ? (
-                      <Link
-                        href={`/projects/${task.space.id}`}
-                        className="badge badge-space-project shrink-0 !px-1.5 !py-0 text-[0.65rem] hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {task.space.name}
-                      </Link>
-                    ) : (
-                      <span className="badge badge-muted shrink-0 !px-1.5 !py-0 text-[0.65rem]">
-                        {task.space.name}
+                  )
+                )}
+                <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0">
+                  {members && members.length > 0 ? (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <TaskAssigneePicker
+                        taskId={task.id}
+                        assigneeId={assigneeId}
+                        assigneeName={task.assignee?.name}
+                        members={members}
+                        compact={compact}
+                      />
+                    </div>
+                  ) : (
+                    task.assignee &&
+                    task.space?.type !== "personal" && (
+                      <span className="text-[0.65rem] text-[var(--muted)]">
+                        {task.assignee.name.split(" ")[0]}
                       </span>
                     )
                   )}
-                </div>
-                {showDescription && task.description && !compact && (
-                  <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
-                    {task.description}
-                  </p>
-                )}
-                {!compact && (
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                    {showSpace && task.space && (
-                      <span
-                        className={[
-                          "badge",
-                          task.space.type === "project"
-                            ? "badge-space-project"
-                            : "badge-muted",
-                        ].join(" ")}
-                      >
-                        {task.space.name}
-                      </span>
-                    )}
-                    {!members &&
-                      task.assignee &&
-                      task.space?.type !== "personal" && (
-                        <span>→ {task.assignee.name}</span>
-                      )}
-                    {!showDueOffset && (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                      >
-                        <TaskDuePicker
-                          taskId={task.id}
-                          dueAt={task.dueAt}
-                          compact={false}
-                        />
-                      </div>
-                    )}
-                    {offset && <span>Relativ: {offset}</span>}
+                  <div
+                    className="hidden sm:block"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <TaskRowMenu task={task} />
                   </div>
-                )}
-              </div>
-              {members && members.length > 0 ? (
-                <div
-                  className="shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <TaskAssigneePicker
-                    taskId={task.id}
-                    assigneeId={assigneeId}
-                    assigneeName={task.assignee?.name}
-                    members={members}
-                    compact={compact}
-                  />
                 </div>
-              ) : (
-                task.assignee &&
-                task.space?.type !== "personal" && (
-                  <span className="shrink-0 text-[0.65rem] text-[var(--muted)]">
-                    {task.assignee.name.split(" ")[0]}
-                  </span>
-                )
-              )}
-              <div
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <TaskRowMenu task={task} />
               </div>
             </li>
           );
@@ -654,11 +663,12 @@ function TaskDrawer({
       <aside
         className={[
           "relative flex h-full w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-[-12px_0_40px_rgba(0,0,0,0.12)] transition-transform ease-out",
+          "pb-[env(safe-area-inset-bottom)]",
           visible ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
         style={{ transitionDuration: `${DRAWER_MS}ms` }}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
           <div>
             <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
               Task bearbeiten
@@ -675,14 +685,14 @@ function TaskDrawer({
           </div>
           <button
             type="button"
-            className="btn btn-ghost shrink-0"
+            className="btn btn-ghost min-h-10 shrink-0 px-3 sm:min-h-0"
             onClick={onClose}
           >
             Schliessen
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
           <form
             key={panelTask.id}
             className="flex flex-col gap-3"
@@ -809,7 +819,7 @@ function TaskDrawer({
               </div>
             )}
 
-            <div className="sticky bottom-0 flex justify-end gap-2 border-t border-[var(--border)] bg-[var(--bg-elevated)] pt-4 pb-1">
+            <div className="sticky bottom-0 flex justify-end gap-2 border-t border-[var(--border)] bg-[var(--bg-elevated)] pt-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
               <button type="button" className="btn btn-ghost" onClick={onClose}>
                 Abbrechen
               </button>

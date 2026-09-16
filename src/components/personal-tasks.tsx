@@ -143,7 +143,7 @@ function CollapsibleSection({
         <button
           type="button"
           onClick={() => onToggle(sectionKey)}
-          className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 py-1 text-left sm:min-h-0 sm:py-0.5"
         >
           <span
             className={[
@@ -499,7 +499,7 @@ export function GroupedTasksBoard({
       {error && <p className="text-sm text-red-700">{error}</p>}
 
       {isInbox && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(
             [
               { id: "list", label: "Meine Listen", count: viewCounts.list },
@@ -514,7 +514,7 @@ export function GroupedTasksBoard({
                 type="button"
                 aria-pressed={active}
                 className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold transition",
+                  "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
                   active
                     ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                     : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
