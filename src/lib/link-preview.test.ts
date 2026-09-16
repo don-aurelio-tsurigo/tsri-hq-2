@@ -10,13 +10,13 @@ describe("titleForPath", () => {
   it("maps sidebar routes", () => {
     assert.equal(titleForPath("/feedback"), "Feedback");
     assert.equal(titleForPath("/dam/upload"), "Upload");
-    assert.equal(titleForPath("/dam/archive?q=x"), "Alle Fotos");
+    assert.equal(titleForPath("/dam/archive?q=x"), "Mediathek");
     assert.equal(titleForPath("/carousel/abc"), "Social Media");
     assert.equal(titleForPath("/projects/xyz"), "Projekte");
   });
 
   it("prefers longer dam prefixes", () => {
-    assert.equal(titleForPath("/dam"), "Alle Fotos");
+    assert.equal(titleForPath("/dam"), "Mediathek");
     assert.equal(titleForPath("/dam/personal"), "Meine Uploads");
   });
 });

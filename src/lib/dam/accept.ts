@@ -5,6 +5,8 @@ export const ALLOWED_MIME = new Set([
   "image/png",
   "image/x-png",
   "image/webp",
+  "image/tiff",
+  "image/tif",
   "image/heic",
   "image/heif",
   "image/heic-sequence",
@@ -16,6 +18,8 @@ export const ALLOWED_EXT = new Set([
   ".jpeg",
   ".png",
   ".webp",
+  ".tif",
+  ".tiff",
   ".heic",
   ".heif",
 ]);
@@ -44,7 +48,9 @@ export const RAW_EXT = new Set([
   ".x3f",
 ]);
 
-export const MAX_FILE_BYTES = 40 * 1024 * 1024;
+/** Print TIFFs regularly exceed 40 MB; 200 MB covers typical press masters. */
+export const MAX_FILE_BYTES = 200 * 1024 * 1024;
+export const MAX_FILE_MB = MAX_FILE_BYTES / (1024 * 1024);
 export const MAX_FILES = 40;
 
 export function fileExtension(name: string): string {
@@ -59,24 +65,25 @@ export function rejectReason(
   size: number,
 ): string | null {
   if (size > MAX_FILE_BYTES) {
-    return `«${name}» ist zu gross (max. 40 MB).`;
+    return `«${name}» ist zu gross (max. ${MAX_FILE_MB} MB).`;
   }
   const ext = fileExtension(name);
   if (RAW_EXT.has(ext)) {
-    return `RAW-Dateien (${ext}) werden nicht akzeptiert. Bitte JPEG, PNG, WebP oder HEIC hochladen.`;
+    return `RAW-Dateien (${ext}) werden nicht akzeptiert. Bitte JPEG, PNG, WebP, TIFF oder HEIC hochladen.`;
   }
   const mimeNorm = mime.trim().toLowerCase();
   const mimeOk = ALLOWED_MIME.has(mimeNorm);
   const extOk = ALLOWED_EXT.has(ext);
   // Mobile pickers often omit the extension or send an empty/generic MIME.
   if (extOk || mimeOk) return null;
-  return `«${name || "Foto"}» hat ein nicht unterstütztes Format. Erlaubt: JPEG, PNG, WebP, HEIC.`;
+  return `«${name || "Foto"}» hat ein nicht unterstütztes Format. Erlaubt: JPEG, PNG, WebP, TIFF, HEIC.`;
 }
 
 export function normalizedContentType(name: string, mime: string): string {
   const lower = mime.toLowerCase().trim();
   if (lower === "image/jpg" || lower === "image/pjpeg") return "image/jpeg";
   if (lower === "image/x-png") return "image/png";
+  if (lower === "image/tif") return "image/tiff";
   if (lower === "image/heic-sequence") return "image/heic";
   if (lower === "image/heif-sequence") return "image/heif";
   if (ALLOWED_MIME.has(lower)) return lower;
@@ -85,6 +92,9 @@ export function normalizedContentType(name: string, mime: string): string {
       return "image/png";
     case ".webp":
       return "image/webp";
+    case ".tif":
+    case ".tiff":
+      return "image/tiff";
     case ".heic":
       return "image/heic";
     case ".heif":
@@ -100,6 +110,10 @@ export function outputExtension(contentType: string, originalName: string): stri
       return "png";
     case "image/webp":
       return "webp";
+    case "image/tiff": {
+      const ext = fileExtension(originalName).replace(".", "");
+      return ext === "tif" || ext === "tiff" ? ext : "tiff";
+    }
     case "image/heic":
     case "image/heif": {
       const ext = fileExtension(originalName).replace(".", "");
@@ -183,6 +197,20 @@ export function sniffImageContentType(bytes: Uint8Array): string | null {
     bytes[11] === 0x50
   ) {
     return "image/webp";
+  }
+  // TIFF: II*\0 (LE) or MM\0* (BE)
+  if (
+    bytes.length >= 4 &&
+    ((bytes[0] === 0x49 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x2a &&
+      bytes[3] === 0x00) ||
+      (bytes[0] === 0x4d &&
+        bytes[1] === 0x4d &&
+        bytes[2] === 0x00 &&
+        bytes[3] === 0x2a))
+  ) {
+    return "image/tiff";
   }
   if (looksLikeHeicBytes(bytes)) return "image/heic";
   return null;

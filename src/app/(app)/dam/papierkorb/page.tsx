@@ -37,7 +37,7 @@ export default async function DamTrashPage() {
             href="/dam/archive"
             className="font-semibold text-[var(--accent)] hover:underline"
           >
-            Archiv
+            Mediathek
           </Link>{" "}
           kannst du Bilder in den Papierkorb verschieben.
         </p>

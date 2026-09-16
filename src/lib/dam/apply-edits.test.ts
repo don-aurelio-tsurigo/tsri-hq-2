@@ -136,4 +136,54 @@ describe("renderPublishedMaster", () => {
     const mean = sum / (data.length / 3);
     assert.ok(mean > 100, "brightened pixels should be lighter than the source 80");
   });
+
+  it("converts CMYK TIFF to sRGB JPEG for WePublish / export", async () => {
+    const cmykTiff = await sharp({
+      create: {
+        width: 24,
+        height: 16,
+        channels: 3,
+        background: { r: 200, g: 40, b: 40 },
+      },
+    })
+      .toColorspace("cmyk")
+      .tiff()
+      .toBuffer();
+    assert.equal((await sharp(cmykTiff).metadata()).space, "cmyk");
+
+    const published = await renderPublishedMaster(cmykTiff, DEFAULT_EDIT_PARAMS);
+    assert.equal(published.buffer[0], 0xff);
+    assert.equal(published.buffer[1], 0xd8);
+    assert.equal(published.contentType, "image/jpeg");
+    const after = await sharp(published.buffer).metadata();
+    assert.notEqual(after.space, "cmyk");
+  });
+
+  it("preserves TIFF when preserveFormat is set and still applies crop", async () => {
+    const tiff = await sharp({
+      create: {
+        width: 100,
+        height: 40,
+        channels: 3,
+        background: { r: 20, g: 20, b: 20 },
+      },
+    })
+      .tiff()
+      .toBuffer();
+
+    const published = await renderPublishedMaster(
+      tiff,
+      {
+        ...DEFAULT_EDIT_PARAMS,
+        crop: { unit: "%", x: 0, y: 0, width: 50, height: 100 },
+      },
+      null,
+      { preserveFormat: true },
+    );
+    assert.equal(published.contentType, "image/tiff");
+    assert.equal(published.extension, "tiff");
+    assert.equal((await sharp(published.buffer).metadata()).format, "tiff");
+    assert.equal(published.width, 50);
+    assert.equal(published.height, 40);
+  });
 });

@@ -62,7 +62,7 @@ export function DamArchiveDeleteCollectionsDialog({
           Collections löschen
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Die Bilder bleiben im Archiv. Nur die Collection und ihre Zuordnung
+          Die Bilder bleiben in der Mediathek. Nur die Collection und ihre Zuordnung
           werden entfernt — unabhängig davon, wie viele Bilder drin sind.
         </p>
 

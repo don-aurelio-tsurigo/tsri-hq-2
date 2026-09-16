@@ -97,4 +97,50 @@ describe("renderPublishedMaster editorial metadata", () => {
     assert.equal(parsed.Source, "Zur Verfügung gestellt");
     assert.ok(parsed.DateTimeOriginal);
   });
+
+  it("embeds editorial metadata into a preserved TIFF original download", async () => {
+    const input = await sharp({
+      create: {
+        width: 24,
+        height: 16,
+        channels: 3,
+        background: { r: 40, g: 50, b: 60 },
+      },
+    })
+      .tiff()
+      .toBuffer();
+
+    const published = await renderPublishedMaster(
+      input,
+      DEFAULT_EDIT_PARAMS,
+      {
+        credit: "TIFF Credit",
+        altText: "TIFF Beschreibung",
+        keywords: ["tiff", "archiv"],
+        notes: "TIFF Notiz",
+        rightsType: "own",
+      },
+      { preserveFormat: true },
+    );
+
+    assert.equal(published.contentType, "image/tiff");
+    const parsed = (await exifr.parse(published.buffer, {
+      tiff: true,
+      xmp: true,
+      mergeOutput: true,
+    })) as Record<string, unknown>;
+
+    // Sharp writes classic EXIF IFD tags reliably on JPEG; TIFF keeps the
+    // editorial payload in XMP (Credit / subject / Instructions / description).
+    assert.equal(parsed.Credit, "TIFF Credit");
+    const description =
+      typeof parsed.description === "object" &&
+      parsed.description &&
+      "value" in parsed.description
+        ? String((parsed.description as { value: unknown }).value)
+        : String(parsed.description ?? parsed.ImageDescription ?? "");
+    assert.equal(description, "TIFF Beschreibung");
+    assert.deepEqual(parsed.subject, ["tiff", "archiv"]);
+    assert.equal(parsed.Instructions, "TIFF Notiz");
+  });
 });

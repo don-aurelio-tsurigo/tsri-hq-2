@@ -133,6 +133,28 @@ export async function GET(
     }
 
     const original = await getObject(asset.r2Key);
+    if (variant === "original") {
+      const rendered = await renderPublishedMaster(
+        original.buffer,
+        asset.editParams,
+        {
+          credit: asset.credit,
+          altText: asset.altText,
+          keywords: asset.keywords,
+          notes: asset.notes,
+          rightsType: asset.rightsType,
+          takenAt: asset.takenAt,
+        },
+        { preserveFormat: true },
+      );
+      return imageResponse(rendered.buffer, rendered.contentType, {
+        "Cache-Control": "private, no-store",
+        "Content-Disposition": contentDispositionAttachment(
+          replaceKeyExtension(asset.fileName, rendered.extension),
+        ),
+      });
+    }
+
     if (variant === "export") {
       const rendered = await renderPublishedMaster(original.buffer, asset.editParams, {
         credit: asset.credit,
@@ -142,10 +164,10 @@ export async function GET(
         rightsType: asset.rightsType,
         takenAt: asset.takenAt,
       });
-      return imageResponse(rendered.buffer, "image/jpeg", {
+      return imageResponse(rendered.buffer, rendered.contentType, {
         "Cache-Control": "private, no-store",
         "Content-Disposition": contentDispositionAttachment(
-          replaceKeyExtension(asset.fileName, "jpg"),
+          replaceKeyExtension(asset.fileName, rendered.extension),
         ),
       });
     }

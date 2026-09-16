@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   assetIds: z.array(z.string().min(1).max(64)).min(1).max(MAX_ARCHIVE_DOWNLOADS),
+  format: z.enum(["original", "jpeg"]).optional().default("jpeg"),
 });
 
 export async function POST(request: Request) {
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     const result = await createPublishedDownloadLinks(
       auth.session.user.id,
       parsed.data.assetIds,
+      parsed.data.format,
     );
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 404 });

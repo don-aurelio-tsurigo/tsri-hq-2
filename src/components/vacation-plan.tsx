@@ -696,7 +696,7 @@ export function VacationPlan({
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-[var(--muted)] uppercase">
-          Meine Anfragen ({mine.length})
+          Meine Ferien ({mine.length})
         </h2>
         {mine.length === 0 ? (
           <div className="card px-4 py-8 text-center text-sm text-[var(--muted)]">

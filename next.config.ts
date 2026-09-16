@@ -21,10 +21,10 @@ const nextConfig: NextConfig = {
     ],
   },
   experimental: {
-    // Phone camera JPEGs are often >10 MB; the default proxy/action limit
-    // makes request.formData() / arrayBuffer() throw on the DAM fallback.
-    proxyClientMaxBodySize: "45mb",
-    serverActions: { bodySizeLimit: "45mb" },
+    // Print TIFFs regularly exceed phone-JPEG sizes; keep proxy/action limits
+    // aligned with MAX_FILE_BYTES (200 MB) so DAM fallback uploads succeed.
+    proxyClientMaxBodySize: "200mb",
+    serverActions: { bodySizeLimit: "200mb" },
     // Keep Render's 8 GB native-build cap from being blown by parallel workers.
     cpus: 1,
     memoryBasedWorkersCount: true,

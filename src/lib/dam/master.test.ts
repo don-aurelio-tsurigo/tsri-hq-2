@@ -50,6 +50,68 @@ describe("createMasterImage", () => {
     assert.equal(String.fromCharCode(...webp.buffer.subarray(8, 12)), "WEBP");
   });
 
+  it("keeps PNG with alpha instead of flattening to JPEG", async () => {
+    const transparent = await sharp({
+      create: {
+        width: 32,
+        height: 24,
+        channels: 4,
+        background: { r: 0, g: 120, b: 255, alpha: 0.4 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const before = await sharp(transparent).metadata();
+    assert.equal(before.hasAlpha, true);
+
+    const master = await createMasterImage(transparent);
+    assert.equal(master.contentType, "image/png");
+    assert.equal(master.extension, "png");
+    const after = await sharp(master.buffer).metadata();
+    assert.equal(after.hasAlpha, true);
+  });
+
+  it("keeps TIFF masters as TIFF", async () => {
+    const tiff = await sharp({
+      create: {
+        width: 64,
+        height: 48,
+        channels: 3,
+        background: { r: 10, g: 20, b: 30 },
+      },
+    })
+      .tiff()
+      .toBuffer();
+    const master = await createMasterImage(tiff);
+    assert.equal(master.contentType, "image/tiff");
+    assert.equal(master.extension, "tiff");
+    const after = await sharp(master.buffer).metadata();
+    assert.equal(after.format, "tiff");
+  });
+
+  it("converts CMYK TIFF to sRGB while keeping TIFF", async () => {
+    const cmykTiff = await sharp({
+      create: {
+        width: 32,
+        height: 24,
+        channels: 3,
+        background: { r: 200, g: 40, b: 40 },
+      },
+    })
+      .toColorspace("cmyk")
+      .tiff()
+      .toBuffer();
+    const before = await sharp(cmykTiff).metadata();
+    assert.equal(before.space, "cmyk");
+
+    const master = await createMasterImage(cmykTiff);
+    assert.equal(master.contentType, "image/tiff");
+    assert.equal(master.extension, "tiff");
+    const after = await sharp(master.buffer).metadata();
+    assert.equal(after.format, "tiff");
+    assert.notEqual(after.space, "cmyk");
+  });
+
   it("rejects bytes that sharp cannot decode", async () => {
     await assert.rejects(() => createMasterImage(Buffer.from("not-an-image")));
   });

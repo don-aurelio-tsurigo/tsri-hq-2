@@ -231,7 +231,7 @@ export function DamArchiveView({
         >
           Meine Uploads
         </Link>{" "}
-        auswählen und ins Archiv verschieben.
+        auswählen und in die Mediathek verschieben.
       </p>
     );
   }
@@ -549,7 +549,7 @@ export function DamArchiveView({
       <p className="flex flex-wrap justify-end gap-x-3 gap-y-1 pt-2 text-right text-xs text-[var(--muted)]">
         {canReview ? (
           <Link href="/dam/review" className="hover:text-[var(--fg)] hover:underline">
-            Archiv-Review
+            Mediathek-Review
           </Link>
         ) : null}
         <button

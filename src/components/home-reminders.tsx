@@ -149,11 +149,11 @@ export function DamArchiveReviewReminder({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Archiv-Review
+            Mediathek-Review
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Monatlicher Review-Tag: {count} {count === 1 ? "neues Foto" : "neue Fotos"}
-            {sinceLabel ? ` seit ${sinceLabel}` : ""} im Archiv. Slop in den
+            {sinceLabel ? ` seit ${sinceLabel}` : ""} in der Mediathek. Slop in den
             Papierkorb, Rest abschliessen.
           </p>
         </div>

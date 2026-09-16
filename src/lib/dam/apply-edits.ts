@@ -115,21 +115,93 @@ export async function renderDamPreviewWebp(
     .toBuffer();
 }
 
-/** JPEG with the recipe applied — for download / WePublish, not the stored original. */
+/** Output of a download / WePublish render (edits + optional editorial metadata). */
+export type PublishedRenderResult = {
+  buffer: Buffer;
+  contentType: "image/jpeg" | "image/png" | "image/webp" | "image/tiff";
+  extension: "jpg" | "png" | "webp" | "tiff";
+  width: number | null;
+  height: number | null;
+};
+
+type PublishedEncodeFormat = "jpeg" | "png" | "webp" | "tiff";
+
+function encodeFormatFromSource(meta: sharp.Metadata): PublishedEncodeFormat {
+  if (meta.format === "tiff") return "tiff";
+  if (meta.format === "png" || meta.hasAlpha) return "png";
+  if (meta.format === "webp") return "webp";
+  return "jpeg";
+}
+
+function encodePublishedPipeline(
+  pipeline: sharp.Sharp,
+  format: PublishedEncodeFormat,
+): {
+  pipeline: sharp.Sharp;
+  contentType: PublishedRenderResult["contentType"];
+  extension: PublishedRenderResult["extension"];
+} {
+  if (format === "tiff") {
+    return {
+      pipeline: pipeline.tiff({ quality: 90 }),
+      contentType: "image/tiff",
+      extension: "tiff",
+    };
+  }
+  if (format === "png") {
+    return {
+      pipeline: pipeline.png(),
+      contentType: "image/png",
+      extension: "png",
+    };
+  }
+  if (format === "webp") {
+    return {
+      pipeline: pipeline.webp({ quality: 88 }),
+      contentType: "image/webp",
+      extension: "webp",
+    };
+  }
+  return {
+    pipeline: pipeline.jpeg({ quality: 88 }),
+    contentType: "image/jpeg",
+    extension: "jpg",
+  };
+}
+
+/**
+ * Apply edit recipe + optional editorial EXIF/XMP for download / WePublish.
+ * Default encodes JPEG. `preserveFormat: true` keeps the master container
+ * (TIFF/PNG/WebP/JPEG) so «Original» downloads stay in the stored format.
+ */
 export async function renderPublishedMaster(
   original: Buffer,
   raw: unknown,
   editorial?: DamExportEditorial | null,
-): Promise<{ buffer: Buffer; width: number | null; height: number | null }> {
+  opts?: { preserveFormat?: boolean },
+): Promise<PublishedRenderResult> {
+  const decoded = await decodeHeicIfNeeded(original);
+  const sourceMeta = await sharp(decoded, { failOn: "none" }).metadata();
   const edited = await applyDamEdits(original, raw);
   const metadata = editorial ? buildDamExportMetadata(editorial) : null;
-  let pipeline = sharp(edited).jpeg({ quality: 88 });
+  let pipeline = sharp(edited, { failOn: "none" });
+  const space = (await pipeline.clone().metadata()).space;
+  // Print TIFF masters may still be CMYK until this export path.
+  if (space === "cmyk") pipeline = pipeline.toColorspace("srgb");
+
+  const format = opts?.preserveFormat
+    ? encodeFormatFromSource(sourceMeta)
+    : "jpeg";
+  const encoded = encodePublishedPipeline(pipeline, format);
+  pipeline = encoded.pipeline;
   if (metadata?.exif) pipeline = pipeline.withExif(metadata.exif);
   if (metadata?.xmp) pipeline = pipeline.withXmp(metadata.xmp);
   const buffer = await pipeline.toBuffer();
   const meta = await sharp(buffer).metadata();
   return {
     buffer,
+    contentType: encoded.contentType,
+    extension: encoded.extension,
     width: meta.width ?? null,
     height: meta.height ?? null,
   };

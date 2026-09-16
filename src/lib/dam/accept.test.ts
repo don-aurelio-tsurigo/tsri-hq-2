@@ -12,6 +12,12 @@ describe("rejectReason", () => {
     assert.equal(rejectReason("IMG_1234.HEIC", "", 1200), null);
   });
 
+  it("accepts tiff by extension or mime", () => {
+    assert.equal(rejectReason("print.tiff", "", 1200), null);
+    assert.equal(rejectReason("print.tif", "image/tiff", 1200), null);
+    assert.equal(rejectReason("scan", "image/tif", 1200), null);
+  });
+
   it("accepts jpeg labeled as octet-stream", () => {
     assert.equal(rejectReason("foto.jpg", "application/octet-stream", 1200), null);
   });
@@ -26,6 +32,12 @@ describe("normalizedContentType", () => {
   it("maps mobile jpeg aliases to image/jpeg", () => {
     assert.equal(normalizedContentType("image", "image/jpg"), "image/jpeg");
     assert.equal(normalizedContentType("foto.jpg", ""), "image/jpeg");
+  });
+
+  it("maps tiff aliases and extensions to image/tiff", () => {
+    assert.equal(normalizedContentType("scan", "image/tif"), "image/tiff");
+    assert.equal(normalizedContentType("scan.tif", ""), "image/tiff");
+    assert.equal(normalizedContentType("scan.tiff", "application/octet-stream"), "image/tiff");
   });
 });
 
@@ -43,6 +55,17 @@ describe("sniffImageContentType", () => {
     heic[7] = 0x70;
     heic.set(Buffer.from("heic"), 8);
     assert.equal(sniffImageContentType(heic), "image/heic");
+  });
+
+  it("detects little- and big-endian TIFF magic bytes", () => {
+    assert.equal(
+      sniffImageContentType(Buffer.from([0x49, 0x49, 0x2a, 0x00, 0, 0, 0, 0])),
+      "image/tiff",
+    );
+    assert.equal(
+      sniffImageContentType(Buffer.from([0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 0])),
+      "image/tiff",
+    );
   });
 
   it("does not trust a jpeg label on heic bytes", () => {

@@ -1,4 +1,4 @@
-import { MAX_FILE_BYTES } from "./accept";
+import { MAX_FILE_BYTES, MAX_FILE_MB } from "./accept";
 
 export type ParsedUploadObject =
   | { ok: true; r2Key: string; contentType: string; bytes: Buffer }
@@ -9,7 +9,11 @@ function isMultipart(contentType: string): boolean {
 }
 
 function tooLarge(): ParsedUploadObject {
-  return { ok: false, error: "Datei ist zu gross (max. 40 MB).", status: 400 };
+  return {
+    ok: false,
+    error: `Datei ist zu gross (max. ${MAX_FILE_MB} MB).`,
+    status: 400,
+  };
 }
 
 function missingFields(): ParsedUploadObject {
@@ -24,7 +28,7 @@ function parseErrorMessage(error: unknown): string {
   const text =
     error instanceof Error ? `${error.name} ${error.message}` : String(error);
   if (/size|limit|exceeded|too large|payload/i.test(text)) {
-    return "Datei ist zu gross (max. 40 MB).";
+    return `Datei ist zu gross (max. ${MAX_FILE_MB} MB).`;
   }
   return "Ungültiges Formular.";
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   MAX_FILES,
   MAX_FILE_BYTES,
+  MAX_FILE_MB,
   outputExtension,
   rejectReason,
   normalizedContentType,
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   const oversized = files.find((file) => file.size > MAX_FILE_BYTES);
   if (oversized) {
     return NextResponse.json(
-      { error: `«${oversized.name}» ist zu gross (max. 40 MB).` },
+      { error: `«${oversized.name}» ist zu gross (max. ${MAX_FILE_MB} MB).` },
       { status: 400 },
     );
   }

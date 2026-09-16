@@ -527,7 +527,7 @@ export async function completeDamArchiveReview(
 ): Promise<{ error?: string }> {
   const { session, membership } = await requireMembership();
   if (!canReviewDamArchive(membership)) {
-    return { error: "Keine Berechtigung für den Archiv-Review." };
+    return { error: "Keine Berechtigung für den Mediathek-Review." };
   }
 
   const openedAt = parseReviewOpenedAt(openedAtIso);

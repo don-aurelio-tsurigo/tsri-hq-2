@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Download, Pencil, Send, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
 import {
   DamEditControl,
@@ -18,6 +18,7 @@ import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import type { DamDownloadFormat } from "@/lib/dam/download-path";
 import { damFileSrc } from "@/lib/dam/edit-params";
 import {
   DAM_RIGHTS_OPTIONS,
@@ -73,6 +74,7 @@ export function DamArchivePreview({
   const [draft, setDraft] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export function DamArchivePreview({
     setSeenId(asset?.id);
     setDownloadError(null);
     setDownloading(false);
+    setDownloadMenuOpen(false);
     setExportError(null);
     setExportSuccess(null);
     setExporting(false);
@@ -151,6 +154,19 @@ export function DamArchivePreview({
   }
 
   useEffect(() => {
+    if (!downloadMenuOpen) return;
+    function onPointerDown(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (target && (e.target as HTMLElement).closest?.("[data-dam-download-menu]")) {
+        return;
+      }
+      setDownloadMenuOpen(false);
+    }
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [downloadMenuOpen]);
+
+  useEffect(() => {
     if (!keyboardEnabled) return;
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -185,12 +201,13 @@ export function DamArchivePreview({
     return () => window.removeEventListener("keydown", onKey);
   }, [count, editing, index, keyboardEnabled, onClose, onEdit, onIndexChange]);
 
-  async function downloadOriginal() {
+  async function downloadAsset(format: DamDownloadFormat) {
     if (!asset || downloading) return;
+    setDownloadMenuOpen(false);
     setDownloadError(null);
     setDownloading(true);
     try {
-      await downloadPublishedAssets([asset.id]);
+      await downloadPublishedAssets([asset.id], undefined, format);
     } catch (err) {
       setDownloadError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
     } finally {
@@ -288,7 +305,7 @@ export function DamArchivePreview({
           <div className="flex items-start justify-between gap-3 p-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
-                Archiv
+                Mediathek
               </p>
               {editing === "fileName" ? (
                 <DamEditControl onSave={() => saveField("fileName")}>
@@ -334,15 +351,43 @@ export function DamArchivePreview({
             <DamRatingStars rating={asset.rating} />
 
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                className="btn btn-primary px-3 py-2 text-sm"
-                disabled={downloading}
-                onClick={downloadOriginal}
-              >
-                <Download className="size-3.5 shrink-0" aria-hidden />
-                {downloading ? "Lädt…" : "Herunterladen"}
-              </button>
+              <div className="relative" data-dam-download-menu>
+                <button
+                  type="button"
+                  className="btn btn-primary flex w-full items-center justify-center gap-1 px-3 py-2 text-sm"
+                  disabled={downloading}
+                  aria-expanded={downloadMenuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setDownloadMenuOpen((open) => !open)}
+                >
+                  <Download className="size-3.5 shrink-0" aria-hidden />
+                  {downloading ? "Lädt…" : "Herunterladen"}
+                  <ChevronDown className="size-3.5 shrink-0 opacity-80" aria-hidden />
+                </button>
+                {downloadMenuOpen && !downloading ? (
+                  <div
+                    role="menu"
+                    className="absolute left-0 right-0 z-20 mt-1 overflow-hidden rounded-lg border border-[var(--border)] bg-white py-1 shadow-md"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--accent-soft)]"
+                      onClick={() => void downloadAsset("original")}
+                    >
+                      Original
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--accent-soft)]"
+                      onClick={() => void downloadAsset("jpeg")}
+                    >
+                      Als JPEG
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className="btn btn-primary px-3 py-2 text-sm"

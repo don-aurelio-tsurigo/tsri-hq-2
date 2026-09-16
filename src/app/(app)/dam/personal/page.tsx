@@ -34,7 +34,7 @@ export default async function DamPersonalPage() {
           <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
             Hier bearbeitest und sortierst du deine Uploads. Lösche Fotos, die du
             nicht brauchst und die nie irgendjemand brauchen wird. Weniger ist
-            mehr. Was bleiben soll, auswählen und ins Archiv verschieben.
+            mehr. Was bleiben soll, auswählen und in die Mediathek verschieben.
           </p>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">

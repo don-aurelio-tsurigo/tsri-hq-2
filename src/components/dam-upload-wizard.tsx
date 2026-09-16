@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
 import { DamKeywordEditor } from "@/components/dam-meta-edit";
-import { MAX_FILE_BYTES, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import { MAX_FILE_BYTES, MAX_FILE_MB, MAX_FILES, rejectReason } from "@/lib/dam/accept";
 import { uniqueKeywords, fillSeriesKeywordGaps } from "@/lib/dam/keywords";
 import { previewUrlForFile } from "@/lib/dam/preview-url";
 import {
@@ -641,7 +641,7 @@ export function DamUploadWizard({
     // iOS PWA file pickers break on a narrow MIME list and often omit extensions.
     useFsAccessApi: false,
     accept: {
-      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"],
+      "image/*": [".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic", ".heif"],
     },
     validator: (file) => {
       const reason = rejectReason(file.name, file.type, file.size);
@@ -1146,7 +1146,7 @@ export function DamUploadWizard({
             Bilder hochladen
           </h2>
           <p className="text-sm text-[var(--muted)]">
-            JPEG, PNG, WebP oder HEIC. RAW-Dateien werden abgelehnt.
+            JPEG, PNG, WebP, TIFF oder HEIC. RAW-Dateien werden abgelehnt.
           </p>
           {prepared.length > 0 ? (
             <p className="text-sm font-semibold">
@@ -1170,7 +1170,7 @@ export function DamUploadWizard({
                 {isDragActive ? "Jetzt loslassen" : "Dateien hierher ziehen oder klicken"}
               </p>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Mehrfachauswahl, max. {MAX_FILES} Dateien / 40 MB
+                Mehrfachauswahl, max. {MAX_FILES} Dateien / {MAX_FILE_MB} MB
               </p>
             </div>
           ) : null}

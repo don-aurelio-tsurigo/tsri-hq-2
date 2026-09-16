@@ -1,5 +1,13 @@
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
+import {
+  publishedDownloadPath,
+  type DamDownloadFormat,
+} from "@/lib/dam/download-path";
+import { replaceKeyExtension } from "@/lib/dam/filename";
 import { prisma } from "@/lib/db";
+
+export type { DamDownloadFormat } from "@/lib/dam/download-path";
+export { publishedDownloadPath, publishedExportPath } from "@/lib/dam/download-path";
 
 export type SignedDownloadFile = {
   id: string;
@@ -7,13 +15,10 @@ export type SignedDownloadFile = {
   fileName: string;
 };
 
-export function publishedExportPath(assetId: string): string {
-  return `/api/dam/assets/${encodeURIComponent(assetId)}/file?variant=export`;
-}
-
 export async function createPublishedDownloadLinks(
   userId: string,
   assetIds: string[],
+  format: DamDownloadFormat = "jpeg",
 ): Promise<{ files: SignedDownloadFile[]; expiresIn: number } | { error: string }> {
   const unique = [...new Set(assetIds)].slice(0, MAX_ARCHIVE_DOWNLOADS);
   if (unique.length === 0) return { error: "Keine Bilder gewählt." };
@@ -31,8 +36,11 @@ export async function createPublishedDownloadLinks(
 
   const files: SignedDownloadFile[] = ordered.map((asset) => ({
     id: asset.id,
-    fileName: asset.fileName,
-    url: publishedExportPath(asset.id),
+    fileName:
+      format === "jpeg"
+        ? replaceKeyExtension(asset.fileName, "jpg")
+        : asset.fileName,
+    url: publishedDownloadPath(asset.id, format),
   }));
 
   await prisma.exportLog.createMany({

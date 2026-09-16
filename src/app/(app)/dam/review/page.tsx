@@ -5,7 +5,7 @@ import { DamArchiveReviewComplete } from "@/components/dam-archive-review-comple
 import { listArchiveFacets, parseArchivePage } from "@/lib/dam/archive-search";
 import { pageTitle } from "@/lib/link-preview";
 
-export const metadata = pageTitle("Alle Fotos");
+export const metadata = pageTitle("Mediathek");
 import {
   canReviewDamArchive,
   getLastDamArchiveReview,
@@ -58,15 +58,15 @@ export default async function DamArchiveReviewPage({
             Fotos
           </p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            Archiv-Review
+            Mediathek-Review
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
-            Fotos, die seit dem letzten Review ins Archiv gekommen sind. Slop in
+            Fotos, die seit dem letzten Review in die Mediathek gekommen sind. Slop in
             den Papierkorb, Rest abschliessen.
           </p>
         </div>
         <Link href="/dam/archive" className="btn btn-ghost">
-          Alle Fotos
+          Mediathek
         </Link>
       </header>
 
@@ -83,7 +83,7 @@ export default async function DamArchiveReviewPage({
       {result.total === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
           Nichts zu reviewen. Neu publizierte Fotos erscheinen hier nach dem
-          nächsten Upload ins Archiv.
+          nächsten Upload in die Mediathek.
         </p>
       ) : (
         <div className="space-y-3">

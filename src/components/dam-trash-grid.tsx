@@ -117,7 +117,7 @@ export function DamTrashGrid({ assets }: { assets: TrashAssetCard[] }) {
       {restoreId ? (
         <DamConfirmDialog
           title="Wiederherstellen?"
-          body="Das Bild erscheint wieder im Archiv und ist durchsuchbar."
+          body="Das Bild erscheint wieder in der Mediathek und ist durchsuchbar."
           confirmLabel="Wiederherstellen"
           pending={pending}
           onClose={() => setRestoreId(null)}

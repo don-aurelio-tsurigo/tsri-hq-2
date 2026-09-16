@@ -551,7 +551,7 @@ export function DamPersonalGrid({
               disabled={pending}
               onClick={() => openPublish([...selected])}
             >
-              Ins Archiv verschieben
+              In die Mediathek verschieben
             </button>
             <div className="relative ml-auto" ref={assignRef}>
               {assignOpen ? (

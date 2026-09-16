@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import type { DamDownloadFormat } from "@/lib/dam/download-path";
 import { uniqueDownloadName, zurichDateStamp } from "@/lib/dam/filename";
 
 function saveBlob(blob: Blob, fileName: string) {
@@ -31,11 +32,12 @@ async function saveFromUrl(url: string, fileName: string) {
 export async function downloadPublishedAssets(
   assetIds: string[],
   onProgress?: (done: number, total: number) => void,
+  format: DamDownloadFormat = "jpeg",
 ): Promise<void> {
   const res = await fetch("/api/dam/download", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ assetIds }),
+    body: JSON.stringify({ assetIds, format }),
   });
   const data = (await res.json()) as {
     files?: { url: string; fileName: string }[];
@@ -62,5 +64,5 @@ export async function downloadPublishedAssets(
     zip.file(uniqueDownloadName(used, file.fileName), await fileRes.blob());
     onProgress?.(index + 1, files.length);
   }
-  saveBlob(await zip.generateAsync({ type: "blob" }), `archiv-${zurichDateStamp()}.zip`);
+  saveBlob(await zip.generateAsync({ type: "blob" }), `mediathek-${zurichDateStamp()}.zip`);
 }

@@ -5,21 +5,27 @@ export const MASTER_MAX_EDGE = 4000;
 
 export type MasterImage = {
   buffer: Buffer;
-  contentType: "image/jpeg" | "image/png" | "image/webp";
-  extension: "jpg" | "png" | "webp";
+  contentType: "image/jpeg" | "image/png" | "image/webp" | "image/tiff";
+  extension: "jpg" | "png" | "webp" | "tiff";
   width: number;
   height: number;
 };
 
-function outputFormat(format: string | undefined): "jpeg" | "png" | "webp" {
-  if (format === "png") return "png";
-  if (format === "webp") return "webp";
+type MasterFormat = "jpeg" | "png" | "webp" | "tiff";
+
+function chooseMasterFormat(meta: sharp.Metadata): MasterFormat {
+  if (meta.format === "tiff") return "tiff";
+  // Keep PNG (esp. with alpha) so transparency is not flattened to JPEG.
+  if (meta.format === "png" || meta.hasAlpha) return "png";
+  if (meta.format === "webp") return "webp";
+  // JPEG / HEIC (decoded) and other photo formats → JPEG master.
   return "jpeg";
 }
 
 /**
  * Downscale oversized uploads to a 4000px master. Smaller images stay as-is
- * (no upscaling). HEIC/HEIF becomes JPEG. Aspect ratio is preserved.
+ * (no upscaling). HEIC/HEIF becomes JPEG; TIFF and PNG (incl. alpha) keep
+ * their container. Aspect ratio is preserved.
  */
 export async function createMasterImage(original: Buffer): Promise<MasterImage> {
   const decoded = await decodeHeicIfNeeded(original);
@@ -28,8 +34,12 @@ export async function createMasterImage(original: Buffer): Promise<MasterImage> 
   if (!meta.width || !meta.height) {
     throw new Error("Bild konnte nicht gelesen werden.");
   }
-  const format = outputFormat(meta.format);
-  const pipeline = image.resize({
+  // Print TIFFs often ship CMYK; convert before writing master/derivatives
+  // so browser previews and thumbs keep correct colours.
+  const colorCorrected =
+    meta.space === "cmyk" ? image.toColorspace("srgb") : image;
+  const format = chooseMasterFormat(meta);
+  const pipeline = colorCorrected.resize({
     width: MASTER_MAX_EDGE,
     height: MASTER_MAX_EDGE,
     fit: "inside",
@@ -39,7 +49,11 @@ export async function createMasterImage(original: Buffer): Promise<MasterImage> 
   let buffer: Buffer;
   let contentType: MasterImage["contentType"];
   let extension: MasterImage["extension"];
-  if (format === "png") {
+  if (format === "tiff") {
+    buffer = await pipeline.tiff({ quality: 90 }).toBuffer();
+    contentType = "image/tiff";
+    extension = "tiff";
+  } else if (format === "png") {
     buffer = await pipeline.png().toBuffer();
     contentType = "image/png";
     extension = "png";

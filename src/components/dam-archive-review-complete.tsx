@@ -43,7 +43,7 @@ export function DamArchiveReviewComplete({
           title="Review abschliessen?"
           body={`${remainingCount} ${
             remainingCount === 1 ? "Foto bleibt" : "Fotos bleiben"
-          } im Archiv und gelten als gesichtet. Neu publizierte Fotos kommen in den nächsten Review.`}
+          } in der Mediathek und gelten als gesichtet. Neu publizierte Fotos kommen in den nächsten Review.`}
           confirmLabel="Abschliessen"
           pending={pending}
           onClose={() => setOpen(false)}

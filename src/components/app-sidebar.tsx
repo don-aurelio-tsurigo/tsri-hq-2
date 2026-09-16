@@ -465,7 +465,7 @@ export function AppSidebar({
             icon={Archive}
             onNavigate={onMobileClose}
           >
-            Alle Fotos
+            Mediathek
           </NavLink>
           <NavLink
             href="/dam/papierkorb"

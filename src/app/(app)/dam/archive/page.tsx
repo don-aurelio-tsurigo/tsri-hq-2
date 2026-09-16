@@ -17,7 +17,7 @@ import {
 import { canReviewDamArchive } from "@/lib/dam/review";
 import { requireMembership } from "@/lib/session";
 
-export const metadata = pageTitle("Alle Fotos");
+export const metadata = pageTitle("Mediathek");
 
 export default async function DamArchivePage({
   searchParams,
@@ -60,7 +60,7 @@ export default async function DamArchivePage({
             Fotos
           </p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            Archiv
+            Mediathek
           </h1>
         </div>
         <Link href="/dam/upload" className="btn btn-primary">
