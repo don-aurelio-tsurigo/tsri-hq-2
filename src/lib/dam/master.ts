@@ -12,8 +12,9 @@ export type MasterImage = {
 };
 
 type MasterFormat = "jpeg" | "png" | "webp" | "tiff";
+type SharpMetadata = Awaited<ReturnType<ReturnType<typeof sharp>["metadata"]>>;
 
-function chooseMasterFormat(meta: sharp.Metadata): MasterFormat {
+function chooseMasterFormat(meta: SharpMetadata): MasterFormat {
   if (meta.format === "tiff") return "tiff";
   // Keep PNG (esp. with alpha) so transparency is not flattened to JPEG.
   if (meta.format === "png" || meta.hasAlpha) return "png";

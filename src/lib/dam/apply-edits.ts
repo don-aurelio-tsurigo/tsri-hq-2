@@ -125,8 +125,10 @@ export type PublishedRenderResult = {
 };
 
 type PublishedEncodeFormat = "jpeg" | "png" | "webp" | "tiff";
+type SharpInstance = ReturnType<typeof sharp>;
+type SharpMetadata = Awaited<ReturnType<SharpInstance["metadata"]>>;
 
-function encodeFormatFromSource(meta: sharp.Metadata): PublishedEncodeFormat {
+function encodeFormatFromSource(meta: SharpMetadata): PublishedEncodeFormat {
   if (meta.format === "tiff") return "tiff";
   if (meta.format === "png" || meta.hasAlpha) return "png";
   if (meta.format === "webp") return "webp";
@@ -134,10 +136,10 @@ function encodeFormatFromSource(meta: sharp.Metadata): PublishedEncodeFormat {
 }
 
 function encodePublishedPipeline(
-  pipeline: sharp.Sharp,
+  pipeline: SharpInstance,
   format: PublishedEncodeFormat,
 ): {
-  pipeline: sharp.Sharp;
+  pipeline: SharpInstance;
   contentType: PublishedRenderResult["contentType"];
   extension: PublishedRenderResult["extension"];
 } {
