@@ -27,7 +27,7 @@ import { DAM_RIGHTS_OPTIONS, type DamRightsType } from "@/lib/dam/types";
 type CollectionOption = {
   id: string;
   name: string;
-  isPersonal: boolean;
+  isPersonal?: boolean;
 };
 
 type CreditOption = { value: string; label: string };
