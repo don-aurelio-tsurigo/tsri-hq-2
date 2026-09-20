@@ -238,6 +238,8 @@ export function AppSidebar({
         pathname === "/schichtplan" ||
         pathname.startsWith("/schichtplan/") ||
         pathname.startsWith("/settings/schichtplan") ||
+        pathname === "/jahreskalender" ||
+        pathname.startsWith("/jahreskalender/") ||
         (!!redaktion && pathname === `/spaces/${redaktion.id}`) ||
         (!!quellen && pathname === `/spaces/${quellen.id}`)
       );
@@ -368,6 +370,17 @@ export function AppSidebar({
             onNavigate={onMobileClose}
           >
             Newsletter
+          </NavLink>
+          <NavLink
+            href="/jahreskalender"
+            active={
+              pathname === "/jahreskalender" ||
+              pathname.startsWith("/jahreskalender/")
+            }
+            icon={CalendarDays}
+            onNavigate={onMobileClose}
+          >
+            Jahreskalender
           </NavLink>
           <NavLink
             href="/feedback"

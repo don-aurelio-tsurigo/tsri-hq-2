@@ -61,6 +61,7 @@ model User {
   exportLogs            ExportLog[]
   damArchiveReviews     DamArchiveReview[]
   taskInboxPins         TaskInboxPin[]
+  createdCalendarEvents EditorialCalendarEvent[] @relation("EditorialCalendarEventCreator")
 
   @@map("user")
   @@schema("public")
@@ -179,6 +180,8 @@ model Organization {
   newsItems               NewsItem[]
   payrexxPayouts          PayrexxPayout[]
   payrexxChannelRules     PayrexxChannelRule[]
+  editorialCalendarCategories EditorialCalendarCategory[]
+  editorialCalendarEvents     EditorialCalendarEvent[]
 
   @@map("organization")
   @@schema("public")
@@ -1247,6 +1250,105 @@ model DamArchiveReview {
 
   @@index([completedAt])
   @@map("dam_archive_review")
+  @@schema("public")
+}
+
+// ─── Redaktion Jahreskalender ──────────────────────────────────
+
+enum EditorialCalendarFrequency {
+  once
+  weekly
+  monthly
+  yearly
+  every_n_years
+
+  @@schema("public")
+}
+
+enum EditorialCalendarDateMode {
+  fixed
+  rule
+  pending
+
+  @@schema("public")
+}
+
+model EditorialCalendarCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  /// CSS-Farbe z.B. #d4edc0
+  color          String   @default("#e5e7eb")
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  events       EditorialCalendarEvent[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, sortOrder])
+  @@map("editorial_calendar_category")
+  @@schema("public")
+}
+
+model EditorialCalendarEvent {
+  id             String                       @id @default(cuid())
+  organizationId String
+  categoryId     String?
+  title          String
+  note           String?                      @db.Text
+  frequency      EditorialCalendarFrequency
+  dateMode       EditorialCalendarDateMode
+  /// Einmalig / Ankerdatum (UTC date)
+  date           DateTime?                    @db.Date
+  /// Tag im Monat (1–31) für monthly/yearly fixed
+  day            Int?
+  /// Monat (1–12) für yearly / every_n_years / rule
+  month          Int?
+  /// ISO-Wochentag 1=Mo … 7=So
+  ruleWeekday    Int?
+  /// 1–4 oder -1 = letzter
+  ruleNth        Int?
+  /// Monat der Regel (1–12), falls abweichend von month
+  ruleMonth      Int?
+  /// Alle N Jahre
+  intervalYears  Int?
+  /// Bezugsjahr der Serie (every_n_years)
+  anchorYear     Int?
+  archivedAt     DateTime?
+  createdById    String
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  organization Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     EditorialCalendarCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy    User                             @relation("EditorialCalendarEventCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  occurrences  EditorialCalendarOccurrence[]
+
+  @@index([organizationId, archivedAt])
+  @@index([categoryId])
+  @@index([createdById])
+  @@map("editorial_calendar_event")
+  @@schema("public")
+}
+
+/// Konkretes Datum für pending yearly / every_n_years Events
+model EditorialCalendarOccurrence {
+  id        String   @id @default(cuid())
+  eventId   String
+  year      Int
+  date      DateTime @db.Date
+  note      String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event EditorialCalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, year])
+  @@index([eventId, year])
+  @@map("editorial_calendar_occurrence")
   @@schema("public")
 }
 

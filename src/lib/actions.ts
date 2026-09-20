@@ -478,3 +478,39 @@ export async function updateAdCampaign(formData: FormData) {
 export async function deleteAdCampaign(formData: FormData) {
   return deleteAdCampaignAction(formData);
 }
+
+import {
+  createEditorialCalendarCategory as createEditorialCalendarCategoryAction,
+  updateEditorialCalendarCategory as updateEditorialCalendarCategoryAction,
+  deleteEditorialCalendarCategory as deleteEditorialCalendarCategoryAction,
+  createEditorialCalendarEvent as createEditorialCalendarEventAction,
+  updateEditorialCalendarEvent as updateEditorialCalendarEventAction,
+  archiveEditorialCalendarEvent as archiveEditorialCalendarEventAction,
+  setEditorialCalendarPendingDate as setEditorialCalendarPendingDateAction,
+  clearEditorialCalendarPendingDate as clearEditorialCalendarPendingDateAction,
+} from "./actions/editorial-calendar";
+
+export async function createEditorialCalendarCategory(formData: FormData) {
+  return createEditorialCalendarCategoryAction(formData);
+}
+export async function updateEditorialCalendarCategory(formData: FormData) {
+  return updateEditorialCalendarCategoryAction(formData);
+}
+export async function deleteEditorialCalendarCategory(formData: FormData) {
+  return deleteEditorialCalendarCategoryAction(formData);
+}
+export async function createEditorialCalendarEvent(formData: FormData) {
+  return createEditorialCalendarEventAction(formData);
+}
+export async function updateEditorialCalendarEvent(formData: FormData) {
+  return updateEditorialCalendarEventAction(formData);
+}
+export async function archiveEditorialCalendarEvent(formData: FormData) {
+  return archiveEditorialCalendarEventAction(formData);
+}
+export async function setEditorialCalendarPendingDate(formData: FormData) {
+  return setEditorialCalendarPendingDateAction(formData);
+}
+export async function clearEditorialCalendarPendingDate(formData: FormData) {
+  return clearEditorialCalendarPendingDateAction(formData);
+}
