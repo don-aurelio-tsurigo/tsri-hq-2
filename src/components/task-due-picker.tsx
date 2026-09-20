@@ -154,8 +154,7 @@ export function TaskDuePicker({
       aria-label={`Fällig ${dueText(selected)}, Datum ändern`}
       aria-expanded={open}
       className={[
-        "inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-lg px-2 text-left transition hover:bg-black/5 disabled:opacity-60 sm:min-h-0 sm:min-w-0 sm:rounded-md sm:px-1.5 sm:py-0.5",
-        compact ? "text-xs sm:text-[0.7rem]" : "text-xs",
+        "inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-1.5 text-left text-[0.7rem] leading-none transition hover:bg-black/5 disabled:opacity-60",
         tone === "late"
           ? "text-[var(--danger)]"
           : tone === "warn"
@@ -178,14 +177,14 @@ export function TaskDuePicker({
       aria-label="Fälligkeitsdatum setzen"
       aria-expanded={open}
       title="Fälligkeitsdatum"
-      className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60 sm:size-7"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60"
       onClick={(e) => {
         e.stopPropagation();
         setOpen((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <Calendar className="size-4 sm:size-3.5" strokeWidth={1.75} />
+      <Calendar className="size-3.5" strokeWidth={1.75} />
     </button>
   );
 

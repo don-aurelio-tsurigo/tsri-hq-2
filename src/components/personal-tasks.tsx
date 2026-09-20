@@ -143,7 +143,7 @@ function CollapsibleSection({
         <button
           type="button"
           onClick={() => onToggle(sectionKey)}
-          className="flex min-h-11 min-w-0 flex-1 items-center gap-1.5 py-1 text-left sm:min-h-0 sm:py-0.5"
+          className="flex min-h-9 min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left sm:min-h-0"
         >
           <span
             className={[
@@ -514,7 +514,7 @@ export function GroupedTasksBoard({
                 type="button"
                 aria-pressed={active}
                 className={[
-                  "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
+                  "shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold transition",
                   active
                     ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                     : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",

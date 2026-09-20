@@ -90,11 +90,11 @@ export function InlineTaskAdd({
     return (
       <button
         type="button"
-        className="flex min-h-11 w-full items-center gap-2.5 py-1.5 text-left text-sm text-[var(--muted)] transition hover:text-[var(--fg)] sm:min-h-0 sm:py-0.5"
+        className="flex w-full items-center gap-2 py-1.5 text-left text-sm text-[var(--muted)] transition hover:text-[var(--fg)]"
         onClick={() => setOpen(true)}
       >
         <span
-          className="flex size-5 shrink-0 items-center justify-center text-base leading-none sm:size-[1.15rem]"
+          className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none"
           aria-hidden
         >
           +
@@ -106,9 +106,9 @@ export function InlineTaskAdd({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <span
-          className="flex size-5 shrink-0 items-center justify-center text-base leading-none text-[var(--muted)] sm:size-[1.15rem]"
+          className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none text-[var(--muted)]"
           aria-hidden
         >
           +
@@ -120,8 +120,9 @@ export function InlineTaskAdd({
           placeholder={placeholder}
           aria-label="Neue Aufgabe"
           aria-invalid={!!error}
+          // 16px prevents iOS Safari from zooming on focus
           className={[
-            "min-h-11 min-w-0 flex-1 rounded-md border bg-transparent px-2.5 py-2 text-base font-medium leading-snug outline-none transition sm:min-h-0 sm:px-2 sm:py-1 sm:text-sm",
+            "min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1.5 text-[16px] font-medium leading-snug outline-none transition sm:py-1 sm:text-sm",
             "placeholder:font-normal placeholder:text-[var(--muted)]",
             "disabled:opacity-60",
             error

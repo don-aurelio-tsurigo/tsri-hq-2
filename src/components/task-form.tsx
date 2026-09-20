@@ -207,14 +207,14 @@ export function TaskDoneCheckbox({
       type="button"
       disabled={pending || status === "cancelled"}
       onClick={toggle}
-      className="group inline-flex size-10 shrink-0 items-center justify-center rounded-md disabled:opacity-70 sm:size-auto sm:p-0.5"
+      className="group inline-flex size-8 shrink-0 items-center justify-center rounded-md disabled:opacity-70 sm:size-auto sm:p-0.5"
       aria-pressed={displayDone}
       aria-label={displayDone ? "Als offen markieren" : "Erledigen"}
       title={displayDone ? "Als offen markieren" : "Erledigen"}
     >
       <span
         className={[
-          "inline-flex size-5 items-center justify-center rounded-[5px] border-2 transition-[transform,background-color,border-color] duration-150 sm:size-[1.15rem]",
+          "inline-flex size-[1.15rem] items-center justify-center rounded-[5px] border-2 transition-[transform,background-color,border-color] duration-150",
           displayDone
             ? "task-check-pop border-[var(--fg)] bg-[var(--highlight)] text-[var(--fg)]"
             : "border-[var(--border)] bg-white group-hover:border-[var(--fg)]",

@@ -202,7 +202,7 @@ function TaskRowMenu({ task }: { task: TaskRow }) {
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex size-10 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)] sm:size-7"
+        className="inline-flex size-8 items-center justify-center rounded-md text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)] sm:size-7"
         aria-label="Task-Aktionen"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -394,8 +394,8 @@ export function TaskList({
                 e.dataTransfer.effectAllowed = "move";
               }}
               className={[
-                "flex flex-col gap-1.5 transition-opacity duration-200 sm:flex-row sm:items-center sm:gap-2.5",
-                compact ? "px-3 py-2.5 sm:py-1.5" : "px-4 py-3 gap-3",
+                "flex items-center gap-2 transition-opacity duration-200",
+                compact ? "px-3 py-1.5" : "px-4 py-3 gap-3",
                 active ? "bg-[color-mix(in_oklab,var(--accent)_8%,white)]" : "",
                 allowDrag ? "sm:cursor-grab sm:active:cursor-grabbing" : "",
                 "has-[button[aria-pressed=true]]:opacity-70",
@@ -403,40 +403,31 @@ export function TaskList({
                 "has-[button[aria-pressed=true]]:[&_.task-title]:line-through",
               ].join(" ")}
             >
-              <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:items-center">
+              <div
+                className="flex shrink-0 items-center"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <TaskDoneCheckbox id={task.id} status={task.status} />
+              </div>
+              <div className="min-w-0 flex-1">
                 <div
-                  className="shrink-0 pt-0.5 sm:pt-0"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
+                  className={
+                    compact
+                      ? "flex min-w-0 items-center gap-1.5"
+                      : undefined
+                  }
                 >
-                  <TaskDoneCheckbox id={task.id} status={task.status} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-start gap-2 sm:items-baseline">
-                    {enableDrawer ? (
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 py-0.5 text-left"
-                        onClick={() => setSelectedId(task.id)}
-                      >
-                        <p
-                          className={[
-                            "task-title line-clamp-2 leading-snug font-medium underline-offset-2 hover:underline sm:truncate sm:leading-snug",
-                            compact ? "text-sm" : "",
-                            task.status === "done" ||
-                            task.status === "cancelled"
-                              ? "text-[var(--muted)] line-through"
-                              : "",
-                          ].join(" ")}
-                        >
-                          {task.title}
-                        </p>
-                      </button>
-                    ) : (
+                  {enableDrawer ? (
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => setSelectedId(task.id)}
+                    >
                       <p
                         className={[
-                          "task-title min-w-0 flex-1 line-clamp-2 leading-snug font-medium sm:truncate",
-                          compact ? "text-sm" : "",
+                          "task-title truncate leading-none font-medium underline-offset-2 hover:underline",
+                          compact ? "text-sm" : "leading-snug",
                           task.status === "done" ||
                           task.status === "cancelled"
                             ? "text-[var(--muted)] line-through"
@@ -445,120 +436,122 @@ export function TaskList({
                       >
                         {task.title}
                       </p>
-                    )}
-                    <div
-                      className="shrink-0 sm:hidden"
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
+                    </button>
+                  ) : (
+                    <p
+                      className={[
+                        "task-title min-w-0 flex-1 truncate font-medium",
+                        compact ? "text-sm leading-none" : "leading-snug",
+                        task.status === "done" ||
+                        task.status === "cancelled"
+                          ? "text-[var(--muted)] line-through"
+                          : "",
+                      ].join(" ")}
                     >
-                      <TaskRowMenu task={task} />
-                    </div>
-                  </div>
-                  {showDescription && task.description && !compact && (
-                    <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
-                      {task.description}
+                      {task.title}
                     </p>
                   )}
-                  {!compact && (
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-                      {showSpace && task.space && (
-                        <span
-                          className={[
-                            "badge",
-                            task.space.type === "project"
-                              ? "badge-space-project"
-                              : "badge-muted",
-                          ].join(" ")}
-                        >
-                          {task.space.name}
-                        </span>
-                      )}
-                      {!members &&
-                        task.assignee &&
-                        task.space?.type !== "personal" && (
-                          <span>→ {task.assignee.name}</span>
-                        )}
-                      {!showDueOffset && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                        >
-                          <TaskDuePicker
-                            taskId={task.id}
-                            dueAt={task.dueAt}
-                            compact={false}
-                          />
-                        </div>
-                      )}
-                      {offset && <span>Relativ: {offset}</span>}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 pl-8 sm:ml-0 sm:flex-nowrap sm:pl-0">
-                {compact && !showDueOffset && (
-                  <div
-                    className="shrink-0"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <TaskDuePicker
-                      taskId={task.id}
-                      dueAt={task.dueAt}
-                      compact
-                    />
-                  </div>
-                )}
-                {compact && offset && (
-                  <span className="shrink-0 text-[0.7rem] text-[var(--muted)]">
-                    {offset}
-                  </span>
-                )}
-                {compact && showSpace && task.space && (
-                  task.space.type === "project" ? (
-                    <Link
-                      href={`/projects/${task.space.id}`}
-                      className="badge badge-space-project shrink-0 !px-1.5 !py-0.5 text-[0.65rem] hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {task.space.name}
-                    </Link>
-                  ) : (
-                    <span className="badge badge-muted shrink-0 !px-1.5 !py-0.5 text-[0.65rem]">
-                      {task.space.name}
-                    </span>
-                  )
-                )}
-                <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0">
-                  {members && members.length > 0 ? (
+                  {compact && !showDueOffset && (
                     <div
+                      className="shrink-0"
                       onClick={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
                     >
-                      <TaskAssigneePicker
+                      <TaskDuePicker
                         taskId={task.id}
-                        assigneeId={assigneeId}
-                        assigneeName={task.assignee?.name}
-                        members={members}
-                        compact={compact}
+                        dueAt={task.dueAt}
+                        compact
                       />
                     </div>
-                  ) : (
-                    task.assignee &&
-                    task.space?.type !== "personal" && (
-                      <span className="text-[0.65rem] text-[var(--muted)]">
-                        {task.assignee.name.split(" ")[0]}
+                  )}
+                  {compact && offset && (
+                    <span className="shrink-0 text-[0.7rem] leading-none text-[var(--muted)]">
+                      {offset}
+                    </span>
+                  )}
+                  {compact && showSpace && task.space && (
+                    task.space.type === "project" ? (
+                      <Link
+                        href={`/projects/${task.space.id}`}
+                        className="badge badge-space-project max-w-[5.5rem] shrink-0 truncate !px-1.5 !py-0 text-[0.65rem] hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {task.space.name}
+                      </Link>
+                    ) : (
+                      <span className="badge badge-muted max-w-[5.5rem] shrink-0 truncate !px-1.5 !py-0 text-[0.65rem]">
+                        {task.space.name}
                       </span>
                     )
                   )}
+                </div>
+                {showDescription && task.description && !compact && (
+                  <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-sm text-[var(--muted)]">
+                    {task.description}
+                  </p>
+                )}
+                {!compact && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+                    {showSpace && task.space && (
+                      <span
+                        className={[
+                          "badge",
+                          task.space.type === "project"
+                            ? "badge-space-project"
+                            : "badge-muted",
+                        ].join(" ")}
+                      >
+                        {task.space.name}
+                      </span>
+                    )}
+                    {!members &&
+                      task.assignee &&
+                      task.space?.type !== "personal" && (
+                        <span>→ {task.assignee.name}</span>
+                      )}
+                    {!showDueOffset && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <TaskDuePicker
+                          taskId={task.id}
+                          dueAt={task.dueAt}
+                          compact={false}
+                        />
+                      </div>
+                    )}
+                    {offset && <span>Relativ: {offset}</span>}
+                  </div>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-0.5">
+                {members && members.length > 0 ? (
                   <div
-                    className="hidden sm:block"
                     onClick={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                   >
-                    <TaskRowMenu task={task} />
+                    <TaskAssigneePicker
+                      taskId={task.id}
+                      assigneeId={assigneeId}
+                      assigneeName={task.assignee?.name}
+                      members={members}
+                      compact={compact}
+                    />
                   </div>
+                ) : (
+                  task.assignee &&
+                  task.space?.type !== "personal" && (
+                    <span className="px-1 text-[0.65rem] text-[var(--muted)]">
+                      {task.assignee.name.split(" ")[0]}
+                    </span>
+                  )
+                )}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <TaskRowMenu task={task} />
                 </div>
               </div>
             </li>

@@ -103,7 +103,7 @@ export function ProjectTasksOverview({
                 type="button"
                 aria-pressed={active}
                 className={[
-                  "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
+                  "shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold transition",
                   active
                     ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                     : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",
@@ -134,7 +134,7 @@ export function ProjectTasksOverview({
                   type="button"
                   aria-pressed={active}
                   className={[
-                    "shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition sm:py-1.5",
+                    "shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold transition",
                     active
                       ? "border-[var(--fg)] bg-[var(--fg)] text-white"
                       : "border-[var(--border)] bg-white text-[var(--muted)] hover:border-[var(--fg)] hover:text-[var(--fg)]",

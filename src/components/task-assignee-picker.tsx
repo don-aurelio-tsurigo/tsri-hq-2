@@ -170,7 +170,7 @@ export function TaskAssigneePicker({
       aria-expanded={open}
       title={selected.name}
       className={[
-        "inline-flex size-10 shrink-0 items-center justify-center rounded-full transition hover:opacity-90 disabled:opacity-60 sm:size-7",
+        "inline-flex size-8 shrink-0 items-center justify-center rounded-full transition hover:opacity-90 disabled:opacity-60",
         compact ? "" : "sm:w-auto sm:gap-1.5 sm:pr-1.5",
       ].join(" ")}
       onClick={(e) => {
@@ -180,7 +180,7 @@ export function TaskAssigneePicker({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <span
-        className="inline-flex size-8 items-center justify-center rounded-full text-[0.7rem] font-semibold text-white sm:size-7 sm:text-[0.65rem]"
+        className="inline-flex size-7 items-center justify-center rounded-full text-[0.65rem] font-semibold text-white"
         style={{ backgroundColor: avatarColor(selected.id) }}
         aria-hidden
       >
@@ -200,14 +200,14 @@ export function TaskAssigneePicker({
       aria-label="Zuständigkeit setzen"
       aria-expanded={open}
       title="Zuständig"
-      className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60 sm:size-7"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60"
       onClick={(e) => {
         e.stopPropagation();
         setOpen((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <User className="size-4 sm:size-3.5" strokeWidth={1.75} />
+      <User className="size-3.5" strokeWidth={1.75} />
     </button>
   );
 
@@ -242,7 +242,7 @@ export function TaskAssigneePicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Name oder E-Mail…"
-          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2.5 text-base outline-none focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_28%,transparent)] sm:px-2.5 sm:py-1.5 sm:text-sm"
+          className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-[16px] outline-none focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_28%,transparent)] sm:px-2.5 sm:py-1.5 sm:text-sm"
         />
       </div>
       <ul className="max-h-[min(24rem,60dvh)] overflow-y-auto py-1 sm:max-h-64">

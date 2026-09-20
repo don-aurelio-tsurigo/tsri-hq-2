@@ -199,6 +199,16 @@ textarea {
   padding: 0.65rem 0.75rem;
   color: var(--fg);
   font-weight: 500;
+  /* Prevent iOS Safari zoom on focus (< 16px triggers zoom) */
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 0.95rem;
+  }
 }
 
 .field input:focus,
