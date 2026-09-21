@@ -36,7 +36,9 @@ export default async function DamArchivePage({
     view === "collections"
       ? listArchiveCollectionCards(filters.q, page)
       : Promise.resolve(null),
-    listArchiveFacets(),
+    listArchiveFacets({
+      ensureCollectionIds: filters.collectionId ? [filters.collectionId] : [],
+    }),
     countPublishedAssets(),
   ]);
 

@@ -62,11 +62,15 @@ export function DamCombobox({
   }, [createdOptions, options]);
 
   const selected = useMemo(() => {
-    const map = new Map(mergedOptions.map((option) => [option.value, option]));
+    const map = new Map<string, DamComboboxOption>();
+    for (const option of mergedOptions) map.set(option.value, option);
+    for (const option of remoteOptions ?? []) {
+      if (!map.has(option.value)) map.set(option.value, option);
+    }
     return value.map(
       (item) => map.get(item) ?? { value: item, label: item },
     );
-  }, [mergedOptions, value]);
+  }, [mergedOptions, remoteOptions, value]);
 
   const filtered = useMemo(() => {
     const source = remote && typed ? (remoteOptions ?? []) : mergedOptions;

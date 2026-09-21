@@ -259,22 +259,33 @@ export async function countPublishedAssets(): Promise<number> {
   return prisma.asset.count({ where: { status: "published" } });
 }
 
-export async function listArchiveFacets(): Promise<ArchiveFacets> {
-  const [credits, collections, keywordRows] = await Promise.all([
-    prisma.asset.findMany({
-      where: { status: "published" },
-      distinct: ["credit"],
-      select: { credit: true },
-      orderBy: { credit: "asc" },
-      take: 200,
-    }),
-    prisma.collection.findMany({
-      where: { assets: { some: { asset: { status: "published" } } } },
-      select: { id: true, name: true },
-      orderBy: [{ createdAt: "desc" }, { name: "asc" }],
-      take: ARCHIVE_FACET_LIMIT,
-    }),
-    prisma.$queryRaw<{ keyword: string }[]>`
+export async function listArchiveFacets(opts?: {
+  ensureCollectionIds?: string[];
+}): Promise<ArchiveFacets> {
+  const ensureIds = [
+    ...new Set(
+      (opts?.ensureCollectionIds ?? [])
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  const [credits, collections, keywordRows, ensuredCollections] =
+    await Promise.all([
+      prisma.asset.findMany({
+        where: { status: "published" },
+        distinct: ["credit"],
+        select: { credit: true },
+        orderBy: { credit: "asc" },
+        take: 200,
+      }),
+      prisma.collection.findMany({
+        where: { assets: { some: { asset: { status: "published" } } } },
+        select: { id: true, name: true },
+        orderBy: [{ createdAt: "desc" }, { name: "asc" }],
+        take: ARCHIVE_FACET_LIMIT,
+      }),
+      prisma.$queryRaw<{ keyword: string }[]>`
       SELECT DISTINCT trim(k) AS keyword
       FROM "asset", unnest(keywords) AS k
       WHERE status = 'published'::"AssetStatus"
@@ -282,11 +293,23 @@ export async function listArchiveFacets(): Promise<ArchiveFacets> {
       ORDER BY 1
       LIMIT ${ARCHIVE_FACET_LIMIT}
     `,
-  ]);
+      ensureIds.length > 0
+        ? prisma.collection.findMany({
+            where: { id: { in: ensureIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([] as { id: string; name: string }[]),
+    ]);
+
+  const seen = new Set(collections.map((collection) => collection.id));
+  const mergedCollections = [
+    ...ensuredCollections.filter((collection) => !seen.has(collection.id)),
+    ...collections,
+  ];
 
   return {
     credits: credits.map((row) => row.credit).filter(Boolean),
-    collections,
+    collections: mergedCollections,
     keywords: keywordRows.map((row) => row.keyword).filter(Boolean),
     collectionsTruncated: collections.length >= ARCHIVE_FACET_LIMIT,
     keywordsTruncated: keywordRows.length >= ARCHIVE_FACET_LIMIT,
