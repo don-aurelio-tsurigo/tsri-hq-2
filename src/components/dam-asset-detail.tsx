@@ -14,7 +14,8 @@ import {
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
 import { DamRatingStars } from "@/components/dam-rating-stars";
-import { damFileSrc } from "@/lib/dam/edit-params";
+import { damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
+import { fileExtension } from "@/lib/dam/filename";
 import { DAM_RIGHTS_OPTIONS, damWepublishExportedHint } from "@/lib/dam/types";
 import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
 
@@ -22,6 +23,10 @@ type FieldKey = DamMetaFieldKey;
 
 function rightsLabel(value: string): string {
   return DAM_RIGHTS_OPTIONS.find((opt) => opt.value === value)?.label ?? value;
+}
+
+function formatFileFormat(fileName: string): string {
+  return fileExtension(fileName).toUpperCase();
 }
 
 export function DamAssetDetail({
@@ -252,6 +257,11 @@ export function DamAssetDetail({
                   </button>
                 </div>
               )}
+              {!isDefaultEditParams(asset.editParams) ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--accent)]">
+                  Bild bearbeitet
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
@@ -418,6 +428,11 @@ export function DamAssetDetail({
                 </p>
               </div>
             ) : null}
+
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted)]">Format</p>
+              <p className="mt-0.5 text-sm">{formatFileFormat(asset.fileName)}</p>
+            </div>
 
             <DamMetaRow
               label="Aufgenommen"

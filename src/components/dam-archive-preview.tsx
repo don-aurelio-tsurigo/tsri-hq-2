@@ -14,12 +14,14 @@ import {
   toDatetimeLocal,
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
+import { DamMailchimpCropDialog } from "@/components/dam-mailchimp-crop-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import type { DamDownloadFormat } from "@/lib/dam/download-path";
-import { damFileSrc } from "@/lib/dam/edit-params";
+import { damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
+import { fileExtension } from "@/lib/dam/filename";
 import {
   DAM_RIGHTS_OPTIONS,
   damRightsLabel,
@@ -33,6 +35,10 @@ function formatTakenAt(iso: string | null): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString("de-CH");
+}
+
+function formatFileFormat(fileName: string): string {
+  return fileExtension(fileName).toUpperCase();
 }
 
 export function DamArchivePreview({
@@ -75,6 +81,7 @@ export function DamArchivePreview({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [mailchimpOpen, setMailchimpOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
@@ -167,7 +174,7 @@ export function DamArchivePreview({
   }, [downloadMenuOpen]);
 
   useEffect(() => {
-    if (!keyboardEnabled) return;
+    if (!keyboardEnabled || mailchimpOpen) return;
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (editing || isTypingTarget(e.target)) {
@@ -199,7 +206,16 @@ export function DamArchivePreview({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [count, editing, index, keyboardEnabled, onClose, onEdit, onIndexChange]);
+  }, [
+    count,
+    editing,
+    index,
+    keyboardEnabled,
+    mailchimpOpen,
+    onClose,
+    onEdit,
+    onIndexChange,
+  ]);
 
   async function downloadAsset(format: DamDownloadFormat) {
     if (!asset || downloading) return;
@@ -336,6 +352,11 @@ export function DamArchivePreview({
                   </button>
                 </div>
               )}
+              {!isDefaultEditParams(asset.editParams) ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--accent)]">
+                  Bild bearbeitet
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
@@ -384,6 +405,17 @@ export function DamArchivePreview({
                       onClick={() => void downloadAsset("jpeg")}
                     >
                       Als JPEG
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--accent-soft)]"
+                      onClick={() => {
+                        setDownloadMenuOpen(false);
+                        setMailchimpOpen(true);
+                      }}
+                    >
+                      Mailchimp 800×800
                     </button>
                   </div>
                 ) : null}
@@ -625,6 +657,11 @@ export function DamArchivePreview({
               </div>
             ) : null}
 
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted)]">Format</p>
+              <p className="mt-0.5 text-sm">{formatFileFormat(asset.fileName)}</p>
+            </div>
+
             <DamMetaRow
               label="Aufnahmedatum"
               display={formatTakenAt(asset.takenAt)}
@@ -674,6 +711,18 @@ export function DamArchivePreview({
           ) : null}
         </aside>
       </div>
+
+      {mailchimpOpen ? (
+        <DamMailchimpCropDialog
+          assetId={asset.id}
+          fileName={asset.fileName}
+          editParams={asset.editParams}
+          onClose={() => setMailchimpOpen(false)}
+          onDownloaded={() =>
+            showToast({ message: "Mailchimp 800×800 heruntergeladen." })
+          }
+        />
+      ) : null}
     </div>
   );
 }

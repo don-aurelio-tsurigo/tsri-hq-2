@@ -1,17 +1,13 @@
 import { renderDamPreviewWebp } from "@/lib/dam/apply-edits";
 import {
-  DEFAULT_EDIT_PARAMS,
   editParamsRev,
+  isDefaultEditParams,
   parseEditParams,
 } from "@/lib/dam/edit-params";
 import { derivativeKey } from "@/lib/dam/filename";
 import { putObject } from "@/lib/r2";
 
-const DEFAULT_REV = editParamsRev(DEFAULT_EDIT_PARAMS);
-
-export function isDefaultEditParams(raw: unknown): boolean {
-  return editParamsRev(parseEditParams(raw)) === DEFAULT_REV;
-}
+export { isDefaultEditParams } from "@/lib/dam/edit-params";
 
 /**
  * Recipe-scoped thumb/web key. Defaults stay on the classic `_thumb.webp` /
@@ -24,7 +20,7 @@ export function previewDerivativeKey(
 ): string {
   const base = derivativeKey(r2Key, kind);
   const rev = editParamsRev(parseEditParams(raw));
-  if (rev === DEFAULT_REV) return base;
+  if (isDefaultEditParams(raw)) return base;
   return base.replace(/_(thumb|web)\.webp$/, `_$1_${rev}.webp`);
 }
 

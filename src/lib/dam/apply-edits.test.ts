@@ -4,6 +4,7 @@ import sharp from "sharp";
 import {
   applyDamEditsToOriented,
   renderDamPreviewWebp,
+  renderMailchimpSquare,
   renderPublishedMaster,
 } from "./apply-edits.ts";
 import { DEFAULT_EDIT_PARAMS } from "./edit-params.ts";
@@ -185,5 +186,21 @@ describe("renderPublishedMaster", () => {
     assert.equal((await sharp(published.buffer).metadata()).format, "tiff");
     assert.equal(published.width, 50);
     assert.equal(published.height, 40);
+  });
+});
+
+describe("renderMailchimpSquare", () => {
+  it("exports a 800×800 JPEG from a temporary square crop", async () => {
+    const input = await solidPng(1200, 800, { r: 40, g: 80, b: 120 });
+    const result = await renderMailchimpSquare(
+      input,
+      DEFAULT_EDIT_PARAMS,
+      { unit: "%", x: 10, y: 0, width: 66.67, height: 100 },
+    );
+    assert.equal(result.contentType, "image/jpeg");
+    assert.equal(result.extension, "jpg");
+    assert.equal(result.width, 800);
+    assert.equal(result.height, 800);
+    assert.equal((await sharp(result.buffer).metadata()).format, "jpeg");
   });
 });

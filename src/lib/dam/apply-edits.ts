@@ -5,6 +5,7 @@ import {
   parseEditParams,
   sharpTemperatureModulate,
   straightenCoverExtract,
+  type DamCrop,
   type DamEditParams,
 } from "@/lib/dam/edit-params";
 import {
@@ -206,5 +207,43 @@ export async function renderPublishedMaster(
     extension: encoded.extension,
     width: meta.width ?? null,
     height: meta.height ?? null,
+  };
+}
+
+export const MAILCHIMP_SQUARE_SIZE = 800;
+
+/**
+ * One-off Mailchimp export: apply saved edits, then a temporary 1:1 crop,
+ * then resize to 800×800 JPEG. Does not persist the crop on the asset.
+ */
+export async function renderMailchimpSquare(
+  original: Buffer,
+  editParams: unknown,
+  crop: DamCrop,
+  editorial?: DamExportEditorial | null,
+): Promise<PublishedRenderResult> {
+  const edited = await applyDamEdits(original, editParams);
+  const meta = await sharp(edited, { failOn: "none" }).metadata();
+  const width = meta.width ?? 0;
+  const height = meta.height ?? 0;
+  if (!width || !height) {
+    throw new Error("Bildmasse fehlen.");
+  }
+  const region = cropToExtract(crop, width, height);
+  const metadata = editorial ? buildDamExportMetadata(editorial) : null;
+  let pipeline = sharp(edited, { failOn: "none" })
+    .extract(region)
+    .resize(MAILCHIMP_SQUARE_SIZE, MAILCHIMP_SQUARE_SIZE, { fit: "fill" })
+    .jpeg({ quality: 88 });
+  if (metadata?.exif) pipeline = pipeline.withExif(metadata.exif);
+  if (metadata?.xmp) pipeline = pipeline.withXmp(metadata.xmp);
+  const buffer = await pipeline.toBuffer();
+  const out = await sharp(buffer).metadata();
+  return {
+    buffer,
+    contentType: "image/jpeg",
+    extension: "jpg",
+    width: out.width ?? MAILCHIMP_SQUARE_SIZE,
+    height: out.height ?? MAILCHIMP_SQUARE_SIZE,
   };
 }

@@ -252,6 +252,12 @@ export function editParamsRev(params: DamEditParams): string {
   ].join("-");
 }
 
+const DEFAULT_EDIT_REV = editParamsRev(DEFAULT_EDIT_PARAMS);
+
+export function isDefaultEditParams(raw: unknown): boolean {
+  return editParamsRev(parseEditParams(raw)) === DEFAULT_EDIT_REV;
+}
+
 export function damFileSrc(
   assetId: string,
   variant: "thumb" | "web" | "original",
