@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
+import { DamArchivePickerDialog } from "@/components/dam-archive-picker-dialog";
 import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
@@ -79,6 +80,13 @@ function slideSupportsBackgroundImage(slide: Slide) {
   );
 }
 
+function backgroundImageInputValue(url: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("data:")) return "(hochgeladenes Bild)";
+  if (url.startsWith("/api/dam/")) return "(Bild aus der Mediathek)";
+  return url;
+}
+
 export function CarouselEditor({
   postId,
   initialTitle,
@@ -108,6 +116,7 @@ export function CarouselEditor({
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [archivePickerOpen, setArchivePickerOpen] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
   const [pending, startTransition] = useTransition();
@@ -713,13 +722,14 @@ export function CarouselEditor({
                     <input
                       className="w-full"
                       disabled={!canEdit}
-                      value={
-                        active.backgroundImageUrl?.startsWith("data:")
-                          ? "(hochgeladenes Bild)"
-                          : (active.backgroundImageUrl ?? "")
-                      }
+                      value={backgroundImageInputValue(active.backgroundImageUrl)}
                       onChange={(e) => {
-                        if (e.target.value === "(hochgeladenes Bild)") return;
+                        if (
+                          e.target.value === "(hochgeladenes Bild)" ||
+                          e.target.value === "(Bild aus der Mediathek)"
+                        ) {
+                          return;
+                        }
                         updateActive({
                           backgroundImageUrl: e.target.value.trim() || null,
                         });
@@ -744,6 +754,14 @@ export function CarouselEditor({
                           onClick={() => fileInputRef.current?.click()}
                         >
                           {uploading ? "Lädt…" : "Bild hochladen"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-sm"
+                          disabled={uploading}
+                          onClick={() => setArchivePickerOpen(true)}
+                        >
+                          Aus der Mediathek
                         </button>
                         {active.backgroundImageUrl ? (
                           <button
@@ -906,6 +924,16 @@ export function CarouselEditor({
           )}
         </aside>
       </div>
+      {archivePickerOpen ? (
+        <DamArchivePickerDialog
+          onClose={() => setArchivePickerOpen(false)}
+          onSelect={(imageUrl) => {
+            updateActive({ backgroundImageUrl: imageUrl });
+            setSelectedLayer("image");
+            setArchivePickerOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
