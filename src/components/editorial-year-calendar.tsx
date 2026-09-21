@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addMonths,
-  addWeeks,
+  eachDayOfInterval,
+  endOfMonth,
   format,
-  parseISO,
+  isWeekend,
+  startOfMonth,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { de } from "date-fns/locale";
+import { Plus, X } from "lucide-react";
 import {
   archiveEditorialCalendarEvent,
   clearEditorialCalendarPendingDate,
@@ -21,24 +23,18 @@ import {
 import {
   allowedDateModes,
   DATE_MODE_LABELS,
-  daysInMonthGrid,
-  daysInWeek,
-  formatMonthTitle,
-  formatWeekTitle,
   FREQUENCY_LABELS,
   listOccurrencesInYear,
   monthLabelsForYear,
   NTH_OPTIONS,
   parseDateKey,
   parseMonthKey,
-  startOfIsoWeek,
   WEEKDAY_OPTIONS,
   type CalendarCategoryOption,
   type CalendarDateMode,
   type CalendarEventDetail,
   type CalendarEventFields,
   type CalendarFrequency,
-  type CalendarViewMode,
   type PendingEvent,
 } from "@/lib/editorial-calendar-shared";
 
@@ -54,9 +50,11 @@ type OccurrenceChip = {
 
 type Props = {
   year: number;
-  view: CalendarViewMode;
   monthKey: string;
-  weekStartKey: string;
+  monthLabel: string;
+  prevMonth: string;
+  nextMonth: string;
+  currentMonth: string;
   occurrences: OccurrenceChip[];
   pending: PendingEvent[];
   events: CalendarEventDetail[];
@@ -78,14 +76,12 @@ type FormState = {
   ruleMonth: string;
   intervalYears: string;
   anchorYear: string;
-  /** Optional first concrete date when dateMode is pending */
   occurrenceDate: string;
 };
 
-type Panel = "event" | "pending" | "category" | "day" | null;
+type Panel = "event" | "pending" | "category" | null;
 
 const DEFAULT_COLOR = "#94a3b8";
-const WEEKDAY_SHORT = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 function emptyForm(year: number, dateKey?: string): FormState {
   return {
@@ -178,22 +174,22 @@ function appendFormData(form: FormState, planningYear: number): FormData {
   return fd;
 }
 
-function calendarHref(opts: {
-  view: CalendarViewMode;
-  year: number;
-  monthKey: string;
-  weekStartKey: string;
-}): string {
+function scheduleSummary(
+  frequency: CalendarFrequency,
+  dateMode: CalendarDateMode,
+): string {
+  if (frequency === "once") return "Einmalig";
+  const freq = FREQUENCY_LABELS[frequency];
+  if (dateMode === "pending") return `${freq} · Datum offen`;
+  if (dateMode === "rule") return `${freq} · Regel`;
+  return freq;
+}
+
+function monthHref(month: string, categoryIds: string[] | null) {
   const params = new URLSearchParams();
-  params.set("view", opts.view);
-  if (opts.view === "year") {
-    params.set("year", String(opts.year));
-  } else if (opts.view === "week") {
-    params.set("week", opts.weekStartKey);
-    params.set("year", String(opts.year));
-  } else {
-    params.set("month", opts.monthKey);
-    params.set("year", String(opts.year));
+  params.set("month", month);
+  if (categoryIds && categoryIds.length > 0) {
+    for (const id of categoryIds) params.append("category", id);
   }
   return `/jahreskalender?${params.toString()}`;
 }
@@ -202,42 +198,13 @@ const inputClass =
   "w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]";
 const labelClass = "mb-1 block text-xs font-semibold text-[var(--muted)]";
 
-function EventChip({
-  event,
-  compact = false,
-  onClick,
-}: {
-  event: OccurrenceChip;
-  compact?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={[
-        "w-full truncate rounded text-left font-semibold leading-tight hover:opacity-90",
-        compact ? "px-0.5 text-[0.6rem]" : "px-1.5 py-0.5 text-xs",
-      ].join(" ")}
-      style={{
-        background: `${event.category?.color ?? DEFAULT_COLOR}66`,
-        color: "#0a0a0a",
-      }}
-      title={event.title}
-    >
-      {event.title}
-    </button>
-  );
-}
-
 export function EditorialYearCalendar({
   year,
-  view,
   monthKey,
-  weekStartKey,
+  monthLabel,
+  prevMonth,
+  nextMonth,
+  currentMonth,
   occurrences,
   pending,
   events,
@@ -247,7 +214,6 @@ export function EditorialYearCalendar({
   const [pendingTx, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
-  const [dayDetailKey, setDayDetailKey] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(year));
   const [pendingSchedule, setPendingSchedule] = useState<{
     eventId: string;
@@ -257,16 +223,15 @@ export function EditorialYearCalendar({
   } | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#d4edc0");
+  const [fromTodayOnly, setFromTodayOnly] = useState(true);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    () => categories.filter((c) => c.active).map((c) => c.id),
+  );
 
-  const byDate = useMemo(() => {
-    const map = new Map<string, OccurrenceChip[]>();
-    for (const o of occurrences) {
-      const list = map.get(o.dateKey) ?? [];
-      list.push(o);
-      map.set(o.dateKey, list);
-    }
-    return map;
-  }, [occurrences]);
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const viewingCurrentMonth = monthKey === currentMonth;
+  const activeCategories = categories.filter((c) => c.active);
+  const months = monthLabelsForYear(year);
 
   const eventById = useMemo(() => {
     const map = new Map<string, CalendarEventDetail>();
@@ -274,129 +239,79 @@ export function EditorialYearCalendar({
     return map;
   }, [events]);
 
-  const months = monthLabelsForYear(year);
-  const activeCategories = categories.filter((c) => c.active);
-  const monthParts = parseMonthKey(monthKey) ?? {
-    year,
-    month: new Date().getMonth() + 1,
-  };
-  const weekStart = startOfIsoWeek(parseISO(weekStartKey));
-  const todayKey = format(new Date(), "yyyy-MM-dd");
-  const todayMonthKey = format(new Date(), "yyyy-MM");
-  const todayWeekKey = format(startOfIsoWeek(new Date()), "yyyy-MM-dd");
-  const todayYear = new Date().getFullYear();
+  const selectedSet = useMemo(
+    () => new Set(selectedCategoryIds),
+    [selectedCategoryIds],
+  );
+
+  const categoryFilterActive =
+    activeCategories.length > 0 &&
+    selectedCategoryIds.length > 0 &&
+    selectedCategoryIds.length < activeCategories.length;
+
+  const filteredDays = useMemo(() => {
+    const parts = parseMonthKey(monthKey);
+    if (!parts) return [];
+
+    const byDate = new Map<string, OccurrenceChip[]>();
+    for (const o of occurrences) {
+      if (!o.dateKey.startsWith(monthKey)) continue;
+      if (
+        categoryFilterActive &&
+        o.category &&
+        !selectedSet.has(o.category.id)
+      ) {
+        continue;
+      }
+      if (categoryFilterActive && !o.category) {
+        continue;
+      }
+      const list = byDate.get(o.dateKey) ?? [];
+      list.push(o);
+      byDate.set(o.dateKey, list);
+    }
+
+    const monthStart = startOfMonth(new Date(parts.year, parts.month - 1, 1));
+    const monthEnd = endOfMonth(monthStart);
+    return eachDayOfInterval({ start: monthStart, end: monthEnd })
+      .map((d) => {
+        const dateKey = format(d, "yyyy-MM-dd");
+        return {
+          dateKey,
+          weekdayLabel: format(d, "EEEE", { locale: de }),
+          dateLabel: format(d, "d. MMMM yyyy", { locale: de }),
+          isWeekend: isWeekend(d),
+          items: byDate.get(dateKey) ?? [],
+        };
+      })
+      .filter(
+        (day) =>
+          !fromTodayOnly || !viewingCurrentMonth || day.dateKey >= todayKey,
+      );
+  }, [
+    occurrences,
+    monthKey,
+    categoryFilterActive,
+    selectedSet,
+    fromTodayOnly,
+    viewingCurrentMonth,
+    todayKey,
+  ]);
 
   const previewDates = useMemo(() => {
-    if (form.dateMode === "pending") return [];
+    if (form.dateMode === "pending") {
+      if (!form.occurrenceDate) return [];
+      const d = parseDateKey(form.occurrenceDate);
+      return d ? [d] : [];
+    }
     return listOccurrencesInYear(fieldsFromForm(form), year).slice(0, 8);
   }, [form, year]);
 
-  const title =
-    view === "year"
-      ? String(year)
-      : view === "week"
-        ? formatWeekTitle(weekStart)
-        : formatMonthTitle(monthParts.year, monthParts.month);
-
-  const isCurrentPeriod =
-    view === "year"
-      ? year === todayYear
-      : view === "week"
-        ? weekStartKey === todayWeekKey
-        : monthKey === todayMonthKey;
-
-  function hrefFor(
-    next: Partial<{
-      view: CalendarViewMode;
-      year: number;
-      monthKey: string;
-      weekStartKey: string;
-    }>,
-  ) {
-    return calendarHref({
-      view: next.view ?? view,
-      year: next.year ?? year,
-      monthKey: next.monthKey ?? monthKey,
-      weekStartKey: next.weekStartKey ?? weekStartKey,
-    });
-  }
-
-  function prevHref() {
-    if (view === "year") {
-      return hrefFor({ year: year - 1 });
-    }
-    if (view === "week") {
-      const prev = addWeeks(weekStart, -1);
-      return hrefFor({
-        year: prev.getFullYear(),
-        weekStartKey: format(prev, "yyyy-MM-dd"),
-        monthKey: format(prev, "yyyy-MM"),
-      });
-    }
-    const prev = addMonths(
-      new Date(monthParts.year, monthParts.month - 1, 1),
-      -1,
-    );
-    return hrefFor({
-      year: prev.getFullYear(),
-      monthKey: format(prev, "yyyy-MM"),
-      weekStartKey: format(startOfIsoWeek(prev), "yyyy-MM-dd"),
-    });
-  }
-
-  function nextHref() {
-    if (view === "year") {
-      return hrefFor({ year: year + 1 });
-    }
-    if (view === "week") {
-      const next = addWeeks(weekStart, 1);
-      return hrefFor({
-        year: next.getFullYear(),
-        weekStartKey: format(next, "yyyy-MM-dd"),
-        monthKey: format(next, "yyyy-MM"),
-      });
-    }
-    const next = addMonths(
-      new Date(monthParts.year, monthParts.month - 1, 1),
-      1,
-    );
-    return hrefFor({
-      year: next.getFullYear(),
-      monthKey: format(next, "yyyy-MM"),
-      weekStartKey: format(startOfIsoWeek(next), "yyyy-MM-dd"),
-    });
-  }
-
-  function todayHref() {
-    const now = new Date();
-    if (view === "year") {
-      return hrefFor({
-        view: "year",
-        year: now.getFullYear(),
-        monthKey: format(now, "yyyy-MM"),
-        weekStartKey: format(startOfIsoWeek(now), "yyyy-MM-dd"),
-      });
-    }
-    if (view === "week") {
-      const start = startOfIsoWeek(now);
-      return hrefFor({
-        view: "week",
-        year: start.getFullYear(),
-        weekStartKey: format(start, "yyyy-MM-dd"),
-        monthKey: format(start, "yyyy-MM"),
-      });
-    }
-    return hrefFor({
-      view: "month",
-      year: now.getFullYear(),
-      monthKey: format(now, "yyyy-MM"),
-      weekStartKey: format(startOfIsoWeek(now), "yyyy-MM-dd"),
-    });
-  }
+  const dateModes = allowedDateModes(form.frequency);
+  const filterParam = categoryFilterActive ? selectedCategoryIds : null;
 
   function openCreate(dateKey?: string) {
     setError(null);
-    setDayDetailKey(null);
     setForm(emptyForm(year, dateKey));
     setPanel("event");
   }
@@ -405,23 +320,8 @@ export function EditorialYearCalendar({
     const event = eventById.get(eventId);
     if (!event) return;
     setError(null);
-    setDayDetailKey(null);
     setForm(formFromEvent(event, year));
     setPanel("event");
-  }
-
-  function openDay(dateKey: string) {
-    const dayEvents = byDate.get(dateKey) ?? [];
-    if (dayEvents.length === 0) {
-      openCreate(dateKey);
-      return;
-    }
-    if (dayEvents.length === 1) {
-      openEdit(dayEvents[0].eventId);
-      return;
-    }
-    setDayDetailKey(dateKey);
-    setPanel("day");
   }
 
   function openPending(p: PendingEvent) {
@@ -447,7 +347,6 @@ export function EditorialYearCalendar({
   function setDateMode(dateMode: CalendarDateMode) {
     setForm((f) => {
       const next = { ...f, dateMode };
-      // When switching to pending, keep a concrete date offer from the once-date field
       if (
         dateMode === "pending" &&
         !f.occurrenceDate &&
@@ -539,91 +438,88 @@ export function EditorialYearCalendar({
     });
   }
 
-  const dateModes = allowedDateModes(form.frequency);
-  const dayDetailEvents = dayDetailKey
-    ? (byDate.get(dayDetailKey) ?? [])
-    : [];
+  function toggleCategory(id: string) {
+    setSelectedCategoryIds((prev) => {
+      const has = prev.includes(id);
+      const next = has ? prev.filter((x) => x !== id) : [...prev, id];
+      return next.length === 0 ? activeCategories.map((c) => c.id) : next;
+    });
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-xl border border-black/10 bg-white p-0.5">
-            {(
-              [
-                ["month", "Monat"],
-                ["week", "Woche"],
-                ["year", "Jahr"],
-              ] as const
-            ).map(([id, label]) => (
-              <Link
-                key={id}
-                href={hrefFor({
-                  view: id,
-                  year:
-                    id === "year"
-                      ? year
-                      : id === "week"
-                        ? weekStart.getFullYear()
-                        : monthParts.year,
-                })}
-                className={[
-                  "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
-                  view === id
-                    ? "bg-[var(--highlight)] text-[#0a0a0a]"
-                    : "text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]",
-                ].join(" ")}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Link
-              href={prevHref()}
-              className="inline-flex size-9 items-center justify-center rounded-xl border border-black/10 bg-white hover:bg-black/5"
-              aria-label="Zurück"
-            >
-              <ChevronLeft className="size-4" />
-            </Link>
-            <h2 className="min-w-[9rem] px-1 text-center font-[family-name:var(--font-display)] text-lg font-semibold capitalize tabular-nums sm:min-w-[12rem] sm:text-xl">
-              {title}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <Link
+            href={monthHref(prevMonth, filterParam)}
+            className="btn btn-ghost px-2 py-1 text-sm"
+          >
+            ←
+          </Link>
+          <div className="min-w-[9rem] text-center">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold capitalize">
+              {monthLabel}
             </h2>
-            <Link
-              href={nextHref()}
-              className="inline-flex size-9 items-center justify-center rounded-xl border border-black/10 bg-white hover:bg-black/5"
-              aria-label="Weiter"
-            >
-              <ChevronRight className="size-4" />
-            </Link>
+            <p className="text-[10px] text-[var(--muted)]">
+              {filteredDays.reduce((n, d) => n + d.items.length, 0)} Termine
+              {categoryFilterActive ||
+              (fromTodayOnly && viewingCurrentMonth)
+                ? " · gefiltert"
+                : ""}
+            </p>
           </div>
-
-          {!isCurrentPeriod && (
+          <Link
+            href={monthHref(nextMonth, filterParam)}
+            className="btn btn-ghost px-2 py-1 text-sm"
+          >
+            →
+          </Link>
+          {monthKey !== currentMonth && (
             <Link
-              href={todayHref()}
-              className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium hover:bg-black/5"
+              href={monthHref(currentMonth, filterParam)}
+              className="ml-1 rounded-lg border border-black/10 bg-white px-2.5 py-1 text-xs font-medium hover:bg-black/5"
             >
               Heute
             </Link>
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {viewingCurrentMonth ? (
+            <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+              <input
+                type="checkbox"
+                checked={fromTodayOnly}
+                onChange={(e) => setFromTodayOnly(e.target.checked)}
+              />
+              Ab heute
+            </label>
+          ) : null}
+          {categoryFilterActive ? (
+            <button
+              type="button"
+              className="text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+              onClick={() =>
+                setSelectedCategoryIds(activeCategories.map((c) => c.id))
+              }
+            >
+              Alle anzeigen
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {
               setError(null);
               setPanel("category");
             }}
-            className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium hover:bg-black/5"
+            className="btn btn-ghost px-3 py-1.5 text-sm"
           >
-            Kategorie
+            Kategorien
           </button>
           <button
             type="button"
             onClick={() => openCreate(todayKey)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--highlight)] px-3 py-2 text-sm font-bold text-[#0a0a0a]"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--highlight)] px-3 py-1.5 text-sm font-bold text-[#0a0a0a]"
           >
             <Plus className="size-4" />
             Event
@@ -631,32 +527,66 @@ export function EditorialYearCalendar({
         </div>
       </div>
 
+      {activeCategories.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {activeCategories.map((cat) => {
+            const active = selectedSet.has(cat.id);
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                aria-pressed={active}
+                className={
+                  active
+                    ? "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+                    : "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
+                }
+                style={
+                  active
+                    ? {
+                        borderColor: cat.color,
+                        background: `${cat.color}22`,
+                      }
+                    : undefined
+                }
+                onClick={() => toggleCategory(cat.id)}
+              >
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ background: cat.color }}
+                  aria-hidden
+                />
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {pending.length > 0 && (
-        <section className="card space-y-3 p-4">
-          <div>
-            <h3 className="text-sm font-bold tracking-wide uppercase">
-              Noch einzuplanen ({year})
-            </h3>
-            <p className="text-xs text-[var(--muted)]">
-              Wiederkehrende Events ohne Datum für dieses Jahr.
-            </p>
-          </div>
-          <ul className="space-y-2">
+        <section className="overflow-hidden rounded-lg border border-amber-200 bg-amber-50/50">
+          <header className="px-3 py-1.5 text-xs font-semibold tracking-wide text-amber-900">
+            Noch einzuplanen ({year}) · {pending.length}
+          </header>
+          <ul className="divide-y divide-amber-200/80">
             {pending.map((p) => (
               <li
                 key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/8 bg-white/60 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span
-                      className="size-2.5 shrink-0 rounded-full"
+                      className="size-2 shrink-0 rounded-full"
                       style={{
                         background: p.category?.color ?? DEFAULT_COLOR,
                       }}
                     />
                     <span className="truncate text-sm font-semibold">
                       {p.title}
+                    </span>
+                    <span className="text-[10px] text-[var(--muted)]">
+                      {FREQUENCY_LABELS[p.frequency]} · Datum offen
                     </span>
                   </div>
                   {p.note && (
@@ -687,208 +617,110 @@ export function EditorialYearCalendar({
         </section>
       )}
 
-      {view === "month" && (
-        <div className="card overflow-hidden p-3 sm:p-4">
-          <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[var(--muted)]">
-            {WEEKDAY_SHORT.map((d) => (
-              <div key={d}>{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {daysInMonthGrid(monthParts.year, monthParts.month).map(
-              (cell, idx) => {
-                if (!cell.inMonth || !cell.dateKey) {
-                  return (
-                    <div
-                      key={`pad-${idx}`}
-                      className="min-h-[5.5rem] rounded-lg bg-transparent"
-                    />
-                  );
-                }
-                const dayEvents = byDate.get(cell.dateKey) ?? [];
-                const isToday = cell.dateKey === todayKey;
-                return (
-                  <button
-                    key={cell.dateKey}
-                    type="button"
-                    onClick={() => openDay(cell.dateKey!)}
-                    className={[
-                      "flex min-h-[5.5rem] flex-col gap-0.5 rounded-lg border p-1.5 text-left transition-colors hover:border-black/20 hover:bg-black/[0.03]",
-                      isToday
-                        ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                        : "border-black/8 bg-white/70",
-                    ].join(" ")}
-                  >
-                    <span
-                      className={[
-                        "text-xs font-semibold tabular-nums",
-                        isToday
-                          ? "text-[var(--accent)]"
-                          : "text-[var(--muted)]",
-                      ].join(" ")}
-                    >
-                      {cell.day}
-                    </span>
-                    <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                      {dayEvents.slice(0, 3).map((e) => (
-                        <EventChip
-                          key={`${e.eventId}-${e.dateKey}`}
-                          event={e}
-                          compact
-                          onClick={() => openEdit(e.eventId)}
-                        />
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <span className="px-0.5 text-[0.6rem] font-medium text-[var(--muted)]">
-                          +{dayEvents.length - 3} weitere
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              },
-            )}
-          </div>
-        </div>
-      )}
-
-      {view === "week" && (
-        <div className="grid gap-2 md:grid-cols-7">
-          {daysInWeek(weekStart).map((day) => {
-            const dayEvents = byDate.get(day.dateKey) ?? [];
-            const isToday = day.dateKey === todayKey;
-            return (
-              <div
-                key={day.dateKey}
+      <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+        {filteredDays.map((day, dayIndex) => (
+          <section
+            key={day.dateKey}
+            className={[
+              dayIndex > 0 ? "border-t border-[var(--border)]" : "",
+              day.isWeekend ? "bg-[var(--bg)]/70" : "",
+            ]
+              .filter(Boolean)
+              .join(" ") || undefined}
+          >
+            <header
+              className={[
+                "flex items-center justify-between gap-2 px-3 py-1",
+                day.isWeekend
+                  ? "bg-black/[0.06]"
+                  : "bg-black/[0.03]",
+              ].join(" ")}
+            >
+              <p
                 className={[
-                  "card flex min-h-[12rem] flex-col gap-2 p-3",
-                  isToday ? "ring-2 ring-[var(--accent)]" : "",
+                  "text-xs font-semibold tracking-wide",
+                  day.isWeekend
+                    ? "text-[var(--fg)]"
+                    : "text-[var(--muted)]",
                 ].join(" ")}
               >
-                <button
-                  type="button"
-                  onClick={() => openDay(day.dateKey)}
-                  className="text-left"
-                >
-                  <p className="text-xs font-semibold text-[var(--muted)]">
-                    {day.weekdayLabel}
-                  </p>
-                  <p
-                    className={[
-                      "font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums",
-                      isToday ? "text-[var(--accent)]" : "",
-                    ].join(" ")}
+                {day.weekdayLabel} · {day.dateLabel}
+              </p>
+              <button
+                type="button"
+                onClick={() => openCreate(day.dateKey)}
+                className="text-[10px] font-medium text-[var(--muted)] hover:text-[var(--fg)]"
+              >
+                + Event
+              </button>
+            </header>
+            <ul className="divide-y divide-[var(--border)]">
+              {day.items.length === 0 ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => openCreate(day.dateKey)}
+                    className="w-full px-3 py-2 text-left text-xs text-[var(--muted)] hover:bg-black/[0.02]"
                   >
-                    {day.day}
-                  </p>
-                </button>
-                <div className="flex flex-1 flex-col gap-1">
-                  {dayEvents.map((e) => (
-                    <EventChip
-                      key={`${e.eventId}-${e.dateKey}`}
-                      event={e}
-                      onClick={() => openEdit(e.eventId)}
-                    />
-                  ))}
-                  {dayEvents.length === 0 && (
-                    <button
-                      type="button"
-                      onClick={() => openCreate(day.dateKey)}
-                      className="mt-auto rounded-lg border border-dashed border-black/15 px-2 py-1.5 text-xs text-[var(--muted)] hover:bg-black/5"
-                    >
-                      + Event
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {view === "year" && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {months.map((m) => {
-            const cells = daysInMonthGrid(year, m.month);
-            return (
-              <div key={m.monthKey} className="card overflow-hidden p-3">
-                <Link
-                  href={hrefFor({
-                    view: "month",
-                    year,
-                    monthKey: m.monthKey,
-                    weekStartKey: format(
-                      startOfIsoWeek(new Date(year, m.month - 1, 1)),
-                      "yyyy-MM-dd",
-                    ),
-                  })}
-                  className="mb-2 block text-sm font-bold capitalize tracking-wide hover:text-[var(--accent)]"
-                >
-                  {m.label}
-                </Link>
-                <div className="mb-1 grid grid-cols-7 gap-px text-center text-[0.65rem] font-semibold text-[var(--muted)]">
-                  {WEEKDAY_SHORT.map((d) => (
-                    <div key={d}>{d}</div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-px">
-                  {cells.map((cell, idx) => {
-                    if (!cell.inMonth || !cell.dateKey) {
-                      return (
-                        <div
-                          key={`pad-${m.month}-${idx}`}
-                          className="min-h-8 rounded-sm"
-                        />
-                      );
-                    }
-                    const dayEvents = byDate.get(cell.dateKey) ?? [];
-                    const isToday = cell.dateKey === todayKey;
-                    return (
+                    — kein Event —
+                  </button>
+                </li>
+              ) : (
+                day.items.map((item) => {
+                  const color = item.category?.color ?? DEFAULT_COLOR;
+                  return (
+                    <li key={`${item.eventId}-${item.dateKey}`}>
                       <button
-                        key={cell.dateKey}
                         type="button"
-                        onClick={() => openDay(cell.dateKey!)}
-                        title={
-                          dayEvents.length
-                            ? dayEvents.map((e) => e.title).join(", ")
-                            : "Event hinzufügen"
-                        }
-                        className={[
-                          "min-h-8 rounded-sm p-0.5 text-left hover:bg-black/[0.04]",
-                          isToday ? "ring-1 ring-[var(--accent)]" : "",
-                        ].join(" ")}
+                        onClick={() => openEdit(item.eventId)}
+                        className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 border-l-[3px] px-3 py-2 text-left hover:bg-black/[0.02]"
+                        style={{
+                          borderLeftColor: color,
+                          background: `${color}14`,
+                        }}
                       >
-                        <div className="text-[0.65rem] font-medium tabular-nums leading-none text-[var(--muted)]">
-                          {cell.day}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold leading-tight">
+                            <span
+                              className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                              style={{ background: color }}
+                              aria-hidden
+                            />
+                            {item.title}
+                          </p>
+                          {item.note ? (
+                            <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-[var(--muted)]">
+                              {item.note}
+                            </p>
+                          ) : null}
                         </div>
-                        {dayEvents.length > 0 && (
-                          <div className="mt-0.5 flex flex-wrap gap-0.5">
-                            {dayEvents.slice(0, 3).map((e) => (
-                              <span
-                                key={`${e.eventId}-dot`}
-                                className="size-1.5 rounded-full"
-                                style={{
-                                  background:
-                                    e.category?.color ?? DEFAULT_COLOR,
-                                }}
-                              />
-                            ))}
-                            {dayEvents.length > 3 && (
-                              <span className="text-[0.5rem] text-[var(--muted)]">
-                                +{dayEvents.length - 3}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+                          {item.category ? (
+                            <span className="text-[10px] font-medium text-[var(--muted)]">
+                              {item.category.name}
+                            </span>
+                          ) : null}
+                          <span className="text-[10px] text-[var(--muted)]">
+                            {scheduleSummary(item.frequency, item.dateMode)}
+                          </span>
+                        </div>
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </section>
+        ))}
+        {filteredDays.length === 0 && (
+          <p className="px-3 py-4 text-sm text-[var(--muted)]">
+            Keine Tage in diesem Zeitraum.
+            {fromTodayOnly && viewingCurrentMonth
+              ? " Oder «Ab heute» ausschalten."
+              : ""}
+          </p>
+        )}
+      </div>
 
       {panel && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center">
@@ -903,19 +735,14 @@ export function EditorialYearCalendar({
                   ? "Kategorie anlegen"
                   : panel === "pending"
                     ? "Datum setzen"
-                    : panel === "day"
-                      ? dayDetailKey
-                        ? format(parseISO(dayDetailKey), "d. MMMM yyyy")
-                        : "Tag"
-                      : form.id
-                        ? "Event bearbeiten"
-                        : "Neues Event"}
+                    : form.id
+                      ? "Event bearbeiten"
+                      : "Neues Event"}
               </h3>
               <button
                 type="button"
                 onClick={() => {
                   setPanel(null);
-                  setDayDetailKey(null);
                   setError(null);
                 }}
                 className="rounded-lg p-1 hover:bg-black/5"
@@ -929,52 +756,6 @@ export function EditorialYearCalendar({
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
               </p>
-            )}
-
-            {panel === "day" && dayDetailKey && (
-              <div className="space-y-3">
-                <ul className="space-y-2">
-                  {dayDetailEvents.map((e) => (
-                    <li key={e.eventId}>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(e.eventId)}
-                        className="flex w-full items-start gap-2 rounded-xl border border-black/10 px-3 py-2 text-left hover:bg-black/[0.03]"
-                      >
-                        <span
-                          className="mt-1.5 size-2.5 shrink-0 rounded-full"
-                          style={{
-                            background: e.category?.color ?? DEFAULT_COLOR,
-                          }}
-                        />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold">
-                            {e.title}
-                          </span>
-                          {e.note && (
-                            <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                              {e.note}
-                            </span>
-                          )}
-                          {e.category && (
-                            <span className="mt-0.5 block text-[0.65rem] text-[var(--muted)]">
-                              {e.category.name}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => openCreate(dayDetailKey)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--highlight)] px-3 py-2 text-sm font-bold text-[#0a0a0a]"
-                >
-                  <Plus className="size-4" />
-                  Weiteres Event an diesem Tag
-                </button>
-              </div>
             )}
 
             {panel === "category" && (
@@ -1447,9 +1228,9 @@ export function EditorialYearCalendar({
                 {form.dateMode === "pending" && (
                   <div className="space-y-2 rounded-lg bg-amber-50 px-3 py-3">
                     <p className="text-xs text-amber-900">
-                      Das Event bleibt jährlich ohne fixes Datum. Optional kannst
-                      du für {year} gleich ein erstes Datum setzen — sonst landet
-                      es unter «Noch einzuplanen».
+                      Das Event bleibt jährlich ohne fixes Datum. Optional
+                      kannst du für {year} gleich ein erstes Datum setzen —
+                      sonst landet es unter «Noch einzuplanen».
                     </p>
                     <div>
                       <label className={labelClass} htmlFor="ev-occ-date">
@@ -1484,8 +1265,10 @@ export function EditorialYearCalendar({
                         }),
                       )
                       .join(", ")}
-                    {listOccurrencesInYear(fieldsFromForm(form), year).length >
-                      8 && " …"}
+                    {form.dateMode !== "pending" &&
+                      listOccurrencesInYear(fieldsFromForm(form), year)
+                        .length > 8 &&
+                      " …"}
                   </p>
                 )}
 
