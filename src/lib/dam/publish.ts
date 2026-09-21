@@ -81,9 +81,6 @@ async function publishOne(
     },
   });
   if (!asset) return { error: "Bild nicht gefunden." };
-  if (!asset.r2Key.startsWith("staging/")) {
-    return { error: "Nur Staging-Originale können publiziert werden." };
-  }
 
   const collections = await prisma.collection.findMany({
     where: { id: { in: collectionIds } },
@@ -91,6 +88,33 @@ async function publishOne(
   });
   if (collections.length !== collectionIds.length) {
     return { error: "Collection nicht gefunden." };
+  }
+
+  // Stuck after a process/publish race: file already under archive/ but status
+  // still staging. Finalize without requiring a staging/ key.
+  if (asset.r2Key.startsWith("archive/")) {
+    const original = await getObjectBuffer(asset.r2Key);
+    if (!looksLikeImageBytes(original)) {
+      return { error: "Datei ist kein Bild." };
+    }
+    await writeEditedDerivatives(asset.r2Key, original, asset.editParams);
+    await prisma.asset.update({
+      where: { id: asset.id },
+      data: {
+        notes,
+        status: "published",
+        publishedAt: new Date(),
+        collections: {
+          deleteMany: {},
+          create: collectionIds.map((collectionId) => ({ collectionId })),
+        },
+      },
+    });
+    return {};
+  }
+
+  if (!asset.r2Key.startsWith("staging/")) {
+    return { error: "Nur Staging-Originale können publiziert werden." };
   }
 
   const original = await getObjectBuffer(asset.r2Key);

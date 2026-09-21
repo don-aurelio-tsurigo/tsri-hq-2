@@ -31,6 +31,25 @@ async function mapPool<T>(
   await Promise.all(workers);
 }
 
+const stagingSelect = {
+  id: true,
+  r2Key: true,
+  fileName: true,
+  uploadedBy: true,
+  altText: true,
+  keywords: true,
+  width: true,
+  takenAt: true,
+  status: true,
+} as const;
+
+function isStagingOriginal(asset: {
+  status: string;
+  r2Key: string;
+}): boolean {
+  return asset.status === "staging" && asset.r2Key.startsWith("staging/");
+}
+
 async function processOne(assetId: string): Promise<void> {
   if (!beginDamAsset(assetId)) return;
   try {
@@ -43,35 +62,17 @@ async function processOne(assetId: string): Promise<void> {
 async function processOneInner(assetId: string): Promise<void> {
   let asset = await prisma.asset.findUnique({
     where: { id: assetId },
-    select: {
-      id: true,
-      r2Key: true,
-      fileName: true,
-      uploadedBy: true,
-      altText: true,
-      keywords: true,
-      width: true,
-      takenAt: true,
-    },
+    select: stagingSelect,
   });
-  if (!asset) return;
+  if (!asset || !isStagingOriginal(asset)) return;
 
   if (!asset.takenAt) {
     await backfillAssetExif(assetId);
     asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      select: {
-        id: true,
-        r2Key: true,
-        fileName: true,
-        uploadedBy: true,
-        altText: true,
-        keywords: true,
-        width: true,
-        takenAt: true,
-      },
+      select: stagingSelect,
     });
-    if (!asset) return;
+    if (!asset || !isStagingOriginal(asset)) return;
   }
 
   let r2Key = asset.r2Key;
@@ -109,6 +110,16 @@ async function processOneInner(assetId: string): Promise<void> {
         .webp({ quality: 80 })
         .toBuffer();
 
+      // Publish may have moved the asset while we were processing — abort writes.
+      const stillStaging = await prisma.asset.findFirst({
+        where: { id: asset.id, status: "staging", r2Key: { startsWith: "staging/" } },
+        select: { id: true },
+      });
+      if (!stillStaging) {
+        console.warn(`[dam] skip master write; asset left staging: ${asset.id}`);
+        return;
+      }
+
       await Promise.all([
         putObject(nextKey, master.buffer, master.contentType),
         putObject(derivativeKey(nextKey, "thumb"), thumb, "image/webp"),
@@ -130,8 +141,10 @@ async function processOneInner(assetId: string): Promise<void> {
       console.warn(`[dam] sharp failed for ${asset.id}`, error);
     }
 
-    await prisma.asset.update({
-      where: { id: asset.id },
+    // Never force status back to staging — that races with publish and can
+    // leave archive/ keys marked as staging («Nur Staging-Originale…»).
+    await prisma.asset.updateMany({
+      where: { id: asset.id, status: "staging" },
       data: {
         r2Key,
         fileName,
@@ -139,26 +152,29 @@ async function processOneInner(assetId: string): Promise<void> {
         width,
         height,
         exif: exif.json ?? undefined,
-        status: "staging",
       },
     });
   }
 
-  if (asset.altText?.trim() && asset.keywords.length > 0) return;
+  const latest = await prisma.asset.findUnique({
+    where: { id: asset.id },
+    select: { status: true, r2Key: true, altText: true, keywords: true },
+  });
+  if (!latest || !isStagingOriginal(latest)) return;
+  if (latest.altText?.trim() && latest.keywords.length > 0) return;
 
   try {
     const source = autotagSource ?? (await getObject(r2Key)).buffer;
     const tags = await autotagFromImageBuffer(asset.uploadedBy, source);
     if (!tags.altText && tags.keywords.length === 0) return;
 
-    const mergedKeywords = uniqueKeywords([...asset.keywords, ...tags.keywords]);
+    const mergedKeywords = uniqueKeywords([...latest.keywords, ...tags.keywords]);
 
-    await prisma.asset.update({
-      where: { id: asset.id },
+    await prisma.asset.updateMany({
+      where: { id: asset.id, status: "staging" },
       data: {
         ...(tags.altText ? { altText: tags.altText } : {}),
         ...(mergedKeywords.length > 0 ? { keywords: mergedKeywords } : {}),
-        status: "staging",
       },
     });
   } catch (error) {
