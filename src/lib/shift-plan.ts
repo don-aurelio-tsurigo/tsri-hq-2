@@ -133,7 +133,6 @@ export async function ensureShiftPlanTypes(organizationId: string) {
 
     const patch: {
       isNewsletter?: boolean;
-      isEveningShift?: boolean;
       schedulingMode?: NewsletterSchedulingMode;
       weekdays?: number[];
       frequency?: NewsletterFrequency;
@@ -144,9 +143,7 @@ export async function ensureShiftPlanTypes(organizationId: string) {
     if (row.isNewsletter !== def.isNewsletter && def.isNewsletter === false) {
       patch.isNewsletter = def.isNewsletter;
     }
-    if (row.isEveningShift !== def.isEveningShift) {
-      patch.isEveningShift = def.isEveningShift;
-    }
+    // isEveningShift: only set on create — preserve admin toggles.
     if (row.schedulingMode !== def.schedulingMode) {
       patch.schedulingMode = def.schedulingMode;
     }

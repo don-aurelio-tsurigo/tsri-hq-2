@@ -40,9 +40,24 @@ const council = {
 };
 
 const members = [
-  { userId: "alice", name: "Alice", fixedDayOff: null as number | null },
-  { userId: "bob", name: "Bob", fixedDayOff: 3 as number | null }, // Wed
-  { userId: "cara", name: "Cara", fixedDayOff: null as number | null },
+  {
+    userId: "alice",
+    name: "Alice",
+    fixedDayOff: null as number | null,
+    eveningBlockedWeekdays: [] as number[],
+  },
+  {
+    userId: "bob",
+    name: "Bob",
+    fixedDayOff: 3 as number | null, // Wed
+    eveningBlockedWeekdays: [] as number[],
+  },
+  {
+    userId: "cara",
+    name: "Cara",
+    fixedDayOff: null as number | null,
+    eveningBlockedWeekdays: [] as number[],
+  },
 ];
 
 function baseInput(over: Partial<SolverInput> = {}): SolverInput {
@@ -82,6 +97,61 @@ describe("generateProposal", () => {
         assert.notEqual(a.dateKey, "2026-09-09");
       }
     }
+  });
+
+  it("blocks evening shifts on eveningBlockedWeekdays but allows non-evening", () => {
+    const result = generateProposal(
+      baseInput({
+        members: [
+          {
+            userId: "eve",
+            name: "Eve",
+            fixedDayOff: null,
+            eveningBlockedWeekdays: [2], // Tuesday
+          },
+        ],
+        quotas: [
+          {
+            userId: "eve",
+            typeId: "briefing",
+            minCount: 0,
+            maxCount: 99,
+            isFixed: false,
+          },
+          {
+            userId: "eve",
+            typeId: "repo",
+            minCount: 0,
+            maxCount: 99,
+            isFixed: false,
+          },
+          {
+            userId: "eve",
+            typeId: "council",
+            minCount: 0,
+            maxCount: 99,
+            isFixed: false,
+          },
+        ],
+      }),
+    );
+    // 2026-09-01, 08, 15, 22, 29 are Tuesdays
+    const tuesdayKeys = new Set([
+      "2026-09-01",
+      "2026-09-08",
+      "2026-09-15",
+      "2026-09-22",
+      "2026-09-29",
+    ]);
+    for (const a of result.assignments) {
+      if (!tuesdayKeys.has(a.dateKey)) continue;
+      assert.notEqual(a.typeId, "briefing");
+      assert.notEqual(a.typeId, "council");
+    }
+    const tuesdayRepos = result.assignments.filter(
+      (a) => a.typeId === "repo" && tuesdayKeys.has(a.dateKey),
+    );
+    assert.ok(tuesdayRepos.length > 0, "Repo on Tuesday should still be allowed");
   });
 
   it("respects vacations", () => {
@@ -185,7 +255,7 @@ describe("generateProposal", () => {
       baseInput({
         types: [briefing, repo],
         councilTypeId: null,
-        members: [{ userId: "solo", name: "Solo", fixedDayOff: null }],
+        members: [{ userId: "solo", name: "Solo", fixedDayOff: null, eveningBlockedWeekdays: [] }],
       }),
     );
     const evenings = result.assignments.filter(
@@ -247,7 +317,7 @@ describe("generateProposal", () => {
 
     const result = generateProposal(
       baseInput({
-        members: [{ userId: "dana", name: "Dana", fixedDayOff: null }],
+        members: [{ userId: "dana", name: "Dana", fixedDayOff: null, eveningBlockedWeekdays: [] }],
         quotas,
       }),
     );
@@ -321,7 +391,7 @@ describe("generateProposal", () => {
   it("spreads fixed quota briefings instead of stacking earliest weeks", () => {
     const result = generateProposal(
       baseInput({
-        members: [{ userId: "dana", name: "Dana", fixedDayOff: null }],
+        members: [{ userId: "dana", name: "Dana", fixedDayOff: null, eveningBlockedWeekdays: [] }],
         types: [briefing],
         councilTypeId: null,
         quotas: [

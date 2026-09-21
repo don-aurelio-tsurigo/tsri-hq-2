@@ -450,6 +450,7 @@ export async function generateShiftPlanProposal(formData: FormData) {
     userId: m.userId,
     name: m.user.name,
     fixedDayOff: m.fixedDayOff,
+    eveningBlockedWeekdays: m.eveningBlockedWeekdays ?? [],
   }));
 
   const solverQuotas: SolverQuota[] = quotas.map((q) => ({

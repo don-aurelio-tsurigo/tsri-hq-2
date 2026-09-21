@@ -23,6 +23,7 @@ export type NewsletterTypeRow = {
   name: string;
   weekdays: number[];
   requiresWordle: boolean;
+  isEveningShift: boolean;
   color: string;
 };
 
@@ -37,6 +38,7 @@ export function NewsletterTypeManager({
   const [name, setName] = useState("");
   const [weekdays, setWeekdays] = useState<Weekday[]>(DEFAULT_WEEKDAYS);
   const [requiresWordle, setRequiresWordle] = useState(false);
+  const [isEveningShift, setIsEveningShift] = useState(false);
   const [color, setColor] = useState(NEWSLETTER_TYPE_COLOR_DEFAULT);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -61,6 +63,7 @@ export function NewsletterTypeManager({
       ),
     );
     setRequiresWordle(type.requiresWordle);
+    setIsEveningShift(type.isEveningShift);
     setColor(type.color || NEWSLETTER_TYPE_COLOR_DEFAULT);
     setError(null);
   }
@@ -71,6 +74,7 @@ export function NewsletterTypeManager({
     setName("");
     setWeekdays(DEFAULT_WEEKDAYS);
     setRequiresWordle(false);
+    setIsEveningShift(false);
     setColor(defaultColorForNewsletterType("", types.length));
     setError(null);
   }
@@ -82,6 +86,7 @@ export function NewsletterTypeManager({
     fd.set("name", name);
     for (const d of weekdays) fd.append("weekdays", String(d));
     if (requiresWordle) fd.set("requiresWordle", "true");
+    if (isEveningShift) fd.set("isEveningShift", "true");
     fd.set("color", color);
     startTransition(async () => {
       const result = editId
@@ -159,6 +164,7 @@ export function NewsletterTypeManager({
                 <p className="text-sm text-[var(--muted)]">
                   {formatWeekdays(t.weekdays)}
                   {t.requiresWordle ? " · Wordle aktiv" : ""}
+                  {t.isEveningShift ? " · Abendschicht" : ""}
                 </p>
               </div>
             </div>
@@ -254,6 +260,21 @@ export function NewsletterTypeManager({
             <span className="mt-0.5 block text-xs text-[var(--muted)]">
               Zeigt das Wordle-Feld in der Planung; die Card wird erst
               «vollständig», wenn Autor, Link und Wordle gesetzt sind
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={isEveningShift}
+            onChange={(e) => setIsEveningShift(e.target.checked)}
+          />
+          <span>
+            <span className="text-sm font-semibold">Abendschicht</span>
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Zählt zum Abendminimum im Schichtplan und respektiert
+              Abendschicht-Sperrtage der Redaktor:innen
             </span>
           </span>
         </label>

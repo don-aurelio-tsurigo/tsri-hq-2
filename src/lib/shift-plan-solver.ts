@@ -13,6 +13,8 @@ export type SolverMember = {
   userId: string;
   name: string;
   fixedDayOff: number | null;
+  /** ISO weekdays (1=Mo…5=Fr) where evening shifts are blocked */
+  eveningBlockedWeekdays: number[];
 };
 
 export type SolverQuota = {
@@ -91,6 +93,17 @@ function isFixedDayOff(
   if (member.fixedDayOff == null) return false;
   const wd = isoWeekdayFromDateKey(dateKey);
   return wd === member.fixedDayOff;
+}
+
+function isEveningBlocked(
+  member: SolverMember,
+  type: SolverType,
+  dateKey: string,
+): boolean {
+  if (!type.isEveningShift) return false;
+  if (member.eveningBlockedWeekdays.length === 0) return false;
+  const wd = isoWeekdayFromDateKey(dateKey);
+  return wd != null && member.eveningBlockedWeekdays.includes(wd);
 }
 
 type State = {
@@ -187,6 +200,7 @@ function canAssign(
   if (state.userDays.get(member.userId)?.has(dateKey)) return false;
   if (isOnVacation(member.userId, dateKey, vacations)) return false;
   if (isFixedDayOff(member, dateKey)) return false;
+  if (isEveningBlocked(member, type, dateKey)) return false;
   if (!isTypeEligible(member.userId, type.id, quotas, typeCount)) return false;
   if (!canAssignMoreOfType(state, member.userId, type.id, quotas)) {
     return false;

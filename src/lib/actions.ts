@@ -142,6 +142,7 @@ import {
   updateMemberProfile as updateMemberProfileAction,
   updateMemberPensum as updateMemberPensumAction,
   setFixedDayOff as setFixedDayOffAction,
+  setEveningBlockedWeekdays as setEveningBlockedWeekdaysAction,
   setMemberCapability as setMemberCapabilityAction,
   archiveMember as archiveMemberAction,
   restoreMember as restoreMemberAction,
@@ -167,6 +168,9 @@ export async function updateMemberPensum(formData: FormData) {
 }
 export async function setFixedDayOff(formData: FormData) {
   return setFixedDayOffAction(formData);
+}
+export async function setEveningBlockedWeekdays(formData: FormData) {
+  return setEveningBlockedWeekdaysAction(formData);
 }
 export async function setMemberCapability(formData: FormData) {
   return setMemberCapabilityAction(formData);

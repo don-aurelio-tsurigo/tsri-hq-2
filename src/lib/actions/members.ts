@@ -314,6 +314,50 @@ export async function setFixedDayOff(formData: FormData) {
   return { ok: true as const };
 }
 
+const eveningBlockedWeekdaysSchema = z.object({
+  userId: z.string().min(1),
+  weekdays: z
+    .array(z.coerce.number().int().min(1).max(5))
+    .transform((days) => [...new Set(days)].sort((a, b) => a - b)),
+});
+
+/** Wochentage Mo–Fr ohne Abendschichten (isEveningShift) — teamweit für Schichtplan. */
+export async function setEveningBlockedWeekdays(formData: FormData) {
+  const { membership } = await requireAdmin();
+  const parsed = eveningBlockedWeekdaysSchema.safeParse({
+    userId: formData.get("userId"),
+    weekdays: formData.getAll("weekdays"),
+  });
+  if (!parsed.success) {
+    return { error: "Person und Wochentage (Mo–Fr) prüfen." };
+  }
+
+  const target = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.organizationId,
+        userId: parsed.data.userId,
+      },
+    },
+  });
+  if (!target) return { error: "Person ist nicht im Team." };
+  if (target.archivedAt) {
+    return {
+      error: "Archivierte Mitglieder können keine Abendschicht-Sperrtage setzen.",
+    };
+  }
+
+  await prisma.membership.update({
+    where: { id: target.id },
+    data: { eveningBlockedWeekdays: parsed.data.weekdays },
+  });
+
+  revalidatePath("/settings/members");
+  revalidatePath("/schichtplan");
+  revalidatePath("/settings/schichtplan");
+  return { ok: true as const };
+}
+
 const capabilityKeys = ASSIGNABLE_CAPABILITIES.map((c) => c.key) as [
   AppCapability,
   ...AppCapability[],

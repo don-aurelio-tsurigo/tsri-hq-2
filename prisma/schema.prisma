@@ -196,6 +196,8 @@ model Membership {
   pensumPercent  Int            @default(100)
   /// ISO-Wochentag (1=Mo…7=So) — fixer freier Tag für Schichtplan, optional
   fixedDayOff    Int?
+  /// ISO-Wochentage (1=Mo…5=Fr) ohne Abendschichten (isEveningShift)
+  eveningBlockedWeekdays Int[] @default([])
   /// Soft-archive: kein App-Zugang, Historie bleibt
   archivedAt     DateTime?
   createdAt      DateTime       @default(now())

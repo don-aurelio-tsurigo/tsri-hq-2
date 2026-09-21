@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArchiveMemberButton, RestoreMemberButton } from "@/components/member-archive-buttons";
+import { EveningBlockedWeekdaysSelect } from "@/components/evening-blocked-weekdays";
 import { FixedDayOffSelect } from "@/components/fixed-day-off-select";
 import { MemberCapabilityGrants } from "@/components/member-capability-grants";
 import { MemberNameEdit } from "@/components/member-name-edit";
@@ -23,6 +24,7 @@ export type TeamMember = {
   role: string;
   pensumPercent: number;
   fixedDayOff: number | null;
+  eveningBlockedWeekdays: number[];
   archivedAt: string | null;
   user: {
     name: string;
@@ -180,6 +182,14 @@ function MemberRow({
             frei {WEEKDAY_LABELS[member.fixedDayOff as Weekday]}
           </span>
         ) : null}
+        {member.eveningBlockedWeekdays.length > 0 ? (
+          <span className="shrink-0 text-sm text-[var(--muted)]">
+            Abend{" "}
+            {member.eveningBlockedWeekdays
+              .map((d) => WEEKDAY_LABELS[d as Weekday])
+              .join(", ")}
+          </span>
+        ) : null}
         <span className="hidden min-w-0 flex-1 truncate text-sm text-[var(--muted)] sm:block">
           {tags.length > 0 ? tags.join(" · ") : ""}
         </span>
@@ -324,6 +334,19 @@ function MemberDrawer({
                 <FixedDayOffSelect
                   userId={panelMember.userId}
                   fixedDayOff={panelMember.fixedDayOff}
+                />
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                  Keine Abendschichten
+                </h3>
+                <p className="text-sm text-[var(--muted)]">
+                  Wochentage Mo–Fr ohne Abendschichten (Briefings etc.).
+                </p>
+                <EveningBlockedWeekdaysSelect
+                  userId={panelMember.userId}
+                  eveningBlockedWeekdays={panelMember.eveningBlockedWeekdays}
                 />
               </section>
 

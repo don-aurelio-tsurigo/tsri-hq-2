@@ -31,6 +31,10 @@ const newsletterTypeSchema = z.object({
     .union([z.literal("true"), z.literal("on"), z.literal("false"), z.null()])
     .optional()
     .transform((v) => v === "true" || v === "on"),
+  isEveningShift: z
+    .union([z.literal("true"), z.literal("on"), z.literal("false"), z.null()])
+    .optional()
+    .transform((v) => v === "true" || v === "on"),
   color: z
     .string()
     .trim()
@@ -46,6 +50,7 @@ function parseNewsletterTypeForm(formData: FormData) {
     name: formData.get("name"),
     weekdays: formData.getAll("weekdays"),
     requiresWordle: formData.get("requiresWordle") ?? null,
+    isEveningShift: formData.get("isEveningShift") ?? null,
     color: formData.get("color") ?? undefined,
   });
 }
@@ -82,6 +87,7 @@ export async function createNewsletterType(formData: FormData) {
           frequency,
           weekdays: parsed.data.weekdays,
           requiresWordle: parsed.data.requiresWordle,
+          isEveningShift: parsed.data.isEveningShift,
           color,
         },
       });
@@ -110,6 +116,7 @@ export async function createNewsletterType(formData: FormData) {
       frequency,
       weekdays: parsed.data.weekdays,
       requiresWordle: parsed.data.requiresWordle,
+      isEveningShift: parsed.data.isEveningShift,
       color,
       sortOrder: nextSort,
     },
@@ -159,6 +166,7 @@ export async function updateNewsletterType(formData: FormData) {
       frequency: frequencyFromWeekdays(parsed.data.weekdays),
       weekdays: parsed.data.weekdays,
       requiresWordle: parsed.data.requiresWordle,
+      isEveningShift: parsed.data.isEveningShift,
       ...(parsed.data.color ? { color: parsed.data.color } : {}),
     },
   });

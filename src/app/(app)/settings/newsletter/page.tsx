@@ -38,6 +38,7 @@ export default async function NewsletterSettingsPage() {
           name: t.name,
           weekdays: t.weekdays,
           requiresWordle: t.requiresWordle,
+          isEveningShift: t.isEveningShift,
           color: t.color,
         }))}
       />
