@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import {
   eachDayOfInterval,
@@ -11,13 +11,15 @@ import {
   startOfMonth,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { Plus, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   archiveEditorialCalendarEvent,
   clearEditorialCalendarPendingDate,
   createEditorialCalendarCategory,
   createEditorialCalendarEvent,
+  deleteEditorialCalendarCategory,
   setEditorialCalendarPendingDate,
+  updateEditorialCalendarCategory,
   updateEditorialCalendarEvent,
 } from "@/lib/actions";
 import {
@@ -37,6 +39,7 @@ import {
   type CalendarFrequency,
   type PendingEvent,
 } from "@/lib/editorial-calendar-shared";
+import { normalizeWikiHref } from "@/lib/wiki-links";
 
 type OccurrenceChip = {
   eventId: string;
@@ -80,8 +83,55 @@ type FormState = {
 };
 
 type Panel = "event" | "pending" | "category" | null;
+type EventPanelMode = "view" | "edit";
 
 const DEFAULT_COLOR = "#94a3b8";
+
+const URL_IN_TEXT_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+
+function LinkifiedText({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const nodes: Array<string | ReactElement> = [];
+  let lastIndex = 0;
+  let key = 0;
+  const re = new RegExp(URL_IN_TEXT_RE.source, URL_IN_TEXT_RE.flags);
+  for (const match of text.matchAll(re)) {
+    const raw = match[0];
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      nodes.push(text.slice(lastIndex, index));
+    }
+    let url = raw;
+    let trailing = "";
+    while (/[.,;:!?)]$/.test(url)) {
+      trailing = `${url.slice(-1)}${trailing}`;
+      url = url.slice(0, -1);
+    }
+    nodes.push(
+      <a
+        key={`url-${key++}`}
+        href={normalizeWikiHref(url)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-medium text-[var(--accent)] underline decoration-2 underline-offset-2 hover:opacity-80"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>,
+    );
+    if (trailing) nodes.push(trailing);
+    lastIndex = index + raw.length;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+  return <span className={className}>{nodes}</span>;
+}
 
 function emptyForm(year: number, dateKey?: string): FormState {
   return {
@@ -214,6 +264,7 @@ export function EditorialYearCalendar({
   const [pendingTx, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
+  const [eventMode, setEventMode] = useState<EventPanelMode>("edit");
   const [form, setForm] = useState<FormState>(() => emptyForm(year));
   const [pendingSchedule, setPendingSchedule] = useState<{
     eventId: string;
@@ -223,6 +274,9 @@ export function EditorialYearCalendar({
   } | null>(null);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#d4edc0");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
   const [fromTodayOnly, setFromTodayOnly] = useState(true);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
     () => categories.filter((c) => c.active).map((c) => c.id),
@@ -313,6 +367,16 @@ export function EditorialYearCalendar({
   function openCreate(dateKey?: string) {
     setError(null);
     setForm(emptyForm(year, dateKey));
+    setEventMode("edit");
+    setPanel("event");
+  }
+
+  function openView(eventId: string) {
+    const event = eventById.get(eventId);
+    if (!event) return;
+    setError(null);
+    setForm(formFromEvent(event, year));
+    setEventMode("view");
     setPanel("event");
   }
 
@@ -321,7 +385,16 @@ export function EditorialYearCalendar({
     if (!event) return;
     setError(null);
     setForm(formFromEvent(event, year));
+    setEventMode("edit");
     setPanel("event");
+  }
+
+  function closePanel() {
+    setPanel(null);
+    setError(null);
+    setEditingCategoryId(null);
+    setNewCategoryName("");
+    setNewCategoryColor("#d4edc0");
   }
 
   function openPending(p: PendingEvent) {
@@ -370,7 +443,7 @@ export function EditorialYearCalendar({
         setError(result.error);
         return;
       }
-      setPanel(null);
+      closePanel();
       router.refresh();
     });
   }
@@ -386,7 +459,7 @@ export function EditorialYearCalendar({
         setError(result.error);
         return;
       }
-      setPanel(null);
+      closePanel();
       router.refresh();
     });
   }
@@ -405,7 +478,7 @@ export function EditorialYearCalendar({
         setError(result.error);
         return;
       }
-      setPanel(null);
+      closePanel();
       setPendingSchedule(null);
       router.refresh();
     });
@@ -421,19 +494,64 @@ export function EditorialYearCalendar({
     });
   }
 
+  function startEditCategory(cat: CalendarCategoryOption) {
+    setError(null);
+    setEditingCategoryId(cat.id);
+    setNewCategoryName(cat.name);
+    setNewCategoryColor(cat.color);
+  }
+
+  function resetCategoryForm() {
+    setEditingCategoryId(null);
+    setNewCategoryName("");
+    setNewCategoryColor("#d4edc0");
+  }
+
   function saveCategory() {
     setError(null);
     startTransition(async () => {
       const fd = new FormData();
       fd.set("name", newCategoryName);
       fd.set("color", newCategoryColor);
-      const result = await createEditorialCalendarCategory(fd);
+      if (editingCategoryId) {
+        fd.set("id", editingCategoryId);
+        fd.set("active", "true");
+        const result = await updateEditorialCalendarCategory(fd);
+        if ("error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+      } else {
+        const result = await createEditorialCalendarCategory(fd);
+        if ("error" in result && result.error) {
+          setError(result.error);
+          return;
+        }
+      }
+      resetCategoryForm();
+      router.refresh();
+    });
+  }
+
+  function deleteCategory(id: string, name: string) {
+    if (
+      !window.confirm(
+        `Kategorie «${name}» wirklich löschen? Events behalten danach keine Kategorie.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", id);
+      const result = await deleteEditorialCalendarCategory(fd);
       if ("error" in result && result.error) {
         setError(result.error);
         return;
       }
-      setNewCategoryName("");
-      setPanel(null);
+      if (editingCategoryId === id) resetCategoryForm();
+      setSelectedCategoryIds((prev) => prev.filter((x) => x !== id));
       router.refresh();
     });
   }
@@ -510,6 +628,7 @@ export function EditorialYearCalendar({
             type="button"
             onClick={() => {
               setError(null);
+              resetCategoryForm();
               setPanel("category");
             }}
             className="btn btn-ghost px-3 py-1.5 text-sm"
@@ -590,12 +709,19 @@ export function EditorialYearCalendar({
                     </span>
                   </div>
                   {p.note && (
-                    <p className="mt-0.5 truncate text-xs text-[var(--muted)]">
-                      {p.note}
+                    <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
+                      <LinkifiedText text={p.note} />
                     </p>
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openView(p.id)}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-[var(--muted)] hover:bg-black/5"
+                  >
+                    Anzeigen
+                  </button>
                   <button
                     type="button"
                     onClick={() => openEdit(p.id)}
@@ -670,10 +796,17 @@ export function EditorialYearCalendar({
                   const color = item.category?.color ?? DEFAULT_COLOR;
                   return (
                     <li key={`${item.eventId}-${item.dateKey}`}>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(item.eventId)}
-                        className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 border-l-[3px] px-3 py-2 text-left hover:bg-black/[0.02]"
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openView(item.eventId)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openView(item.eventId);
+                          }
+                        }}
+                        className="flex w-full cursor-pointer flex-wrap items-start gap-x-3 gap-y-1 border-l-[3px] px-3 py-2 text-left hover:bg-black/[0.02]"
                         style={{
                           borderLeftColor: color,
                           background: `${color}14`,
@@ -689,8 +822,8 @@ export function EditorialYearCalendar({
                             {item.title}
                           </p>
                           {item.note ? (
-                            <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-[var(--muted)]">
-                              {item.note}
+                            <p className="mt-1 text-sm leading-snug text-[var(--fg)]/80">
+                              <LinkifiedText text={item.note} />
                             </p>
                           ) : null}
                         </div>
@@ -704,7 +837,7 @@ export function EditorialYearCalendar({
                             {scheduleSummary(item.frequency, item.dateMode)}
                           </span>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   );
                 })
@@ -732,19 +865,20 @@ export function EditorialYearCalendar({
             <div className="mb-3 flex items-start justify-between gap-2">
               <h3 className="font-[family-name:var(--font-display)] text-lg font-semibold">
                 {panel === "category"
-                  ? "Kategorie anlegen"
+                  ? editingCategoryId
+                    ? "Kategorie bearbeiten"
+                    : "Kategorien"
                   : panel === "pending"
                     ? "Datum setzen"
-                    : form.id
-                      ? "Event bearbeiten"
-                      : "Neues Event"}
+                    : eventMode === "view"
+                      ? "Event"
+                      : form.id
+                        ? "Event bearbeiten"
+                        : "Neues Event"}
               </h3>
               <button
                 type="button"
-                onClick={() => {
-                  setPanel(null);
-                  setError(null);
-                }}
+                onClick={closePanel}
                 className="rounded-lg p-1 hover:bg-black/5"
                 aria-label="Schliessen"
               >
@@ -762,13 +896,14 @@ export function EditorialYearCalendar({
               <div className="space-y-3">
                 <div>
                   <label className={labelClass} htmlFor="cat-name">
-                    Name
+                    {editingCategoryId ? "Name ändern" : "Neue Kategorie"}
                   </label>
                   <input
                     id="cat-name"
                     className={inputClass}
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Name"
                   />
                 </div>
                 <div>
@@ -783,35 +918,75 @@ export function EditorialYearCalendar({
                     onChange={(e) => setNewCategoryColor(e.target.value)}
                   />
                 </div>
-                {categories.length > 0 && (
-                  <ul className="space-y-1 border-t border-black/10 pt-3">
-                    {categories.map((c) => (
-                      <li
-                        key={c.id}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <span
-                          className="size-3 rounded-full"
-                          style={{ background: c.color }}
-                        />
-                        <span className={c.active ? "" : "opacity-50"}>
-                          {c.name}
-                          {!c.active ? " (inaktiv)" : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2">
+                  {editingCategoryId ? (
+                    <button
+                      type="button"
+                      onClick={resetCategoryForm}
+                      className="rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:bg-black/5"
+                    >
+                      Abbrechen
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     disabled={pendingTx || !newCategoryName.trim()}
                     onClick={saveCategory}
                     className="rounded-xl bg-[var(--highlight)] px-4 py-2 text-sm font-bold text-[#0a0a0a] disabled:opacity-50"
                   >
-                    Speichern
+                    {editingCategoryId ? "Aktualisieren" : "Anlegen"}
                   </button>
                 </div>
+                {categories.length > 0 && (
+                  <ul className="space-y-1 border-t border-black/10 pt-3">
+                    {categories.map((c) => (
+                      <li
+                        key={c.id}
+                        className={[
+                          "flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm",
+                          editingCategoryId === c.id ? "bg-black/[0.04]" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <span
+                          className="size-3 shrink-0 rounded-full"
+                          style={{ background: c.color }}
+                        />
+                        <span
+                          className={[
+                            "min-w-0 flex-1 truncate",
+                            c.active ? "" : "opacity-50",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {c.name}
+                          {!c.active ? " (inaktiv)" : ""}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => startEditCategory(c)}
+                          className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-black/5 hover:text-[var(--fg)]"
+                          aria-label={`${c.name} bearbeiten`}
+                          title="Bearbeiten"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pendingTx}
+                          onClick={() => deleteCategory(c.id, c.name)}
+                          className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-red-50 hover:text-red-700"
+                          aria-label={`${c.name} löschen`}
+                          title="Löschen"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 
@@ -867,7 +1042,89 @@ export function EditorialYearCalendar({
               </div>
             )}
 
-            {panel === "event" && (
+            {panel === "event" && eventMode === "view" && (
+              <div className="space-y-4">
+                {(() => {
+                  const viewCategory =
+                    categories.find((c) => c.id === form.categoryId) ?? null;
+                  const color = viewCategory?.color ?? DEFAULT_COLOR;
+                  return (
+                    <>
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="mt-1.5 size-3 shrink-0 rounded-full"
+                          style={{ background: color }}
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-[family-name:var(--font-display)] text-xl font-semibold leading-snug">
+                            {form.title || "Ohne Titel"}
+                          </p>
+                          <p className="mt-1 text-sm text-[var(--muted)]">
+                            {scheduleSummary(form.frequency, form.dateMode)}
+                            {viewCategory ? ` · ${viewCategory.name}` : ""}
+                          </p>
+                        </div>
+                      </div>
+
+                      {previewDates.length > 0 ? (
+                        <div>
+                          <p className={labelClass}>Termine {year}</p>
+                          <p className="text-sm">
+                            {previewDates
+                              .map((d) =>
+                                d.toLocaleDateString("de-CH", {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "long",
+                                }),
+                              )
+                              .join(", ")}
+                            {form.dateMode !== "pending" &&
+                              listOccurrencesInYear(fieldsFromForm(form), year)
+                                .length > 8 &&
+                              " …"}
+                          </p>
+                        </div>
+                      ) : form.dateMode === "pending" ? (
+                        <p className="text-sm text-amber-800">
+                          Datum für {year} noch offen.
+                        </p>
+                      ) : null}
+
+                      {form.note.trim() ? (
+                        <div>
+                          <p className={labelClass}>Notiz</p>
+                          <p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--fg)]">
+                            <LinkifiedText text={form.note} />
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={pendingTx}
+                          onClick={archiveEvent}
+                          className="rounded-lg px-3 py-2 text-sm text-red-700 hover:bg-red-50"
+                        >
+                          Archivieren
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEventMode("edit")}
+                          className="rounded-xl bg-[var(--highlight)] px-4 py-2 text-sm font-bold text-[#0a0a0a]"
+                        >
+                          Bearbeiten
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {panel === "event" && eventMode === "edit" && (
               <div className="space-y-3">
                 <div>
                   <label className={labelClass} htmlFor="ev-title">
@@ -1296,14 +1553,30 @@ export function EditorialYearCalendar({
                         </button>
                       )}
                   </div>
-                  <button
-                    type="button"
-                    disabled={pendingTx || !form.title.trim()}
-                    onClick={saveEvent}
-                    className="rounded-xl bg-[var(--highlight)] px-4 py-2 text-sm font-bold text-[#0a0a0a] disabled:opacity-50"
-                  >
-                    Speichern
-                  </button>
+                  <div className="flex gap-2">
+                    {form.id ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const event = eventById.get(form.id!);
+                          if (event) setForm(formFromEvent(event, year));
+                          setError(null);
+                          setEventMode("view");
+                        }}
+                        className="rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:bg-black/5"
+                      >
+                        Abbrechen
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={pendingTx || !form.title.trim()}
+                      onClick={saveEvent}
+                      className="rounded-xl bg-[var(--highlight)] px-4 py-2 text-sm font-bold text-[#0a0a0a] disabled:opacity-50"
+                    >
+                      Speichern
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

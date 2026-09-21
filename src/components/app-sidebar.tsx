@@ -380,7 +380,7 @@ export function AppSidebar({
             icon={CalendarDays}
             onNavigate={onMobileClose}
           >
-            Jahreskalender
+            Eventkalender
           </NavLink>
           <NavLink
             href="/feedback"
