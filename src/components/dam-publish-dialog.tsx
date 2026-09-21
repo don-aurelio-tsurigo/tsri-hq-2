@@ -1,5 +1,6 @@
 "use client";
 
+import { LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DamCombobox } from "@/components/dam-combobox";
 import { damFileSrc } from "@/lib/dam/edit-params";
@@ -188,7 +189,14 @@ export function DamPublishDialog({
               );
             }}
           >
-            {pending ? "Verschiebt…" : `${assets.length} in die Mediathek`}
+            {pending ? (
+              <span className="inline-flex items-center gap-2">
+                <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                Verschiebt…
+              </span>
+            ) : (
+              `${assets.length} in die Mediathek`
+            )}
           </button>
         </div>
       </div>
