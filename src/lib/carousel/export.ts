@@ -66,7 +66,8 @@ async function prepareSlideForExport(slide: Slide): Promise<Slide> {
   if (
     slide.type !== "cover" &&
     slide.type !== "text" &&
-    slide.type !== "quote"
+    slide.type !== "quote" &&
+    slide.type !== "frage"
   ) {
     return slide;
   }
@@ -86,7 +87,8 @@ function slideImageUrls(slide: Slide, format: CarouselFormat): string[] {
   if (
     (slide.type === "cover" ||
       slide.type === "text" ||
-      slide.type === "quote") &&
+      slide.type === "quote" ||
+      slide.type === "frage") &&
     slide.backgroundImageUrl
   ) {
     urls.push(slide.backgroundImageUrl);

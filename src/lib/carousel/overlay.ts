@@ -36,9 +36,14 @@ export function normalizeImageOverlay(
 }
 
 export function defaultImageOverlayForSlideType(
-  type: "cover" | "text" | "quote" | "outro" | "tipp-item",
+  type: "cover" | "text" | "quote" | "frage" | "outro" | "tipp-item",
 ): ImageOverlay {
-  if (type === "text" || type === "quote" || type === "tipp-item") {
+  if (
+    type === "text" ||
+    type === "quote" ||
+    type === "frage" ||
+    type === "tipp-item"
+  ) {
     return { ...DEFAULT_TEXT_QUOTE_IMAGE_OVERLAY };
   }
   return { ...DEFAULT_IMAGE_OVERLAY };

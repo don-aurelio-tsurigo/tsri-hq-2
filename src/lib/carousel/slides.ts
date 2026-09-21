@@ -17,6 +17,7 @@ import {
   DEFAULT_OUTRO_CTA,
   TSUERITIPP_DEFAULT_OVERLINE,
   type CoverSlide,
+  type FrageSlide,
   type OutroSlide,
   type QuoteSlide,
   type Slide,
@@ -78,6 +79,23 @@ export function createEmptyQuoteSlide(
   };
 }
 
+export function createEmptyFrageSlide(
+  category: string = DEFAULT_CATEGORY,
+): FrageSlide {
+  return {
+    id: newId(),
+    type: "frage",
+    category,
+    backgroundImageUrl: null,
+    backgroundColor: backgroundColorForCategory(category),
+    ink: defaultInkForCategory(category),
+    questionText: "",
+    quoteText: "",
+    attribution: "",
+    imageOverlay: defaultImageOverlayForSlideType("frage"),
+  };
+}
+
 export function createEmptyOutroSlide(
   category: string = DEFAULT_CATEGORY,
 ): OutroSlide {
@@ -121,6 +139,9 @@ export function createEmptySlide(
     case "quote":
       slide = createEmptyQuoteSlide(category);
       break;
+    case "frage":
+      slide = createEmptyFrageSlide(category);
+      break;
     case "outro":
       slide = createEmptyOutroSlide(category);
       break;
@@ -151,6 +172,7 @@ export function applyFormatSlideDefaults(
       };
     case "text":
     case "quote":
+    case "frage":
       return {
         ...slide,
         backgroundColor: SIXIBRIEF_BG,

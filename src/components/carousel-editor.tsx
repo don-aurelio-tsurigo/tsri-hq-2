@@ -41,14 +41,23 @@ const SLIDE_TYPE_LABEL: Record<SlideType, string> = {
   cover: "Cover",
   text: "Text",
   quote: "Zitat",
+  frage: "Frage",
   "tipp-item": "Tipp",
   outro: "Outro",
 };
 
-const ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "quote", "outro"];
+const ADDABLE_SLIDE_TYPES: SlideType[] = [
+  "cover",
+  "text",
+  "quote",
+  "frage",
+  "outro",
+];
 const QUOTE_CASCADE_ADDABLE_SLIDE_TYPES: SlideType[] = [
   "cover",
+  "text",
   "quote",
+  "frage",
   "outro",
 ];
 const SIXIBRIEF_ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "outro"];
@@ -69,14 +78,18 @@ function slideHasImageLayer(slide: Slide) {
   return (
     (slide.type === "cover" ||
       slide.type === "text" ||
-      slide.type === "quote") &&
+      slide.type === "quote" ||
+      slide.type === "frage") &&
     Boolean(slide.backgroundImageUrl)
   );
 }
 
 function slideSupportsBackgroundImage(slide: Slide) {
   return (
-    slide.type === "cover" || slide.type === "text" || slide.type === "quote"
+    slide.type === "cover" ||
+    slide.type === "text" ||
+    slide.type === "quote" ||
+    slide.type === "frage"
   );
 }
 
@@ -198,7 +211,8 @@ export function CarouselEditor({
       layer === "image" &&
       (active.type === "cover" ||
         active.type === "text" ||
-        active.type === "quote")
+        active.type === "quote" ||
+        active.type === "frage")
     ) {
       return normalizeImageTransform(active.imageTransform);
     }
@@ -211,7 +225,8 @@ export function CarouselEditor({
       if (
         active.type === "cover" ||
         active.type === "text" ||
-        active.type === "quote"
+        active.type === "quote" ||
+        active.type === "frage"
       ) {
         updateActive({ imageTransform: transform });
       }
@@ -271,7 +286,8 @@ export function CarouselEditor({
     if (
       active.type !== "cover" &&
       active.type !== "text" &&
-      active.type !== "quote"
+      active.type !== "quote" &&
+      active.type !== "frage"
     ) {
       return;
     }
@@ -594,6 +610,42 @@ export function CarouselEditor({
                 </>
               ) : null}
 
+              {active.type === "frage" ? (
+                <>
+                  <Field label="Frage">
+                    <textarea
+                      className="min-h-24 w-full"
+                      disabled={!canEdit}
+                      value={active.questionText}
+                      onChange={(e) =>
+                        updateActive({ questionText: e.target.value })
+                      }
+                      placeholder="Wenn Sie neue Leute kennenlernen…"
+                    />
+                  </Field>
+                  <div className="field">
+                    <CarouselFormatTextarea
+                      label="Zitat"
+                      disabled={!canEdit}
+                      value={active.quoteText}
+                      onChange={(quoteText) => updateActive({ quoteText })}
+                      className="min-h-40 w-full font-mono text-sm"
+                    />
+                  </div>
+                  <Field label="Attribution">
+                    <input
+                      className="w-full"
+                      disabled={!canEdit}
+                      value={active.attribution}
+                      onChange={(e) =>
+                        updateActive({ attribution: e.target.value })
+                      }
+                      placeholder="Name, Rolle"
+                    />
+                  </Field>
+                </>
+              ) : null}
+
               {active.type === "outro" ? (
                 <>
                   <Field label="Headline">
@@ -685,6 +737,7 @@ export function CarouselEditor({
 
               {active.type === "text" ||
               active.type === "quote" ||
+              active.type === "frage" ||
               active.type === "outro" ||
               active.type === "tipp-item" ? (
                 <Field label="Textfarbe">
@@ -878,6 +931,7 @@ export function CarouselEditor({
                       format !== "6ibrief" &&
                       (active.type === "text" ||
                         active.type === "quote" ||
+                        active.type === "frage" ||
                         active.type === "outro" ||
                         active.type === "tipp-item")
                     ) {
@@ -894,6 +948,7 @@ export function CarouselEditor({
 
               {active.type === "text" ||
               active.type === "quote" ||
+              active.type === "frage" ||
               active.type === "outro" ||
               active.type === "tipp-item" ? (
                 <Field label="Hintergrundfarbe">

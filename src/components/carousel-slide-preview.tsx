@@ -781,6 +781,161 @@ function QuotePreview({
   );
 }
 
+function FragePreview({
+  slide,
+  interactive,
+  selectedLayer,
+  onSelectLayer,
+  onImageTransform,
+  onTextTransform,
+  previewScale = 1,
+  format,
+  onGuides,
+}: {
+  slide: Extract<Slide, { type: "frage" }>;
+} & InteractiveProps & {
+    onGuides?: (guides: { v: number | null; h: number | null }) => void;
+  }) {
+  const hasImage = Boolean(slide.backgroundImageUrl);
+  const ink: SlideInk = hasImage ? "light" : resolveSlideInk(slide);
+  const inkColor = inkCssColor(ink);
+  const imageT = normalizeImageTransform(slide.imageTransform);
+  const textT = normalizeTransform(slide.textTransform);
+  const imageDrag = useLayerDrag({
+    enabled: Boolean(interactive && hasImage),
+    layer: "image",
+    selected: selectedLayer === "image",
+    transform: imageT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onImageTransform,
+    onGuides,
+  });
+  const textDrag = useLayerDrag({
+    enabled: Boolean(interactive),
+    layer: "text",
+    selected: selectedLayer === "text",
+    transform: textT,
+    anchorX: CANVAS_WIDTH / 2,
+    anchorY: CANVAS_HEIGHT / 2,
+    previewScale,
+    onSelect: onSelectLayer,
+    onChange: onTextTransform,
+    onGuides,
+  });
+
+  return (
+    <>
+      {hasImage ? (
+        <>
+          <ImageLayer
+            url={slide.backgroundImageUrl}
+            transform={imageT}
+            overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("frage")}
+            className={imageDrag.className}
+            onPointerDown={imageDrag.onPointerDown}
+            onPointerMove={imageDrag.onPointerMove}
+            onPointerUp={imageDrag.onPointerUp}
+          />
+          <ImageScrim
+            hasImage
+            overlay={slide.imageOverlay}
+            overlayDefaults={defaultImageOverlayForSlideType("frage")}
+          />
+        </>
+      ) : (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
+        />
+      )}
+      <SlideChrome
+        format={format}
+        slideType="frage"
+        category={slide.category}
+        ink={ink}
+      />
+      <div
+        className={`absolute z-30 ${textDrag.className}`}
+        style={{
+          left: 100,
+          right: 100,
+          top: 200,
+          bottom: 180,
+          fontFamily: CAROUSEL_FONT,
+          color: inkColor,
+          ...textTransformStyle(textT, "left top"),
+        }}
+        onPointerDown={textDrag.onPointerDown}
+        onPointerMove={textDrag.onPointerMove}
+        onPointerUp={textDrag.onPointerUp}
+      >
+        <p
+          className="carousel-slide-text italic font-normal"
+          style={{
+            fontSize: 53.4,
+            lineHeight: 1.2,
+            textAlign: "left",
+            whiteSpace: "pre-wrap",
+            ...SLIDE_TEXT_HYPHENS,
+          }}
+        >
+          {decodeHtmlEntities(slide.questionText) || "Frage…"}
+        </p>
+        <div style={{ marginTop: 56 }}>
+          <p
+            className="font-bold"
+            style={{
+              fontSize: 240,
+              lineHeight: 0.45,
+              marginBottom: 50,
+              textAlign: "left",
+            }}
+          >
+            «
+          </p>
+          <p
+            className="carousel-slide-text font-bold"
+            style={{
+              fontSize: 53.4,
+              lineHeight: 1.25,
+              textAlign: "left",
+              whiteSpace: "pre-wrap",
+              ...SLIDE_TEXT_HYPHENS,
+            }}
+            dangerouslySetInnerHTML={{
+              __html: (() => {
+                const raw = slide.quoteText || "Zitat…";
+                const html = slideHtml(raw);
+                const plain = raw.replace(/<[^>]+>/g, "");
+                if (plain.trimEnd().endsWith("»")) return html;
+                return `${html}»`;
+              })(),
+            }}
+          />
+          {slide.attribution ? (
+            <p
+              className="font-normal opacity-95"
+              style={{
+                fontSize: 40.05,
+                lineHeight: 1.2,
+                marginTop: 52,
+                textAlign: "left",
+              }}
+            >
+              {decodeHtmlEntities(slide.attribution)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <BrandMark ink={ink} />
+    </>
+  );
+}
+
 function TippItemPreview({
   slide,
   format,
@@ -1022,6 +1177,9 @@ export function CarouselSlidePreview({
         ) : null}
         {slide.type === "quote" ? (
           <QuotePreview slide={slide} {...shared} />
+        ) : null}
+        {slide.type === "frage" ? (
+          <FragePreview slide={slide} {...shared} />
         ) : null}
         {slide.type === "tipp-item" ? (
           <TippItemPreview slide={slide} format={format} />
