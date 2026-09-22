@@ -10,6 +10,7 @@ const MAX_REDIRECTS = 3;
 const ALLOWED_HOSTS = new Set([
   "media-tsri.wepublish.cloud",
   "is-tsri.wepublish.cloud",
+  "images.unsplash.com",
 ]);
 
 function isAllowedMediaUrl(value: URL): boolean {

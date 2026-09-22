@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { DamArchivePickerDialog } from "@/components/dam-archive-picker-dialog";
+import { UnsplashPickerDialog } from "@/components/unsplash-picker-dialog";
 import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
@@ -97,6 +98,7 @@ function backgroundImageInputValue(url: string | null): string {
   if (!url) return "";
   if (url.startsWith("data:")) return "(hochgeladenes Bild)";
   if (url.startsWith("/api/dam/")) return "(Bild aus der Mediathek)";
+  if (url.includes("images.unsplash.com")) return "(Bild von Unsplash)";
   return url;
 }
 
@@ -130,6 +132,7 @@ export function CarouselEditor({
   const [exportProgress, setExportProgress] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [archivePickerOpen, setArchivePickerOpen] = useState(false);
+  const [unsplashPickerOpen, setUnsplashPickerOpen] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
   const [pending, startTransition] = useTransition();
@@ -779,7 +782,8 @@ export function CarouselEditor({
                       onChange={(e) => {
                         if (
                           e.target.value === "(hochgeladenes Bild)" ||
-                          e.target.value === "(Bild aus der Mediathek)"
+                          e.target.value === "(Bild aus der Mediathek)" ||
+                          e.target.value === "(Bild von Unsplash)"
                         ) {
                           return;
                         }
@@ -815,6 +819,14 @@ export function CarouselEditor({
                           onClick={() => setArchivePickerOpen(true)}
                         >
                           Aus der Mediathek
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-sm"
+                          disabled={uploading}
+                          onClick={() => setUnsplashPickerOpen(true)}
+                        >
+                          Von Unsplash
                         </button>
                         {active.backgroundImageUrl ? (
                           <button
@@ -986,6 +998,16 @@ export function CarouselEditor({
             updateActive({ backgroundImageUrl: imageUrl });
             setSelectedLayer("image");
             setArchivePickerOpen(false);
+          }}
+        />
+      ) : null}
+      {unsplashPickerOpen ? (
+        <UnsplashPickerDialog
+          onClose={() => setUnsplashPickerOpen(false)}
+          onSelect={(imageUrl) => {
+            updateActive({ backgroundImageUrl: imageUrl });
+            setSelectedLayer("image");
+            setUnsplashPickerOpen(false);
           }}
         />
       ) : null}
