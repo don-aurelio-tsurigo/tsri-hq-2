@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Archive, Camera, LoaderCircle, Trash2, Upload } from "lucide-react";
 import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { DamArchivePickerDialog } from "@/components/dam-archive-picker-dialog";
@@ -96,9 +97,9 @@ function slideSupportsBackgroundImage(slide: Slide) {
 
 function backgroundImageInputValue(url: string | null): string {
   if (!url) return "";
-  if (url.startsWith("data:")) return "(hochgeladenes Bild)";
-  if (url.startsWith("/api/dam/")) return "(Bild aus der Mediathek)";
-  if (url.includes("images.unsplash.com")) return "(Bild von Unsplash)";
+  if (url.startsWith("data:")) return "(hochgeladen)";
+  if (url.startsWith("/api/dam/")) return "(Mediathek)";
+  if (url.includes("images.unsplash.com")) return "(Unsplash)";
   return url;
 }
 
@@ -781,9 +782,9 @@ export function CarouselEditor({
                       value={backgroundImageInputValue(active.backgroundImageUrl)}
                       onChange={(e) => {
                         if (
-                          e.target.value === "(hochgeladenes Bild)" ||
-                          e.target.value === "(Bild aus der Mediathek)" ||
-                          e.target.value === "(Bild von Unsplash)"
+                          e.target.value === "(hochgeladen)" ||
+                          e.target.value === "(Mediathek)" ||
+                          e.target.value === "(Unsplash)"
                         ) {
                           return;
                         }
@@ -791,52 +792,82 @@ export function CarouselEditor({
                           backgroundImageUrl: e.target.value.trim() || null,
                         });
                       }}
-                      placeholder="https://… oder Datei wählen"
+                      placeholder="URL oder Quelle wählen"
                     />
                     {canEdit ? (
-                      <div className="flex flex-wrap gap-2">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            void handleImageFile(e.target.files?.[0] ?? null);
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-ghost px-3 py-1.5 text-sm"
-                          disabled={uploading}
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {uploading ? "Lädt…" : "Bild hochladen"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost px-3 py-1.5 text-sm"
-                          disabled={uploading}
-                          onClick={() => setArchivePickerOpen(true)}
-                        >
-                          Aus der Mediathek
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost px-3 py-1.5 text-sm"
-                          disabled={uploading}
-                          onClick={() => setUnsplashPickerOpen(true)}
-                        >
-                          Von Unsplash
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              void handleImageFile(e.target.files?.[0] ?? null);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
+                            disabled={uploading}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            {uploading ? (
+                              <LoaderCircle
+                                className="size-4 shrink-0 animate-spin"
+                                strokeWidth={1.75}
+                                aria-hidden
+                              />
+                            ) : (
+                              <Upload
+                                className="size-4 shrink-0"
+                                strokeWidth={1.75}
+                                aria-hidden
+                              />
+                            )}
+                            {uploading ? "Lädt…" : "Hochladen"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
+                            disabled={uploading}
+                            onClick={() => setArchivePickerOpen(true)}
+                          >
+                            <Archive
+                              className="size-4 shrink-0"
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                            Mediathek
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
+                            disabled={uploading}
+                            onClick={() => setUnsplashPickerOpen(true)}
+                          >
+                            <Camera
+                              className="size-4 shrink-0"
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                            Unsplash
+                          </button>
+                        </div>
                         {active.backgroundImageUrl ? (
                           <button
                             type="button"
-                            className="btn btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"
+                            className="btn btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--danger)]"
                             onClick={() =>
                               updateActive({ backgroundImageUrl: null })
                             }
                           >
-                            Bild entfernen
+                            <Trash2
+                              className="size-4 shrink-0"
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                            Entfernen
                           </button>
                         ) : null}
                       </div>
