@@ -38,7 +38,7 @@ export const FEEDBACK_MEMBERSHIP_LABELS: Record<
 > = {
   1: "Mitglied",
   0: "Kein Mitglied",
-  [-1]: "Ausgetreten",
+  [-1]: "Ex-Member",
 };
 
 export type FeedbackClickInput = {
