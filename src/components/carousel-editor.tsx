@@ -12,7 +12,7 @@ import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
 import { isQuoteCascadeFormat } from "@/lib/carousel/format";
-import { fileToCompressedDataUrl } from "@/lib/carousel/image";
+import { fileToCompressedDataUrl, probeImageSize } from "@/lib/carousel/image";
 import {
   DEFAULT_IMAGE_OVERLAY,
   defaultImageOverlayForSlideType,
@@ -24,7 +24,11 @@ import {
   lastCategory,
   themeFieldsForCategory,
 } from "@/lib/carousel/slides";
-import { normalizeImageTransform, normalizeTransform } from "@/lib/carousel/transform";
+import {
+  defaultImageTransformForSize,
+  normalizeImageTransform,
+  normalizeTransform,
+} from "@/lib/carousel/transform";
 import {
   resolveSlideInk,
 } from "@/lib/carousel/categories";
@@ -285,6 +289,24 @@ export function CarouselEditor({
     }
   }
 
+  async function applyBackgroundImage(imageUrl: string) {
+    if (!active || !canEdit) return;
+    if (
+      active.type !== "cover" &&
+      active.type !== "text" &&
+      active.type !== "quote" &&
+      active.type !== "frage"
+    ) {
+      return;
+    }
+    const size = await probeImageSize(imageUrl);
+    const imageTransform = size
+      ? defaultImageTransformForSize(size.width, size.height)
+      : { ...DEFAULT_IMAGE_TRANSFORM };
+    updateActive({ backgroundImageUrl: imageUrl, imageTransform });
+    setSelectedLayer("image");
+  }
+
   async function handleImageFile(file: File | null) {
     if (!file || !canEdit || !active) return;
     if (
@@ -298,8 +320,11 @@ export function CarouselEditor({
     setUploading(true);
     setError(null);
     try {
-      const dataUrl = await fileToCompressedDataUrl(file);
-      updateActive({ backgroundImageUrl: dataUrl });
+      const { dataUrl, width, height } = await fileToCompressedDataUrl(file);
+      updateActive({
+        backgroundImageUrl: dataUrl,
+        imageTransform: defaultImageTransformForSize(width, height),
+      });
       setSelectedLayer("image");
     } catch (err) {
       setError(
@@ -725,14 +750,36 @@ export function CarouselEditor({
                   <button
                     type="button"
                     className="btn btn-ghost px-3 py-1.5 text-sm"
-                    onClick={() =>
-                      setLayerTransform(
-                        selectedLayer,
-                        selectedLayer === "image"
-                          ? { ...DEFAULT_IMAGE_TRANSFORM }
-                          : { ...DEFAULT_TRANSFORM },
-                      )
-                    }
+                    onClick={() => {
+                      if (selectedLayer !== "image") {
+                        setLayerTransform(selectedLayer, {
+                          ...DEFAULT_TRANSFORM,
+                        });
+                        return;
+                      }
+                      const url =
+                        active && slideSupportsBackgroundImage(active)
+                          ? active.backgroundImageUrl
+                          : null;
+                      if (!url) {
+                        setLayerTransform(selectedLayer, {
+                          ...DEFAULT_IMAGE_TRANSFORM,
+                        });
+                        return;
+                      }
+                      void (async () => {
+                        const size = await probeImageSize(url);
+                        setLayerTransform(
+                          "image",
+                          size
+                            ? defaultImageTransformForSize(
+                                size.width,
+                                size.height,
+                              )
+                            : { ...DEFAULT_IMAGE_TRANSFORM },
+                        );
+                      })();
+                    }}
                   >
                     Position zurücksetzen
                   </button>
@@ -788,9 +835,12 @@ export function CarouselEditor({
                         ) {
                           return;
                         }
-                        updateActive({
-                          backgroundImageUrl: e.target.value.trim() || null,
-                        });
+                        const next = e.target.value.trim();
+                        if (!next) {
+                          updateActive({ backgroundImageUrl: null });
+                          return;
+                        }
+                        void applyBackgroundImage(next);
                       }}
                       placeholder="URL oder Quelle wählen"
                     />
@@ -1026,8 +1076,7 @@ export function CarouselEditor({
         <DamArchivePickerDialog
           onClose={() => setArchivePickerOpen(false)}
           onSelect={(imageUrl) => {
-            updateActive({ backgroundImageUrl: imageUrl });
-            setSelectedLayer("image");
+            void applyBackgroundImage(imageUrl);
             setArchivePickerOpen(false);
           }}
         />
@@ -1036,8 +1085,7 @@ export function CarouselEditor({
         <UnsplashPickerDialog
           onClose={() => setUnsplashPickerOpen(false)}
           onSelect={(imageUrl) => {
-            updateActive({ backgroundImageUrl: imageUrl });
-            setSelectedLayer("image");
+            void applyBackgroundImage(imageUrl);
             setUnsplashPickerOpen(false);
           }}
         />

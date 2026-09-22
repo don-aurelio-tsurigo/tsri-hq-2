@@ -31,11 +31,18 @@ export const DEFAULT_TRANSFORM: LayerTransform = {
   scale: 1,
 };
 
-/** Default zoom for background photos (fills height; sides may clip). */
+/** Default zoom for landscape background photos (fills height; sides may clip). */
 export const DEFAULT_IMAGE_TRANSFORM: LayerTransform = {
   x: 0,
   y: 0,
   scale: 1.9,
+};
+
+/** Portrait / square photos already fill the 1080×1350 frame at 100%. */
+export const PORTRAIT_IMAGE_TRANSFORM: LayerTransform = {
+  x: 0,
+  y: 0,
+  scale: 1,
 };
 
 /** Darkening treatment for slides with a background image */

@@ -3,6 +3,7 @@ import {
   CANVAS_WIDTH,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_TRANSFORM,
+  PORTRAIT_IMAGE_TRANSFORM,
   type LayerTransform,
 } from "@/lib/carousel/types";
 
@@ -46,6 +47,17 @@ export function normalizeImageTransform(
         ? Math.min(3, Math.max(0.35, value.scale))
         : DEFAULT_IMAGE_TRANSFORM.scale,
   };
+}
+
+/** Landscape → 190% zoom; portrait/square → 100%. */
+export function defaultImageTransformForSize(
+  width: number,
+  height: number,
+): LayerTransform {
+  if (!(width > 0 && height > 0)) return { ...DEFAULT_IMAGE_TRANSFORM };
+  return height >= width
+    ? { ...PORTRAIT_IMAGE_TRANSFORM }
+    : { ...DEFAULT_IMAGE_TRANSFORM };
 }
 
 export function snapValue(
