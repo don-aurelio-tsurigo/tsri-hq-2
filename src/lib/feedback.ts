@@ -36,8 +36,8 @@ export const FEEDBACK_MEMBERSHIP_LABELS: Record<
   FeedbackMembershipStatus,
   string
 > = {
-  1: "Mitglied",
-  0: "Kein Mitglied",
+  1: "Member",
+  0: "Kein Member",
   [-1]: "Ex-Member",
 };
 
