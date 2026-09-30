@@ -144,10 +144,8 @@ function StraightenGuides({ emphasized }: { emphasized: boolean }) {
   );
 }
 
-/** 16:9 crop → two equal squares (8×8 in a 16×9 frame), centered vertically. */
+/** 16:9 crop → center divider for two equal squares (8×8 in a 16×9 frame). */
 function SixteenNineCropGuide({ crop }: { crop: PercentCrop }) {
-  const squareHeightPct = (8 / 9) * 100;
-  const insetPct = (100 - squareHeightPct) / 2;
   return (
     <div
       className="pointer-events-none absolute z-20"
@@ -159,15 +157,7 @@ function SixteenNineCropGuide({ crop }: { crop: PercentCrop }) {
       }}
       aria-hidden
     >
-      <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/85" />
-      <div
-        className="absolute inset-x-0 h-px bg-white/55"
-        style={{ top: `${insetPct}%` }}
-      />
-      <div
-        className="absolute inset-x-0 h-px bg-white/55"
-        style={{ top: `${100 - insetPct}%` }}
-      />
+      <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/85" />
     </div>
   );
 }

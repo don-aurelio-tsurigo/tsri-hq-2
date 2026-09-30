@@ -50,6 +50,7 @@ export function DamArchivePreview({
   onTrash,
   onWepublishExported,
   onPatch,
+  onRate,
   onSetCollections,
   onCreateCollection,
   collectionsRemote = false,
@@ -64,6 +65,7 @@ export function DamArchivePreview({
   onTrash?: (assetId: string) => void;
   onWepublishExported?: (assetId: string, exportedAt: string) => void;
   onPatch: (assetId: string, patch: AssetMetadataPatch) => void;
+  onRate: (assetId: string, rating: number) => void;
   onSetCollections: (assetId: string, collectionIds: string[]) => void;
   onCreateCollection: (
     name: string,
@@ -202,11 +204,17 @@ export function DamArchivePreview({
       if (e.key === "e" || e.key === "E") {
         e.preventDefault();
         onEdit();
+        return;
+      }
+      if (asset && /^[1-5]$/.test(e.key)) {
+        e.preventDefault();
+        onRate(asset.id, Number(e.key));
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [
+    asset,
     count,
     editing,
     index,
@@ -215,6 +223,7 @@ export function DamArchivePreview({
     onClose,
     onEdit,
     onIndexChange,
+    onRate,
   ]);
 
   async function downloadAsset(format: DamDownloadFormat) {
@@ -369,7 +378,11 @@ export function DamArchivePreview({
           </div>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5">
-            <DamRatingStars rating={asset.rating} />
+            <DamRatingStars
+              rating={asset.rating}
+              onRate={(n) => onRate(asset.id, n)}
+              size="md"
+            />
 
             <div className="grid grid-cols-2 gap-2">
               <div className="relative" data-dam-download-menu>
@@ -693,7 +706,7 @@ export function DamArchivePreview({
 
             <p className="text-xs text-[var(--muted)]">
               Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
-              E Bildeditor.
+              1–5 bewerten, E Bildeditor.
             </p>
           </div>
 

@@ -15,6 +15,7 @@ import {
   moveAssetsToTrash,
   removeAssetsFromCollection,
   saveAssetEditParams,
+  setAssetRating,
   updateAssetMetadata,
 } from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
@@ -101,6 +102,18 @@ export function DamArchiveGrid({
     }));
     startTransition(async () => {
       const result = await updateAssetMetadata(assetId, patch);
+      if (result.error) setError(result.error);
+    });
+  }
+
+  function applyRating(assetId: string, rating: number) {
+    setError(null);
+    setOverrides((prev) => ({
+      ...prev,
+      [assetId]: { ...prev[assetId], rating },
+    }));
+    startTransition(async () => {
+      const result = await setAssetRating(assetId, rating);
       if (result.error) setError(result.error);
     });
   }
@@ -374,7 +387,15 @@ export function DamArchiveGrid({
                   </label>
                 </div>
                 <div className="space-y-1 p-2">
-                  <DamRatingStars rating={asset.rating} />
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                  >
+                    <DamRatingStars
+                      rating={asset.rating}
+                      onRate={(n) => applyRating(asset.id, n)}
+                    />
+                  </div>
                   <p className="truncate text-sm font-semibold">{asset.fileName}</p>
                   <p className="truncate text-xs text-[var(--muted)]">{asset.credit}</p>
                   <p className="text-[0.65rem] text-[var(--muted)]">
@@ -490,6 +511,7 @@ export function DamArchiveGrid({
             setExportedAt((prev) => ({ ...prev, [assetId]: at }))
           }
           onPatch={patchAsset}
+          onRate={applyRating}
           onSetCollections={setAssetCollections}
           onCreateCollection={createCollection}
           collectionsRemote={facets.collectionsTruncated}

@@ -58,7 +58,7 @@ export async function setAssetRating(
   if (!parsedId.success || !parsedRating.success) {
     return { error: "Ungültiges Rating." };
   }
-  const owned = await ownedStagingAssets(session.user.id, [parsedId.data]);
+  const owned = await editableAssets(session.user.id, [parsedId.data]);
   if (!owned.has(parsedId.data)) {
     return { error: "Bild nicht gefunden." };
   }
