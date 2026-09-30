@@ -26,8 +26,13 @@ import {
   subMonths,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 import { updateTask } from "@/lib/actions";
+import {
+  parseRecurrence,
+  recurrenceLabel,
+  type Recurrence,
+} from "@/lib/recurrence";
 import { useIsMobile } from "@/lib/use-media-query";
 
 function dueTone(dueAt: Date) {
@@ -41,6 +46,38 @@ function dueText(dueAt: Date) {
   return format(dueAt, "d. MMM", { locale: de });
 }
 
+const RECURRENCE_PRESETS: {
+  key: string;
+  label: string;
+  rule: Omit<Recurrence, "anchor">;
+}[] = [
+  { key: "daily", label: "Täglich", rule: { freq: "daily", interval: 1 } },
+  {
+    key: "workdays",
+    label: "Werktags (Mo–Fr)",
+    rule: { freq: "weekly", interval: 1, weekdays: [1, 2, 3, 4, 5] },
+  },
+  { key: "weekly", label: "Wöchentlich", rule: { freq: "weekly", interval: 1 } },
+  {
+    key: "biweekly",
+    label: "Alle 2 Wochen",
+    rule: { freq: "weekly", interval: 2 },
+  },
+  { key: "monthly", label: "Monatlich", rule: { freq: "monthly", interval: 1 } },
+  { key: "yearly", label: "Jährlich", rule: { freq: "yearly", interval: 1 } },
+];
+
+function presetKey(rule: Recurrence | null): string {
+  if (!rule) return "";
+  const match = RECURRENCE_PRESETS.find(
+    (p) =>
+      p.rule.freq === rule.freq &&
+      p.rule.interval === rule.interval &&
+      (p.rule.weekdays ?? []).join() === (rule.weekdays ?? []).join(),
+  );
+  return match?.key ?? "custom";
+}
+
 function toDateValue(dueAt: Date | string | null): Date | null {
   if (!dueAt) return null;
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
@@ -52,10 +89,16 @@ export function TaskDuePicker({
   taskId,
   dueAt,
   compact = true,
+  recurrence,
+  allowRecurrence = false,
 }: {
   taskId: string;
   dueAt: Date | string | null;
   compact?: boolean;
+  /** Rohwert aus task.recurrence */
+  recurrence?: unknown;
+  /** Wiederholung einstellbar (persönliche/Team-Tasks) */
+  allowRecurrence?: boolean;
 }) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -67,6 +110,8 @@ export function TaskDuePicker({
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const selected = toDateValue(dueAt);
+  const rule = parseRecurrence(recurrence);
+  const currentPreset = presetKey(rule);
 
   useEffect(() => {
     if (open) {
@@ -88,7 +133,7 @@ export function TaskDuePicker({
         Math.max(8, r.left),
         window.innerWidth - width - 8,
       );
-      const estimatedHeight = 340;
+      const estimatedHeight = allowRecurrence ? 420 : 340;
       const top =
         r.bottom + 6 + estimatedHeight > window.innerHeight - 8
           ? Math.max(8, r.top - estimatedHeight - 6)
@@ -102,7 +147,7 @@ export function TaskDuePicker({
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
     };
-  }, [open, isMobile]);
+  }, [open, isMobile, allowRecurrence]);
 
   useEffect(() => {
     if (!open) return;
@@ -144,6 +189,24 @@ export function TaskDuePicker({
     });
   }
 
+  function saveRecurrence(next: Recurrence | null) {
+    const fd = new FormData();
+    fd.set("id", taskId);
+    fd.set("recurrence", next ? JSON.stringify(next) : "");
+    startTransition(async () => {
+      const result = await updateTask(fd);
+      if (result && "error" in result && result.error) return;
+      router.refresh();
+    });
+  }
+
+  function onPresetChange(key: string) {
+    if (!key) return saveRecurrence(null);
+    const preset = RECURRENCE_PRESETS.find((p) => p.key === key);
+    if (!preset) return;
+    saveRecurrence({ ...preset.rule, anchor: rule?.anchor ?? "due" });
+  }
+
   const tone = selected ? dueTone(selected) : null;
 
   const trigger = selected ? (
@@ -168,6 +231,13 @@ export function TaskDuePicker({
       onMouseDown={(e) => e.stopPropagation()}
     >
       {dueText(selected)}
+      {rule && (
+        <Repeat
+          className="ml-1 size-3"
+          strokeWidth={1.75}
+          aria-label={recurrenceLabel(rule)}
+        />
+      )}
     </button>
   ) : (
     <button
@@ -288,6 +358,51 @@ export function TaskDuePicker({
           Wert löschen
         </button>
       </div>
+
+      {allowRecurrence && (
+        <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-3">
+          <label className="flex items-center justify-between gap-2 text-sm sm:text-xs">
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <Repeat className="size-3.5" strokeWidth={1.75} />
+              Wiederholen
+            </span>
+            <select
+              className="min-h-10 rounded-md border border-[var(--border)] bg-transparent px-2 text-sm sm:min-h-0 sm:py-1 sm:text-xs"
+              value={currentPreset}
+              disabled={pending}
+              onChange={(e) => onPresetChange(e.target.value)}
+            >
+              <option value="">Nie</option>
+              {RECURRENCE_PRESETS.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
+                </option>
+              ))}
+              {currentPreset === "custom" && rule && (
+                <option value="custom" disabled>
+                  {recurrenceLabel({ ...rule, anchor: "due" })}
+                </option>
+              )}
+            </select>
+          </label>
+          {rule && (
+            <label className="flex items-center gap-2 text-sm text-[var(--muted)] sm:text-xs">
+              <input
+                type="checkbox"
+                checked={rule.anchor === "done"}
+                disabled={pending}
+                onChange={(e) =>
+                  saveRecurrence({
+                    ...rule,
+                    anchor: e.target.checked ? "done" : "due",
+                  })
+                }
+              />
+              Ab Erledigt-Datum rechnen
+            </label>
+          )}
+        </div>
+      )}
     </div>
   );
 
