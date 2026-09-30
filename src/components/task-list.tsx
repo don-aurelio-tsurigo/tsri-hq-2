@@ -33,6 +33,7 @@ export type TaskRow = {
   status: TaskStatus;
   dueAt: Date | string | null;
   dueOffsetDays?: number | null;
+  recurrence?: unknown;
   assigneeId?: string | null;
   groupId?: string | null;
   createdAt?: Date | string;
@@ -460,6 +461,11 @@ export function TaskList({
                       <TaskDuePicker
                         taskId={task.id}
                         dueAt={task.dueAt}
+                        recurrence={task.recurrence}
+                        allowRecurrence={
+                          task.space?.type !== "project" &&
+                          task.dueOffsetDays == null
+                        }
                         compact
                       />
                     </div>
@@ -517,6 +523,11 @@ export function TaskList({
                         <TaskDuePicker
                           taskId={task.id}
                           dueAt={task.dueAt}
+                        recurrence={task.recurrence}
+                        allowRecurrence={
+                          task.space?.type !== "project" &&
+                          task.dueOffsetDays == null
+                        }
                           compact={false}
                         />
                       </div>

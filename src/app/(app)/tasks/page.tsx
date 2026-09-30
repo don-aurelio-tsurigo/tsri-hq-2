@@ -19,6 +19,7 @@ function toTaskRow(
     description: string | null;
     status: "todo" | "doing" | "done" | "cancelled";
     dueAt: Date | null;
+    recurrence?: unknown;
     assigneeId: string | null;
     groupId: string | null;
     createdAt: Date;
@@ -35,6 +36,7 @@ function toTaskRow(
     description: t.description,
     status: t.status,
     dueAt: t.dueAt,
+    recurrence: t.recurrence ?? null,
     assigneeId: t.assigneeId,
     groupId: t.groupId,
     createdAt: t.createdAt,

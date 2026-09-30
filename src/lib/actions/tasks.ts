@@ -6,6 +6,13 @@ import { prisma } from "@/lib/db";
 import { requireMembership } from "@/lib/session";
 import { ensurePersonalSpace } from "@/lib/spaces";
 import { canEditSpace, canViewSpace } from "@/lib/permissions";
+import {
+  nextDueAt,
+  parseRecurrence,
+  todayUtcDate,
+  type Recurrence,
+} from "@/lib/recurrence";
+import { Prisma } from "@/generated/prisma/client";
 
 const taskCreateSchema = z.object({
   spaceId: z.string().min(1),
@@ -167,6 +174,7 @@ const taskUpdateSchema = z.object({
   dueOffsetDays: z.string().optional(),
   assigneeId: z.string().optional(),
   groupId: z.string().optional(),
+  recurrence: z.string().optional(),
 });
 
 export async function updateTask(formData: FormData) {
@@ -193,6 +201,9 @@ export async function updateTask(formData: FormData) {
     groupId: formData.has("groupId")
       ? String(formData.get("groupId") ?? "")
       : undefined,
+    recurrence: formData.has("recurrence")
+      ? String(formData.get("recurrence") ?? "")
+      : undefined,
   });
   if (!parsed.success) {
     return { error: "Ungültige Task-Daten." };
@@ -218,6 +229,7 @@ export async function updateTask(formData: FormData) {
     assigneeId?: string | null;
     groupId?: string | null;
     spaceId?: string;
+    recurrence?: Recurrence | typeof Prisma.DbNull;
   } = {};
 
   if (parsed.data.status) data.status = parsed.data.status;
@@ -258,6 +270,23 @@ export async function updateTask(formData: FormData) {
       data.dueOffsetDays = offsetFromEvent(task.space.eventAt, data.dueAt);
     } else {
       data.dueOffsetDays = null;
+    }
+  }
+
+  if (parsed.data.recurrence !== undefined) {
+    if (parsed.data.recurrence === "") {
+      data.recurrence = Prisma.DbNull;
+    } else {
+      const rule = parseRecurrence(parsed.data.recurrence);
+      if (!rule) return { error: "Ungültige Wiederholung." };
+      // Projekte (Event-Offsets, Vorlagen) vorerst ausgenommen
+      if (task.space.type === "project" || task.space.isTemplate) {
+        return { error: "Wiederholung ist in Projekten noch nicht möglich." };
+      }
+      data.recurrence = rule;
+      if (!task.dueAt && data.dueAt === undefined) {
+        data.dueAt = todayUtcDate();
+      }
     }
   }
 
@@ -323,9 +352,66 @@ export async function updateTask(formData: FormData) {
     }
   }
 
-  await prisma.task.update({
-    where: { id: task.id },
-    data,
+  const rule: Recurrence | null =
+    data.recurrence === undefined
+      ? parseRecurrence(task.recurrence)
+      : data.recurrence === Prisma.DbNull
+        ? null
+        : (data.recurrence as Recurrence);
+  const completing =
+    data.status === "done" && task.status !== "done" && !task.archivedAt;
+  const reopening =
+    data.status !== undefined &&
+    data.status !== "done" &&
+    task.status === "done";
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.task.update({
+      where: { id: task.id },
+      data,
+    });
+
+    if (completing && rule) {
+      const existing = await tx.task.findUnique({
+        where: { recurrenceFromId: task.id },
+        select: { id: true },
+      });
+      if (!existing) {
+        await tx.task.create({
+          data: {
+            spaceId: updated.spaceId,
+            title: updated.title,
+            description: updated.description,
+            assigneeId: updated.assigneeId,
+            createdById: updated.createdById,
+            groupId: updated.groupId,
+            sortOrder: updated.sortOrder,
+            status: "todo",
+            dueAt: nextDueAt(rule, updated.dueAt),
+            recurrence: rule,
+            recurrenceFromId: task.id,
+          },
+        });
+      }
+    }
+
+    if (reopening) {
+      // Folge-Task zurücknehmen, solange er unverändert ist
+      const next = await tx.task.findUnique({
+        where: { recurrenceFromId: task.id },
+      });
+      if (
+        next &&
+        !next.archivedAt &&
+        next.status === "todo" &&
+        next.updatedAt.getTime() - next.createdAt.getTime() < 2000
+      ) {
+        await tx.task.update({
+          where: { id: next.id },
+          data: { archivedAt: new Date(), recurrenceFromId: null },
+        });
+      }
+    }
   });
 
   revalidatePath("/home");
