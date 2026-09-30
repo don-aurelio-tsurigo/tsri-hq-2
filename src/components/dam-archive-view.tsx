@@ -11,6 +11,7 @@ import { DamCombobox, type DamComboboxOption } from "@/components/dam-combobox";
 import { useToast } from "@/components/toast";
 import {
   EMPTY_ARCHIVE_FILTERS,
+  ARCHIVE_NO_COLLECTION,
   archiveCollectionsHref,
   archiveFilterChipCount,
   archiveFiltersActive,
@@ -38,8 +39,10 @@ function chipsFor(
   collections: { id: string; name: string }[],
 ): Chip[] {
   const collectionName =
-    collections.find((c) => c.id === filters.collectionId)?.name ??
-    filters.collectionId;
+    filters.collectionId === ARCHIVE_NO_COLLECTION
+      ? "Ohne Collection"
+      : collections.find((c) => c.id === filters.collectionId)?.name ??
+        filters.collectionId;
   const chips: Chip[] = [];
   if (filters.q) {
     chips.push({
@@ -51,7 +54,10 @@ function chipsFor(
   if (filters.collectionId) {
     chips.push({
       key: `collection:${filters.collectionId}`,
-      label: `Collection: ${collectionName}`,
+      label:
+        filters.collectionId === ARCHIVE_NO_COLLECTION
+          ? "Ohne Collection"
+          : `Collection: ${collectionName}`,
       clear: (next) => ({ ...next, collectionId: "" }),
     });
   }
@@ -186,8 +192,10 @@ export function DamArchiveView({
 
   const collectionOptions = useMemo<DamComboboxOption[]>(
     () => [
+      { value: ARCHIVE_NO_COLLECTION, label: "Ohne Collection" },
       ...facets.collections.map((c) => ({ value: c.id, label: c.name })),
       ...(filters.collectionId &&
+      filters.collectionId !== ARCHIVE_NO_COLLECTION &&
       !facets.collections.some((c) => c.id === filters.collectionId)
         ? [{ value: filters.collectionId, label: filters.collectionId }]
         : []),
@@ -212,10 +220,24 @@ export function DamArchiveView({
   }, [facets.credits, filters.credit]);
 
   const chips = chipsFor(filters, facets.collections);
-  const searchCollections = useCallback(
-    (q: string) => fetchFacetOptions("collections", q),
-    [],
-  );
+  const searchCollections = useCallback(async (q: string) => {
+    const options = await fetchFacetOptions("collections", q);
+    const needle = q.trim().toLocaleLowerCase("de-CH");
+    const none: DamComboboxOption = {
+      value: ARCHIVE_NO_COLLECTION,
+      label: "Ohne Collection",
+    };
+    if (
+      !needle ||
+      none.label.toLocaleLowerCase("de-CH").includes(needle)
+    ) {
+      return [
+        none,
+        ...options.filter((option) => option.value !== ARCHIVE_NO_COLLECTION),
+      ];
+    }
+    return options;
+  }, []);
   const searchKeywords = useCallback(
     (q: string) => fetchFacetOptions("keywords", q),
     [],

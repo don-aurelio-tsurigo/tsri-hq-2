@@ -34,6 +34,16 @@ describe("parseArchiveFilters", () => {
     assert.equal(archiveFiltersActive(filters), true);
   });
 
+  it("keeps the ohne-collection sentinel in the collection filter", () => {
+    const filters = parseArchiveFilters({ collection: "none" });
+    assert.equal(filters.collectionId, "none");
+    assert.equal(archiveFiltersActive(filters), true);
+    assert.equal(
+      archiveFiltersToSearchParams(filters).get("collection"),
+      "none",
+    );
+  });
+
   it("keeps multiple keywords in order and drops duplicates", () => {
     const filters = parseArchiveFilters({
       keyword: ["zürich", "velo", "zürich", "  "],

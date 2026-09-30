@@ -3,6 +3,7 @@ import { buildArchiveFtsQuery } from "@/lib/dam/archive-fts-query";
 import {
   ARCHIVE_FACET_LIMIT,
   ARCHIVE_FACET_SEARCH_LIMIT,
+  ARCHIVE_NO_COLLECTION,
   ARCHIVE_PAGE_SIZE,
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
@@ -14,6 +15,7 @@ import type { ArchiveAssetCard } from "@/lib/dam/types";
 export type { ArchiveAssetCard, ArchiveFilters };
 export {
   ARCHIVE_PAGE_SIZE,
+  ARCHIVE_NO_COLLECTION,
   archiveCollectionHref,
   archiveCollectionsHref,
   archiveFilterChipCount,
@@ -94,9 +96,11 @@ function publishedWhere(
       : {}),
     ...(filters.credit ? { credit: filters.credit } : {}),
     ...(filters.rightsType ? { rightsType: filters.rightsType } : {}),
-    ...(filters.collectionId
-      ? { collections: { some: { collectionId: filters.collectionId } } }
-      : {}),
+    ...(filters.collectionId === ARCHIVE_NO_COLLECTION
+      ? { collections: { none: {} } }
+      : filters.collectionId
+        ? { collections: { some: { collectionId: filters.collectionId } } }
+        : {}),
   };
 
   if (filters.from || filters.to) {

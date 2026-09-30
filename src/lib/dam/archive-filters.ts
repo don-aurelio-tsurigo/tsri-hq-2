@@ -16,6 +16,9 @@ export type ArchiveFilters = {
   to: string;
 };
 
+/** Sentinel for «Ohne Collection» in the archive collection filter. */
+export const ARCHIVE_NO_COLLECTION = "none";
+
 export type ArchiveView = "photos" | "collections";
 
 export const EMPTY_ARCHIVE_FILTERS: ArchiveFilters = {

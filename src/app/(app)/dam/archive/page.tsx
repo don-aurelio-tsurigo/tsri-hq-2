@@ -6,6 +6,7 @@ import { pageTitle } from "@/lib/link-preview";
 import {
   archiveCollectionsHref,
   archiveHref,
+  ARCHIVE_NO_COLLECTION,
   countPublishedAssets,
   listArchiveCollectionCards,
   listArchiveFacets,
@@ -37,7 +38,10 @@ export default async function DamArchivePage({
       ? listArchiveCollectionCards(filters.q, page)
       : Promise.resolve(null),
     listArchiveFacets({
-      ensureCollectionIds: filters.collectionId ? [filters.collectionId] : [],
+      ensureCollectionIds:
+        filters.collectionId && filters.collectionId !== ARCHIVE_NO_COLLECTION
+          ? [filters.collectionId]
+          : [],
     }),
     countPublishedAssets(),
   ]);
