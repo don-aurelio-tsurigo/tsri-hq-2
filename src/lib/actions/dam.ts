@@ -14,7 +14,7 @@ import { getObjectBuffer } from "@/lib/r2";
 import { requireMembership } from "@/lib/session";
 
 const idsSchema = z.array(z.string().min(1)).min(1).max(200);
-const ratingSchema = z.number().int().min(1).max(5);
+const ratingSchema = z.number().int().min(0).max(5);
 
 function revalidateDam() {
   revalidatePath("/dam/personal");
@@ -64,7 +64,7 @@ export async function setAssetRating(
   }
   await prisma.asset.update({
     where: { id: parsedId.data },
-    data: { rating: parsedRating.data },
+    data: { rating: parsedRating.data === 0 ? null : parsedRating.data },
   });
   revalidateDam();
   return {};

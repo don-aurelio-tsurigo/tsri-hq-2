@@ -12,17 +12,18 @@ export function DamRatingStars({
   size?: "sm" | "md";
 }) {
   const icon = size === "md" ? "size-6" : "size-3";
+  const current = rating && rating > 0 ? rating : 0;
   if (!onRate) {
     return (
       <div
         className="flex gap-0.5 text-[var(--muted)]"
-        aria-label={rating ? `Rating ${rating}` : "Kein Rating"}
+        aria-label={current ? `Rating ${current}` : "Kein Rating"}
       >
         {[1, 2, 3, 4, 5].map((n) => (
           <Star
             key={n}
             className={icon}
-            fill={rating && rating >= n ? "currentColor" : "none"}
+            fill={current >= n ? "currentColor" : "none"}
           />
         ))}
       </div>
@@ -34,13 +35,13 @@ export function DamRatingStars({
         <button
           key={n}
           type="button"
-          onClick={() => onRate(n)}
+          onClick={() => onRate(current === n ? 0 : n)}
           className="text-[var(--muted)] hover:text-[var(--fg)]"
-          aria-label={`Rating ${n}`}
+          aria-label={current === n ? `Rating ${n} entfernen` : `Rating ${n}`}
         >
           <Star
             className={icon}
-            fill={rating && rating >= n ? "currentColor" : "none"}
+            fill={current >= n ? "currentColor" : "none"}
           />
         </button>
       ))}

@@ -110,7 +110,7 @@ export function DamArchiveGrid({
     setError(null);
     setOverrides((prev) => ({
       ...prev,
-      [assetId]: { ...prev[assetId], rating },
+      [assetId]: { ...prev[assetId], rating: rating === 0 ? null : rating },
     }));
     startTransition(async () => {
       const result = await setAssetRating(assetId, rating);

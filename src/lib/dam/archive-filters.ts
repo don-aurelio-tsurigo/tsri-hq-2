@@ -1,4 +1,9 @@
 import type { DamRightsType } from "@/lib/dam/types";
+import {
+  parseRatingFilterParam,
+  ratingFilterToParam,
+  type RatingFilter,
+} from "@/lib/dam/rating-filter";
 
 export const ARCHIVE_FACET_LIMIT = 200;
 export const ARCHIVE_FACET_SEARCH_LIMIT = 40;
@@ -10,6 +15,7 @@ export type ArchiveFilters = {
   q: string;
   keywords: string[];
   collectionId: string;
+  rating: RatingFilter;
   rightsType: DamRightsType | "";
   credit: string;
   from: string;
@@ -25,6 +31,7 @@ export const EMPTY_ARCHIVE_FILTERS: ArchiveFilters = {
   q: "",
   keywords: [],
   collectionId: "",
+  rating: "all",
   rightsType: "",
   credit: "",
   from: "",
@@ -76,6 +83,7 @@ export function parseArchiveFilters(
       .map((keyword) => keyword.slice(0, 60))
       .slice(0, ARCHIVE_KEYWORD_MAX),
     collectionId: one(params, "collection"),
+    rating: parseRatingFilterParam(one(params, "rating")),
     rightsType:
       rights === "own" || rights === "provided" || rights === "free_use" ? rights : "",
     credit: one(params, "credit").slice(0, 200),
@@ -94,6 +102,7 @@ export function archiveFilterChipCount(filters: ArchiveFilters): number {
     (filters.q ? 1 : 0) +
     filters.keywords.length +
     (filters.collectionId ? 1 : 0) +
+    (filters.rating !== "all" ? 1 : 0) +
     (filters.rightsType ? 1 : 0) +
     (filters.credit ? 1 : 0) +
     (filters.from ? 1 : 0) +
@@ -101,10 +110,11 @@ export function archiveFilterChipCount(filters: ArchiveFilters): number {
   );
 }
 
-/** Extra panel only: tags, rights, credit, dates — not search/collection. */
+/** Extra panel only: tags, rights, credit, rating, dates — not search/collection. */
 export function hiddenArchiveFilterCount(filters: ArchiveFilters): number {
   return (
     filters.keywords.length +
+    (filters.rating !== "all" ? 1 : 0) +
     (filters.rightsType ? 1 : 0) +
     (filters.credit ? 1 : 0) +
     (filters.from ? 1 : 0) +
@@ -128,6 +138,8 @@ export function archiveFiltersToSearchParams(
   if (filters.q) params.set("q", filters.q);
   for (const keyword of filters.keywords) params.append("keyword", keyword);
   if (filters.collectionId) params.set("collection", filters.collectionId);
+  const rating = ratingFilterToParam(filters.rating);
+  if (rating) params.set("rating", rating);
   if (filters.rightsType) params.set("rights", filters.rightsType);
   if (filters.credit) params.set("credit", filters.credit);
   if (filters.from) params.set("from", filters.from);

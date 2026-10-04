@@ -7,6 +7,7 @@ import {
   ARCHIVE_PAGE_SIZE,
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
+import type { RatingFilter } from "@/lib/dam/rating-filter";
 import { prisma } from "@/lib/db";
 import { parseEditParams } from "@/lib/dam/edit-params";
 import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
@@ -84,16 +85,31 @@ export type ArchiveSearchResult = {
   pageCount: number;
 };
 
+function ratingWhere(filter: RatingFilter): Prisma.AssetWhereInput | undefined {
+  if (filter === "all") return undefined;
+  const target = Number(filter.slice(2));
+  if (target === 0) {
+    return { OR: [{ rating: null }, { rating: 0 }] };
+  }
+  return { rating: target };
+}
+
 function publishedWhere(
   filters: ArchiveFilters,
   ftsIds: string[] | null,
 ): Prisma.AssetWhereInput {
+  const and: Prisma.AssetWhereInput[] = [];
+  if (filters.keywords.length > 0) {
+    and.push({
+      OR: filters.keywords.map((keyword) => ({ keywords: { has: keyword } })),
+    });
+  }
+  const rating = ratingWhere(filters.rating);
+  if (rating) and.push(rating);
+
   const where: Prisma.AssetWhereInput = {
     status: "published",
     ...(ftsIds ? { id: { in: ftsIds } } : {}),
-    ...(filters.keywords.length > 0
-      ? { OR: filters.keywords.map((keyword) => ({ keywords: { has: keyword } })) }
-      : {}),
     ...(filters.credit ? { credit: filters.credit } : {}),
     ...(filters.rightsType ? { rightsType: filters.rightsType } : {}),
     ...(filters.collectionId === ARCHIVE_NO_COLLECTION
@@ -101,6 +117,7 @@ function publishedWhere(
       : filters.collectionId
         ? { collections: { some: { collectionId: filters.collectionId } } }
         : {}),
+    ...(and.length > 0 ? { AND: and } : {}),
   };
 
   if (filters.from || filters.to) {

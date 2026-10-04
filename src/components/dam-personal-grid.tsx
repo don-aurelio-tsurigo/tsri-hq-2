@@ -167,8 +167,9 @@ export function DamPersonalGrid({
 
   function applyRating(assetId: string, rating: number) {
     setError(null);
+    const next = rating === 0 ? null : rating;
     setAssets((prev) =>
-      prev.map((a) => (a.id === assetId ? { ...a, rating } : a)),
+      prev.map((a) => (a.id === assetId ? { ...a, rating: next } : a)),
     );
     startTransition(async () => {
       const result = await setAssetRating(assetId, rating);
@@ -334,7 +335,7 @@ export function DamPersonalGrid({
         if (current) rejectIds([current.id]);
         return;
       }
-      if (e.key >= "1" && e.key <= "5") {
+      if (e.key >= "0" && e.key <= "5") {
         e.preventDefault();
         const current = visible[Math.min(focused, visible.length - 1)];
         if (current) applyRating(current.id, Number(e.key));
@@ -434,7 +435,7 @@ export function DamPersonalGrid({
       </div>
 
       <p className="text-xs text-[var(--muted)]">
-        Tastatur: ← → navigieren, 1–5 Rating, Enter oder Doppelklick für Details, X
+        Tastatur: ← → navigieren, 0–5 Rating, Enter oder Doppelklick für Details, X
         löschen. Shift-Klick wählt mehrere.
       </p>
 

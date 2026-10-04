@@ -44,6 +44,17 @@ describe("parseArchiveFilters", () => {
     );
   });
 
+  it("reads a star rating filter from the URL", () => {
+    const filters = parseArchiveFilters({ rating: "0" });
+    assert.equal(filters.rating, "eq0");
+    assert.equal(archiveFiltersToSearchParams(filters).get("rating"), "0");
+    assert.equal(archiveFilterChipCount(filters), 1);
+
+    const five = parseArchiveFilters({ rating: "5" });
+    assert.equal(five.rating, "eq5");
+    assert.equal(parseArchiveFilters({ rating: "9" }).rating, "all");
+  });
+
   it("keeps multiple keywords in order and drops duplicates", () => {
     const filters = parseArchiveFilters({
       keyword: ["zürich", "velo", "zürich", "  "],
@@ -71,9 +82,10 @@ describe("archive filter chips", () => {
       collection: "col_1",
       keyword: ["zürich", "velo"],
       rights: "own",
+      rating: "3",
     });
-    assert.equal(archiveFilterChipCount(filters), 5);
-    assert.equal(hiddenArchiveFilterCount(filters), 3);
+    assert.equal(archiveFilterChipCount(filters), 6);
+    assert.equal(hiddenArchiveFilterCount(filters), 4);
   });
 });
 

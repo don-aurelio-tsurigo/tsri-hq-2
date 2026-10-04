@@ -206,7 +206,7 @@ export function DamArchivePreview({
         onEdit();
         return;
       }
-      if (asset && /^[1-5]$/.test(e.key)) {
+      if (asset && /^[0-5]$/.test(e.key)) {
         e.preventDefault();
         onRate(asset.id, Number(e.key));
       }
@@ -706,7 +706,7 @@ export function DamArchivePreview({
 
             <p className="text-xs text-[var(--muted)]">
               Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
-              1–5 bewerten, E Bildeditor.
+              0–5 bewerten, E Bildeditor.
             </p>
           </div>
 

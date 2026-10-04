@@ -22,6 +22,7 @@ import {
   type ArchiveView,
 } from "@/lib/dam/archive-filters";
 import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-search";
+import { RATING_FILTERS, ratingFilterLabel } from "@/lib/dam/rating-filter";
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
@@ -59,6 +60,13 @@ function chipsFor(
           ? "Ohne Collection"
           : `Collection: ${collectionName}`,
       clear: (next) => ({ ...next, collectionId: "" }),
+    });
+  }
+  if (filters.rating !== "all") {
+    chips.push({
+      key: `rating:${filters.rating}`,
+      label: `Sterne: ${ratingFilterLabel(filters.rating)}`,
+      clear: (next) => ({ ...next, rating: "all" }),
     });
   }
   for (const keyword of filters.keywords) {
@@ -382,6 +390,24 @@ export function DamArchiveView({
               value={filters.credit ? [filters.credit] : []}
               onChange={(next) => commit({ credit: next[0] ?? "" })}
             />
+            <div className="field">
+              <label htmlFor="dam-rating">Sterne</label>
+              <select
+                id="dam-rating"
+                value={filters.rating}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const option = RATING_FILTERS.find((item) => item.value === value);
+                  commit({ rating: option?.value ?? "all" });
+                }}
+              >
+                {RATING_FILTERS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="field">
               <label htmlFor="dam-from">Aufgenommen von</label>
               <input

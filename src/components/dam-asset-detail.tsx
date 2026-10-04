@@ -159,7 +159,7 @@ export function DamAssetDetail({
         onEdit();
         return;
       }
-      if (e.key >= "1" && e.key <= "5" && asset) {
+      if (e.key >= "0" && e.key <= "5" && asset) {
         e.preventDefault();
         onRate(asset.id, Number(e.key));
       }
@@ -458,7 +458,7 @@ export function DamAssetDetail({
 
             <p className="text-xs text-[var(--muted)]">
               Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
-              1–5 bewerten, E Bildeditor.
+              0–5 bewerten, E Bildeditor.
             </p>
           </div>
         </aside>
