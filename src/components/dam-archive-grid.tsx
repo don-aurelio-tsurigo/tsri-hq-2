@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamArchiveBulkEditDialog } from "@/components/dam-archive-bulk-edit";
 import { DamArchivePreview } from "@/components/dam-archive-preview";
@@ -37,12 +37,18 @@ export function DamArchiveGrid({
   facets: ArchiveFacets;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Deep link from /dam/personen: ?open=<assetId> opens that photo's preview.
+  const openId = searchParams.get("open");
+  const openIndex = openId ? assets.findIndex((asset) => asset.id === openId) : -1;
   const { showToast } = useToast();
   const [pending, startTransition] = useTransition();
   const [focused, setFocused] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(
+    openIndex >= 0 ? openIndex : null,
+  );
   const [editorId, setEditorId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -66,7 +72,7 @@ export function DamArchiveGrid({
     setSelected(new Set());
     setFocused(0);
     setAnchor(0);
-    setPreviewIndex(null);
+    setPreviewIndex(openIndex >= 0 ? openIndex : null);
     setEditorId(null);
     setBulkOpen(false);
     setError(null);

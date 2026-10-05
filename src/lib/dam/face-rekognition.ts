@@ -6,6 +6,7 @@ import {
   DeleteUserCommand,
   DisassociateFacesCommand,
   IndexFacesCommand,
+  InvalidParameterException,
   RekognitionClient,
   ResourceNotFoundException,
   SearchFacesCommand,
@@ -180,8 +181,16 @@ export async function searchFacesByFace(
   );
 }
 
-/** Creates the Rekognition user for a person; no-op if it already exists. */
-export async function ensurePersonUser(userId: string): Promise<void> {
+/**
+ * Rekognition answers calls for a non-existent UserId with InvalidParameterException
+ * (not ResourceNotFoundException as documented) — verified in eu-central-1.
+ */
+function isMissingUser(error: unknown): boolean {
+  return error instanceof InvalidParameterException || error instanceof ResourceNotFoundException;
+}
+
+/** Creates the Rekognition user for a person. Call only when it does not exist yet. */
+export async function createPersonUser(userId: string): Promise<void> {
   try {
     await getClient().send(
       new CreateUserCommand({ CollectionId: collectionId(), UserId: userId }),
@@ -198,7 +207,7 @@ export async function deletePersonUser(userId: string): Promise<void> {
       new DeleteUserCommand({ CollectionId: collectionId(), UserId: userId }),
     );
   } catch (error) {
-    if (error instanceof ResourceNotFoundException) return;
+    if (isMissingUser(error)) return;
     throw error;
   }
 }
@@ -212,14 +221,24 @@ export async function associateFacesToUser(
   faceIds: string[],
 ): Promise<{ associated: string[]; failed: string[] }> {
   if (faceIds.length === 0) return { associated: [], failed: [] };
-  const res = await getClient().send(
-    new AssociateFacesCommand({
-      CollectionId: collectionId(),
-      UserId: userId,
-      FaceIds: faceIds.slice(0, 100),
-      UserMatchThreshold: 50,
-    }),
-  );
+  // Rekognition rejects CreateUser for existing users, so create lazily on first use.
+  const send = () =>
+    getClient().send(
+      new AssociateFacesCommand({
+        CollectionId: collectionId(),
+        UserId: userId,
+        FaceIds: faceIds.slice(0, 100),
+        UserMatchThreshold: 50,
+      }),
+    );
+  let res;
+  try {
+    res = await send();
+  } catch (error) {
+    if (!isMissingUser(error)) throw error;
+    await createPersonUser(userId);
+    res = await send();
+  }
   return {
     associated: (res.AssociatedFaces ?? []).flatMap((face) => (face.FaceId ? [face.FaceId] : [])),
     failed: (res.UnsuccessfulFaceAssociations ?? []).flatMap((face) =>

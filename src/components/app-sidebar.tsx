@@ -28,6 +28,7 @@ import {
   Pin,
   Rss,
   Settings2,
+  ScanFace,
   Trash2,
   Upload,
   Users,
@@ -479,6 +480,17 @@ export function AppSidebar({
             onNavigate={onMobileClose}
           >
             Mediathek
+          </NavLink>
+          <NavLink
+            href="/dam/personen"
+            active={
+              pathname === "/dam/personen" ||
+              pathname.startsWith("/dam/personen/")
+            }
+            icon={ScanFace}
+            onNavigate={onMobileClose}
+          >
+            Personen
           </NavLink>
           <NavLink
             href="/dam/papierkorb"

@@ -3,8 +3,8 @@ import type { FaceMatchStatus, FaceScanStatus } from "@/generated/prisma/client"
 import { syncAssetPersons } from "@/lib/dam/face-persons";
 import {
   associateFacesToUser,
+  deletePersonUser,
   disassociateFacesFromUser,
-  ensurePersonUser,
   faceSettings,
   rekognitionConfigured,
   searchFacesByFace,
@@ -164,10 +164,14 @@ async function attachReference(
   rekognitionUserId: string,
 ): Promise<void> {
   if (!rekognitionFaceId || !rekognitionConfigured()) return;
-  await ensurePersonUser(rekognitionUserId);
-  const result = await associateFacesToUser(rekognitionUserId, [rekognitionFaceId]);
-  if (result.associated.includes(rekognitionFaceId)) {
-    await prisma.assetFace.update({ where: { id: faceId }, data: { associated: true } });
+  try {
+    const result = await associateFacesToUser(rekognitionUserId, [rekognitionFaceId]);
+    if (result.associated.includes(rekognitionFaceId)) {
+      await prisma.assetFace.update({ where: { id: faceId }, data: { associated: true } });
+    }
+  } catch (error) {
+    // Only improves future matching — the assignment itself already succeeded.
+    console.warn(`[dam-face] could not add reference face ${faceId}`, error);
   }
 }
 
@@ -218,8 +222,16 @@ async function propagatePerson(personId: string, rekognitionFaceId: string | nul
   return { confirmed, suggested };
 }
 
-/** Name a face (existing or new person) and search the archive for the same person. */
-export async function assignFace(userId: string, faceId: string, input: PersonInput) {
+/**
+ * Name a face (existing or new person) and search the archive for the same person.
+ * Bulk confirmations skip the search (`propagate: false`) to stay within AWS rate limits.
+ */
+export async function assignFace(
+  userId: string,
+  faceId: string,
+  input: PersonInput,
+  { propagate = true }: { propagate?: boolean } = {},
+) {
   const face = await loadFace(faceId);
   const person = await findOrCreatePerson(userId, input);
   if (face.personId && face.personId !== person.id) await detachReference(face);
@@ -235,7 +247,9 @@ export async function assignFace(userId: string, faceId: string, input: PersonIn
   });
   await syncAssetPersons(face.assetId);
   await attachReference(face.id, face.rekognitionFaceId, person.rekognitionUserId);
-  const propagated = await propagatePerson(person.id, face.rekognitionFaceId);
+  const propagated = propagate
+    ? await propagatePerson(person.id, face.rekognitionFaceId)
+    : { confirmed: 0, suggested: 0 };
   return { assetId: face.assetId, person, propagated };
 }
 
@@ -302,4 +316,52 @@ export async function removeAssetPerson(assetId: string, personId: string) {
   for (const face of faces) await rejectFace(face.id);
   await prisma.assetPerson.deleteMany({ where: { assetId, personId } });
   await syncAssetPersons(assetId, person ? [person.name] : []);
+}
+
+/** Rename everywhere: person, «Personen» field and keywords of all linked assets. */
+export async function renamePerson(personId: string, rawName: string) {
+  const name = normalizeName(rawName);
+  if (!name) throw new FaceActionError("Name fehlt.");
+  const person = await prisma.damPerson.findUnique({
+    where: { id: personId },
+    select: { name: true, assets: { select: { assetId: true } } },
+  });
+  if (!person) throw new FaceActionError("Person nicht gefunden.");
+  if (person.name === name) return;
+  const clash = await prisma.damPerson.findFirst({
+    where: { id: { not: personId }, name: { equals: name, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (clash) throw new FaceActionError(`«${name}» gibt es schon.`);
+  await prisma.damPerson.update({ where: { id: personId }, data: { name } });
+  for (const link of person.assets) await syncAssetPersons(link.assetId, [person.name]);
+}
+
+/**
+ * Deletes the person and its Rekognition user. Faces stay detected but become
+ * unnamed again; the name is removed from all keywords.
+ */
+export async function deletePerson(personId: string) {
+  const person = await prisma.damPerson.findUnique({
+    where: { id: personId },
+    select: {
+      name: true,
+      rekognitionUserId: true,
+      assets: { select: { assetId: true } },
+    },
+  });
+  if (!person) return;
+  if (rekognitionConfigured()) await deletePersonUser(person.rekognitionUserId);
+  await prisma.assetFace.updateMany({
+    where: { personId },
+    data: {
+      status: "unassigned",
+      personId: null,
+      similarity: null,
+      assignedBy: null,
+      associated: false,
+    },
+  });
+  await prisma.damPerson.delete({ where: { id: personId } });
+  for (const link of person.assets) await syncAssetPersons(link.assetId, [person.name]);
 }
