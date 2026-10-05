@@ -30,7 +30,6 @@ import {
   Settings2,
   ScanFace,
   Trash2,
-  Upload,
   Users,
   Wallet,
   X,
@@ -447,17 +446,6 @@ export function AppSidebar({
           open={isSectionOpen("fotos")}
           onToggle={() => toggleSection("fotos")}
         >
-          <NavLink
-            href="/dam/upload"
-            active={
-              pathname === "/dam/upload" ||
-              pathname.startsWith("/dam/upload/")
-            }
-            icon={Upload}
-            onNavigate={onMobileClose}
-          >
-            Upload
-          </NavLink>
           <NavLink
             href="/dam/personal"
             active={
