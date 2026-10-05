@@ -20,6 +20,10 @@ export type DamEditParams = {
   aspectRatio: DamAspectRatio;
   sharpen: number;
   temperature: number;
+  /** Levels: input value mapped to black (0–254). Set by «Verbessern». */
+  blackPoint: number;
+  /** Levels: input value mapped to white (1–255). Set by «Verbessern». */
+  whitePoint: number;
 };
 
 export const DEFAULT_EDIT_PARAMS: DamEditParams = {
@@ -33,6 +37,8 @@ export const DEFAULT_EDIT_PARAMS: DamEditParams = {
   aspectRatio: null,
   sharpen: 0,
   temperature: 0,
+  blackPoint: 0,
+  whitePoint: 255,
 };
 
 function asNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -129,6 +135,17 @@ export type DamMediaSize = {
   height?: number | null;
 };
 
+/** Keep at least a 16-step input range so levels never collapse the image. */
+function parseLevels(
+  rawBlack: unknown,
+  rawWhite: unknown,
+): { blackPoint: number; whitePoint: number } {
+  const blackPoint = asNumber(rawBlack, 0, 0, 239);
+  const whitePoint = asNumber(rawWhite, 255, 16, 255);
+  if (whitePoint - blackPoint < 16) return { blackPoint: 0, whitePoint: 255 };
+  return { blackPoint, whitePoint };
+}
+
 export function parseEditParams(raw: unknown): DamEditParams {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_EDIT_PARAMS };
   const obj = raw as Record<string, unknown>;
@@ -159,6 +176,7 @@ export function parseEditParams(raw: unknown): DamEditParams {
     aspectRatio: asAspectRatio(obj.aspectRatio),
     sharpen: asNumber(obj.sharpen, 0, 0, 100),
     temperature: asNumber(obj.temperature, 0, -100, 100),
+    ...parseLevels(obj.blackPoint, obj.whitePoint),
   };
 }
 
@@ -169,33 +187,10 @@ export function isNeutralColourParams(params: DamEditParams): boolean {
     params.saturation === DEFAULT_EDIT_PARAMS.saturation &&
     params.contrast === DEFAULT_EDIT_PARAMS.contrast &&
     params.sharpen === DEFAULT_EDIT_PARAMS.sharpen &&
-    params.temperature === DEFAULT_EDIT_PARAMS.temperature
+    params.temperature === DEFAULT_EDIT_PARAMS.temperature &&
+    params.blackPoint === DEFAULT_EDIT_PARAMS.blackPoint &&
+    params.whitePoint === DEFAULT_EDIT_PARAMS.whitePoint
   );
-}
-
-/**
- * CSS filter for live preview. Returns undefined at neutral values so browsers
- * keep EXIF orientation (applying even identity filters can ignore Orientation).
- */
-export function cssFilter(params: DamEditParams): string | undefined {
-  if (isNeutralColourParams(params)) return undefined;
-  const extraContrast = 1 + params.sharpen / 400;
-  const contrast = (params.contrast / 100) * extraContrast;
-  const parts = [
-    `brightness(${params.brightness / 100})`,
-    `saturate(${params.saturation / 100})`,
-    `contrast(${contrast})`,
-  ];
-  if (params.temperature > 0) {
-    const t = params.temperature / 100;
-    parts.push(`sepia(${(t * 0.35).toFixed(3)})`);
-    parts.push(`hue-rotate(${(t * -12).toFixed(2)}deg)`);
-  } else if (params.temperature < 0) {
-    const t = -params.temperature / 100;
-    parts.push(`hue-rotate(${(t * 160).toFixed(2)}deg)`);
-    parts.push(`saturate(${(1 + t * 0.12).toFixed(3)})`);
-  }
-  return parts.join(" ");
 }
 
 export function cssTransform(
@@ -224,12 +219,10 @@ export function cssPreviewStyle(
   params: DamEditParams,
   media?: DamMediaSize,
 ): {
-  filter?: string;
   transform?: string;
   clipPath?: string;
 } {
   return {
-    filter: cssFilter(params),
     transform: cssTransform(params, media),
     clipPath: cssClipPath(params.crop),
   };
@@ -246,6 +239,8 @@ export function editParamsRev(params: DamEditParams): string {
     params.flipVertical ? 1 : 0,
     params.sharpen,
     params.temperature,
+    // Levels + tone-pipeline version: bumping it re-renders cached derivatives.
+    `t2l${params.blackPoint}w${params.whitePoint}`,
     crop
       ? [crop.x, crop.y, crop.width, crop.height].map((n) => Math.round(n * 10)).join("x")
       : "0",
@@ -312,43 +307,5 @@ export function clampExtract(
     top,
     width: Math.min(width - left, Math.max(1, region.width)),
     height: Math.min(height - top, Math.max(1, region.height)),
-  };
-}
-
-export function temperatureToRgb(temp: number): { r: number; g: number; b: number } {
-  const t = Math.min(100, Math.max(-100, temp));
-  if (t === 0) return { r: 255, g: 255, b: 255 };
-  if (t > 0) {
-    const a = t / 100;
-    return {
-      r: 255,
-      g: Math.round(255 - 30 * a),
-      b: Math.round(255 - 90 * a),
-    };
-  }
-  const a = -t / 100;
-  return {
-    r: Math.round(255 - 90 * a),
-    g: Math.round(255 - 25 * a),
-    b: 255,
-  };
-}
-
-/** Match cssFilter temperature ops when baking edits with sharp.modulate(). */
-export function sharpTemperatureModulate(
-  temperature: number,
-): { hue: number; saturation: number } | null {
-  if (temperature === 0) return null;
-  if (temperature > 0) {
-    const t = temperature / 100;
-    return {
-      hue: Math.round(-12 * t),
-      saturation: 1 + t * 0.08,
-    };
-  }
-  const t = -temperature / 100;
-  return {
-    hue: Math.round(160 * t),
-    saturation: 1 + t * 0.12,
   };
 }

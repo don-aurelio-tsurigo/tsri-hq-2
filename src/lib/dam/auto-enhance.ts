@@ -6,12 +6,16 @@ export type AutoEnhanceSuggestion = {
   saturation: number;
   temperature: number;
   sharpen: number;
+  blackPoint: number;
+  whitePoint: number;
 };
 
 export type PixelAnalysis = {
   histR: Uint32Array;
   histG: Uint32Array;
   histB: Uint32Array;
+  /** Rec. 709 luma histogram (0–255). */
+  histL: Uint32Array;
   pixelCount: number;
   rMean: number;
   gMean: number;
@@ -26,14 +30,21 @@ export type PixelAnalysis = {
 const SLIDER_MIN = 50;
 const SLIDER_MAX = 200;
 const NEUTRAL = 100;
-const TEMP_MIN = -100;
-const TEMP_MAX = 100;
-const SHARPEN_SUGGESTION = 17;
+const SHARPEN_SUGGESTION = 20;
 
 const PERCENTILE_LOW = 0.01;
 const PERCENTILE_HIGH = 0.99;
-const CONTRAST_MAX_BOOST = 70;
-const BRIGHTNESS_FACTOR = 0.35;
+/** Levels clip at most this share of pixels per channel end. */
+const LEVELS_CLIP = 0.005;
+/** Never stretch flat images by more than 255 / this span (keeps noise in check). */
+const LEVELS_MIN_SPAN = 150;
+/** Mid-tone target for the median luma after levels (0–1). */
+const BRIGHTNESS_TARGET = 0.46;
+/** Only correct half of the way towards the target — auto should stay subtle. */
+const BRIGHTNESS_STRENGTH = 0.5;
+/** Inter-quartile luma spread below this reads as flat and gets an S-curve. */
+const CONTRAST_FLAT_IQR = 0.3;
+const CONTRAST_SUGGESTION_MAX = 125;
 const SATURATION_MAX_BOOST = 12;
 const SATURATION_ALREADY_VIVID = 0.38;
 
@@ -42,9 +53,9 @@ const NEUTRAL_SAT_THRESHOLD = 0.2;
 const NEUTRAL_PIXEL_MIN_RATIO = 0.008;
 const NEUTRAL_PIXEL_MIN_COUNT = 400;
 
-/** Auto-enhance temperature stays conservative — the CSS filter is very strong at ±100. */
-const TEMPERATURE_FACTOR = 0.85;
-const TEMPERATURE_SUGGESTION_MAX = 28;
+/** Must match TEMPERATURE_GAIN in tone.ts (linear-light R/B gain at ±100). */
+const TEMPERATURE_GAIN = 0.25;
+const TEMPERATURE_SUGGESTION_MAX = 40;
 
 const NO_OP_TOLERANCE = {
   brightness: 3,
@@ -52,6 +63,7 @@ const NO_OP_TOLERANCE = {
   saturation: 2,
   temperature: 5,
   sharpen: 3,
+  levels: 4,
 };
 
 const NEUTRAL_SUGGESTION: AutoEnhanceSuggestion = {
@@ -60,14 +72,12 @@ const NEUTRAL_SUGGESTION: AutoEnhanceSuggestion = {
   saturation: NEUTRAL,
   temperature: 0,
   sharpen: 0,
+  blackPoint: 0,
+  whitePoint: 255,
 };
 
 function clampSlider(value: number): number {
   return Math.min(SLIDER_MAX, Math.max(SLIDER_MIN, Math.round(value)));
-}
-
-function clampTemperature(value: number): number {
-  return Math.min(TEMP_MAX, Math.max(TEMP_MIN, Math.round(value)));
 }
 
 function clampTemperatureSuggestion(value: number): number {
@@ -113,6 +123,7 @@ export function analyzePixels(
   const histR = new Uint32Array(256);
   const histG = new Uint32Array(256);
   const histB = new Uint32Array(256);
+  const histL = new Uint32Array(256);
   const pixelCount = width * height;
 
   let rSum = 0;
@@ -133,6 +144,8 @@ export function analyzePixels(
     histR[r] = (histR[r] ?? 0) + 1;
     histG[g] = (histG[g] ?? 0) + 1;
     histB[b] = (histB[b] ?? 0) + 1;
+    const l = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
+    histL[l] = (histL[l] ?? 0) + 1;
     rSum += r;
     gSum += g;
     bSum += b;
@@ -159,6 +172,7 @@ export function analyzePixels(
     histR,
     histG,
     histB,
+    histL,
     pixelCount,
     rMean,
     gMean,
@@ -191,24 +205,15 @@ export function percentileSpan(analysis: PixelAnalysis): number {
   return spans.reduce((sum, span) => sum + span, 0) / spans.length;
 }
 
-function percentileMidMean(analysis: PixelAnalysis): number {
-  const mids = [
-    (percentileFromHistogram(analysis.histR, PERCENTILE_LOW) +
-      percentileFromHistogram(analysis.histR, PERCENTILE_HIGH)) /
-      2,
-    (percentileFromHistogram(analysis.histG, PERCENTILE_LOW) +
-      percentileFromHistogram(analysis.histG, PERCENTILE_HIGH)) /
-      2,
-    (percentileFromHistogram(analysis.histB, PERCENTILE_LOW) +
-      percentileFromHistogram(analysis.histB, PERCENTILE_HIGH)) /
-      2,
-  ];
-  return mids.reduce((sum, mid) => sum + mid, 0) / mids.length;
+function srgbToLinear(v: number): number {
+  const x = v / 255;
+  return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
 }
 
 /**
  * White balance from low-saturation pixels only (shirts, walls, stone).
- * Corrects warm/cool cast on the R↔B axis — ignores green foliage in the scene.
+ * Solves the linear-light R/B gain that makes those pixels neutral — ignores
+ * green foliage in the scene.
  */
 export function suggestTemperature(analysis: PixelAnalysis): number {
   if (!hasReliableNeutralSample(analysis)) return 0;
@@ -220,13 +225,85 @@ export function suggestTemperature(analysis: PixelAnalysis): number {
   if (rbAvg <= 0) return 0;
 
   // If neutral areas already look green-shifted, don't fight the scene with temperature.
-  const greenShift = g - rbAvg;
-  if (greenShift > 12) return 0;
+  if (g - rbAvg > 12) return 0;
+  if (Math.abs(r - b) < 4) return 0;
 
-  const rbDiff = r - b;
-  if (Math.abs(rbDiff) < 4) return 0;
+  const rLin = srgbToLinear(r);
+  const bLin = srgbToLinear(b);
+  if (rLin <= 0 || bLin <= 0) return 0;
+  // (1 + k·t) / (1 − k·t) = bLin / rLin  →  t
+  const q = bLin / rLin;
+  const t = (q - 1) / (TEMPERATURE_GAIN * (q + 1));
+  return clampTemperatureSuggestion(t * 100);
+}
 
-  return clampTemperatureSuggestion(-rbDiff * TEMPERATURE_FACTOR);
+/** Black/white points from per-channel percentiles, limited for flat images. */
+export function suggestLevels(analysis: PixelAnalysis): {
+  blackPoint: number;
+  whitePoint: number;
+} {
+  const lows = [analysis.histR, analysis.histG, analysis.histB].map((hist) =>
+    percentileFromHistogram(hist, LEVELS_CLIP),
+  );
+  const highs = [analysis.histR, analysis.histG, analysis.histB].map((hist) =>
+    percentileFromHistogram(hist, 1 - LEVELS_CLIP),
+  );
+  let black = Math.min(...lows);
+  let white = Math.max(...highs);
+  const span = white - black;
+  if (span < LEVELS_MIN_SPAN) {
+    const grow = (LEVELS_MIN_SPAN - span) / 2;
+    black -= grow;
+    white += grow;
+    if (black < 0) {
+      white -= black;
+      black = 0;
+    }
+    if (white > 255) {
+      black -= white - 255;
+      white = 255;
+    }
+  }
+  return {
+    blackPoint: Math.max(0, Math.round(black)),
+    whitePoint: Math.min(255, Math.round(white)),
+  };
+}
+
+function lumaPercentileAfterLevels(
+  analysis: PixelAnalysis,
+  p: number,
+  levels: { blackPoint: number; whitePoint: number },
+): number {
+  const v = percentileFromHistogram(analysis.histL, p);
+  const span = Math.max(1, levels.whitePoint - levels.blackPoint);
+  return Math.min(1, Math.max(0, (v - levels.blackPoint) / span));
+}
+
+/** Brightness slider whose gamma moves the median luma towards mid-grey. */
+export function suggestBrightness(
+  analysis: PixelAnalysis,
+  levels: { blackPoint: number; whitePoint: number },
+): number {
+  const median = lumaPercentileAfterLevels(analysis, 0.5, levels);
+  if (median <= 0.01 || median >= 0.99) return NEUTRAL;
+  const fullExponent = Math.log(BRIGHTNESS_TARGET) / Math.log(median);
+  const exponent = Math.pow(fullExponent, BRIGHTNESS_STRENGTH);
+  // Inverse of brightnessExponent() in tone.ts: 2^(-(b-100)/100) = exponent.
+  return clampSlider(NEUTRAL - 100 * Math.log2(exponent));
+}
+
+/** Gentle S-curve when mid-tones stay bunched together after levels. */
+export function suggestContrast(
+  analysis: PixelAnalysis,
+  levels: { blackPoint: number; whitePoint: number },
+): number {
+  const iqr =
+    lumaPercentileAfterLevels(analysis, 0.75, levels) -
+    lumaPercentileAfterLevels(analysis, 0.25, levels);
+  if (iqr >= CONTRAST_FLAT_IQR) return NEUTRAL;
+  const boost = ((CONTRAST_FLAT_IQR - iqr) / CONTRAST_FLAT_IQR) * (CONTRAST_SUGGESTION_MAX - NEUTRAL);
+  return Math.min(CONTRAST_SUGGESTION_MAX, clampSlider(NEUTRAL + boost));
 }
 
 export function suggestSaturation(analysis: PixelAnalysis): number {
@@ -239,13 +316,15 @@ export function suggestSaturation(analysis: PixelAnalysis): number {
 }
 
 export function applyNoOpProtection(
-  suggestion: Pick<AutoEnhanceSuggestion, "brightness" | "contrast" | "saturation" | "temperature">,
+  suggestion: Omit<AutoEnhanceSuggestion, "sharpen">,
 ): AutoEnhanceSuggestion {
   const needsCorrection =
     Math.abs(suggestion.brightness - NEUTRAL) > NO_OP_TOLERANCE.brightness ||
     Math.abs(suggestion.contrast - NEUTRAL) > NO_OP_TOLERANCE.contrast ||
     Math.abs(suggestion.saturation - NEUTRAL) > NO_OP_TOLERANCE.saturation ||
-    Math.abs(suggestion.temperature) > NO_OP_TOLERANCE.temperature;
+    Math.abs(suggestion.temperature) > NO_OP_TOLERANCE.temperature ||
+    suggestion.blackPoint > NO_OP_TOLERANCE.levels ||
+    suggestion.whitePoint < 255 - NO_OP_TOLERANCE.levels;
 
   if (!needsCorrection) return { ...NEUTRAL_SUGGESTION };
   return {
@@ -260,38 +339,25 @@ export function suggestAutoEnhance(analysis: PixelAnalysis): AutoEnhanceSuggesti
     return { ...NEUTRAL_SUGGESTION };
   }
 
-  const clippedSpan = percentileSpan(analysis);
-  const usage = clippedSpan / 255;
-  const contrast = clampSlider(NEUTRAL + (1 - usage) * CONTRAST_MAX_BOOST);
-
-  const clippedMean = percentileMidMean(analysis);
-  const brightness = clampSlider(NEUTRAL + (127 - clippedMean) * BRIGHTNESS_FACTOR);
-
-  const saturation = suggestSaturation(analysis);
-  const temperature = suggestTemperature(analysis);
-
+  const levels = suggestLevels(analysis);
   return applyNoOpProtection({
-    brightness,
-    contrast,
-    saturation,
-    temperature,
+    ...levels,
+    brightness: suggestBrightness(analysis, levels),
+    contrast: suggestContrast(analysis, levels),
+    saturation: suggestSaturation(analysis),
+    temperature: suggestTemperature(analysis),
   });
 }
 
 export async function analyzeAutoEnhance(buffer: Buffer): Promise<AutoEnhanceSuggestion> {
-  const { data, info } = await sharp(buffer)
-    .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const analysis = analyzePixels(data, info.width, info.height, info.channels);
-  return suggestAutoEnhance(analysis);
+  return suggestAutoEnhance(await loadRawPixels(buffer));
 }
 
 export async function loadRawPixels(buffer: Buffer): Promise<PixelAnalysis> {
   const { data, info } = await sharp(buffer)
     .removeAlpha()
-    .raw()
+    .toColourspace("srgb")
+    .raw({ depth: "uchar" })
     .toBuffer({ resolveWithObject: true });
   return analyzePixels(data, info.width, info.height, info.channels);
 }

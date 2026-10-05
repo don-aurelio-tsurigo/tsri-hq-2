@@ -119,7 +119,48 @@ describe("renderDamPreviewWebp", () => {
   });
 });
 
+describe("tone bake", () => {
+  it("keeps the saturation slider when temperature is also set", async () => {
+    const input = await solidPng(16, 16, { r: 180, g: 120, b: 60 });
+    const read = async (params: typeof DEFAULT_EDIT_PARAMS) => {
+      const out = await applyDamEditsToOriented(input, params);
+      const { data } = await sharp(out).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      return [data[0]!, data[1]!, data[2]!];
+    };
+    const [r, , b] = await read({ ...DEFAULT_EDIT_PARAMS, saturation: 50, temperature: 10 });
+    // Old pipeline: the temperature modulate() overwrote saturation 0.5 → ~1.0.
+    assert.ok(r - b < 90, `saturation should be reduced, got r=${r} b=${b}`);
+  });
+
+  it("does not re-encode JPEG originals as lossy intermediates", async () => {
+    const width = 64;
+    const height = 64;
+    const raw = Buffer.alloc(width * height * 3);
+    for (let i = 0; i < raw.length; i += 1) raw[i] = (i * 37) % 256;
+    const jpeg = await sharp(raw, { raw: { width, height, channels: 3 } })
+      .jpeg({ quality: 100, chromaSubsampling: "4:4:4" })
+      .toBuffer();
+    const decoded = await sharp(jpeg).raw().toBuffer();
+    const out = await applyDamEditsToOriented(jpeg, { ...DEFAULT_EDIT_PARAMS, rotate: 180 });
+    const back = await sharp(out).rotate(180).raw().toBuffer();
+    let diff = 0;
+    for (let i = 0; i < decoded.length; i += 1) diff += Math.abs(decoded[i]! - back[i]!);
+    assert.equal(diff, 0, "rotate 180 on raw pixels must be lossless");
+  });
+});
+
 describe("renderPublishedMaster", () => {
+  it("encodes JPEG with 4:4:4 chroma and an sRGB profile", async () => {
+    const input = await solidPng(24, 16, { r: 80, g: 80, b: 80 });
+    const published = await renderPublishedMaster(input, {
+      ...DEFAULT_EDIT_PARAMS,
+      contrast: 120,
+    });
+    const meta = await sharp(published.buffer).metadata();
+    assert.equal(meta.chromaSubsampling, "4:4:4");
+    assert.ok(meta.icc, "output should carry an sRGB ICC profile");
+  });
+
   it("bakes brightness into a jpeg archive master", async () => {
     const input = await solidPng(24, 16, { r: 80, g: 80, b: 80 });
     const published = await renderPublishedMaster(input, {

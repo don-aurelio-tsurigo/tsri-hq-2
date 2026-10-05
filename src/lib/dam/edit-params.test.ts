@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   cropToExtract,
-  cssFilter,
   cssTransform,
   damEditorSrc,
   damFileSrc,
@@ -13,8 +12,6 @@ import {
   splitRotate,
   straightenCoverExtract,
   straightenCoverScale,
-  sharpTemperatureModulate,
-  temperatureToRgb,
 } from "./edit-params.ts";
 
 describe("parseEditParams", () => {
@@ -82,21 +79,6 @@ describe("rotate split/join", () => {
 });
 
 describe("css preview helpers", () => {
-  it("omits filter when colour params are neutral (keeps EXIF orientation)", () => {
-    assert.equal(cssFilter({ ...DEFAULT_EDIT_PARAMS }), undefined);
-  });
-
-  it("approximates sharpen via extra contrast", () => {
-    const filter = cssFilter({ ...DEFAULT_EDIT_PARAMS, sharpen: 80 });
-    assert.match(filter ?? "", /contrast\(1\.2\)/);
-  });
-
-  it("approximates warm temperature with sepia", () => {
-    const filter = cssFilter({ ...DEFAULT_EDIT_PARAMS, temperature: 40 });
-    assert.match(filter ?? "", /sepia\(/);
-    assert.match(filter ?? "", /hue-rotate\(/);
-  });
-
   it("applies rotate after flips so CSS matches sharp order", () => {
     const transform = cssTransform({
       ...DEFAULT_EDIT_PARAMS,
@@ -153,27 +135,23 @@ describe("geometry helpers", () => {
   });
 });
 
-describe("temperatureToRgb", () => {
-  it("is white at 0 so tint can be skipped", () => {
-    assert.deepEqual(temperatureToRgb(0), { r: 255, g: 255, b: 255 });
+describe("levels", () => {
+  it("defaults to the full 0–255 range", () => {
+    const parsed = parseEditParams({});
+    assert.equal(parsed.blackPoint, 0);
+    assert.equal(parsed.whitePoint, 255);
   });
 
-  it("warms toward yellow/red and cools toward blue", () => {
-    const warm = temperatureToRgb(100);
-    const cool = temperatureToRgb(-100);
-    assert.ok(warm.b < warm.r);
-    assert.ok(cool.r < cool.b);
-  });
-});
-
-describe("sharpTemperatureModulate", () => {
-  it("returns null for neutral temperature", () => {
-    assert.equal(sharpTemperatureModulate(0), null);
+  it("roundtrips black and white points", () => {
+    const parsed = parseEditParams({ blackPoint: 12, whitePoint: 240 });
+    assert.equal(parsed.blackPoint, 12);
+    assert.equal(parsed.whitePoint, 240);
   });
 
-  it("maps warm and cool temperatures to hue shifts", () => {
-    assert.deepEqual(sharpTemperatureModulate(20), { hue: -2, saturation: 1.016 });
-    assert.deepEqual(sharpTemperatureModulate(-20), { hue: 32, saturation: 1.024 });
+  it("resets a collapsed range instead of crushing the image", () => {
+    const parsed = parseEditParams({ blackPoint: 130, whitePoint: 135 });
+    assert.equal(parsed.blackPoint, 0);
+    assert.equal(parsed.whitePoint, 255);
   });
 });
 

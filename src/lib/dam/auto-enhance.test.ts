@@ -11,6 +11,7 @@ import {
   percentileFromHistogram,
   percentileSpan,
   suggestAutoEnhance,
+  suggestLevels,
   suggestSaturation,
   suggestTemperature,
 } from "./auto-enhance.ts";
@@ -43,16 +44,30 @@ describe("percentileFromHistogram", () => {
 });
 
 describe("suggestAutoEnhance", () => {
-  it("boosts contrast on low-spread images", () => {
-    const raw = buildRaw(64, 64, (_x, _y, i, buf) => {
-      const v = 110;
+  it("stretches levels on low-spread images, limited for flat frames", () => {
+    const raw = buildRaw(64, 64, (x, _y, i, buf) => {
+      const v = 100 + Math.round((x / 63) * 30);
       buf[i] = v;
       buf[i + 1] = v;
       buf[i + 2] = v;
     });
-    const analysis = analyzePixels(raw, 64, 64, 3);
-    const suggestion = suggestAutoEnhance(analysis);
-    assert.ok(suggestion.contrast > 100);
+    const levels = suggestLevels(analyzePixels(raw, 64, 64, 3));
+    assert.ok(levels.blackPoint > 0);
+    assert.ok(levels.whitePoint < 255);
+    assert.ok(levels.whitePoint - levels.blackPoint >= 150);
+  });
+
+  it("leaves levels alone when the full range is already used", () => {
+    const raw = buildRaw(64, 64, (x, _y, i, buf) => {
+      const v = Math.round((x / 63) * 255);
+      buf[i] = v;
+      buf[i + 1] = v;
+      buf[i + 2] = v;
+    });
+    assert.deepEqual(suggestLevels(analyzePixels(raw, 64, 64, 3)), {
+      blackPoint: 0,
+      whitePoint: 255,
+    });
   });
 
   it("ignores outlier pixels via percentile clipping", () => {
@@ -72,7 +87,9 @@ describe("suggestAutoEnhance", () => {
     assert.ok(minMaxSpan(analysis) > 200);
     assert.ok(percentileSpan(analysis) < 40);
     const suggestion = suggestAutoEnhance(analysis);
-    assert.ok(suggestion.contrast > 110);
+    // Levels follow the 120–140 body, not the single black/white outliers.
+    assert.ok(suggestion.blackPoint > 40);
+    assert.ok(suggestion.whitePoint < 215);
   });
 
   it("suggests higher brightness for dark images", () => {
@@ -96,7 +113,7 @@ describe("suggestAutoEnhance", () => {
     assert.ok(suggestTemperature(analysis) < -5);
     const suggestion = suggestAutoEnhance(analysis);
     assert.ok(suggestion.temperature < -5);
-    assert.ok(suggestion.temperature >= -28);
+    assert.ok(suggestion.temperature >= -40);
   });
 
   it("ignores foliage-heavy scenes when estimating white balance", () => {
@@ -132,6 +149,8 @@ describe("suggestAutoEnhance", () => {
       contrast: 102,
       saturation: 101,
       temperature: -3,
+      blackPoint: 2,
+      whitePoint: 254,
     });
     assert.equal(result.sharpen, 0);
     assert.equal(result.brightness, 100);
@@ -154,6 +173,8 @@ describe("suggestAutoEnhance", () => {
         contrast: 99,
         saturation: 101,
         temperature: 2,
+        blackPoint: 0,
+        whitePoint: 255,
       }),
       {
         brightness: 100,
@@ -161,6 +182,8 @@ describe("suggestAutoEnhance", () => {
         saturation: 100,
         temperature: 0,
         sharpen: 0,
+        blackPoint: 0,
+        whitePoint: 255,
       },
     );
     assert.deepEqual(
@@ -169,13 +192,17 @@ describe("suggestAutoEnhance", () => {
         contrast: 100,
         saturation: 100,
         temperature: 0,
+        blackPoint: 0,
+        whitePoint: 255,
       }),
       {
         brightness: 115,
         contrast: 100,
         saturation: 100,
         temperature: 0,
-        sharpen: 17,
+        sharpen: 20,
+        blackPoint: 0,
+        whitePoint: 255,
       },
     );
   });
@@ -190,7 +217,7 @@ describe("analyzeAutoEnhance", () => {
       buf[i + 2] = v;
     });
     const suggestion = await analyzeAutoEnhance(await encodePng(raw, 64, 64));
-    assert.ok(suggestion.contrast > 100);
+    assert.ok(suggestion.whitePoint - suggestion.blackPoint < 255);
   });
 
   it("detects underexposure in a dark test image", async () => {
