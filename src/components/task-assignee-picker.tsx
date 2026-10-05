@@ -58,12 +58,18 @@ export function TaskAssigneePicker({
   assigneeName,
   members,
   compact = true,
+  onChange,
+  onOpenChange,
 }: {
-  taskId: string;
+  /** Wenn gesetzt: speichert direkt am Task. Sonst lokal via onChange. */
+  taskId?: string;
   assigneeId: string | null;
   assigneeName?: string | null;
   members: AssigneeMember[];
   compact?: boolean;
+  /** Lokaler Modus (z. B. beim Erfassen): kein Server-Save */
+  onChange?: (nextId: string | null, member: AssigneeMember | null) => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -74,6 +80,15 @@ export function TaskAssigneePicker({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const localMode = typeof onChange === "function";
+
+  function setOpenState(next: boolean | ((prev: boolean) => boolean)) {
+    setOpen((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (value !== prev) onOpenChange?.(value);
+      return value;
+    });
+  }
 
   const selected =
     assigneeId != null
@@ -133,10 +148,10 @@ export function TaskAssigneePicker({
       const target = e.target as Node;
       if (buttonRef.current?.contains(target)) return;
       if (popoverRef.current?.contains(target)) return;
-      setOpen(false);
+      setOpenState(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setOpenState(false);
     }
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKey);
@@ -150,12 +165,22 @@ export function TaskAssigneePicker({
   }, [open, isMobile]);
 
   function saveAssignee(nextId: string | null) {
+    const member =
+      nextId != null
+        ? (members.find((m) => m.id === nextId) ?? null)
+        : null;
+    if (localMode) {
+      onChange?.(nextId, member);
+      setOpenState(false);
+      return;
+    }
+    if (!taskId) return;
     const fd = new FormData();
     fd.set("id", taskId);
     fd.set("assigneeId", nextId ?? "");
     startTransition(async () => {
       const result = await updateTask(fd);
-      setOpen(false);
+      setOpenState(false);
       if (result && "error" in result && result.error) return;
       router.refresh();
     });
@@ -175,7 +200,7 @@ export function TaskAssigneePicker({
       ].join(" ")}
       onClick={(e) => {
         e.stopPropagation();
-        setOpen((v) => !v);
+        setOpenState((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -203,7 +228,7 @@ export function TaskAssigneePicker({
       className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60"
       onClick={(e) => {
         e.stopPropagation();
-        setOpen((v) => !v);
+        setOpenState((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -317,7 +342,7 @@ export function TaskAssigneePicker({
                 type="button"
                 aria-label="Schliessen"
                 className="fixed inset-0 z-[80] bg-black/35"
-                onClick={() => setOpen(false)}
+                onClick={() => setOpenState(false)}
               />
               {panel}
             </>

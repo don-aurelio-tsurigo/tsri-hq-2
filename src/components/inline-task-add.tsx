@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { format } from "date-fns";
+import {
+  TaskAssigneePicker,
+  type AssigneeMember,
+} from "@/components/task-assignee-picker";
+import { TaskDuePicker } from "@/components/task-due-picker";
 import type { TaskRow } from "@/components/task-list";
 
 export type InlineTaskCreateDefaults = {
@@ -19,11 +25,18 @@ export type InlineTaskCreateResult = { error: string } | { ok: true };
 
 type InlineTaskAddProps = InlineTaskCreateDefaults & {
   placeholder?: string;
+  members?: AssigneeMember[];
   onCreate: (
     title: string,
     defaults: InlineTaskCreateDefaults,
   ) => Promise<InlineTaskCreateResult>;
 };
+
+function parseDueProp(dueAt?: string | null): Date | null {
+  if (!dueAt || dueAt.length === 0) return null;
+  const date = new Date(`${dueAt}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export function InlineTaskAdd({
   spaceId,
@@ -34,6 +47,7 @@ export function InlineTaskAdd({
   space,
   group,
   assigneeName,
+  members,
   placeholder = "Aufgabe…",
   onCreate,
 }: InlineTaskAddProps) {
@@ -41,16 +55,43 @@ export function InlineTaskAdd({
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [localDueAt, setLocalDueAt] = useState<Date | null>(null);
+  const [localAssigneeId, setLocalAssigneeId] = useState<string | null>(null);
+  const [localAssigneeName, setLocalAssigneeName] = useState<string | null>(
+    null,
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const ignoreBlurCloseRef = useRef(false);
+
+  const showAssignee = Boolean(members && members.length > 0);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  function initLocalMeta() {
+    setLocalDueAt(parseDueProp(dueAt));
+    setLocalAssigneeId(assigneeId ?? null);
+    setLocalAssigneeName(
+      assigneeName ??
+        members?.find((m) => m.id === assigneeId)?.name ??
+        null,
+    );
+  }
+
   function close() {
     setTitle("");
     setError(null);
+    setLocalDueAt(null);
+    setLocalAssigneeId(null);
+    setLocalAssigneeName(null);
+    setPickerOpen(false);
     setOpen(false);
+  }
+
+  function focusTitle() {
+    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   async function submit() {
@@ -64,13 +105,13 @@ export function InlineTaskAdd({
 
     const result = await onCreate(trimmed, {
       spaceId,
-      dueAt,
+      dueAt: localDueAt ? format(localDueAt, "yyyy-MM-dd") : null,
       dueOffsetDays,
       groupId,
-      assigneeId,
+      assigneeId: localAssigneeId,
       space,
       group,
-      assigneeName,
+      assigneeName: localAssigneeName,
     });
 
     setPending(false);
@@ -79,11 +120,11 @@ export function InlineTaskAdd({
       setTitle(trimmed);
       setOpen(true);
       setError(result.error);
-      requestAnimationFrame(() => inputRef.current?.focus());
+      focusTitle();
       return;
     }
 
-    requestAnimationFrame(() => inputRef.current?.focus());
+    focusTitle();
   }
 
   if (!open) {
@@ -91,7 +132,10 @@ export function InlineTaskAdd({
       <button
         type="button"
         className="flex w-full items-center gap-2 py-1.5 text-left text-sm text-[var(--muted)] transition hover:text-[var(--fg)]"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          initLocalMeta();
+          setOpen(true);
+        }}
       >
         <span
           className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none"
@@ -106,7 +150,7 @@ export function InlineTaskAdd({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <span
           className="flex size-[1.15rem] shrink-0 items-center justify-center text-base leading-none text-[var(--muted)]"
           aria-hidden
@@ -139,13 +183,56 @@ export function InlineTaskAdd({
               void submit();
             } else if (e.key === "Escape") {
               e.preventDefault();
-              if (!pending) close();
+              if (!pending && !pickerOpen) close();
             }
           }}
           onBlur={() => {
-            if (!title.trim() && !pending && !error) close();
+            window.setTimeout(() => {
+              if (ignoreBlurCloseRef.current) {
+                ignoreBlurCloseRef.current = false;
+                return;
+              }
+              if (pickerOpen || pending || error) return;
+              if (!title.trim()) close();
+            }, 0);
           }}
         />
+        <div
+          className="flex shrink-0 items-center gap-0.5"
+          onMouseDown={() => {
+            ignoreBlurCloseRef.current = true;
+          }}
+        >
+          <TaskDuePicker
+            dueAt={localDueAt}
+            compact
+            onChange={(next) => {
+              setLocalDueAt(next);
+              focusTitle();
+            }}
+            onOpenChange={(next) => {
+              setPickerOpen(next);
+              if (!next) focusTitle();
+            }}
+          />
+          {showAssignee && (
+            <TaskAssigneePicker
+              assigneeId={localAssigneeId}
+              assigneeName={localAssigneeName}
+              members={members!}
+              compact
+              onChange={(nextId, member) => {
+                setLocalAssigneeId(nextId);
+                setLocalAssigneeName(member?.name ?? null);
+                focusTitle();
+              }}
+              onOpenChange={(next) => {
+                setPickerOpen(next);
+                if (!next) focusTitle();
+              }}
+            />
+          )}
+        </div>
       </div>
       {error && (
         <p className="pl-[1.9rem] text-xs text-red-700">{error}</p>

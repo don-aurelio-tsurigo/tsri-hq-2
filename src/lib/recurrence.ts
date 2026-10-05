@@ -106,6 +106,39 @@ export function nextDueAt(
   return next;
 }
 
+export const RECURRENCE_PRESETS: {
+  key: string;
+  label: string;
+  rule: Omit<Recurrence, "anchor">;
+}[] = [
+  { key: "daily", label: "Täglich", rule: { freq: "daily", interval: 1 } },
+  {
+    key: "workdays",
+    label: "Werktags (Mo–Fr)",
+    rule: { freq: "weekly", interval: 1, weekdays: [1, 2, 3, 4, 5] },
+  },
+  { key: "weekly", label: "Wöchentlich", rule: { freq: "weekly", interval: 1 } },
+  {
+    key: "biweekly",
+    label: "Alle 2 Wochen",
+    rule: { freq: "weekly", interval: 2 },
+  },
+  { key: "monthly", label: "Monatlich", rule: { freq: "monthly", interval: 1 } },
+  { key: "yearly", label: "Jährlich", rule: { freq: "yearly", interval: 1 } },
+];
+
+/** Key der passenden Vorgabe; "" = keine, "custom" = eigene Regel. */
+export function recurrencePresetKey(rule: Recurrence | null): string {
+  if (!rule) return "";
+  const match = RECURRENCE_PRESETS.find(
+    (p) =>
+      p.rule.freq === rule.freq &&
+      p.rule.interval === rule.interval &&
+      (p.rule.weekdays ?? []).join() === (rule.weekdays ?? []).join(),
+  );
+  return match?.key ?? "custom";
+}
+
 const WEEKDAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
 export function recurrenceLabel(rule: Recurrence): string {

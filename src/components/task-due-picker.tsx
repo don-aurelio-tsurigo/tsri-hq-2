@@ -29,8 +29,10 @@ import { de } from "date-fns/locale";
 import { Calendar, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 import { updateTask } from "@/lib/actions";
 import {
+  RECURRENCE_PRESETS,
   parseRecurrence,
   recurrenceLabel,
+  recurrencePresetKey,
   type Recurrence,
 } from "@/lib/recurrence";
 import { useIsMobile } from "@/lib/use-media-query";
@@ -46,38 +48,6 @@ function dueText(dueAt: Date) {
   return format(dueAt, "d. MMM", { locale: de });
 }
 
-const RECURRENCE_PRESETS: {
-  key: string;
-  label: string;
-  rule: Omit<Recurrence, "anchor">;
-}[] = [
-  { key: "daily", label: "Täglich", rule: { freq: "daily", interval: 1 } },
-  {
-    key: "workdays",
-    label: "Werktags (Mo–Fr)",
-    rule: { freq: "weekly", interval: 1, weekdays: [1, 2, 3, 4, 5] },
-  },
-  { key: "weekly", label: "Wöchentlich", rule: { freq: "weekly", interval: 1 } },
-  {
-    key: "biweekly",
-    label: "Alle 2 Wochen",
-    rule: { freq: "weekly", interval: 2 },
-  },
-  { key: "monthly", label: "Monatlich", rule: { freq: "monthly", interval: 1 } },
-  { key: "yearly", label: "Jährlich", rule: { freq: "yearly", interval: 1 } },
-];
-
-function presetKey(rule: Recurrence | null): string {
-  if (!rule) return "";
-  const match = RECURRENCE_PRESETS.find(
-    (p) =>
-      p.rule.freq === rule.freq &&
-      p.rule.interval === rule.interval &&
-      (p.rule.weekdays ?? []).join() === (rule.weekdays ?? []).join(),
-  );
-  return match?.key ?? "custom";
-}
-
 function toDateValue(dueAt: Date | string | null): Date | null {
   if (!dueAt) return null;
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
@@ -91,14 +61,20 @@ export function TaskDuePicker({
   compact = true,
   recurrence,
   allowRecurrence = false,
+  onChange,
+  onOpenChange,
 }: {
-  taskId: string;
+  /** Wenn gesetzt: speichert direkt am Task. Sonst lokal via onChange. */
+  taskId?: string;
   dueAt: Date | string | null;
   compact?: boolean;
   /** Rohwert aus task.recurrence */
   recurrence?: unknown;
   /** Wiederholung einstellbar (persönliche/Team-Tasks) */
   allowRecurrence?: boolean;
+  /** Lokaler Modus (z. B. beim Erfassen): kein Server-Save */
+  onChange?: (next: Date | null) => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -108,10 +84,19 @@ export function TaskDuePicker({
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const localMode = typeof onChange === "function";
 
   const selected = toDateValue(dueAt);
   const rule = parseRecurrence(recurrence);
-  const currentPreset = presetKey(rule);
+  const currentPreset = recurrencePresetKey(rule);
+
+  function setOpenState(next: boolean | ((prev: boolean) => boolean)) {
+    setOpen((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (value !== prev) onOpenChange?.(value);
+      return value;
+    });
+  }
 
   useEffect(() => {
     if (open) {
@@ -133,7 +118,7 @@ export function TaskDuePicker({
         Math.max(8, r.left),
         window.innerWidth - width - 8,
       );
-      const estimatedHeight = allowRecurrence ? 420 : 340;
+      const estimatedHeight = allowRecurrence && !localMode ? 420 : 340;
       const top =
         r.bottom + 6 + estimatedHeight > window.innerHeight - 8
           ? Math.max(8, r.top - estimatedHeight - 6)
@@ -147,7 +132,7 @@ export function TaskDuePicker({
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
     };
-  }, [open, isMobile, allowRecurrence]);
+  }, [open, isMobile, allowRecurrence, localMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,10 +140,10 @@ export function TaskDuePicker({
       const target = e.target as Node;
       if (buttonRef.current?.contains(target)) return;
       if (popoverRef.current?.contains(target)) return;
-      setOpen(false);
+      setOpenState(false);
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setOpenState(false);
     }
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKey);
@@ -178,18 +163,25 @@ export function TaskDuePicker({
   }, [month]);
 
   function saveDue(next: Date | null) {
+    if (localMode) {
+      onChange?.(next);
+      setOpenState(false);
+      return;
+    }
+    if (!taskId) return;
     const fd = new FormData();
     fd.set("id", taskId);
     fd.set("dueAt", next ? format(next, "yyyy-MM-dd") : "");
     startTransition(async () => {
       const result = await updateTask(fd);
-      setOpen(false);
+      setOpenState(false);
       if (result && "error" in result && result.error) return;
       router.refresh();
     });
   }
 
   function saveRecurrence(next: Recurrence | null) {
+    if (localMode || !taskId) return;
     const fd = new FormData();
     fd.set("id", taskId);
     fd.set("recurrence", next ? JSON.stringify(next) : "");
@@ -226,12 +218,12 @@ export function TaskDuePicker({
       ].join(" ")}
       onClick={(e) => {
         e.stopPropagation();
-        setOpen((v) => !v);
+        setOpenState((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {dueText(selected)}
-      {rule && (
+      {rule && !localMode && (
         <Repeat
           className="ml-1 size-3"
           strokeWidth={1.75}
@@ -250,7 +242,7 @@ export function TaskDuePicker({
       className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--fg)] hover:text-[var(--fg)] disabled:opacity-60"
       onClick={(e) => {
         e.stopPropagation();
-        setOpen((v) => !v);
+        setOpenState((v) => !v);
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -359,7 +351,7 @@ export function TaskDuePicker({
         </button>
       </div>
 
-      {allowRecurrence && (
+      {allowRecurrence && !localMode && (
         <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-3">
           <label className="flex items-center justify-between gap-2 text-sm sm:text-xs">
             <span className="inline-flex items-center gap-1.5 font-medium">
@@ -415,7 +407,7 @@ export function TaskDuePicker({
                 type="button"
                 aria-label="Schliessen"
                 className="fixed inset-0 z-[80] bg-black/35"
-                onClick={() => setOpen(false)}
+                onClick={() => setOpenState(false)}
               />
               {panel}
             </>

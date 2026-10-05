@@ -114,6 +114,7 @@ export default async function ProjectDetailPage({
         assignee: t.assignee,
         createdBy: t.createdBy,
         group: t.group,
+        space: { id: project.id, name: project.name, type: project.type },
       }))}
     />
   );

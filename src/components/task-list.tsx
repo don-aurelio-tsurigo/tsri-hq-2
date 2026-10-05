@@ -14,14 +14,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Repeat } from "lucide-react";
 import { TaskAssigneePicker } from "@/components/task-assignee-picker";
 import { TaskDuePicker } from "@/components/task-due-picker";
 import { TaskDoneCheckbox } from "@/components/task-form";
 import { useDeleteTaskWithUndo } from "@/components/use-delete-task-with-undo";
+import { DueAndRecurrenceFields } from "@/components/recurrence-field";
 import { cancelTask, updateTask } from "@/lib/actions";
 import { useFinePointer } from "@/lib/use-media-query";
 import type { TaskStatus } from "@/generated/prisma/client";
+import { parseRecurrence, recurrenceLabel } from "@/lib/recurrence";
 
 const DRAWER_MS = 280;
 export const TASK_DRAG_TYPE = "text/task-id";
@@ -51,6 +53,15 @@ function offsetLabel(dueOffsetDays: number | null | undefined) {
   if (dueOffsetDays === 0) return "Event-Tag";
   if (dueOffsetDays < 0) return `${Math.abs(dueOffsetDays)}d vorher`;
   return `${dueOffsetDays}d nachher`;
+}
+
+/** Wiederholung nur ausserhalb von Projekten/Vorlagen (siehe updateTask). */
+function canRecur(task: TaskRow, showDueOffset: boolean) {
+  return (
+    !showDueOffset &&
+    task.space?.type !== "project" &&
+    task.dueOffsetDays == null
+  );
 }
 
 function toDateInputValue(dueAt: Date | string | null) {
@@ -462,10 +473,7 @@ export function TaskList({
                         taskId={task.id}
                         dueAt={task.dueAt}
                         recurrence={task.recurrence}
-                        allowRecurrence={
-                          task.space?.type !== "project" &&
-                          task.dueOffsetDays == null
-                        }
+                        allowRecurrence={canRecur(task, showDueOffset)}
                         compact
                       />
                     </div>
@@ -524,10 +532,7 @@ export function TaskList({
                           taskId={task.id}
                           dueAt={task.dueAt}
                         recurrence={task.recurrence}
-                        allowRecurrence={
-                          task.space?.type !== "project" &&
-                          task.dueOffsetDays == null
-                        }
+                        allowRecurrence={canRecur(task, showDueOffset)}
                           compact={false}
                         />
                       </div>
@@ -648,6 +653,9 @@ function TaskDrawer({
 
   if (!mounted || !panelTask) return null;
 
+  const allowRecurrence = canRecur(panelTask, showDueOffset);
+  const rule = parseRecurrence(panelTask.recurrence);
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end"
@@ -674,8 +682,14 @@ function TaskDrawer({
       >
         <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
+            <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
               Task bearbeiten
+              {rule && (
+                <span className="badge badge-muted inline-flex items-center gap-1 !px-1.5 !py-0 text-[0.65rem] normal-case tracking-normal">
+                  <Repeat className="size-3" strokeWidth={1.75} />
+                  {recurrenceLabel(rule)}
+                </span>
+              )}
             </p>
             {panelTask.createdAt && (
               <p className="mt-1 text-sm text-[var(--muted)]">
@@ -730,38 +744,47 @@ function TaskDrawer({
                 disabled={pending}
               />
             </div>
-            <div className="field">
-              <label htmlFor={`task-due-${panelTask.id}`}>
-                {showDueOffset ? "Tage relativ zum Event" : "Fällig am"}
-              </label>
-              {showDueOffset ? (
-                <>
+            {allowRecurrence ? (
+              <DueAndRecurrenceFields
+                id={panelTask.id}
+                defaultDueAt={toDateInputValue(panelTask.dueAt)}
+                defaultRecurrence={panelTask.recurrence}
+                disabled={pending}
+              />
+            ) : (
+              <div className="field">
+                <label htmlFor={`task-due-${panelTask.id}`}>
+                  {showDueOffset ? "Tage relativ zum Event" : "Fällig am"}
+                </label>
+                {showDueOffset ? (
+                  <>
+                    <input
+                      id={`task-due-${panelTask.id}`}
+                      type="number"
+                      name="dueOffsetDays"
+                      defaultValue={
+                        panelTask.dueOffsetDays != null
+                          ? String(panelTask.dueOffsetDays)
+                          : ""
+                      }
+                      placeholder="z.B. -14"
+                      disabled={pending}
+                    />
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      Negativ = vor dem Event (−14 = 2 Wochen vorher).
+                    </p>
+                  </>
+                ) : (
                   <input
                     id={`task-due-${panelTask.id}`}
-                    type="number"
-                    name="dueOffsetDays"
-                    defaultValue={
-                      panelTask.dueOffsetDays != null
-                        ? String(panelTask.dueOffsetDays)
-                        : ""
-                    }
-                    placeholder="z.B. -14"
+                    type="date"
+                    name="dueAt"
+                    defaultValue={toDateInputValue(panelTask.dueAt)}
                     disabled={pending}
                   />
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    Negativ = vor dem Event (−14 = 2 Wochen vorher).
-                  </p>
-                </>
-              ) : (
-                <input
-                  id={`task-due-${panelTask.id}`}
-                  type="date"
-                  name="dueAt"
-                  defaultValue={toDateInputValue(panelTask.dueAt)}
-                  disabled={pending}
-                />
-              )}
-            </div>
+                )}
+              </div>
+            )}
             {groups && (
               <div className="field">
                 <label htmlFor={`task-group-${panelTask.id}`}>Gruppe</label>

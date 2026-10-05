@@ -557,6 +557,7 @@ export function GroupedTasksBoard({
                         dueAt={dueAtForBucket(bucket.key)}
                         assigneeId={currentUserId}
                         space={inboxCreateSpace}
+                        members={editMembers}
                         onCreate={createInlineTask}
                       />
                     ) : undefined
@@ -611,6 +612,7 @@ export function GroupedTasksBoard({
                         type:
                           bucket.label === "Privat" ? "personal" : "project",
                       }}
+                      members={editMembers}
                       onCreate={createInlineTask}
                     />
                   ) : undefined
@@ -660,6 +662,7 @@ export function GroupedTasksBoard({
                       groupId=""
                       assigneeId={currentUserId}
                       space={personalSpaceMeta}
+                      members={editMembers}
                       onCreate={createInlineTask}
                     />
                   ) : undefined
@@ -782,6 +785,7 @@ export function GroupedTasksBoard({
                             assigneeId={currentUserId}
                             space={personalSpaceMeta}
                             group={{ id: group.id, name: group.name }}
+                            members={editMembers}
                             onCreate={createInlineTask}
                           />
                         ) : undefined
