@@ -8,15 +8,21 @@ import type { ArchiveCollectionCard } from "@/lib/dam/archive-search";
 
 export function DamArchiveCollectionsGrid({
   collections,
+  hrefForCollection,
 }: {
   collections: ArchiveCollectionCard[];
+  hrefForCollection?: (collectionId: string) => string;
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {collections.map((collection) => (
         <Link
           key={collection.id}
-          href={archiveCollectionHref(collection.id)}
+          href={
+            hrefForCollection
+              ? hrefForCollection(collection.id)
+              : archiveCollectionHref(collection.id)
+          }
           className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-[var(--panel-muted)] shadow-sm ring-1 ring-[var(--border)] transition hover:ring-[var(--accent)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           {collection.preview ? (
@@ -44,6 +50,10 @@ export function DamArchiveCollectionsGrid({
                 aria-hidden
               />
               <span className="line-clamp-2">{collection.name}</span>
+            </p>
+            <p className="mt-1 pl-6 text-xs font-medium text-white/80">
+              {collection.assetCount}{" "}
+              {collection.assetCount === 1 ? "Bild" : "Bilder"}
             </p>
           </div>
           <span className="sr-only">

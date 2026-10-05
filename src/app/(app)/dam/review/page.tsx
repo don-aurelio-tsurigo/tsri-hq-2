@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { DamArchiveGrid } from "@/components/dam-archive-grid";
+import { Suspense } from "react";
 import { DamArchiveReviewComplete } from "@/components/dam-archive-review-complete";
-import { listArchiveFacets, parseArchivePage } from "@/lib/dam/archive-search";
+import { DamArchiveReviewView } from "@/components/dam-archive-review-view";
+import { listArchiveFacets } from "@/lib/dam/archive-search";
 import { pageTitle } from "@/lib/link-preview";
-
-export const metadata = pageTitle("Mediathek");
 import {
   canReviewDamArchive,
   getLastDamArchiveReview,
+  listDamArchiveReviewCollectionCards,
+  parseReviewFilters,
   parseReviewOpenedAt,
+  parseReviewView,
   reviewHref,
   searchDamArchiveReviewQueue,
 } from "@/lib/dam/review";
+import { ARCHIVE_NO_COLLECTION, parseArchivePage } from "@/lib/dam/archive-filters";
 import { requireMembership } from "@/lib/session";
+
+export const metadata = pageTitle("Mediathek-Review");
 
 export default async function DamArchiveReviewPage({
   searchParams,
@@ -28,27 +33,82 @@ export default async function DamArchiveReviewPage({
   const params = await searchParams;
   const openedRaw = Array.isArray(params.opened) ? params.opened[0] : params.opened;
   const openedAt = parseReviewOpenedAt(openedRaw) ?? new Date();
-  if (!openedRaw || !parseReviewOpenedAt(openedRaw)) {
-    redirect(reviewHref(openedAt));
+  const view = parseReviewView(params);
+  const filters = parseReviewFilters(params);
+  const needsCanonical =
+    !openedRaw ||
+    !parseReviewOpenedAt(openedRaw) ||
+    params.view === undefined;
+  if (needsCanonical) {
+    redirect(
+      reviewHref(openedAt, {
+        view,
+        rating: filters.rating,
+        collectionId: filters.collectionId,
+      }),
+    );
   }
 
   const page = parseArchivePage(params);
   const last = await getLastDamArchiveReview();
   const reviewedUntil = last?.reviewedUntil ?? new Date(0);
-  const [result, facets] = await Promise.all([
-    searchDamArchiveReviewQueue(reviewedUntil, openedAt, page),
-    listArchiveFacets(),
+  const [photoResult, collectionResult, facets, queueTotal] = await Promise.all([
+    view === "photos"
+      ? searchDamArchiveReviewQueue(
+          reviewedUntil,
+          openedAt,
+          page,
+          undefined,
+          filters,
+        )
+      : Promise.resolve(null),
+    view === "collections"
+      ? listDamArchiveReviewCollectionCards(
+          reviewedUntil,
+          openedAt,
+          page,
+          undefined,
+          { rating: filters.rating },
+        )
+      : Promise.resolve(null),
+    listArchiveFacets({
+      ensureCollectionIds:
+        filters.collectionId && filters.collectionId !== ARCHIVE_NO_COLLECTION
+          ? [filters.collectionId]
+          : [],
+    }),
+    searchDamArchiveReviewQueue(reviewedUntil, openedAt, 1, 1).then((r) => r.total),
   ]);
 
+  const result =
+    view === "collections"
+      ? {
+          total: collectionResult?.total ?? 0,
+          page: collectionResult?.page ?? 1,
+          pageCount: collectionResult?.pageCount ?? 0,
+          pageSize: collectionResult?.pageSize ?? 120,
+        }
+      : {
+          total: photoResult?.total ?? 0,
+          page: photoResult?.page ?? 1,
+          pageCount: photoResult?.pageCount ?? 0,
+          pageSize: photoResult?.pageSize ?? 120,
+        };
+
   if (result.pageCount > 0 && page > result.pageCount) {
-    redirect(reviewHref(openedAt, result.pageCount));
+    redirect(
+      reviewHref(openedAt, {
+        view,
+        rating: filters.rating,
+        collectionId: filters.collectionId,
+        page: result.pageCount,
+      }),
+    );
   }
 
   const sinceLabel = last
     ? last.reviewedUntil.toLocaleDateString("de-CH")
     : null;
-  const rangeFrom = result.total === 0 ? 0 : (result.page - 1) * result.pageSize + 1;
-  const rangeTo = Math.min(result.page * result.pageSize, result.total);
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
@@ -71,64 +131,39 @@ export default async function DamArchiveReviewPage({
       </header>
 
       <p className="text-sm text-[var(--muted)]">
-        {result.total === 0
+        {queueTotal === 0
           ? sinceLabel
             ? `Keine ungesichteten Fotos seit ${sinceLabel}.`
             : "Keine ungesichteten Fotos."
-          : `${result.total} ${
-              result.total === 1 ? "Foto ungesichtet" : "Fotos ungesichtet"
+          : `${queueTotal} ${
+              queueTotal === 1 ? "Foto ungesichtet" : "Fotos ungesichtet"
             }${sinceLabel ? ` seit ${sinceLabel}` : ""}.`}
       </p>
 
-      {result.total === 0 ? (
+      {queueTotal === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
           Nichts zu reviewen. Neu publizierte Fotos erscheinen hier nach dem
           nächsten Upload in die Mediathek.
         </p>
       ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-[var(--muted)]">
-            {result.pageCount > 1
-              ? `${rangeFrom}–${rangeTo} von ${result.total} Bildern.`
-              : `${result.total} ${result.total === 1 ? "Bild" : "Bilder"}.`}{" "}
-            Checkbox oder Shift-Klick wählt, Doppelklick oder Enter öffnet die
-            Vorschau.
-          </p>
-          <DamArchiveGrid assets={result.assets} facets={facets} />
-          {result.pageCount > 1 ? (
-            <nav
-              className="flex flex-wrap items-center justify-between gap-2"
-              aria-label="Seiten"
-            >
-              {page > 1 ? (
-                <Link href={reviewHref(openedAt, page - 1)} className="btn btn-ghost">
-                  Zurück
-                </Link>
-              ) : (
-                <span className="btn btn-ghost pointer-events-none opacity-40">
-                  Zurück
-                </span>
-              )}
-              <p className="text-sm font-medium text-[var(--muted)]">
-                Seite {result.page} von {result.pageCount}
-              </p>
-              {page < result.pageCount ? (
-                <Link href={reviewHref(openedAt, page + 1)} className="btn btn-ghost">
-                  Weiter
-                </Link>
-              ) : (
-                <span className="btn btn-ghost pointer-events-none opacity-40">
-                  Weiter
-                </span>
-              )}
-            </nav>
-          ) : null}
-        </div>
+        <Suspense>
+          <DamArchiveReviewView
+            openedAtIso={openedAt.toISOString()}
+            view={view}
+            assets={photoResult?.assets ?? []}
+            collections={collectionResult?.collections ?? []}
+            facets={facets}
+            total={result.total}
+            page={result.page}
+            pageCount={result.pageCount}
+            pageSize={result.pageSize}
+          />
+        </Suspense>
       )}
 
       <DamArchiveReviewComplete
         openedAtIso={openedAt.toISOString()}
-        remainingCount={result.total}
+        remainingCount={queueTotal}
       />
     </div>
   );

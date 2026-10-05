@@ -1,21 +1,30 @@
 import { ARCHIVE_PAGE_SIZE } from "@/lib/dam/archive-filters";
+import type { ArchiveCollectionCard } from "@/lib/dam/archive-search";
 import { parseEditParams } from "@/lib/dam/edit-params";
+import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 import {
+  EMPTY_REVIEW_FILTERS,
   isDamArchiveReviewReminderDay,
+  parseReviewFilters,
   parseReviewOpenedAt,
+  parseReviewView,
   reviewHref,
   reviewQueueWhere,
+  type ReviewQueueFilters,
 } from "@/lib/dam/review-params";
 import { prisma } from "@/lib/db";
-import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 import { canManageEditorial, type MembershipWithGrants } from "@/lib/permissions";
 
 export {
+  EMPTY_REVIEW_FILTERS,
   isDamArchiveReviewReminderDay,
+  parseReviewFilters,
   parseReviewOpenedAt,
+  parseReviewView,
   reviewHref,
   reviewQueueWhere,
+  type ReviewQueueFilters,
 };
 
 export function canReviewDamArchive(membership: MembershipWithGrants): boolean {
@@ -37,9 +46,10 @@ export async function getLastDamArchiveReview() {
 export async function countDamArchiveReviewQueue(
   reviewedUntil: Date,
   openedAt = new Date(),
+  filters: ReviewQueueFilters = EMPTY_REVIEW_FILTERS,
 ): Promise<number> {
   return prisma.asset.count({
-    where: reviewQueueWhere(reviewedUntil, openedAt),
+    where: reviewQueueWhere(reviewedUntil, openedAt, filters),
   });
 }
 
@@ -48,6 +58,7 @@ export async function searchDamArchiveReviewQueue(
   openedAt: Date,
   page = 1,
   pageSize = ARCHIVE_PAGE_SIZE,
+  filters: ReviewQueueFilters = EMPTY_REVIEW_FILTERS,
 ): Promise<{
   assets: ArchiveAssetCard[];
   total: number;
@@ -55,7 +66,7 @@ export async function searchDamArchiveReviewQueue(
   pageSize: number;
   pageCount: number;
 }> {
-  const where = reviewQueueWhere(reviewedUntil, openedAt);
+  const where = reviewQueueWhere(reviewedUntil, openedAt, filters);
   const safePage = Math.max(1, page);
   const skip = (safePage - 1) * pageSize;
   const [total, rows] = await Promise.all([
@@ -104,6 +115,76 @@ export async function searchDamArchiveReviewQueue(
       collections: row.collections.map((link) => link.collection),
       lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
       editParams: parseEditParams(row.editParams),
+    })),
+    total,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
+}
+
+export async function listDamArchiveReviewCollectionCards(
+  reviewedUntil: Date,
+  openedAt: Date,
+  page = 1,
+  pageSize = ARCHIVE_PAGE_SIZE,
+  filters: Pick<ReviewQueueFilters, "rating"> = { rating: "all" },
+): Promise<{
+  collections: ArchiveCollectionCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}> {
+  const assetWhere = reviewQueueWhere(reviewedUntil, openedAt, {
+    rating: filters.rating,
+    collectionId: "",
+  });
+  const where = {
+    assets: { some: { asset: assetWhere } },
+  };
+  const safePage = Math.max(1, page);
+  const skip = (safePage - 1) * pageSize;
+
+  const [total, rows] = await Promise.all([
+    prisma.collection.count({ where }),
+    prisma.collection.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { name: "asc" }],
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        assets: {
+          where: { asset: assetWhere },
+          orderBy: { asset: { publishedAt: "desc" } },
+          take: 1,
+          select: {
+            asset: { select: { id: true, editParams: true } },
+          },
+        },
+        _count: {
+          select: {
+            assets: { where: { asset: assetWhere } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const pageCount = total === 0 ? 0 : Math.ceil(total / pageSize);
+  return {
+    collections: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      assetCount: row._count.assets,
+      preview: row.assets[0]?.asset
+        ? {
+            id: row.assets[0].asset.id,
+            editParams: parseEditParams(row.assets[0].asset.editParams),
+          }
+        : null,
     })),
     total,
     page: safePage,
