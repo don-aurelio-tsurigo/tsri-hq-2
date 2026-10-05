@@ -20,6 +20,8 @@
     "dam:delete-collections": "tsx scripts/dam-delete-collections.ts",
     "dam:mediagraph-import": "tsx scripts/mediagraph-import.ts",
     "dam:mediagraph-enrich": "tsx scripts/mediagraph-import.ts --enrich",
+    "dam:face-check": "tsx scripts/dam-face-check.ts",
+    "dam:face-scan": "tsx scripts/dam-face-scan.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -27,6 +29,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",
+    "@aws-sdk/client-rekognition": "^3.1146.0",
     "@aws-sdk/client-s3": "^3.1111.0",
     "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "@better-auth/prisma-adapter": "^1.6.25",

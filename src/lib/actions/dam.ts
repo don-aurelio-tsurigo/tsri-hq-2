@@ -5,7 +5,12 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { writeEditedDerivatives } from "@/lib/dam/derivatives";
 import { parseEditParams } from "@/lib/dam/edit-params";
-import { applyKeywordChanges, uniqueKeywords } from "@/lib/dam/keywords";
+import { assetPersonNames } from "@/lib/dam/face-persons";
+import {
+  applyKeywordChanges,
+  uniqueKeywords,
+  withPersonKeywords,
+} from "@/lib/dam/keywords";
 import { publishDamAssets } from "@/lib/dam/publish";
 import { canReviewDamArchive } from "@/lib/dam/review";
 import { parseReviewOpenedAt } from "@/lib/dam/review-params";
@@ -319,7 +324,14 @@ export async function bulkUpdatePublishedAssets(
 
   const rows = await prisma.asset.findMany({
     where: { id: { in: parsed.data.assetIds }, status: "published" },
-    select: { id: true, keywords: true },
+    select: {
+      id: true,
+      keywords: true,
+      persons: {
+        orderBy: { createdAt: "asc" },
+        select: { person: { select: { name: true } } },
+      },
+    },
   });
   if (rows.length === 0) return { error: "Bild nicht gefunden." };
   const ids = rows.map((row) => row.id);
@@ -355,10 +367,10 @@ export async function bulkUpdatePublishedAssets(
 
         if (touchKeywords) {
           for (const row of rows) {
-            const keywords = applyKeywordChanges(
-              row.keywords,
-              addKeywords,
-              removeKeywords,
+            // Person keywords are owned by the «Personen» field — never removed here.
+            const keywords = withPersonKeywords(
+              applyKeywordChanges(row.keywords, addKeywords, removeKeywords),
+              row.persons.map((link) => link.person.name),
             );
             const keywordsUnchanged =
               keywords.length === row.keywords.length &&
@@ -420,7 +432,11 @@ export async function updateAssetMetadata(
     data.altText = parsed.data.altText?.trim() ? parsed.data.altText.trim() : null;
   }
   if (parsed.data.keywords !== undefined) {
-    data.keywords = uniqueKeywords(parsed.data.keywords);
+    // Person keywords are owned by the «Personen» field — re-applied on every edit.
+    data.keywords = withPersonKeywords(
+      uniqueKeywords(parsed.data.keywords),
+      await assetPersonNames(parsedId.data),
+    );
   }
   if (parsed.data.notes !== undefined) {
     const notes = parsed.data.notes?.trim() ?? "";

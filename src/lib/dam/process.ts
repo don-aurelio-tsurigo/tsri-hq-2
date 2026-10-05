@@ -3,6 +3,7 @@ import { looksLikeImageBytes } from "@/lib/dam/accept";
 import { backfillAssetExif } from "@/lib/dam/backfill-exif";
 import { autotagFromImageBuffer } from "@/lib/dam/autotag";
 import { extractExif, resolveTakenAt } from "@/lib/dam/exif";
+import { kickDamFaceScan } from "@/lib/dam/face-scheduler";
 import { derivativeKey, replaceKeyExtension } from "@/lib/dam/filename";
 import { uniqueKeywords } from "@/lib/dam/keywords";
 import { createMasterImage } from "@/lib/dam/master";
@@ -190,4 +191,5 @@ export async function processDamAssets(assetIds: string[]): Promise<void> {
       console.error(`[dam] processing failed for ${id}`, error);
     }
   });
+  kickDamFaceScan();
 }

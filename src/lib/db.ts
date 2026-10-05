@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 45; // v45: Membership.eveningBlockedWeekdays
+const PRISMA_CLIENT_SCHEMA_VERSION = 46; // v46: DAM Gesichtserkennung (DamPerson, AssetFace, AssetPerson)
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -56,7 +56,17 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   Campaign: ["impressionLimit"],
   CarouselPost: ["format"],
   UploadBatch: ["credit"],
-  Asset: ["r2Key", "status", "deletedAt", "deletedBy", "notes", "mediagraphId", "importSource"],
+  Asset: [
+    "r2Key",
+    "status",
+    "deletedAt",
+    "deletedBy",
+    "notes",
+    "mediagraphId",
+    "importSource",
+    "faceStatus",
+    "faceScannedAt",
+  ],
   Collection: ["isPersonal", "mediagraphId"],
   DamArchiveReview: ["reviewedUntil", "completedAt", "remainingCount"],
   ShiftQuota: ["minCount", "maxCount", "isFixed", "newsletterTypeId"],
@@ -102,6 +112,9 @@ const REQUIRED_MODELS = [
   "AssetCollection",
   "ExportLog",
   "DamArchiveReview",
+  "DamPerson",
+  "AssetFace",
+  "AssetPerson",
   "TaskInboxPin",
   "FeedbackResponse",
 ] as const;

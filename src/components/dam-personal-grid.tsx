@@ -638,6 +638,11 @@ export function DamPersonalGrid({
           onClose={() => setDetailIndex(null)}
           onRate={applyRating}
           onPatch={patchAsset}
+          onKeywordsSynced={(assetId, keywords) =>
+            setAssets((prev) =>
+              prev.map((a) => (a.id === assetId ? { ...a, keywords } : a)),
+            )
+          }
           onEdit={() => setEditorId(visible[detailIndex].id)}
           onSetCollections={setAssetCollections}
           onCreateCollection={createCollection}

@@ -60,6 +60,7 @@ model User {
   collections           Collection[]
   exportLogs            ExportLog[]
   damArchiveReviews     DamArchiveReview[]
+  damPersons            DamPerson[]
   taskInboxPins         TaskInboxPin[]
   createdCalendarEvents EditorialCalendarEvent[] @relation("EditorialCalendarEventCreator")
 
@@ -1143,6 +1144,34 @@ enum AssetStatus {
   @@schema("public")
 }
 
+/// Gesichtsscan pro Asset; dient zugleich als dauerhafte Job-Queue für den Scheduler.
+enum FaceScanStatus {
+  pending
+  processing
+  done
+  failed
+  skipped
+
+  @@schema("public")
+}
+
+enum FaceMatchStatus {
+  unassigned
+  suggested
+  confirmed
+  rejected
+  ignored
+
+  @@schema("public")
+}
+
+enum AssetPersonSource {
+  face
+  manual
+
+  @@schema("public")
+}
+
 enum RightsType {
   own
   provided
@@ -1165,40 +1194,45 @@ model UploadBatch {
 }
 
 model Asset {
-  id           String      @id @default(cuid())
-  batchId      String
-  batch        UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  sequence     Int
-  fileName     String
-  r2Key        String      @unique
-  status       AssetStatus @default(staging)
-  rating       Int?
-  credit       String
-  rightsType   RightsType
-  altText      String?
-  keywords     String[]    @default([])
-  notes        String?
-  mediagraphId String?     @unique
-  importSource String?
-  exif         Json?
-  takenAt      DateTime?
-  width        Int?
-  height       Int?
-  editParams   Json?
-  uploadedBy   String
-  uploader     User        @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
-  publishedAt  DateTime?
-  deletedAt    DateTime?
-  deletedBy    String?
-  deleter      User?       @relation("AssetDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String         @id @default(cuid())
+  batchId       String
+  batch         UploadBatch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sequence      Int
+  fileName      String
+  r2Key         String         @unique
+  status        AssetStatus    @default(staging)
+  rating        Int?
+  credit        String
+  rightsType    RightsType
+  altText       String?
+  keywords      String[]       @default([])
+  notes         String?
+  mediagraphId  String?        @unique
+  importSource  String?
+  exif          Json?
+  takenAt       DateTime?
+  width         Int?
+  height        Int?
+  editParams    Json?
+  faceStatus    FaceScanStatus @default(pending)
+  faceScannedAt DateTime?
+  uploadedBy    String
+  uploader      User           @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  publishedAt   DateTime?
+  deletedAt     DateTime?
+  deletedBy     String?
+  deleter       User?          @relation("AssetDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   collections AssetCollection[]
   exports     ExportLog[]
+  faces       AssetFace[]
+  persons     AssetPerson[]
 
   @@unique([batchId, sequence])
   @@index([status])
+  @@index([faceStatus])
   @@index([uploadedBy])
   @@index([deletedAt])
   @@index([status, deletedAt])
@@ -1218,6 +1252,66 @@ model Collection {
 
   @@index([createdBy])
   @@map("collection")
+  @@schema("public")
+}
+
+/// Benannte Person für die Gesichtserkennung (= Rekognition User Vector).
+model DamPerson {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  rekognitionUserId String   @unique
+  createdBy         String
+  creator           User     @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  faces  AssetFace[]
+  assets AssetPerson[]
+
+  @@map("dam_person")
+  @@schema("public")
+}
+
+model AssetFace {
+  id                String          @id @default(cuid())
+  assetId           String
+  asset             Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  rekognitionFaceId String?         @unique
+  /// { left, top, width, height } normalisiert 0–1, bezogen auf den gedrehten Master (nicht editParams)
+  box               Json
+  confidence        Float
+  sharpness         Float?
+  status            FaceMatchStatus @default(unassigned)
+  personId          String?
+  person            DamPerson?      @relation(fields: [personId], references: [id], onDelete: SetNull)
+  similarity        Float?
+  /// userId bei manueller Zuweisung, null = Auto-Match
+  assignedBy        String?
+  /// Gesicht ist Referenz im Rekognition-User der Person (nur manuell bestätigte)
+  associated        Boolean         @default(false)
+  rejectedPersonIds String[]        @default([])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([assetId])
+  @@index([personId, status])
+  @@index([status])
+  @@map("asset_face")
+  @@schema("public")
+}
+
+/// Feld «Personen» am Asset; Namen werden zusätzlich als Keywords gespiegelt.
+model AssetPerson {
+  assetId   String
+  asset     Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  personId  String
+  person    DamPerson         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  source    AssetPersonSource
+  createdAt DateTime          @default(now())
+
+  @@id([assetId, personId])
+  @@index([personId])
+  @@map("asset_person")
   @@schema("public")
 }
 

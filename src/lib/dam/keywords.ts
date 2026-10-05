@@ -72,3 +72,23 @@ export function applyKeywordChanges(
   const drop = new Set(uniqueKeywords(remove).map((keyword) => keyword.toLowerCase()));
   return merged.filter((keyword) => !drop.has(keyword.toLowerCase()));
 }
+
+/**
+ * Person names from the «Personen» field always lead the keyword list, so the
+ * 24-keyword cap never silently drops them. Names of persons that were removed
+ * from the asset are dropped unless they are still linked.
+ */
+export function withPersonKeywords(
+  existing: string[],
+  personNames: string[],
+  removedNames: string[] = [],
+): string[] {
+  const keep = new Set(personNames.map((name) => name.trim().toLowerCase()));
+  const drop = new Set(
+    removedNames
+      .map((name) => name.trim().toLowerCase())
+      .filter((name) => name && !keep.has(name)),
+  );
+  const rest = existing.filter((keyword) => !drop.has(keyword.trim().toLowerCase()));
+  return uniqueKeywords([...personNames, ...rest]);
+}

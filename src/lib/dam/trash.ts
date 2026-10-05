@@ -1,4 +1,5 @@
 import { canDeleteAsset } from "@/lib/dam/can-delete";
+import { deleteAssetFaceData } from "@/lib/dam/face-scan";
 import { r2KeysForAsset } from "@/lib/dam/r2-keys";
 import {
   incompleteBatchCutoffDate,
@@ -95,6 +96,12 @@ export async function purgeAssetById(
     return { error: "Bild nicht gefunden." };
   }
   try {
+    await deleteAssetFaceData([asset.id]);
+  } catch (error) {
+    console.error("[dam] purge face data failed", asset.id, error);
+    return { error: "Gesichtsdaten konnten nicht gelöscht werden." };
+  }
+  try {
     await deleteR2Keys(asset.r2Key);
   } catch (error) {
     console.error("[dam] purge r2 failed", asset.id, error);
@@ -136,6 +143,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
 
   for (const asset of archived) {
     try {
+      await deleteAssetFaceData([asset.id]);
       await deleteR2Keys(asset.r2Key);
       await prisma.asset.delete({ where: { id: asset.id } });
       archivedCount += 1;
@@ -146,6 +154,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
   }
   for (const asset of rejected) {
     try {
+      await deleteAssetFaceData([asset.id]);
       await deleteR2Keys(asset.r2Key);
       await prisma.asset.delete({ where: { id: asset.id } });
       rejectedCount += 1;

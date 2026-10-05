@@ -13,9 +13,16 @@ import {
   toDatetimeLocal,
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
+import {
+  DamFaceOverlay,
+  DamFaceToggle,
+  DamPersonsField,
+  useDamFaces,
+} from "@/components/dam-faces";
 import { DamRatingStars } from "@/components/dam-rating-stars";
-import { damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
+import { damEditorSrc, damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
 import { fileExtension } from "@/lib/dam/filename";
+import { withPersonKeywords } from "@/lib/dam/keywords";
 import { DAM_RIGHTS_OPTIONS, damWepublishExportedHint } from "@/lib/dam/types";
 import type { AssetMetadataPatch, PersonalAssetCard } from "@/lib/dam/types";
 
@@ -41,6 +48,7 @@ export function DamAssetDetail({
   onSetCollections,
   onCreateCollection,
   keyboardEnabled = true,
+  onKeywordsSynced,
 }: {
   assets: PersonalAssetCard[];
   index: number;
@@ -55,8 +63,14 @@ export function DamAssetDetail({
     name: string,
   ) => Promise<{ value: string; label: string } | null>;
   keyboardEnabled?: boolean;
+  /** Keywords changed server-side (person sync) — update local state only. */
+  onKeywordsSynced?: (assetId: string, keywords: string[]) => void;
 }) {
   const asset = assets[index];
+  const faces = useDamFaces(asset?.id, (assetId, keywords) =>
+    onKeywordsSynced?.(assetId, keywords),
+  );
+  const personNames = faces.data?.persons.map((person) => person.name) ?? [];
   const count = assets.length;
   const [editing, setEditing] = useState<FieldKey | null>(null);
   const [draft, setDraft] = useState("");
@@ -103,7 +117,7 @@ export function DamAssetDetail({
     } else if (field === "altText") {
       patch = { altText: value || null };
     } else if (field === "keywords") {
-      patch = { keywords: parseKeywords(draft) };
+      patch = { keywords: withPersonKeywords(parseKeywords(draft), personNames) };
     } else if (field === "notes") {
       patch = { notes: value || null };
     } else if (field === "takenAt") {
@@ -184,12 +198,19 @@ export function DamAssetDetail({
       >
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={damFileSrc(asset.id, "web", asset.editParams)}
-              alt={asset.altText || asset.fileName}
-              className="max-h-[70vh] max-w-full object-contain"
-            />
+            <div className="relative max-h-full max-w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={
+                  faces.showFaces
+                    ? damEditorSrc(asset.id)
+                    : damFileSrc(asset.id, "web", asset.editParams)
+                }
+                alt={asset.altText || asset.fileName}
+                className="block max-h-[70vh] max-w-full object-contain"
+              />
+              <DamFaceOverlay faces={faces} />
+            </div>
             {count > 1 ? (
               <>
                 <button
@@ -213,12 +234,17 @@ export function DamAssetDetail({
           </div>
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
             <p className="text-sm text-white/70">
-              {index + 1} / {count}
+              {faces.showFaces && !isDefaultEditParams(asset.editParams)
+                ? "Original ohne Bearbeitung"
+                : `${index + 1} / ${count}`}
             </p>
-            <button type="button" className="btn btn-highlight" onClick={onEdit}>
-              <Pencil className="size-4" aria-hidden />
-              Bild bearbeiten
-            </button>
+            <div className="flex items-center gap-2">
+              <DamFaceToggle faces={faces} />
+              <button type="button" className="btn btn-highlight" onClick={onEdit}>
+                <Pencil className="size-4" aria-hidden />
+                Bild bearbeiten
+              </button>
+            </div>
           </div>
         </div>
 
@@ -352,11 +378,19 @@ export function DamAssetDetail({
               displayNode={
                 <DamKeywordPills
                   keywords={asset.keywords}
-                  onRemove={(keyword) =>
+                  onRemove={(keyword) => {
+                    // A person keyword belongs to the «Personen» field.
+                    const person = faces.data?.persons.find(
+                      (item) => item.name.toLowerCase() === keyword.toLowerCase(),
+                    );
+                    if (person) {
+                      faces.actions.removePerson(person.id);
+                      return;
+                    }
                     onPatch(asset.id, {
                       keywords: asset.keywords.filter((item) => item !== keyword),
-                    })
-                  }
+                    });
+                  }}
                 />
               }
               field="keywords"
@@ -375,6 +409,8 @@ export function DamAssetDetail({
                 />
               </DamEditControl>
             </DamMetaRow>
+
+            <DamPersonsField assetId={asset.id} faces={faces} />
 
             <DamMetaRow
               label="Credit"

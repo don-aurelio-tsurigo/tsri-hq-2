@@ -8,6 +8,7 @@ export async function register() {
     );
     const { startRagSyncScheduler } = await import("./lib/rag/sync-scheduler");
     const { startDamPurgeScheduler } = await import("./lib/dam/purge-scheduler");
+    const { startDamFaceScheduler } = await import("./lib/dam/face-scheduler");
     const { startCarouselPurgeScheduler } = await import(
       "./lib/carousel/purge-scheduler"
     );
@@ -15,6 +16,7 @@ export async function register() {
     startSlackCookingScheduler();
     startRagSyncScheduler();
     startDamPurgeScheduler();
+    startDamFaceScheduler();
     startCarouselPurgeScheduler();
   }
 }

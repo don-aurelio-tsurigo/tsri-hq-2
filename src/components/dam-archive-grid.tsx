@@ -511,6 +511,12 @@ export function DamArchiveGrid({
             setExportedAt((prev) => ({ ...prev, [assetId]: at }))
           }
           onPatch={patchAsset}
+          onKeywordsSynced={(assetId, keywords) =>
+            setOverrides((prev) => ({
+              ...prev,
+              [assetId]: { ...prev[assetId], keywords },
+            }))
+          }
           onRate={applyRating}
           onSetCollections={setAssetCollections}
           onCreateCollection={createCollection}

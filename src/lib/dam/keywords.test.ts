@@ -6,6 +6,7 @@ import {
   fillSeriesKeywordGaps,
   sanitizeAiKeywords,
   uniqueKeywords,
+  withPersonKeywords,
 } from "./keywords.ts";
 
 describe("uniqueKeywords", () => {
@@ -70,5 +71,33 @@ describe("fillSeriesKeywordGaps", () => {
       { r2Key: "c", sequence: 3, keywords: ["demo", "zürich"] },
       { r2Key: "d", sequence: 4, keywords: ["podcast"] },
     ]);
+  });
+});
+
+describe("withPersonKeywords", () => {
+  it("puts person names first so the cap never drops them", () => {
+    const full = Array.from({ length: 24 }, (_, i) => `k${i}`);
+    const next = withPersonKeywords(full, ["Anna Muster"]);
+    assert.equal(next.length, 24);
+    assert.equal(next[0], "Anna Muster");
+    assert.equal(next.includes("k23"), false);
+  });
+
+  it("moves an existing person keyword to the front without duplicating it", () => {
+    assert.deepEqual(withPersonKeywords(["velo", "anna muster"], ["Anna Muster"]), [
+      "Anna Muster",
+      "velo",
+    ]);
+  });
+
+  it("removes names of persons no longer linked", () => {
+    assert.deepEqual(withPersonKeywords(["Anna Muster", "velo"], [], ["Anna Muster"]), ["velo"]);
+  });
+
+  it("keeps a removed name that is still linked", () => {
+    assert.deepEqual(
+      withPersonKeywords(["Anna Muster", "velo"], ["Anna Muster"], ["anna muster"]),
+      ["Anna Muster", "velo"],
+    );
   });
 });

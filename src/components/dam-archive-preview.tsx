@@ -14,14 +14,21 @@ import {
   toDatetimeLocal,
   type DamMetaFieldKey,
 } from "@/components/dam-meta-edit";
+import {
+  DamFaceOverlay,
+  DamFaceToggle,
+  DamPersonsField,
+  useDamFaces,
+} from "@/components/dam-faces";
 import { DamMailchimpCropDialog } from "@/components/dam-mailchimp-crop-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import type { DamDownloadFormat } from "@/lib/dam/download-path";
-import { damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
+import { damEditorSrc, damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
 import { fileExtension } from "@/lib/dam/filename";
+import { withPersonKeywords } from "@/lib/dam/keywords";
 import {
   DAM_RIGHTS_OPTIONS,
   damRightsLabel,
@@ -56,6 +63,7 @@ export function DamArchivePreview({
   collectionsRemote = false,
   keyboardEnabled = true,
   onEdit,
+  onKeywordsSynced,
 }: {
   assets: ArchiveAssetCard[];
   index: number;
@@ -73,8 +81,14 @@ export function DamArchivePreview({
   collectionsRemote?: boolean;
   keyboardEnabled?: boolean;
   onEdit: () => void;
+  /** Keywords changed server-side (person sync) — update local state only. */
+  onKeywordsSynced?: (assetId: string, keywords: string[]) => void;
 }) {
   const asset = assets[index];
+  const faces = useDamFaces(asset?.id, (assetId, keywords) =>
+    onKeywordsSynced?.(assetId, keywords),
+  );
+  const personNames = faces.data?.persons.map((person) => person.name) ?? [];
   const count = assets.length;
   const { showToast } = useToast();
   const skipBlur = useRef(false);
@@ -136,7 +150,7 @@ export function DamArchivePreview({
     } else if (field === "altText") {
       patch = { altText: value || null };
     } else if (field === "keywords") {
-      patch = { keywords: parseKeywords(draft) };
+      patch = { keywords: withPersonKeywords(parseKeywords(draft), personNames) };
     } else if (field === "notes") {
       patch = { notes: value || null };
     } else if (field === "takenAt") {
@@ -288,12 +302,19 @@ export function DamArchivePreview({
       >
         <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
           <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={damFileSrc(asset.id, "web", asset.editParams)}
-              alt={asset.altText || asset.fileName}
-              className="max-h-[70vh] max-w-full object-contain"
-            />
+            <div className="relative max-h-full max-w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={
+                  faces.showFaces
+                    ? damEditorSrc(asset.id)
+                    : damFileSrc(asset.id, "web", asset.editParams)
+                }
+                alt={asset.altText || asset.fileName}
+                className="block max-h-[70vh] max-w-full object-contain"
+              />
+              <DamFaceOverlay faces={faces} />
+            </div>
             {count > 1 ? (
               <>
                 <button
@@ -317,12 +338,19 @@ export function DamArchivePreview({
           </div>
           <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
             <p className="text-sm text-white/70">
-              {count > 1 ? `${index + 1} / ${count}` : "\u00a0"}
+              {faces.showFaces && !isDefaultEditParams(asset.editParams)
+                ? "Original ohne Bearbeitung"
+                : count > 1
+                  ? `${index + 1} / ${count}`
+                  : "\u00a0"}
             </p>
-            <button type="button" className="btn btn-highlight" onClick={onEdit}>
-              <Pencil className="size-4" aria-hidden />
-              Bild bearbeiten
-            </button>
+            <div className="flex items-center gap-2">
+              <DamFaceToggle faces={faces} />
+              <button type="button" className="btn btn-highlight" onClick={onEdit}>
+                <Pencil className="size-4" aria-hidden />
+                Bild bearbeiten
+              </button>
+            </div>
           </div>
         </div>
 
@@ -593,11 +621,19 @@ export function DamArchivePreview({
               displayNode={
                 <DamKeywordPills
                   keywords={asset.keywords}
-                  onRemove={(keyword) =>
+                  onRemove={(keyword) => {
+                    // A person keyword belongs to the «Personen» field.
+                    const person = faces.data?.persons.find(
+                      (item) => item.name.toLowerCase() === keyword.toLowerCase(),
+                    );
+                    if (person) {
+                      faces.actions.removePerson(person.id);
+                      return;
+                    }
                     onPatch(asset.id, {
                       keywords: asset.keywords.filter((item) => item !== keyword),
-                    })
-                  }
+                    });
+                  }}
                 />
               }
               field="keywords"
@@ -616,6 +652,8 @@ export function DamArchivePreview({
                 />
               </DamEditControl>
             </DamMetaRow>
+
+            <DamPersonsField assetId={asset.id} faces={faces} />
 
             <DamMetaRow
               label="Credit"
