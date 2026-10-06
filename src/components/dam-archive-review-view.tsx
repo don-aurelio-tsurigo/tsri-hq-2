@@ -168,9 +168,16 @@ export function DamArchiveReviewView({
               : pageCount > 1
                 ? `${rangeFrom}–${rangeTo} von ${total} Bildern.`
                 : `${total} ${total === 1 ? "Bild" : "Bilder"}.`}{" "}
-        {view === "photos"
-          ? "Checkbox oder Shift-Klick wählt, Doppelklick oder Enter öffnet die Vorschau."
-          : "Collection öffnen zeigt die zugehörigen ungesichteten Bilder."}
+        {view === "photos" ? (
+          <>
+            <span className="hidden pointer-fine:inline">
+              Checkbox oder Shift-Klick wählt, Doppelklick oder Enter öffnet die Vorschau.
+            </span>
+            <span className="pointer-fine:hidden">Antippen öffnet die Vorschau.</span>
+          </>
+        ) : (
+          "Collection öffnen zeigt die zugehörigen ungesichteten Bilder."
+        )}
       </p>
 
       {view === "collections" ? (

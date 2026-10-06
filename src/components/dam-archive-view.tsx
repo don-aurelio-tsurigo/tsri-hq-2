@@ -553,8 +553,12 @@ export function DamArchiveView({
                       total === 1 ? "Bild" : "Bildern"
                     }`
                   : `${total} ${total === 1 ? "Bild" : "Bilder"}`}
-                {filtered ? " gefunden" : ""}. Checkbox oder Shift-Klick wählt,
-                Doppelklick oder Enter öffnet die Vorschau.
+                {filtered ? " gefunden" : ""}.{" "}
+                <span className="hidden pointer-fine:inline">
+                  Checkbox oder Shift-Klick wählt, Doppelklick oder Enter öffnet die
+                  Vorschau.
+                </span>
+                <span className="pointer-fine:hidden">Antippen öffnet die Vorschau.</span>
               </>
             )}
           </p>

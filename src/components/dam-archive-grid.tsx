@@ -22,6 +22,7 @@ import type { ArchiveFacets } from "@/lib/dam/archive-search";
 import { downloadPublishedAssets } from "@/lib/dam/browser-download";
 import { damEditorSrc, damFileSrc } from "@/lib/dam/edit-params";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
+import { useFinePointer } from "@/lib/use-media-query";
 import {
   damRightsLabel,
   damWepublishExportedHint,
@@ -43,6 +44,8 @@ export function DamArchiveGrid({
   const openIndex = openId ? assets.findIndex((asset) => asset.id === openId) : -1;
   const { showToast } = useToast();
   const [pending, startTransition] = useTransition();
+  // Touch: one tap opens the preview (no double-click / shift-click on phones).
+  const finePointer = useFinePointer();
   const [focused, setFocused] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -351,7 +354,10 @@ export function DamArchiveGrid({
                 ].join(" ")}
                 tabIndex={0}
                 onClick={(e) => {
-                  if (e.shiftKey) selectRange(index);
+                  if (!finePointer) {
+                    setFocused(index);
+                    setPreviewIndex(index);
+                  } else if (e.shiftKey) selectRange(index);
                   else {
                     setFocused(index);
                     setAnchor(index);
@@ -438,11 +444,14 @@ export function DamArchiveGrid({
 
       {selected.size > 0 && !overlayOpen ? (
         <div className="fixed inset-x-3 bottom-3 z-30 md:left-[calc(16rem+1.25rem)] md:right-6">
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2 rounded-full border-2 border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-[var(--shadow)]">
-            <p className="px-2 text-sm font-semibold">{selected.size} gewählt</p>
+          {/* Phones: icon-only buttons in one row; labels from `sm` up. */}
+          <div className="mx-auto flex max-w-4xl items-center gap-1 rounded-full border-2 border-[var(--border)] bg-[var(--bg-elevated)] px-2 py-2 shadow-[var(--shadow)] sm:flex-wrap sm:gap-2 sm:px-3">
+            <p className="shrink-0 px-2 text-sm font-semibold">{selected.size} gewählt</p>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost max-sm:px-2.5!"
+              aria-label="Metadaten"
+              title="Metadaten"
               disabled={busy}
               onClick={() => {
                 setError(null);
@@ -450,45 +459,55 @@ export function DamArchiveGrid({
               }}
             >
               <Pencil className="size-4" aria-hidden />
-              Metadaten
+              <span className="max-sm:hidden">Metadaten</span>
             </button>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost max-sm:px-2.5!"
+              aria-label="Herunterladen"
+              title="Herunterladen"
               disabled={busy || overLimit}
               onClick={() => void downloadSelected()}
             >
               <Download className="size-4" aria-hidden />
-              {downloading
-                ? progress
-                  ? `Lädt ${progress}…`
-                  : "Wird vorbereitet…"
-                : "Herunterladen"}
+              <span className="max-sm:hidden">
+                {downloading
+                  ? progress
+                    ? `Lädt ${progress}…`
+                    : "Wird vorbereitet…"
+                  : "Herunterladen"}
+              </span>
             </button>
             <button
               type="button"
-              className="btn btn-ghost"
+              className="btn btn-ghost max-sm:px-2.5!"
+              aria-label="In den Papierkorb"
+              title="In den Papierkorb"
               disabled={busy}
               onClick={() => confirmTrash([...selected])}
             >
               <Trash2 className="size-4" aria-hidden />
-              In den Papierkorb
+              <span className="max-sm:hidden">In den Papierkorb</span>
             </button>
             <button
               type="button"
-              className="btn btn-highlight"
+              className="btn btn-highlight max-sm:px-2.5!"
+              aria-label="Zu WePublish schicken"
+              title="Zu WePublish schicken"
               disabled={busy}
               onClick={() => void sendSelectedToWepublish()}
             >
               <Send className="size-4" aria-hidden />
-              {exporting
-                ? progress
-                  ? `Sendet ${progress}…`
-                  : "Sendet…"
-                : "Zu WePublish schicken"}
+              <span className="max-sm:hidden">
+                {exporting
+                  ? progress
+                    ? `Sendet ${progress}…`
+                    : "Sendet…"
+                  : "Zu WePublish schicken"}
+              </span>
             </button>
             {overLimit ? (
-              <p className="text-xs text-[var(--muted)]">
+              <p className="text-xs text-[var(--muted)] max-sm:hidden">
                 Maximal {MAX_ARCHIVE_DOWNLOADS} Bilder pro Download.
               </p>
             ) : null}

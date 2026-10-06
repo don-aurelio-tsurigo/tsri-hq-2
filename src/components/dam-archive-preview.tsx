@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronLeft, ChevronRight, Download, Pencil, Send, Trash2, X } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
@@ -92,6 +98,7 @@ export function DamArchivePreview({
   const count = assets.length;
   const { showToast } = useToast();
   const skipBlur = useRef(false);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const [editing, setEditing] = useState<DamMetaFieldKey | null>(null);
   const [draft, setDraft] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -288,20 +295,40 @@ export function DamArchivePreview({
 
   if (!asset) return null;
 
+  function onSwipeStart(e: ReactTouchEvent) {
+    const touch = e.touches[0];
+    swipeStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  function onSwipeEnd(e: ReactTouchEvent) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    const touch = e.changedTouches[0];
+    if (!start || !touch || count < 2) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    onIndexChange(dx < 0 ? (index + 1) % count : (index - 1 + count) % count);
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex bg-black/55 p-3 sm:p-5"
+      className="fixed inset-0 z-50 flex bg-black/55 p-2 sm:p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="dam-archive-preview-title"
       onClick={onClose}
     >
       <div
-        className="card mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden lg:flex-row"
+        className="card mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative flex min-h-[50vh] flex-1 flex-col bg-[#111]">
-          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-4">
+        <div className="relative flex shrink-0 flex-col bg-[#111] lg:min-h-[50vh] lg:flex-1 lg:shrink">
+          <div
+            className="relative flex min-h-[40vh] items-center justify-center overflow-hidden p-2 sm:p-4 lg:min-h-0 lg:flex-1"
+            onTouchStart={onSwipeStart}
+            onTouchEnd={onSwipeEnd}
+          >
             <div className="relative max-h-full max-w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -311,7 +338,7 @@ export function DamArchivePreview({
                     : damFileSrc(asset.id, "web", asset.editParams)
                 }
                 alt={asset.altText || asset.fileName}
-                className="block max-h-[70vh] max-w-full object-contain"
+                className="block max-h-[55vh] max-w-full object-contain lg:max-h-[70vh]"
               />
               <DamFaceOverlay faces={faces} />
             </div>
@@ -346,15 +373,19 @@ export function DamArchivePreview({
             </p>
             <div className="flex items-center gap-2">
               <DamFaceToggle faces={faces} />
-              <button type="button" className="btn btn-highlight" onClick={onEdit}>
-                <Pencil className="size-4" aria-hidden />
-                Bild bearbeiten
-              </button>
+              {/* Editing is desktop-only; the editor needs a mouse. Wrapper because
+                  the unlayered .btn display beats Tailwind's hidden utility. */}
+              <span className="pointer-coarse:hidden">
+                <button type="button" className="btn btn-highlight" onClick={onEdit}>
+                  <Pencil className="size-4" aria-hidden />
+                  Bild bearbeiten
+                </button>
+              </span>
             </div>
           </div>
         </div>
 
-        <aside className="flex w-full shrink-0 flex-col overflow-hidden border-t border-[var(--border)] lg:w-[22rem] lg:border-t-0 lg:border-l">
+        <aside className="flex w-full shrink-0 flex-col border-t border-[var(--border)] lg:w-[22rem] lg:overflow-hidden lg:border-t-0 lg:border-l">
           <div className="flex items-start justify-between gap-3 p-4">
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
@@ -405,7 +436,7 @@ export function DamArchivePreview({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5">
+          <div className="space-y-4 px-4 pb-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             <DamRatingStars
               rating={asset.rating}
               onRate={(n) => onRate(asset.id, n)}
@@ -742,9 +773,12 @@ export function DamArchivePreview({
               </div>
             ) : null}
 
-            <p className="text-xs text-[var(--muted)]">
+            <p className="hidden text-xs text-[var(--muted)] pointer-fine:block">
               Stift zum Bearbeiten, Enter speichert, Esc bricht ab. ← → blättern,
               0–5 bewerten, E Bildeditor.
+            </p>
+            <p className="text-xs text-[var(--muted)] pointer-fine:hidden">
+              Wischen oder Pfeile zum Blättern.
             </p>
           </div>
 
