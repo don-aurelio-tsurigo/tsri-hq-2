@@ -17,6 +17,7 @@ import { isProjectEvent } from "@/lib/project-meta";
 import {
   listArchivedProjects,
   listProjectTemplates,
+  listNavPinnedProjectIds,
   listProjects,
 } from "@/lib/projects";
 import { listOpenProjectTasks } from "@/lib/tasks";
@@ -30,7 +31,7 @@ export default async function ProjectsPage({
   const { kind: kindParam } = await searchParams;
   const kind = parseProjectKindFilter(kindParam);
   const { session, membership } = await requireMembership();
-  const [projects, archived, templates, openProjectTasks, members] =
+  const [projects, archived, templates, openProjectTasks, members, pinnedIds] =
     await Promise.all([
       listProjects(membership.organizationId),
       listArchivedProjects(membership.organizationId),
@@ -44,6 +45,7 @@ export default async function ProjectsPage({
         include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { user: { name: "asc" } },
       }),
+      listNavPinnedProjectIds(session.user.id),
     ]);
 
   const openCounts = await Promise.all(
@@ -158,7 +160,10 @@ export default async function ProjectsPage({
                   {events.map((project) => (
                     <ProjectListItem
                       key={project.id}
-                      project={project}
+                      project={{
+                        ...project,
+                        navPinned: pinnedIds.has(project.id),
+                      }}
                       openCount={openById[project.id] ?? 0}
                     />
                   ))}
@@ -174,7 +179,10 @@ export default async function ProjectsPage({
                   {vorhaben.map((project) => (
                     <ProjectListItem
                       key={project.id}
-                      project={project}
+                      project={{
+                        ...project,
+                        navPinned: pinnedIds.has(project.id),
+                      }}
                       openCount={openById[project.id] ?? 0}
                     />
                   ))}
@@ -187,7 +195,7 @@ export default async function ProjectsPage({
             {visible.map((project) => (
               <ProjectListItem
                 key={project.id}
-                project={project}
+                project={{ ...project, navPinned: pinnedIds.has(project.id) }}
                 openCount={openById[project.id] ?? 0}
               />
             ))}

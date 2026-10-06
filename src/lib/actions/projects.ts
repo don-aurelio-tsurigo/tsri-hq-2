@@ -149,8 +149,9 @@ export async function archiveProject(formData: FormData) {
 
   await prisma.space.update({
     where: { id: project.id },
-    data: { archivedAt: new Date(), navPinned: false },
+    data: { archivedAt: new Date() },
   });
+  await prisma.projectNavPin.deleteMany({ where: { spaceId: project.id } });
   await prisma.taskInboxPin.deleteMany({
     where: {
       kind: { in: ["project"] },
@@ -205,32 +206,39 @@ export async function toggleProjectNavPin(formData: FormData) {
     },
     include: { access: true },
   });
-  if (!project || !canEditSpace(session.user, project, membership)) {
+  if (!project || !canViewSpace(session.user, project, membership)) {
     return { error: "Kein Zugriff." };
   }
   if (project.archivedAt) {
     return { error: "Archivierte Projekte können nicht angepinnt werden." };
   }
 
-  if (!project.navPinned) {
-    const pinnedCount = await prisma.space.count({
+  const userId = session.user.id;
+  const existing = await prisma.projectNavPin.findUnique({
+    where: { userId_spaceId: { userId, spaceId: project.id } },
+  });
+
+  if (existing) {
+    await prisma.projectNavPin.delete({ where: { id: existing.id } });
+  } else {
+    const pinnedCount = await prisma.projectNavPin.count({
       where: {
-        organizationId: membership.organizationId,
-        type: "project",
-        isTemplate: false,
-        archivedAt: null,
-        navPinned: true,
+        userId,
+        space: {
+          organizationId: membership.organizationId,
+          type: "project",
+          isTemplate: false,
+          archivedAt: null,
+        },
       },
     });
     if (pinnedCount >= MAX_NAV_PINS) {
       return { error: "Maximal 8 Pins. Bitte ein anderes Projekt lösen." };
     }
+    await prisma.projectNavPin.create({
+      data: { userId, spaceId: project.id },
+    });
   }
-
-  await prisma.space.update({
-    where: { id: project.id },
-    data: { navPinned: !project.navPinned },
-  });
 
   revalidateProjectNav(project.id);
   return { ok: true as const };

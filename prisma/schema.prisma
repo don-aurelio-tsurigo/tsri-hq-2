@@ -62,6 +62,7 @@ model User {
   damArchiveReviews     DamArchiveReview[]
   damPersons            DamPerson[]
   taskInboxPins         TaskInboxPin[]
+  projectNavPins        ProjectNavPin[]
   createdCalendarEvents EditorialCalendarEvent[] @relation("EditorialCalendarEventCreator")
 
   @@map("user")
@@ -314,8 +315,6 @@ model Space {
   eventAt        DateTime?       @db.Date
   /// Ort / Venue (projects only)
   venue          String?
-  /// Pin this project in the app sidebar
-  navPinned      Boolean         @default(false)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -328,13 +327,13 @@ model Space {
   taskGroups   TaskGroup[]
   cookingSlots CookingSlot[]
   wikiPages    WikiPage[]
+  navPins      ProjectNavPin[]
 
   @@unique([organizationId, slug])
   @@index([ownerUserId])
   @@index([organizationId, type])
   @@index([organizationId, type, archivedAt])
   @@index([organizationId, type, isTemplate])
-  @@index([organizationId, type, navPinned])
   @@map("space")
   @@schema("public")
 }
@@ -518,6 +517,22 @@ enum TaskInboxPinKind {
   list
   project
 
+  @@schema("public")
+}
+
+/// Per-user sidebar pins for projects
+model ProjectNavPin {
+  id        String   @id @default(cuid())
+  userId    String
+  spaceId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, spaceId])
+  @@index([spaceId])
+  @@map("project_nav_pin")
   @@schema("public")
 }
 

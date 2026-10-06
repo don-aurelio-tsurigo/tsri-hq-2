@@ -66,20 +66,33 @@ export async function listProjects(organizationId: string) {
   });
 }
 
-/** Slim list of pinned projects for sidebar navigation */
-export async function listNavProjects(organizationId: string, limit = 8) {
+/** Slim list of the user's pinned projects for sidebar navigation */
+export async function listNavProjects(
+  userId: string,
+  organizationId: string,
+  limit = 8,
+) {
   return prisma.space.findMany({
     where: {
       organizationId,
       type: "project",
       isTemplate: false,
       archivedAt: null,
-      navPinned: true,
+      navPins: { some: { userId } },
     },
     select: { id: true, name: true },
     orderBy: [{ eventAt: "asc" }, { name: "asc" }],
     take: limit,
   });
+}
+
+/** IDs of projects the user has pinned in the sidebar */
+export async function listNavPinnedProjectIds(userId: string) {
+  const pins = await prisma.projectNavPin.findMany({
+    where: { userId },
+    select: { spaceId: true },
+  });
+  return new Set(pins.map((p) => p.spaceId));
 }
 
 export async function listArchivedProjects(organizationId: string) {

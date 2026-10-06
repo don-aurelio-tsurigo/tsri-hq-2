@@ -17,7 +17,7 @@ export default async function AppLayout({
   const [spaces, wikiPins, navProjects, navTaskPins] = await Promise.all([
     listVisibleSpaces(membership.organizationId, session.user.id),
     listPinnedWikiPages(membership.organizationId, 8).catch(() => []),
-    listNavProjects(membership.organizationId).catch(() => []),
+    listNavProjects(session.user.id, membership.organizationId).catch(() => []),
     listNavTaskPins(session.user.id, membership.organizationId).catch(() => []),
   ]);
 

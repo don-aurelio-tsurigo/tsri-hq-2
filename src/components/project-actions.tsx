@@ -30,8 +30,6 @@ export function ProjectActions({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  if (!canEdit) return null;
-
   function run(
     action: () => Promise<{ error?: string; ok?: true; id?: string }>,
     opts?: { redirectTo?: string; success?: string },
@@ -56,8 +54,7 @@ export function ProjectActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {!isTemplate && !archived && (
-        <>
-          <button
+        <button
             type="button"
             className="btn btn-ghost px-3 py-1.5 text-sm"
             disabled={pending}
@@ -71,6 +68,9 @@ export function ProjectActions({
           >
             {navPinned ? "Pin lösen" : "In Seitenleiste pinnen"}
           </button>
+      )}
+      {canEdit && !isTemplate && !archived && (
+        <>
           <button
             type="button"
             className="btn btn-ghost px-3 py-1.5 text-sm"
@@ -115,7 +115,7 @@ export function ProjectActions({
           </button>
         </>
       )}
-      {!isTemplate && archived && (
+      {canEdit && !isTemplate && archived && (
         <button
           type="button"
           className="btn btn-primary px-3 py-1.5 text-sm"
@@ -131,7 +131,7 @@ export function ProjectActions({
           Wiederherstellen
         </button>
       )}
-      {isTemplate && (
+      {canEdit && isTemplate && (
         <button
           type="button"
           className="btn btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"

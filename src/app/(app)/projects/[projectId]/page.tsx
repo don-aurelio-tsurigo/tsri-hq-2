@@ -40,7 +40,7 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [tasks, groups, members] = await Promise.all([
+  const [tasks, groups, members, navPin] = await Promise.all([
     listSpaceTasks(project.id),
     listTaskGroups(project.id),
     prisma.membership.findMany({
@@ -50,6 +50,12 @@ export default async function ProjectDetailPage({
       },
       include: { user: { select: { id: true, name: true, email: true } } },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.projectNavPin.findUnique({
+      where: {
+        userId_spaceId: { userId: session.user.id, spaceId: project.id },
+      },
+      select: { id: true },
     }),
   ]);
 
@@ -88,7 +94,7 @@ export default async function ProjectDetailPage({
               projectName={project.name}
               isTemplate={project.isTemplate}
               archived={archived}
-              navPinned={project.navPinned}
+              navPinned={!!navPin}
               canEdit={canEdit}
             />
           </div>
