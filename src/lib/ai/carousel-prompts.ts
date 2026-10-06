@@ -41,6 +41,7 @@ Text-Slides:
 
 Quote-Slides (falls verwendet):
 - quoteText ohne öffnendes « (steht bereits als Grafik im Template), wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben). Endet IMMER mit Schlusspunkt plus schliessendem Guillemet: .» (Frage/Ausruf: ?» bzw. !»). Das schliessende » nur einmal ganz am Ende, nicht verdoppeln.
+- ZITAT IM ZITAT: Kommt innerhalb des quoteText ein weiteres Zitat oder ein in Anführungszeichen gesetzter Begriff vor, setze dieses mit einfachen Guillemets ‹ › (z.B. Sie sagte: ‹Das reicht nicht.›). Niemals doppelte « » oder " " innerhalb des quoteText verwenden.
 - backgroundImageUrl: null (solid color), ausser ein Zitat bezieht sich auf ein konkretes mitgeliefertes Bildmotiv.
 
 Outro:
@@ -116,6 +117,7 @@ Quote-Slides:
 - quoteText max. 300 Zeichen pro Slide. Ist die gewählte Satzkombination länger, kürze durch Weglassen von Wörtern/Nebensätzen (nie durch Umschreiben der verbleibenden Wörter), bis sie passt.
 - ZEICHENZÄHLUNG — VERBINDLICH: Zähle die Zeichen jedes quoteText vor der finalen Ausgabe explizit durch (in deinen Denkschritten, nicht in der Ausgabe), statt die Länge zu schätzen. Ziel ist möglichst nah an 300 Zeichen heranzukommen (siehe ZITAT-DICHTE oben) — ein Zitat mit z.B. nur 90 Zeichen, obwohl der nächste Satz im Original nahtlos weitergeht und noch Platz hätte, ist ein Fehler, kein akzeptables Ergebnis.
 - quoteText ohne öffnendes « (steht bereits als Grafik im Template). Endet IMMER mit Schlusspunkt plus schliessendem Guillemet: .» (Frage/Ausruf: ?» bzw. !»). Das schliessende » nur einmal ganz am Ende, nicht verdoppeln.
+- ZITAT IM ZITAT: Kommt innerhalb des quoteText ein weiteres Zitat oder ein in Anführungszeichen gesetzter Begriff vor, setze dieses mit einfachen Guillemets ‹ › (z.B. Sie sagte: ‹Das reicht nicht.›). Niemals doppelte « » oder " " innerhalb des quoteText verwenden.
 - attribution: Name der Person + Institution/Organisation (nicht Funktionstitel), wortwörtlich aus dem Artikel. Falls der Artikel keine Institution nennt (z.B. bei freien Kolumnist:innen), verwende die kürzeste im Artikel genannte Rollenbezeichnung wortwörtlich (z.B. "Kolumnistin", "Kolumnist"). Ändere nie den Namen der Person.
 - backgroundImageUrl: null (solid color aus der Kategorie-Farbe), ausser ein Zitat bezieht sich auf ein konkretes im Artikel mitgeliefertes Bildmotiv.
 
@@ -193,6 +195,7 @@ Quote-Slides:
 - quoteText max. 300 Zeichen pro Slide. Ist die gewählte Satzkombination länger, kürze durch Weglassen von Wörtern/Nebensätzen (nie durch Umschreiben der verbleibenden Wörter), bis sie passt.
 - ZEICHENZÄHLUNG — VERBINDLICH: Zähle die Zeichen jedes quoteText vor der finalen Ausgabe explizit durch (in deinen Denkschritten, nicht in der Ausgabe), statt die Länge zu schätzen. Ziel ist möglichst nah an 300 Zeichen heranzukommen (siehe ZITAT-DICHTE oben) — ein Zitat mit z.B. nur 90 Zeichen, obwohl der nächste Satz im Original nahtlos weitergeht und noch Platz hätte, ist ein Fehler, kein akzeptables Ergebnis.
 - quoteText ohne öffnendes « (steht bereits als Grafik im Template). Endet IMMER mit Schlusspunkt plus schliessendem Guillemet: .» (Frage/Ausruf: ?» bzw. !»). Das schliessende » nur einmal ganz am Ende, nicht verdoppeln.
+- ZITAT IM ZITAT: Kommt innerhalb des quoteText ein weiteres Zitat oder ein in Anführungszeichen gesetzter Begriff vor, setze dieses mit einfachen Guillemets ‹ › (z.B. Sie sagte: ‹Das reicht nicht.›). Niemals doppelte « » oder " " innerhalb des quoteText verwenden.
 - attribution: immer der Textautor / die Textautorin — Name wortwörtlich aus der Autor:innen-Zeile des Artikels, plus Institution/Organisation wenn im Artikel genannt (nicht Funktionstitel). Falls keine Institution genannt ist, kürzeste im Artikel genannte Rollenbezeichnung verwenden (z.B. "Kommentatorin", "Kommentator"). Name nie verändern. Nicht die Namen zitierter Dritter verwenden.
 - backgroundImageUrl: null (solid color aus der Kategorie-Farbe), ausser ein Zitat bezieht sich auf ein konkretes im Artikel mitgeliefertes Bildmotiv.
 
@@ -266,6 +269,7 @@ Cover:
 Quote-Slides (Antworten der interviewten Person):
 - quoteText wortwörtlich aus den Antworten. Mehrere aufeinanderfolgende Sätze derselben Antwort kombinieren (siehe ZITAT-DICHTE).
 - quoteText ohne öffnendes « (steht bereits als Grafik im Template). Endet IMMER mit Schlusspunkt plus schliessendem Guillemet: .» (Frage/Ausruf: ?» bzw. !»). Das schliessende » nur einmal ganz am Ende, nicht verdoppeln.
+- ZITAT IM ZITAT: Kommt innerhalb des quoteText ein weiteres Zitat oder ein in Anführungszeichen gesetzter Begriff vor, setze dieses mit einfachen Guillemets ‹ › (z.B. Sie sagte: ‹Das reicht nicht.›). Niemals doppelte « » oder " " innerhalb des quoteText verwenden.
 - quoteText max. 300 Zeichen pro Slide. Ist die gewählte Satzkombination länger, kürze durch Weglassen ganzer Sätze oder Nebensätze am Rand (nie durch Umschreiben der verbleibenden Wörter), bis sie passt. Niemals mitten im Satz abschneiden.
 - ZEICHENZÄHLUNG — VERBINDLICH: Zähle die Zeichen jedes quoteText vor der finalen Ausgabe explizit durch (in deinen Denkschritten, nicht in der Ausgabe), statt die Länge zu schätzen. Ziel ist möglichst nah an 300 Zeichen heranzukommen — ein Zitat mit z.B. nur 90 Zeichen, obwohl die Antwort im Original nahtlos weitergeht und noch Platz hätte, ist ein Fehler, kein akzeptables Ergebnis.
 - attribution: Name der interviewten Person + Institution/Organisation, wortwörtlich aus dem Artikel (z.B. "Matthias von Hartz, Theater Spektakel"). NICHT die Journalist:in, die die Fragen stellt. Name nie verändern.
