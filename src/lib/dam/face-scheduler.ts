@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db";
 const INTERVAL_MS = 30 * 1000;
 const INITIAL_DELAY_MS = 60 * 1000;
 const STALE_PROCESSING_MS = 10 * 60 * 1000;
+/** Failed scans get another try after this (transient AWS errors). */
+const RETRY_FAILED_AFTER_MS = 6 * 60 * 60 * 1000;
+const RETRY_FAILED_BATCH = 20;
+const PROGRESS_LOG_EVERY = 50;
 /** Stay well below Rekognition's 5 TPS default in eu-central-1. */
 const PAUSE_BETWEEN_ASSETS_MS = 400;
 
@@ -24,6 +28,20 @@ async function resetStaleProcessing(): Promise<void> {
     UPDATE "asset" SET "faceStatus" = 'pending'::"FaceScanStatus"
     WHERE "faceStatus" = 'processing'::"FaceScanStatus"
       AND ("faceScannedAt" IS NULL OR "faceScannedAt" < ${cutoff})
+  `;
+}
+
+/** Puts a few old failures back into the queue; permanent failures cost one call per 6 h. */
+async function requeueOldFailures(): Promise<void> {
+  const cutoff = new Date(Date.now() - RETRY_FAILED_AFTER_MS);
+  await prisma.$executeRaw`
+    UPDATE "asset" SET "faceStatus" = 'pending'::"FaceScanStatus"
+    WHERE "id" IN (
+      SELECT "id" FROM "asset"
+      WHERE "faceStatus" = 'failed'::"FaceScanStatus"
+        AND ("faceScannedAt" IS NULL OR "faceScannedAt" < ${cutoff})
+      LIMIT ${RETRY_FAILED_BATCH}
+    )
   `;
 }
 
@@ -51,9 +69,10 @@ async function claimPending(limit: number): Promise<string[]> {
 
 /** Drains the queue (or up to `maxAssets`). Shared by the scheduler and the CLI. */
 export async function runDamFaceScan(maxAssets = Infinity): Promise<FaceRunSummary> {
-  const { scanAssetFaces, setFaceStatus } = await import("@/lib/dam/face-scan");
+  const { faceScanStage, scanAssetFaces, setFaceStatus } = await import("@/lib/dam/face-scan");
   const summary: FaceRunSummary = { done: 0, skipped: 0, failed: 0, faces: 0 };
   await resetStaleProcessing();
+  await requeueOldFailures();
 
   let processed = 0;
   while (processed < maxAssets) {
@@ -68,8 +87,15 @@ export async function runDamFaceScan(maxAssets = Infinity): Promise<FaceRunSumma
         summary.faces += result.faces;
       } catch (error) {
         summary.failed += 1;
-        console.error(`[dam-face] scan failed for ${id}`, error);
+        const stage = faceScanStage(error) ?? "unknown";
+        const name = error instanceof Error ? error.name : "Error";
+        console.error(`[dam-face] scan failed for ${id} at ${stage}: ${name}`, error);
         await setFaceStatus([id], "failed").catch(() => undefined);
+      }
+      if (processed % PROGRESS_LOG_EVERY === 0) {
+        console.log(
+          `[dam-face] progress: ${processed} scanned (done=${summary.done} skipped=${summary.skipped} failed=${summary.failed} faces=${summary.faces})`,
+        );
       }
       await sleep(PAUSE_BETWEEN_ASSETS_MS);
     }

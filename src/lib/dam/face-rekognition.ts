@@ -185,7 +185,7 @@ export async function searchFacesByFace(
  * Rekognition answers calls for a non-existent UserId with InvalidParameterException
  * (not ResourceNotFoundException as documented) — verified in eu-central-1.
  */
-function isMissingUser(error: unknown): boolean {
+export function isMissingUser(error: unknown): boolean {
   return error instanceof InvalidParameterException || error instanceof ResourceNotFoundException;
 }
 
