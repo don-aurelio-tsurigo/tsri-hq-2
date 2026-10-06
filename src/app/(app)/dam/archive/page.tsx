@@ -15,7 +15,6 @@ import {
   parseArchiveView,
   searchPublishedAssets,
 } from "@/lib/dam/archive-search";
-import { canReviewDamArchive } from "@/lib/dam/review";
 import { requireMembership } from "@/lib/session";
 
 export const metadata = pageTitle("Mediathek");
@@ -25,7 +24,7 @@ export default async function DamArchivePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { membership } = await requireMembership();
+  await requireMembership();
   const params = await searchParams;
   const filters = parseArchiveFilters(params);
   const page = parseArchivePage(params);
@@ -97,7 +96,6 @@ export default async function DamArchivePage({
               ? (collectionResult?.pageSize ?? result?.pageSize ?? 120)
               : (result?.pageSize ?? 120)
           }
-          canReview={canReviewDamArchive(membership)}
         />
       </Suspense>
     </div>

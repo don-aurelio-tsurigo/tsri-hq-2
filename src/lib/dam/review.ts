@@ -14,7 +14,7 @@ import {
 } from "@/lib/dam/review-params";
 import { prisma } from "@/lib/db";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
-import { canManageEditorial, type MembershipWithGrants } from "@/lib/permissions";
+import { hasExplicitTag, type MembershipWithGrants } from "@/lib/permissions";
 
 export {
   EMPTY_REVIEW_FILTERS,
@@ -27,8 +27,9 @@ export {
   type ReviewQueueFilters,
 };
 
-export function canReviewDamArchive(membership: MembershipWithGrants): boolean {
-  return canManageEditorial(membership);
+/** Weekly home reminder: only members tagged Redaktionsleitung (not admins by role). */
+export function showDamArchiveReviewReminder(membership: MembershipWithGrants): boolean {
+  return hasExplicitTag(membership, "editorial_lead");
 }
 
 export async function getLastDamArchiveReview() {

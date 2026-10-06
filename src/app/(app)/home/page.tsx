@@ -26,10 +26,10 @@ import { listMyHomeArticles } from "@/lib/articles";
 import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
 import { listTodaysTsueriArticles } from "@/lib/editorial-program";
 import {
-  canReviewDamArchive,
   countDamArchiveReviewQueue,
   getLastDamArchiveReview,
   isDamArchiveReviewReminderDay,
+  showDamArchiveReviewReminder,
 } from "@/lib/dam/review";
 import {
   getFerienplanSpaceId,
@@ -70,7 +70,7 @@ export default async function HomePage() {
 
   const today = new Date();
   const showChoreReminder = isMidweekChoreReminderDay(today);
-  const showArchiveReview = canReviewDamArchive(membership);
+  const showArchiveReview = showDamArchiveReviewReminder(membership);
   const showArchiveReviewReminder =
     showArchiveReview && isDamArchiveReviewReminderDay(today);
 

@@ -12,7 +12,6 @@ import {
   withPersonKeywords,
 } from "@/lib/dam/keywords";
 import { publishDamAssets } from "@/lib/dam/publish";
-import { canReviewDamArchive } from "@/lib/dam/review";
 import { parseReviewOpenedAt } from "@/lib/dam/review-params";
 import { prisma } from "@/lib/db";
 import { getObjectBuffer } from "@/lib/r2";
@@ -541,10 +540,7 @@ export async function purgeAsset(
 export async function completeDamArchiveReview(
   openedAtIso: string,
 ): Promise<{ error?: string }> {
-  const { session, membership } = await requireMembership();
-  if (!canReviewDamArchive(membership)) {
-    return { error: "Keine Berechtigung für den Mediathek-Review." };
-  }
+  const { session } = await requireMembership();
 
   const openedAt = parseReviewOpenedAt(openedAtIso);
   if (!openedAt) return { error: "Review-Sitzung ungültig. Seite neu laden." };

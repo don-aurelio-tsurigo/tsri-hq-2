@@ -131,7 +131,6 @@ export function DamArchiveView({
   page,
   pageCount,
   pageSize,
-  canReview = false,
 }: {
   view: ArchiveView;
   assets: ArchiveAssetCard[];
@@ -142,7 +141,6 @@ export function DamArchiveView({
   page: number;
   pageCount: number;
   pageSize: number;
-  canReview?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -595,11 +593,9 @@ export function DamArchiveView({
       )}
 
       <p className="flex flex-wrap justify-end gap-x-3 gap-y-1 pt-2 text-right text-xs text-[var(--muted)]">
-        {canReview ? (
-          <Link href="/dam/review" className="hover:text-[var(--fg)] hover:underline">
-            Mediathek-Review
-          </Link>
-        ) : null}
+        <Link href="/dam/review" className="hover:text-[var(--fg)] hover:underline">
+          Mediathek-Review
+        </Link>
         <button
           type="button"
           className="hover:text-[var(--fg)] hover:underline"

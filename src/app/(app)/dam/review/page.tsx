@@ -6,7 +6,6 @@ import { DamArchiveReviewView } from "@/components/dam-archive-review-view";
 import { listArchiveFacets } from "@/lib/dam/archive-search";
 import { pageTitle } from "@/lib/link-preview";
 import {
-  canReviewDamArchive,
   getLastDamArchiveReview,
   listDamArchiveReviewCollectionCards,
   parseReviewFilters,
@@ -25,10 +24,7 @@ export default async function DamArchiveReviewPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { membership } = await requireMembership();
-  if (!canReviewDamArchive(membership)) {
-    redirect("/dam/archive");
-  }
+  await requireMembership();
 
   const params = await searchParams;
   const openedRaw = Array.isArray(params.opened) ? params.opened[0] : params.opened;
