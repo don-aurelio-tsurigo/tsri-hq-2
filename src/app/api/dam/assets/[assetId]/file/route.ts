@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
 import { renderDamPreviewWebp, renderPublishedMaster } from "@/lib/dam/apply-edits";
 import {
+  baseDerivativeKey,
   isDefaultEditParams,
   previewDerivativeKey,
   writeEditedDerivatives,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/dam/edit-params";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
-import { getObject } from "@/lib/r2";
+import { getObject, putObject } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -52,7 +53,7 @@ export async function GET(
   const url = new URL(request.url);
   const variant = url.searchParams.get("variant") ?? "thumb";
   const clientRev = url.searchParams.get("r");
-  /** Editor canvas: orientation-baked, no stored edit recipe (CSS preview applies draft). */
+  /** Editor canvas + face crops: orientation-baked, no stored edit recipe. */
   const baseOnly = url.searchParams.get("base") === "1";
   const asset = await prisma.asset.findFirst({
     where: {
@@ -79,15 +80,41 @@ export async function GET(
   }
 
   try {
+    if (baseOnly && (variant === "thumb" || variant === "web")) {
+      const baseKey = baseDerivativeKey(asset.r2Key, variant);
+      try {
+        const cached = await getObject(baseKey);
+        return imageResponse(cached.buffer, "image/webp", {
+          "Cache-Control": "private, max-age=86400",
+        });
+      } catch {
+        /* render below — never fall back to the classic key, it may hold
+           the edited (cropped) render */
+      }
+      const original = await getObject(asset.r2Key);
+      const buffer = await renderDamPreviewWebp(
+        original.buffer,
+        DEFAULT_EDIT_PARAMS,
+        variant === "thumb" ? 480 : 2000,
+        variant === "thumb" ? 72 : 80,
+      );
+      try {
+        await putObject(baseKey, buffer, "image/webp");
+      } catch (error) {
+        console.warn("[dam] base derivative write failed", error);
+      }
+      return imageResponse(buffer, "image/webp", {
+        "Cache-Control": "private, max-age=86400",
+      });
+    }
+
     if (variant === "thumb" || variant === "web") {
-      const params = baseOnly
-        ? { ...DEFAULT_EDIT_PARAMS }
-        : parseEditParams(asset.editParams);
+      const params = parseEditParams(asset.editParams);
       const serverRev = editParamsRev(params);
       // Avoid poisoning the browser cache when the client optimistic `r=` is ahead
       // of the DB write, or points at a stale recipe.
       const cacheControl =
-        !baseOnly && clientRev && clientRev !== serverRev
+        clientRev && clientRev !== serverRev
           ? "private, no-store"
           : "private, max-age=86400";
 
@@ -120,12 +147,10 @@ export async function GET(
         variant === "thumb" ? 480 : 2000,
         variant === "thumb" ? 72 : 80,
       );
-      if (!baseOnly) {
-        try {
-          await writeEditedDerivatives(asset.r2Key, original.buffer, params);
-        } catch (error) {
-          console.warn("[dam] derivative backfill failed", error);
-        }
+      try {
+        await writeEditedDerivatives(asset.r2Key, original.buffer, params);
+      } catch (error) {
+        console.warn("[dam] derivative backfill failed", error);
       }
       return imageResponse(buffer, "image/webp", {
         "Cache-Control": cacheControl,

@@ -167,7 +167,7 @@ describe("damFileSrc", () => {
   it("builds editor src with base=1 so stored recipes are not baked twice", () => {
     assert.equal(
       damEditorSrc("abc"),
-      "/api/dam/assets/abc/file?variant=web&base=1",
+      "/api/dam/assets/abc/file?variant=web&base=1&b=2",
     );
   });
 });

@@ -266,7 +266,8 @@ export function damFileSrc(
 
 /** Orientation-baked web preview without stored edit recipe (editor canvas). */
 export function damEditorSrc(assetId: string): string {
-  return `/api/dam/assets/${assetId}/file?variant=web&base=1`;
+  // `b=2`: browsers cached base=1 responses that were really the edited render.
+  return `/api/dam/assets/${assetId}/file?variant=web&base=1&b=2`;
 }
 
 export function rotatedBoundingBox(

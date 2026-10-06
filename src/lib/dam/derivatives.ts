@@ -24,6 +24,15 @@ export function previewDerivativeKey(
   return base.replace(/_(thumb|web)\.webp$/, `_$1_${rev}.webp`);
 }
 
+/**
+ * Unedited (orientation-only) preview for the editor canvas and face crops.
+ * Separate from the classic key, which `writeEditedDerivatives` overwrites
+ * with the edited render.
+ */
+export function baseDerivativeKey(r2Key: string, kind: "thumb" | "web"): string {
+  return derivativeKey(r2Key, kind).replace(/_(thumb|web)\.webp$/, "_$1_base.webp");
+}
+
 export async function writeEditedDerivatives(
   r2Key: string,
   original: Buffer,
