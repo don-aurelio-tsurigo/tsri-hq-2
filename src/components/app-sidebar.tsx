@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Clock,
   FolderKanban,
+  Handshake,
   Home,
   Image,
   ImagePlus,
@@ -599,6 +600,14 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Budget
+            </NavLink>
+            <NavLink
+              href="/finance/deals"
+              active={pathname.startsWith("/finance/deals")}
+              icon={Handshake}
+              onNavigate={onMobileClose}
+            >
+              Deals
             </NavLink>
             <NavLink
               href="/finance/payrexx"

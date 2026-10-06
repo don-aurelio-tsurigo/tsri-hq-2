@@ -2,10 +2,13 @@
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ExternalLink, Lock, LockOpen, X } from "lucide-react";
+import { ExternalLink, Lock, LockOpen, Pencil, Plus, Trash2, X } from "lucide-react";
+import { FinanceMonthPicker } from "@/components/finance-month-picker";
 import { useToast } from "@/components/toast";
 import {
+  deleteFinanceBooking,
   loadFinanceCellBookings,
+  saveFinanceBooking,
   saveFinanceBudgetCell,
   toggleFinanceMonthClosed,
 } from "@/lib/actions/finance";
@@ -446,7 +449,12 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
       </p>
 
       {drilldown ? (
-        <BookingsDrawer drilldown={drilldown} onClose={() => setDrilldown(null)} />
+        <BookingsDrawer
+          drilldown={drilldown}
+          categories={overview.categories}
+          onClose={() => setDrilldown(null)}
+          onChanged={() => openDrilldown(drilldown.category, drilldown.months, drilldown.label)}
+        />
       ) : null}
     </div>
   );
@@ -530,22 +538,35 @@ function buildRows(
 
 function BookingsDrawer({
   drilldown,
+  categories,
   onClose,
+  onChanged,
 }: {
   drilldown: Drilldown;
+  categories: OverviewCategory[];
   onClose: () => void;
+  onChanged: () => void;
 }) {
   const { bookings } = drilldown;
   const total = bookings?.reduce((s, b) => s + b.amount, 0) ?? 0;
   const multiMonth = drilldown.months.length > 1;
+  /** booking id being edited, "new" for a new booking */
+  const [editing, setEditing] = useState<string | null>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      const target = e.target as HTMLElement | null;
+      if (e.key !== "Escape" || target?.closest("form")) return;
+      onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  function done() {
+    setEditing(null);
+    onChanged();
+  }
 
   return (
     <div
@@ -571,12 +592,42 @@ function BookingsDrawer({
               {drilldown.category.name}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="btn btn-ghost p-2" aria-label="Schliessen">
-            <X className="size-5" />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {editing !== "new" ? (
+              <button
+                type="button"
+                onClick={() => setEditing("new")}
+                className="btn btn-ghost inline-flex items-center gap-1 px-2 py-1.5 text-sm"
+              >
+                <Plus className="size-4" /> Buchung
+              </button>
+            ) : null}
+            <button type="button" onClick={onClose} className="btn btn-ghost p-2" aria-label="Schliessen">
+              <X className="size-5" />
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {editing === "new" ? (
+            <div className="mb-4 rounded-lg border-2 border-[var(--accent)] p-4">
+              <p className="mb-3 text-sm font-semibold">Neue Buchung</p>
+              <BookingForm
+                categories={categories}
+                initial={{
+                  id: null,
+                  title: "",
+                  amount: "",
+                  month: drilldown.months[drilldown.months.length === 1 ? 0 : drilldown.months.length - 1],
+                  categoryId: drilldown.category.id,
+                  organisation: "",
+                  notes: "",
+                }}
+                onCancel={() => setEditing(null)}
+                onDone={done}
+              />
+            </div>
+          ) : null}
           {bookings === null ? (
             <p className="text-sm text-[var(--muted)]">Lade Buchungen…</p>
           ) : bookings.length === 0 ? (
@@ -590,37 +641,72 @@ function BookingsDrawer({
                       {monthLabel(b.month)}
                     </li>
                   ) : null}
-                  <li className="flex items-start justify-between gap-4 py-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold">{b.title}</p>
-                      <p className="mt-0.5 text-xs text-[var(--muted)]">
-                        {[b.organisation, b.responsibleName].filter(Boolean).join(" · ") || "—"}
-                      </p>
-                      {b.deal && b.deal.bookingCount > 1 ? (
-                        <p className="mt-1 text-xs">
-                          <span className="badge badge-muted">
-                            Deal «{b.deal.title}» · {b.deal.bookingCount} Raten
-                          </span>
+                  {editing === b.id ? (
+                    <li className="py-3">
+                      <BookingForm
+                        categories={categories}
+                        initial={{
+                          id: b.id,
+                          title: b.title,
+                          amount: String(b.amount),
+                          month: b.month,
+                          categoryId: drilldown.category.id,
+                          organisation: b.organisation ?? "",
+                          notes: b.notes ?? "",
+                        }}
+                        onCancel={() => setEditing(null)}
+                        onDone={done}
+                      />
+                    </li>
+                  ) : (
+                    <li className="flex items-start justify-between gap-4 py-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold">{b.title}</p>
+                        <p className="mt-0.5 text-xs text-[var(--muted)]">
+                          {[b.organisation, b.responsibleName].filter(Boolean).join(" · ") || "—"}
                         </p>
-                      ) : null}
-                      {b.notes ? (
-                        <p className="mt-1 text-xs whitespace-pre-line text-[var(--muted)]">{b.notes}</p>
-                      ) : null}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-semibold tabular-nums">{formatChfExact(b.amount)}</p>
-                      {b.bexioUrl ? (
-                        <a
-                          href={b.bexioUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)] hover:underline"
-                        >
-                          Bexio <ExternalLink className="size-3" />
-                        </a>
-                      ) : null}
-                    </div>
-                  </li>
+                        {b.deal ? (
+                          <p className="mt-1 text-xs">
+                            <Link
+                              href={`/finance/deals/${b.deal.id}`}
+                              className="badge badge-muted hover:underline"
+                              title="Deal öffnen und Raten bearbeiten"
+                            >
+                              Deal «{b.deal.title}»
+                              {b.deal.bookingCount > 1 ? ` · ${b.deal.bookingCount} Raten` : ""} →
+                            </Link>
+                          </p>
+                        ) : null}
+                        {b.notes ? (
+                          <p className="mt-1 text-xs whitespace-pre-line text-[var(--muted)]">{b.notes}</p>
+                        ) : null}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-semibold tabular-nums">{formatChfExact(b.amount)}</p>
+                        <div className="mt-1 flex items-center justify-end gap-2 text-xs">
+                          {b.bexioUrl ? (
+                            <a
+                              href={b.bexioUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 font-semibold text-[var(--accent)] hover:underline"
+                            >
+                              Bexio <ExternalLink className="size-3" />
+                            </a>
+                          ) : null}
+                          {!b.deal ? (
+                            <button
+                              type="button"
+                              onClick={() => setEditing(b.id)}
+                              className="inline-flex items-center gap-1 font-semibold text-[var(--muted)] hover:text-[var(--fg)]"
+                            >
+                              <Pencil className="size-3" /> Bearbeiten
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </li>
+                  )}
                 </Fragment>
               ))}
             </ul>
@@ -637,5 +723,161 @@ function BookingsDrawer({
         ) : null}
       </div>
     </div>
+  );
+}
+
+type BookingFormValues = {
+  id: string | null;
+  title: string;
+  amount: string;
+  month: MonthKey;
+  categoryId: string;
+  organisation: string;
+  notes: string;
+};
+
+function BookingForm({
+  initial,
+  categories,
+  onCancel,
+  onDone,
+}: {
+  initial: BookingFormValues;
+  categories: OverviewCategory[];
+  onCancel: () => void;
+  onDone: () => void;
+}) {
+  const { showToast } = useToast();
+  const [pending, startTransition] = useTransition();
+  const [values, setValues] = useState(initial);
+  const set = (patch: Partial<BookingFormValues>) => setValues((v) => ({ ...v, ...patch }));
+  const idPrefix = `booking-${initial.id ?? "new"}`;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const amount = parseAmountInput(values.amount);
+    if (amount === null || Number.isNaN(amount)) {
+      showToast({ message: "Ungültiger Betrag." });
+      return;
+    }
+    startTransition(async () => {
+      const result = await saveFinanceBooking({ ...values, amount });
+      if ("error" in result) {
+        showToast({ message: result.error });
+        return;
+      }
+      showToast({ message: initial.id ? "Buchung gespeichert." : "Buchung erfasst." });
+      onDone();
+    });
+  }
+
+  function remove() {
+    if (!initial.id || !window.confirm("Buchung löschen?")) return;
+    const id = initial.id;
+    startTransition(async () => {
+      const result = await deleteFinanceBooking(id);
+      if ("error" in result) {
+        showToast({ message: result.error });
+        return;
+      }
+      showToast({ message: "Buchung gelöscht." });
+      onDone();
+    });
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onCancel();
+      }}
+      className="grid grid-cols-2 gap-3"
+    >
+      <div className="field col-span-2">
+        <label htmlFor={`${idPrefix}-title`}>Titel</label>
+        <input
+          id={`${idPrefix}-title`}
+          autoFocus
+          required
+          value={values.title}
+          onChange={(e) => set({ title: e.target.value })}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-amount`}>Betrag (CHF)</label>
+        <input
+          id={`${idPrefix}-amount`}
+          required
+          inputMode="decimal"
+          placeholder="Ausgaben negativ"
+          value={values.amount}
+          onChange={(e) => set({ amount: e.target.value })}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor={`${idPrefix}-month`}>Monat</label>
+        <FinanceMonthPicker
+          idPrefix={idPrefix}
+          label="Monat der Buchung"
+          value={values.month}
+          onChange={(month) => set({ month })}
+        />
+      </div>
+      <div className="field col-span-2">
+        <label htmlFor={`${idPrefix}-category`}>Kategorie</label>
+        <select
+          id={`${idPrefix}-category`}
+          value={values.categoryId}
+          onChange={(e) => set({ categoryId: e.target.value })}
+        >
+          {(["income", "expense"] as const).map((kind) => (
+            <optgroup key={kind} label={KIND_LABEL[kind]}>
+              {categories
+                .filter((c) => c.kind === kind)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+      <div className="field col-span-2">
+        <label htmlFor={`${idPrefix}-org`}>Organisation</label>
+        <input
+          id={`${idPrefix}-org`}
+          value={values.organisation}
+          onChange={(e) => set({ organisation: e.target.value })}
+        />
+      </div>
+      <div className="field col-span-2">
+        <label htmlFor={`${idPrefix}-notes`}>Notizen</label>
+        <textarea
+          id={`${idPrefix}-notes`}
+          rows={2}
+          value={values.notes}
+          onChange={(e) => set({ notes: e.target.value })}
+        />
+      </div>
+      <div className="col-span-2 flex items-center gap-2">
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          Speichern
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCancel}>
+          Abbrechen
+        </button>
+        {initial.id ? (
+          <button
+            type="button"
+            className="btn btn-ghost ml-auto inline-flex items-center gap-1 text-[var(--danger)]"
+            onClick={remove}
+            disabled={pending}
+          >
+            <Trash2 className="size-4" /> Löschen
+          </button>
+        ) : null}
+      </div>
+    </form>
   );
 }

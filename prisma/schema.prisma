@@ -164,6 +164,8 @@ model Organization {
   slackFeedbackDigestWebhookUrl String?
   /// Dedup-Key letzter Feedback-Digest, z.B. 2026-09-02 (berichteter Tag)
   slackFeedbackDigestLastKey    String?
+  /// Finance: geheimer Token für den Deal-Webhook (Zapier/Pipedrive)
+  financeWebhookToken           String?  @unique
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 

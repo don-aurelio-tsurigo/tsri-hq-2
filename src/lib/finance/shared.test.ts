@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addCellMaps,
+  addMonths,
   monthKey,
   monthKeyFromDate,
   monthKeyToDate,
   parseAmountInput,
+  parseLooseAmount,
+  parseLooseMonth,
   sumCells,
 } from "./shared";
 
@@ -52,5 +55,32 @@ describe("sumCells", () => {
       months,
     );
     assert.deepEqual(sum["2026-01"], { budget: 1, forecast: 2, actual: 3 });
+  });
+});
+
+describe("addMonths", () => {
+  it("rolls over years in both directions", () => {
+    assert.equal(addMonths("2026-11", 3), "2027-02");
+    assert.equal(addMonths("2026-01", -1), "2025-12");
+  });
+});
+
+describe("webhook parsing", () => {
+  it("parses loose amounts", () => {
+    assert.equal(parseLooseAmount(12000), 12000);
+    assert.equal(parseLooseAmount("12'000.50"), 12000.5);
+    assert.equal(parseLooseAmount("1,200.00"), 1200);
+    assert.equal(parseLooseAmount("1200,50"), 1200.5);
+    assert.equal(parseLooseAmount("CHF 300"), 300);
+    assert.equal(parseLooseAmount("abc"), null);
+    assert.equal(parseLooseAmount(null), null);
+  });
+
+  it("parses loose months", () => {
+    assert.equal(parseLooseMonth("2027-03"), "2027-03");
+    assert.equal(parseLooseMonth("2027-03-15T00:00:00Z"), "2027-03");
+    assert.equal(parseLooseMonth("15.03.2027"), "2027-03");
+    assert.equal(parseLooseMonth("2027-13"), null);
+    assert.equal(parseLooseMonth("März"), null);
   });
 });

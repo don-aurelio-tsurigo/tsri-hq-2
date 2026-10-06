@@ -153,3 +153,43 @@ export function addCellMaps(
   }
   return out;
 }
+
+/** Spread a total over n rates in cents; rounding remainder goes into the last rate. */
+export function addMonths(key: MonthKey, count: number): MonthKey {
+  const [y, m] = parseMonthKey(key);
+  const total = y * 12 + m + count;
+  return monthKey(Math.floor(total / 12), ((total % 12) + 12) % 12);
+}
+
+export function roundCents(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Lenient amount parsing for webhook payloads: numbers, "12'000.50",
+ * "1,200.00" (US thousands), "1200,50" (decimal comma), "CHF 300".
+ */
+export function parseLooseAmount(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? roundCents(value) : null;
+  if (typeof value !== "string") return null;
+  let s = value.trim().replace(/[’'\s]/g, "").replace(/^(CHF|EUR|Fr\.?)/i, "").replace(/(CHF|EUR)$/i, "");
+  if (s.includes(",") && s.includes(".")) s = s.replace(/,/g, "");
+  const parsed = parseAmountInput(s);
+  return parsed === null || Number.isNaN(parsed) ? null : parsed;
+}
+
+/** "2027-03", "2027-03-15" or "15.03.2027" → MonthKey */
+export function parseLooseMonth(value: unknown): MonthKey | null {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  let m = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?/.exec(s);
+  if (m) return validMonth(Number(m[1]), Number(m[2]));
+  m = /^\d{1,2}\.(\d{1,2})\.(\d{4})$/.exec(s);
+  if (m) return validMonth(Number(m[2]), Number(m[1]));
+  return null;
+}
+
+function validMonth(year: number, month: number): MonthKey | null {
+  if (year < 2000 || year > 2100 || month < 1 || month > 12) return null;
+  return monthKey(year, month - 1);
+}
