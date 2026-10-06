@@ -43,7 +43,7 @@ export default async function DamPersonalPage() {
       </header>
       {rows.length === 0 ? (
         <p className="card p-8 text-center text-[var(--muted)]">
-          Noch keine eigenen Staging-Bilder. Über Upload neue Fotos hinzufügen.
+          Über Upload-Button neue Fotos hinzufügen.
         </p>
       ) : (
         <DamPersonalGrid
