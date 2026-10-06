@@ -7,6 +7,7 @@ import {
   deleteFaces,
   faceSettings,
   indexFaces,
+  isMissingUser,
   rekognitionConfigured,
   searchUsersByFace,
   type FaceBox,
@@ -17,6 +18,30 @@ import { deleteObject, getObject, putObject } from "@/lib/r2";
 
 const CROP_SIZE = 192;
 const CROP_PADDING = 0.3;
+
+/** Scan step, attached to thrown errors for the log («failed at search»). */
+export type FaceScanStage = "load" | "index" | "search" | "store";
+
+export function faceScanStage(error: unknown): FaceScanStage | undefined {
+  return (error as { faceScanStage?: FaceScanStage } | null)?.faceScanStage;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A just-indexed face is sometimes not yet searchable; Rekognition then answers
+ * InvalidParameterException. Retry briefly before giving up.
+ */
+async function searchUsersWithRetry(faceId: string, minSimilarity: number) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await searchUsersByFace(faceId, minSimilarity);
+    } catch (error) {
+      if (attempt >= 2 || !isMissingUser(error)) throw error;
+      await sleep(1000 * (attempt + 1));
+    }
+  }
+}
 
 export type FaceScanResult = {
   status: "done" | "skipped";
@@ -74,6 +99,21 @@ async function writeFaceCrops(
  * master (same orientation as all derivatives), not to editParams.
  */
 export async function scanAssetFaces(assetId: string): Promise<FaceScanResult> {
+  const stage: { current: FaceScanStage } = { current: "load" };
+  try {
+    return await scanAssetFacesInner(assetId, stage);
+  } catch (error) {
+    if (error && typeof error === "object") {
+      Object.assign(error, { faceScanStage: stage.current });
+    }
+    throw error;
+  }
+}
+
+async function scanAssetFacesInner(
+  assetId: string,
+  stage: { current: FaceScanStage },
+): Promise<FaceScanResult> {
   const empty = { faces: 0, confirmed: 0, suggested: 0 };
   const asset = await prisma.asset.findUnique({
     where: { id: assetId },
@@ -102,6 +142,7 @@ export async function scanAssetFaces(assetId: string): Promise<FaceScanResult> {
 
   const settings = faceSettings();
   const jpeg = await jpegForAutotag(buffer);
+  stage.current = "index";
   const indexed = await indexFaces(jpeg, asset.id, settings.maxPerImage);
   const keep = indexed.filter((face) => face.box.height >= settings.minBoxSize);
   const tooSmall = indexed.filter((face) => face.box.height < settings.minBoxSize);
@@ -112,11 +153,13 @@ export async function scanAssetFaces(assetId: string): Promise<FaceScanResult> {
   }
 
   try {
+    stage.current = "search";
     const bestMatch = new Map<string, { userId: string; similarity: number }>();
     for (const face of keep) {
-      const [top] = await searchUsersByFace(face.faceId, settings.suggestSimilarity);
+      const [top] = await searchUsersWithRetry(face.faceId, settings.suggestSimilarity);
       if (top) bestMatch.set(face.faceId, top);
     }
+    stage.current = "store";
     const persons = await prisma.damPerson.findMany({
       where: { rekognitionUserId: { in: [...bestMatch.values()].map((match) => match.userId) } },
       select: { id: true, rekognitionUserId: true },

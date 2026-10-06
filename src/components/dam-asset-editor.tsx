@@ -10,9 +10,9 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import ReactCrop, { centerCrop, makeAspectCrop, type PercentCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
+import { DamTonePreview } from "@/components/dam-tone-preview";
 import {
   aspectRatioValue,
-  cssFilter,
   cssTransform,
   DAM_ASPECT_PRESETS,
   DEFAULT_EDIT_PARAMS,
@@ -181,6 +181,7 @@ export function DamAssetEditor({
 }) {
   const [draft, setDraft] = useState<DamEditParams>(() => parseEditParams(initial));
   const [natural, setNatural] = useState({ width: 0, height: 0 });
+  const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
   const [compare, setCompare] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
@@ -232,6 +233,7 @@ export function DamAssetEditor({
 
   function rememberSize(img: HTMLImageElement) {
     if (!img.naturalWidth) return;
+    setImageEl(img);
     setNatural((prev) =>
       prev.width === img.naturalWidth && prev.height === img.naturalHeight
         ? prev
@@ -296,6 +298,8 @@ export function DamAssetEditor({
         saturation?: number;
         temperature?: number;
         sharpen?: number;
+        blackPoint?: number;
+        whitePoint?: number;
         error?: string;
       };
       if (!response.ok) {
@@ -308,6 +312,8 @@ export function DamAssetEditor({
         saturation: payload.saturation ?? prev.saturation,
         temperature: payload.temperature ?? prev.temperature,
         sharpen: payload.sharpen ?? prev.sharpen,
+        blackPoint: payload.blackPoint ?? prev.blackPoint,
+        whitePoint: payload.whitePoint ?? prev.whitePoint,
       }));
     } catch (error) {
       setEnhanceError(
@@ -423,9 +429,9 @@ export function DamAssetEditor({
                           height: "auto",
                           maxWidth: stage.boxW ? "none" : "100%",
                           maxHeight: stage.boxW ? undefined : "65vh",
-                          filter: cssFilter(preview),
                         }}
                       />
+                      <DamTonePreview image={imageEl} params={preview} />
                     </div>
                     {showStraightenGuides ? (
                       <StraightenGuides emphasized={Math.abs(straighten) > 0.01} />
@@ -521,6 +527,31 @@ export function DamAssetEditor({
               defaultValue={0}
               onChange={(temperature) => setDraft((p) => ({ ...p, temperature }))}
             />
+            {draft.blackPoint !== DEFAULT_EDIT_PARAMS.blackPoint ||
+            draft.whitePoint !== DEFAULT_EDIT_PARAMS.whitePoint ? (
+              <p className="flex items-center justify-between gap-2 text-sm">
+                <span>
+                  <span className="font-semibold">Tonwerte</span>{" "}
+                  <span className="tabular-nums text-[var(--muted)]">
+                    {draft.blackPoint}–{draft.whitePoint}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-[var(--muted)] hover:text-[var(--fg)]"
+                  aria-label="Tonwerte zurücksetzen"
+                  onClick={() =>
+                    setDraft((p) => ({
+                      ...p,
+                      blackPoint: DEFAULT_EDIT_PARAMS.blackPoint,
+                      whitePoint: DEFAULT_EDIT_PARAMS.whitePoint,
+                    }))
+                  }
+                >
+                  <Undo2 className="size-3.5" />
+                </button>
+              </p>
+            ) : null}
             <button
               type="button"
               className="btn btn-highlight w-full"
