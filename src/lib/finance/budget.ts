@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import {
+  isCategoryActive,
   monthKeyFromDate,
   monthKeyToDate,
   monthsOfYear,
@@ -13,6 +14,10 @@ export type OverviewCategory = {
   name: string;
   kind: FinanceKind;
   group: string | null;
+  validFrom: number | null;
+  validUntil: number | null;
+  /** Not valid in this year, but shown because it has numbers */
+  inactive: boolean;
 };
 
 export type BudgetOverview = {
@@ -32,15 +37,19 @@ function yearRange(year: number) {
   };
 }
 
-async function availableYears(organizationId: string): Promise<number[]> {
+export async function availableYears(organizationId: string): Promise<number[]> {
   const rows = await prisma.$queryRaw<{ year: number }[]>`
     SELECT DISTINCT EXTRACT(YEAR FROM "month")::int AS year
     FROM finance_budget_entry WHERE "organizationId" = ${organizationId}
     UNION
     SELECT DISTINCT EXTRACT(YEAR FROM "month")::int AS year
     FROM finance_booking WHERE "organizationId" = ${organizationId}
+    UNION
+    SELECT "year" FROM finance_year WHERE "organizationId" = ${organizationId}
   `;
-  return rows.map((r) => r.year);
+  const years = new Set(rows.map((r) => r.year));
+  years.add(new Date().getFullYear());
+  return [...years].sort((a, b) => a - b);
 }
 
 export async function getBudgetOverview(
@@ -52,7 +61,14 @@ export async function getBudgetOverview(
     prisma.financeCategory.findMany({
       where: { organizationId, liquidityOnly: false, archivedAt: null },
       orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, kind: true, group: true },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        group: true,
+        validFrom: true,
+        validUntil: true,
+      },
     }),
     prisma.financeBudgetEntry.findMany({
       where: { organizationId, month: range },
@@ -86,8 +102,16 @@ export async function getBudgetOverview(
     );
   }
 
-  const currentYear = new Date().getFullYear();
-  const allYears = new Set([...years, currentYear, year]);
+  const allYears = new Set([...years, year]);
+
+  // Categories valid this year, plus expired/future ones that still carry numbers
+  const hasNumbers = (id: string) =>
+    Object.values(cells[id] ?? {}).some((c) => c.budget || c.forecast || c.actual);
+  const visible = categories.flatMap((c) => {
+    const active = isCategoryActive(c, year);
+    if (!active && !hasNumbers(c.id)) return [];
+    return [{ ...c, kind: c.kind as FinanceKind, inactive: !active }];
+  });
 
   return {
     year,
@@ -95,7 +119,7 @@ export async function getBudgetOverview(
     months: monthsOfYear(year),
     closedMonths: closes.map((c) => monthKeyFromDate(c.month)),
     // income first (enum order), then expense
-    categories: categories.map((c) => ({ ...c, kind: c.kind as FinanceKind })),
+    categories: visible,
     cells,
   };
 }
@@ -193,4 +217,45 @@ export async function setMonthClosed(input: {
       where: { organizationId: input.organizationId, month },
     });
   }
+}
+
+/**
+ * Create a budget year. Optionally copies budget and forecast of the previous
+ * year month by month as starting values (only for categories valid in the new
+ * year; existing entries are never overwritten).
+ */
+export async function createBudgetYear(input: {
+  organizationId: string;
+  year: number;
+  copyPrevious: boolean;
+  userId: string;
+}): Promise<{ copied: number }> {
+  const { organizationId, year, copyPrevious, userId } = input;
+  await prisma.financeYear.upsert({
+    where: { organizationId_year: { organizationId, year } },
+    create: { organizationId, year, createdById: userId },
+    update: {},
+  });
+  if (!copyPrevious) return { copied: 0 };
+
+  const previous = await prisma.financeBudgetEntry.findMany({
+    where: {
+      organizationId,
+      month: yearRange(year - 1),
+      category: { archivedAt: null, liquidityOnly: false },
+    },
+    include: { category: { select: { validFrom: true, validUntil: true } } },
+  });
+  const data = previous
+    .filter((e) => isCategoryActive(e.category, year) && (Number(e.budget) || Number(e.forecast)))
+    .map((e) => ({
+      organizationId,
+      categoryId: e.categoryId,
+      month: new Date(Date.UTC(year, e.month.getUTCMonth(), 1)),
+      budget: e.budget,
+      forecast: e.forecast,
+      updatedById: userId,
+    }));
+  const res = await prisma.financeBudgetEntry.createMany({ data, skipDuplicates: true });
+  return { copied: res.count };
 }

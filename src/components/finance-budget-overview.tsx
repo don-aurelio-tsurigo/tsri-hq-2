@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ExternalLink, Lock, LockOpen, Pencil, Plus, Trash2, X } from "lucide-react";
 import { FinanceMonthPicker } from "@/components/finance-month-picker";
 import { useToast } from "@/components/toast";
+import { FinanceNewYearDialog } from "@/components/finance-new-year-dialog";
 import {
   deleteFinanceBooking,
   loadFinanceCellBookings,
@@ -25,6 +26,7 @@ import {
   parseAmountInput,
   parseMonthKey,
   sumCells,
+  validityLabel,
   type CellValues,
   type FinanceKind,
   type MonthKey,
@@ -68,6 +70,7 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
   const [view, setView] = useState<MetricView>("all");
   const [editing, setEditing] = useState<EditTarget | null>(null);
   const [drilldown, setDrilldown] = useState<Drilldown | null>(null);
+  const [newYearOpen, setNewYearOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   // Server revalidation brings fresh data; drop local optimistic state.
@@ -167,6 +170,14 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
               {y}
             </Link>
           ))}
+          <button
+            type="button"
+            onClick={() => setNewYearOpen(true)}
+            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+            title="Neues Budgetjahr anlegen"
+          >
+            <Plus className="size-3.5" /> {Math.max(...overview.years) + 1}
+          </button>
         </nav>
         <div className="flex flex-wrap gap-1" role="group" aria-label="Spalten">
           {(["all", "budget", "forecast", "actual"] as const).map((v) => (
@@ -321,6 +332,14 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
                       <span className="block truncate" title={isCategory ? row.category.name : row.label}>
                         {isCategory ? row.category.name : row.label}
                       </span>
+                      {isCategory && row.category.inactive ? (
+                        <span
+                          className="block text-xs font-medium text-amber-700"
+                          title="In diesem Jahr eigentlich nicht aktiv, hat aber Zahlen"
+                        >
+                          {validityLabel(row.category) ?? "nicht aktiv"} · hat Zahlen
+                        </span>
+                      ) : null}
                     </th>
                     {months.map((m) =>
                       metrics.map((metric, i) => {
@@ -447,6 +466,13 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
         oder «12.5k»). Effektiv ist die Summe der Buchungen – Klick zeigt die Buchungen dahinter.
         «Erwartet» rechnet abgeschlossene Monate (Schloss) mit Effektiv, offene mit Forecast.
       </p>
+
+      {newYearOpen ? (
+        <FinanceNewYearDialog
+          year={Math.max(...overview.years) + 1}
+          onClose={() => setNewYearOpen(false)}
+        />
+      ) : null}
 
       {drilldown ? (
         <BookingsDrawer

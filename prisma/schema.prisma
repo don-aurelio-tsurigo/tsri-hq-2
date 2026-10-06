@@ -191,6 +191,7 @@ model Organization {
   financeBookings             FinanceBooking[]
   financeDeals                FinanceDeal[]
   financeMonthCloses          FinanceMonthClose[]
+  financeYears                FinanceYear[]
 
   @@map("organization")
   @@schema("public")
@@ -320,8 +321,8 @@ model Space {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner        User?         @relation("SpaceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?           @relation("SpaceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   access       SpaceAccess[]
   tasks        Task[]
   articles     Article[]
@@ -1505,6 +1506,10 @@ model FinanceCategory {
   sortOrder      Int         @default(0)
   /// Nur für Liquiditätsplanung, nicht in der Budget-Übersicht
   liquidityOnly  Boolean     @default(false)
+  /// Erstes Jahr, in dem die Kategorie gilt (leer = schon immer)
+  validFrom      Int?
+  /// Letztes Jahr, in dem die Kategorie gilt (leer = unbefristet)
+  validUntil     Int?
   airtableId     String?
   archivedAt     DateTime?
   createdAt      DateTime    @default(now())
@@ -1595,6 +1600,21 @@ model FinanceBooking {
   @@index([organizationId, month, categoryId])
   @@index([dealId])
   @@map("finance_booking")
+  @@schema("public")
+}
+
+/// Explizit angelegtes Budgetjahr (damit ein leeres Jahr in der Auswahl erscheint)
+model FinanceYear {
+  id             String   @id @default(cuid())
+  organizationId String
+  year           Int
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, year])
+  @@map("finance_year")
   @@schema("public")
 }
 

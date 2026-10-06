@@ -222,13 +222,20 @@ export async function listDeals(
   });
 }
 
-export type CategoryOption = { id: string; name: string; kind: FinanceKind; group: string | null };
+export type CategoryOption = {
+  id: string;
+  name: string;
+  kind: FinanceKind;
+  group: string | null;
+  validFrom: number | null;
+  validUntil: number | null;
+};
 
 export async function listCategoryOptions(organizationId: string): Promise<CategoryOption[]> {
   const rows = await prisma.financeCategory.findMany({
     where: { organizationId, liquidityOnly: false, archivedAt: null },
     orderBy: [{ kind: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, kind: true, group: true },
+    select: { id: true, name: true, kind: true, group: true, validFrom: true, validUntil: true },
   });
   return rows.map((r) => ({ ...r, kind: r.kind as FinanceKind }));
 }

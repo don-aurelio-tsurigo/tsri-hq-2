@@ -17,10 +17,10 @@ import {
   type DealGrid,
 } from "@/lib/finance/grid";
 import {
-  MONTH_SHORT,
   addMonths,
   formatChf,
   formatChfExact,
+  isCategoryActive,
   isMonthKey,
   monthKey,
   monthLabel,
@@ -42,29 +42,37 @@ export function FinanceDealGrid({
   const [pending, startTransition] = useTransition();
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
-  const [grid, setGrid] = useState<DealGrid>(() =>
-    gridFromBookings(
+  // A new deal starts with one month column (Zapier start month or this month),
+  // so amounts can be entered right away.
+  const [grid, setGrid] = useState<DealGrid>(() => {
+    const today = new Date();
+    return gridFromBookings(
       deal.bookings,
       categories.map((c) => c.id),
-      { month: deal.suggestion.startMonth, categoryId: deal.suggestion.categoryId },
-    ),
-  );
+      {
+        month: deal.suggestion.startMonth ?? monthKey(today.getFullYear(), today.getMonth()),
+        categoryId: deal.suggestion.categoryId,
+      },
+    );
+  });
   const [dirty, setDirty] = useState(false);
   const [acceptDifference, setAcceptDifference] = useState(false);
   /** Last selected cell – target of «Rest eintragen» */
   const [selected, setSelected] = useState<{ categoryId: string; month: MonthKey } | null>(null);
 
   const now = new Date();
-  const lastMonth = grid.months[grid.months.length - 1];
-  const [newMonth, setNewMonth] = useState<MonthKey>(
-    lastMonth ? addMonths(lastMonth, 1) : monthKey(now.getFullYear(), now.getMonth()),
-  );
 
   const total = gridTotal(grid);
   const open = roundCents(deal.totalAmount - total);
   const invalid = gridHasInvalid(grid);
   const filledCells = gridToRows(grid, deal.title).length;
-  const unusedCategories = categories.filter((c) => !grid.categoryIds.includes(c.id));
+  // Only offer categories valid in at least one of the grid's years
+  const gridYears = grid.months.length
+    ? [...new Set(grid.months.map((m) => parseMonthKey(m)[0]))]
+    : [now.getFullYear()];
+  const unusedCategories = categories.filter(
+    (c) => !grid.categoryIds.includes(c.id) && gridYears.some((y) => isCategoryActive(c, y)),
+  );
 
   function update(next: DealGrid) {
     setGrid(next);
@@ -76,18 +84,42 @@ export function FinanceDealGrid({
     update({ ...grid, cells: { ...grid.cells, [cellKey(categoryId, month)]: value } });
   }
 
+  /** Append the month after the last column (or this month if empty). */
   function addMonth() {
-    if (!isMonthKey(newMonth)) {
-      showToast({ message: "Bitte einen Monat wählen." });
+    const last = grid.months[grid.months.length - 1];
+    let next = last ? addMonths(last, 1) : monthKey(now.getFullYear(), now.getMonth());
+    while (grid.months.includes(next)) next = addMonths(next, 1);
+    update({ ...grid, months: [...grid.months, next].sort() });
+  }
+
+  /** Change a column's month; its amounts (and booking ids) move along. */
+  function changeMonth(from: MonthKey, to: MonthKey) {
+    if (from === to || !isMonthKey(to)) return;
+    if (grid.months.includes(to)) {
+      showToast({ message: `${monthLabel(to)} ist schon im Raster.` });
       return;
     }
-    if (grid.months.includes(newMonth)) {
-      showToast({ message: `${monthLabel(newMonth)} ist schon im Raster.` });
-      return;
+    const cells = { ...grid.cells };
+    const existing = { ...grid.existing };
+    for (const c of grid.categoryIds) {
+      const fromKey = cellKey(c, from);
+      const toKey = cellKey(c, to);
+      if (fromKey in cells) {
+        cells[toKey] = cells[fromKey];
+        delete cells[fromKey];
+      }
+      if (existing[fromKey]) {
+        existing[toKey] = existing[fromKey];
+        delete existing[fromKey];
+      }
     }
-    const months = [...grid.months, newMonth].sort();
-    update({ ...grid, months });
-    setNewMonth(addMonths(months[months.length - 1], 1));
+    update({
+      ...grid,
+      months: grid.months.map((m) => (m === from ? to : m)).sort(),
+      cells,
+      existing,
+    });
+    if (selected?.month === from) setSelected({ ...selected, month: to });
   }
 
   function removeMonth(month: MonthKey) {
@@ -162,7 +194,7 @@ export function FinanceDealGrid({
         <div className="min-w-0 sm:max-w-xl">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Aufteilen</h2>
           <p className="mt-0.5 text-sm text-[var(--muted)]">
-            Monate und Kategorien hinzufügen, dann Beträge eintragen. Jede gefüllte Zelle wird eine
+            Monat im Spaltenkopf wählen, links eine Kategorie hinzufügen und Beträge eintragen. Jede gefüllte Zelle wird eine
             Buchung. Taste <kbd className="rounded border border-[var(--border)] px-1">=</kbd> trägt den
             offenen Rest ein.
           </p>
@@ -205,16 +237,18 @@ export function FinanceDealGrid({
                 Kategorie
               </th>
               {grid.months.map((m) => {
-                const [y, mi] = parseMonthKey(m);
                 return (
                   <th
                     key={m}
-                    className="min-w-[7.5rem] border-r border-b-2 border-[var(--border)] px-2 py-2 text-left font-semibold whitespace-nowrap"
+                    className="min-w-[11rem] border-r border-b-2 border-[var(--border)] px-2 py-1.5 text-left font-semibold whitespace-nowrap"
                   >
                     <div className="flex items-center justify-between gap-1">
-                      <span title={monthLabel(m)}>
-                        {MONTH_SHORT[mi]} {String(y).slice(2)}
-                      </span>
+                      <FinanceMonthPicker
+                        value={m}
+                        onChange={(to) => changeMonth(m, to)}
+                        label={`Spalte ${monthLabel(m)}`}
+                        compact
+                      />
                       <button
                         type="button"
                         onClick={() => removeMonth(m)}
@@ -229,21 +263,14 @@ export function FinanceDealGrid({
                 );
               })}
               <th className="border-r border-b-2 border-[var(--border)] px-2 py-1.5 text-left">
-                <div className="flex items-center gap-1">
-                  <FinanceMonthPicker
-                    value={newMonth}
-                    onChange={setNewMonth}
-                    label="Monat zum Hinzufügen"
-                    compact
-                  />
-                  <button
-                    type="button"
-                    onClick={addMonth}
-                    className="btn btn-ghost inline-flex items-center gap-1 px-2 py-1 text-xs whitespace-nowrap"
-                  >
-                    <Plus className="size-3.5" /> Monat
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={addMonth}
+                  className="btn btn-ghost inline-flex items-center gap-1 px-2 py-1 text-xs whitespace-nowrap"
+                  title="Folgemonat als neue Spalte anhängen"
+                >
+                  <Plus className="size-3.5" /> Monat
+                </button>
               </th>
               <th className="min-w-[7rem] border-b-2 border-l-2 border-[var(--border)] bg-[var(--panel-muted)]/50 px-3 py-2 text-right font-semibold">
                 Total
@@ -342,7 +369,7 @@ export function FinanceDealGrid({
                   value=""
                   onChange={(e) => addCategory(e.target.value)}
                   aria-label="Kategorie hinzufügen"
-                  className="w-full rounded-md border-2 border-dashed border-[var(--border)] bg-transparent px-2 py-1 text-sm font-semibold text-[var(--muted)]"
+                  className="w-full rounded-md border-2 border-dashed border-[var(--accent)] bg-[var(--accent-soft)]/40 px-2 py-1 text-sm font-semibold text-[var(--accent-hover)]"
                   disabled={unusedCategories.length === 0}
                 >
                   <option value="">+ Kategorie</option>
@@ -361,7 +388,19 @@ export function FinanceDealGrid({
                   })}
                 </select>
               </td>
-              <td colSpan={grid.months.length + 2} className="border-b border-[var(--border)]/70" />
+              {/* Placeholder cells make clear that amounts go into a category row */}
+              {grid.months.map((m) => (
+                <td key={m} className="border-r border-b border-[var(--border)]/70 p-1">
+                  <input
+                    disabled
+                    placeholder="Kategorie wählen"
+                    aria-label={`Zuerst eine Kategorie wählen (${monthLabel(m)})`}
+                    title="Zuerst links eine Kategorie wählen"
+                    className="w-full cursor-not-allowed rounded-md border-2 border-dashed border-[var(--border)] bg-transparent px-2 py-1 text-right text-xs"
+                  />
+                </td>
+              ))}
+              <td colSpan={2} className="border-b border-[var(--border)]/70" />
             </tr>
           </tbody>
           {grid.categoryIds.length > 0 && grid.months.length > 0 ? (
@@ -388,10 +427,10 @@ export function FinanceDealGrid({
       {grid.months.length === 0 || grid.categoryIds.length === 0 ? (
         <p className="px-5 py-4 text-sm text-[var(--muted)]">
           {grid.months.length === 0 && grid.categoryIds.length === 0
-            ? "Noch leer: oben rechts einen Monat und unten links eine Kategorie hinzufügen."
+            ? "Noch leer: mit «+ Monat» eine Spalte und links eine Kategorie hinzufügen."
             : grid.months.length === 0
-              ? "Noch kein Monat: oben rechts einen Monat hinzufügen."
-              : "Noch keine Kategorie: unten links eine Kategorie hinzufügen."}
+              ? "Noch kein Monat: oben mit «+ Monat» eine Spalte hinzufügen."
+              : "Noch keine Kategorie: links in der Zeile «+ Kategorie» eine Kategorie wählen, dann Beträge eintragen."}
         </p>
       ) : null}
 

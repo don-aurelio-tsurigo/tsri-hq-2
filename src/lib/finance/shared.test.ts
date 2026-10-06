@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   addCellMaps,
   addMonths,
+  isCategoryActive,
   monthKey,
   monthKeyFromDate,
   monthKeyToDate,
@@ -10,6 +11,7 @@ import {
   parseLooseAmount,
   parseLooseMonth,
   sumCells,
+  validityLabel,
 } from "./shared";
 
 describe("parseAmountInput", () => {
@@ -82,5 +84,23 @@ describe("webhook parsing", () => {
     assert.equal(parseLooseMonth("15.03.2027"), "2027-03");
     assert.equal(parseLooseMonth("2027-13"), null);
     assert.equal(parseLooseMonth("März"), null);
+  });
+});
+
+describe("category validity", () => {
+  it("treats empty bounds as open", () => {
+    assert.equal(isCategoryActive({ validFrom: null, validUntil: null }, 2027), true);
+    assert.equal(isCategoryActive({ validFrom: 2027, validUntil: null }, 2026), false);
+    assert.equal(isCategoryActive({ validFrom: 2027, validUntil: null }, 2027), true);
+    assert.equal(isCategoryActive({ validFrom: null, validUntil: 2026 }, 2027), false);
+    assert.equal(isCategoryActive({ validFrom: null, validUntil: 2026 }, 2026), true);
+  });
+
+  it("labels validity ranges", () => {
+    assert.equal(validityLabel({ validFrom: null, validUntil: null }), null);
+    assert.equal(validityLabel({ validFrom: 2027, validUntil: null }), "ab 2027");
+    assert.equal(validityLabel({ validFrom: null, validUntil: 2026 }), "bis 2026");
+    assert.equal(validityLabel({ validFrom: 2026, validUntil: 2027 }), "2026–2027");
+    assert.equal(validityLabel({ validFrom: 2027, validUntil: 2027 }), "nur 2027");
   });
 });

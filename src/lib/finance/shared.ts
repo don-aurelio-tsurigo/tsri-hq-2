@@ -193,3 +193,23 @@ function validMonth(year: number, month: number): MonthKey | null {
   if (year < 2000 || year > 2100 || month < 1 || month > 12) return null;
   return monthKey(year, month - 1);
 }
+
+export type CategoryValidity = { validFrom: number | null; validUntil: number | null };
+
+/** Is the category meant to be used in this year? (null bounds = open) */
+export function isCategoryActive(category: CategoryValidity, year: number): boolean {
+  return (
+    (category.validFrom === null || category.validFrom <= year) &&
+    (category.validUntil === null || category.validUntil >= year)
+  );
+}
+
+export function validityLabel(category: CategoryValidity): string | null {
+  const { validFrom, validUntil } = category;
+  if (validFrom !== null && validUntil !== null) {
+    return validFrom === validUntil ? `nur ${validFrom}` : `${validFrom}–${validUntil}`;
+  }
+  if (validFrom !== null) return `ab ${validFrom}`;
+  if (validUntil !== null) return `bis ${validUntil}`;
+  return null;
+}

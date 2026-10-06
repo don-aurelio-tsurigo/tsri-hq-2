@@ -31,6 +31,7 @@ import {
   Rss,
   Settings2,
   ScanFace,
+  Tags,
   Trash2,
   Users,
   Wallet,
@@ -608,6 +609,14 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Deals
+            </NavLink>
+            <NavLink
+              href="/finance/kategorien"
+              active={pathname.startsWith("/finance/kategorien")}
+              icon={Tags}
+              onNavigate={onMobileClose}
+            >
+              Kategorien
             </NavLink>
             <NavLink
               href="/finance/payrexx"

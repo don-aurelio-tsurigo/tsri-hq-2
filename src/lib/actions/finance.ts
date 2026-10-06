@@ -3,11 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  createBudgetYear,
   listCellBookings,
   setBudgetValue,
   setMonthClosed,
   type CellBooking,
 } from "@/lib/finance/budget";
+import {
+  CategoryError,
+  createCategory,
+  moveCategory,
+  updateCategory,
+} from "@/lib/finance/categories";
 import {
   createBooking,
   createManualDeal,
@@ -268,4 +275,97 @@ export async function deleteFinanceBooking(bookingId: string): Promise<ActionRes
   if (!ok) return { error: "Buchung nicht gefunden." };
   revalidateFinance();
   return { ok: true };
+}
+
+// ─── Jahre und Kategorien ────────────────────────────────────
+
+function validYear(n: unknown): n is number {
+  return typeof n === "number" && Number.isInteger(n) && n >= 2000 && n <= 2100;
+}
+
+export async function createFinanceYear(input: {
+  year: number;
+  copyPrevious: boolean;
+}): Promise<{ error: string } | { ok: true; copied: number }> {
+  const { session, membership } = await requireCapability("finance");
+  if (!validYear(input.year)) return { error: "Ungültiges Jahr." };
+  const { copied } = await createBudgetYear({
+    organizationId: membership.organizationId,
+    year: input.year,
+    copyPrevious: input.copyPrevious === true,
+    userId: session.user.id,
+  });
+  revalidatePath("/finance");
+  return { ok: true, copied };
+}
+
+async function categoryAction(run: () => Promise<void>): Promise<ActionResult> {
+  try {
+    await run();
+  } catch (e) {
+    if (e instanceof CategoryError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath("/finance");
+  revalidatePath("/finance/kategorien");
+  revalidatePath("/finance/deals", "layout");
+  return { ok: true };
+}
+
+function optionalYear(v: unknown): number | null {
+  return v === null || v === undefined || v === "" ? null : Number(v);
+}
+
+export async function createFinanceCategory(input: {
+  name: string;
+  kind: "income" | "expense";
+  group: string;
+  validFrom: number | null;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  const name = cleanText(input.name, 200);
+  if (!name) return { error: "Name fehlt." };
+  if (input.kind !== "income" && input.kind !== "expense") return { error: "Ungültige Art." };
+  return categoryAction(() =>
+    createCategory({
+      organizationId: membership.organizationId,
+      name,
+      kind: input.kind,
+      group: cleanText(input.group, 200),
+      validFrom: optionalYear(input.validFrom),
+    }),
+  );
+}
+
+export async function updateFinanceCategory(input: {
+  id: string;
+  name?: string;
+  group?: string;
+  liquidityOnly?: boolean;
+  validFrom?: number | null;
+  validUntil?: number | null;
+  archived?: boolean;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  const patch: Parameters<typeof updateCategory>[2] = {};
+  if (input.name !== undefined) {
+    const name = cleanText(input.name, 200);
+    if (!name) return { error: "Name fehlt." };
+    patch.name = name;
+  }
+  if (input.group !== undefined) patch.group = cleanText(input.group, 200);
+  if (input.liquidityOnly !== undefined) patch.liquidityOnly = input.liquidityOnly === true;
+  if (input.validFrom !== undefined) patch.validFrom = optionalYear(input.validFrom);
+  if (input.validUntil !== undefined) patch.validUntil = optionalYear(input.validUntil);
+  if (input.archived !== undefined) patch.archived = input.archived === true;
+  return categoryAction(() => updateCategory(membership.organizationId, input.id, patch));
+}
+
+export async function moveFinanceCategory(input: {
+  id: string;
+  direction: -1 | 1;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  if (input.direction !== -1 && input.direction !== 1) return { error: "Ungültige Richtung." };
+  return categoryAction(() => moveCategory(membership.organizationId, input.id, input.direction));
 }
