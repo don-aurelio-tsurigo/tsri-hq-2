@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 46; // v46: DAM Gesichtserkennung (DamPerson, AssetFace, AssetPerson)
+const PRISMA_CLIENT_SCHEMA_VERSION = 47; // v47: Finance Budget (FinanceCategory, FinanceBudgetEntry, FinanceBooking, FinanceDeal, FinanceMonthClose)
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -105,6 +105,11 @@ const REQUIRED_MODELS = [
   "PayrexxPayout",
   "PayrexxPayoutLine",
   "PayrexxChannelRule",
+  "FinanceCategory",
+  "FinanceBudgetEntry",
+  "FinanceBooking",
+  "FinanceDeal",
+  "FinanceMonthClose",
   "MemberUsage",
   "UploadBatch",
   "Asset",

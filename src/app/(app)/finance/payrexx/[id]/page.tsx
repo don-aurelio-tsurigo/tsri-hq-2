@@ -34,7 +34,7 @@ export default async function PayrexxDetailPage({
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
         <Link
-          href="/payrexx"
+          href="/finance/payrexx"
           className="text-sm font-semibold text-[var(--accent)] hover:underline"
         >
           ← Alle Auszahlungen
@@ -67,20 +67,20 @@ export default async function PayrexxDetailPage({
 
       <div className="flex flex-wrap gap-2">
         <a
-          href={`/payrexx/${detail.id}/export/csv`}
+          href={`/finance/payrexx/${detail.id}/export/csv`}
           className="btn btn-secondary text-sm"
         >
           CSV exportieren
         </a>
         <a
-          href={`/payrexx/${detail.id}/export/json`}
+          href={`/finance/payrexx/${detail.id}/export/json`}
           className="btn btn-secondary text-sm"
         >
           JSON exportieren
         </a>
         {shopifyLines.length > 0 ? (
           <a
-            href={`/payrexx/${detail.id}/export/shopify`}
+            href={`/finance/payrexx/${detail.id}/export/shopify`}
             className="btn btn-secondary text-sm"
           >
             Shopify-Abgleich CSV
@@ -218,7 +218,7 @@ export default async function PayrexxDetailPage({
                     <td className="px-4 py-2.5">
                       <PayrexxAssignForm
                         lineId={row.id}
-                        next={`/payrexx/${detail.id}`}
+                        next={`/finance/payrexx/${detail.id}`}
                         channel={row.channel}
                       />
                     </td>

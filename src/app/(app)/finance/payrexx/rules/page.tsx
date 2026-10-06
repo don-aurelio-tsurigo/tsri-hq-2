@@ -22,7 +22,7 @@ export default async function PayrexxRulesPage() {
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
         <Link
-          href="/payrexx"
+          href="/finance/payrexx"
           className="text-sm font-semibold text-[var(--accent)] hover:underline"
         >
           ← Payrexx-Tool

@@ -31,7 +31,7 @@ export default async function PayrexxPage() {
             {unmappedTotal} Zeile(n) brauchen eine manuelle Zuordnung.
           </p>
           <Link
-            href="/payrexx/review"
+            href="/finance/payrexx/review"
             className="text-sm font-semibold text-[var(--accent-hover)] underline-offset-2 hover:underline"
           >
             Zur Review-Queue →
@@ -57,13 +57,13 @@ export default async function PayrexxPage() {
           </h2>
           <div className="flex gap-3 text-sm">
             <Link
-              href="/payrexx/review"
+              href="/finance/payrexx/review"
               className="font-semibold text-[var(--accent)] hover:underline"
             >
               Review
             </Link>
             <Link
-              href="/payrexx/rules"
+              href="/finance/payrexx/rules"
               className="font-semibold text-[var(--accent)] hover:underline"
             >
               Kanal-Regeln
@@ -120,7 +120,7 @@ export default async function PayrexxPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <Link
-                          href={`/payrexx/${p.id}`}
+                          href={`/finance/payrexx/${p.id}`}
                           className="font-semibold text-[var(--accent)] hover:underline"
                         >
                           Öffnen

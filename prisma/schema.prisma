@@ -183,6 +183,11 @@ model Organization {
   payrexxChannelRules         PayrexxChannelRule[]
   editorialCalendarCategories EditorialCalendarCategory[]
   editorialCalendarEvents     EditorialCalendarEvent[]
+  financeCategories           FinanceCategory[]
+  financeBudgetEntries        FinanceBudgetEntry[]
+  financeBookings             FinanceBooking[]
+  financeDeals                FinanceDeal[]
+  financeMonthCloses          FinanceMonthClose[]
 
   @@map("organization")
   @@schema("public")
@@ -1451,6 +1456,143 @@ model EditorialCalendarOccurrence {
   @@unique([eventId, year])
   @@index([eventId, year])
   @@map("editorial_calendar_occurrence")
+  @@schema("public")
+}
+
+// ─── Finance: Budget / Forecast / Effektiv ─────────────────────
+// Effektiv wird nicht gespeichert, sondern aus FinanceBooking (Monat × Kategorie) summiert.
+// Beträge: Einnahmen positiv, Ausgaben negativ.
+
+enum FinanceKind {
+  income
+  expense
+
+  @@schema("public")
+}
+
+enum FinanceDealStatus {
+  open
+  split
+  ignored
+
+  @@schema("public")
+}
+
+model FinanceCategory {
+  id             String      @id @default(cuid())
+  organizationId String
+  name           String
+  kind           FinanceKind
+  /// Oberkategorie (z.B. Werbung, Endkundenerlös, Lohnkosten)
+  group          String?
+  sortOrder      Int         @default(0)
+  /// Nur für Liquiditätsplanung, nicht in der Budget-Übersicht
+  liquidityOnly  Boolean     @default(false)
+  airtableId     String?
+  archivedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  budgetEntries FinanceBudgetEntry[]
+  bookings      FinanceBooking[]
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, airtableId])
+  @@index([organizationId, sortOrder])
+  @@map("finance_category")
+  @@schema("public")
+}
+
+/// Budget und Forecast pro Kategorie und Monat (Zeile entsteht beim ersten Eintrag)
+model FinanceBudgetEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  categoryId     String
+  /// Immer der 1. des Monats
+  month          DateTime @db.Date
+  budget         Decimal  @default(0) @db.Decimal(14, 2)
+  forecast       Decimal  @default(0) @db.Decimal(14, 2)
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, month])
+  @@index([organizationId, month])
+  @@map("finance_budget_entry")
+  @@schema("public")
+}
+
+model FinanceDeal {
+  id                String            @id @default(cuid())
+  organizationId    String
+  /// crm | manual | airtable
+  source            String
+  externalId        String?
+  title             String
+  organisation      String?
+  totalAmount       Decimal           @db.Decimal(14, 2)
+  responsibleName   String?
+  bexioUrl          String?
+  status            FinanceDealStatus @default(open)
+  changedAfterSplit Boolean           @default(false)
+  /// Rohdaten vom Webhook
+  payload           Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookings     FinanceBooking[]
+
+  @@unique([organizationId, source, externalId])
+  @@index([organizationId, status])
+  @@map("finance_deal")
+  @@schema("public")
+}
+
+model FinanceBooking {
+  id              String   @id @default(cuid())
+  organizationId  String
+  categoryId      String
+  /// Immer der 1. des Monats
+  month           DateTime @db.Date
+  title           String
+  amount          Decimal  @db.Decimal(14, 2)
+  organisation    String?
+  responsibleName String?
+  bexioUrl        String?
+  notes           String?  @db.Text
+  dealId          String?
+  airtableId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  deal         FinanceDeal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, airtableId])
+  @@index([organizationId, month, categoryId])
+  @@index([dealId])
+  @@map("finance_booking")
+  @@schema("public")
+}
+
+/// Abgeschlossener Monat: erwartetes Jahresergebnis rechnet dann mit Effektiv statt Forecast
+model FinanceMonthClose {
+  id             String   @id @default(cuid())
+  organizationId String
+  month          DateTime @db.Date
+  closedById     String?
+  closedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, month])
+  @@map("finance_month_close")
   @@schema("public")
 }
 

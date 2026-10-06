@@ -1,0 +1,36 @@
+import { FinanceBudgetOverview } from "@/components/finance-budget-overview";
+import { getBudgetOverview } from "@/lib/finance/budget";
+import { pageTitle } from "@/lib/link-preview";
+import { requireCapability } from "@/lib/session";
+
+export const metadata = pageTitle("Finance");
+
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ jahr?: string }>;
+}) {
+  const { membership } = await requireCapability("finance");
+  const { jahr } = await searchParams;
+  const parsed = Number(jahr);
+  const year =
+    Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100
+      ? parsed
+      : new Date().getFullYear();
+
+  const overview = await getBudgetOverview(membership.organizationId, year);
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
+          Finance
+        </p>
+        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+          Budget {year}
+        </h1>
+      </header>
+      <FinanceBudgetOverview overview={overview} />
+    </div>
+  );
+}

@@ -22,6 +22,7 @@
     "dam:mediagraph-enrich": "tsx scripts/mediagraph-import.ts --enrich",
     "dam:face-check": "tsx scripts/dam-face-check.ts",
     "dam:face-scan": "tsx scripts/dam-face-scan.ts",
+    "finance:airtable-import": "tsx scripts/finance-airtable-import.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

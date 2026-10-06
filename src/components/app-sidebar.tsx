@@ -25,6 +25,7 @@ import {
   MessageCircle,
   Bell,
   Newspaper,
+  PiggyBank,
   Pin,
   Rss,
   Settings2,
@@ -59,7 +60,14 @@ type NavTaskPin = {
   name: string;
 };
 
-type NavSectionId = "redaktion" | "fotos" | "tasks" | "projekte" | "team" | "admin";
+type NavSectionId =
+  | "redaktion"
+  | "fotos"
+  | "tasks"
+  | "projekte"
+  | "finance"
+  | "team"
+  | "admin";
 
 function NavLink({
   href,
@@ -252,6 +260,9 @@ export function AppSidebar({
     }
     if (id === "projekte") {
       return pathname === "/projects" || pathname.startsWith("/projects/");
+    }
+    if (id === "finance") {
+      return pathname === "/finance" || pathname.startsWith("/finance/");
     }
     return false;
   }
@@ -575,16 +586,29 @@ export function AppSidebar({
         )}
 
         {canFinance && (
-          <NavTopLink
-            href="/payrexx"
-            active={
-              pathname === "/payrexx" || pathname.startsWith("/payrexx/")
-            }
+          <NavSection
+            title="Finance"
             icon={Wallet}
-            onNavigate={onMobileClose}
+            open={isSectionOpen("finance")}
+            onToggle={() => toggleSection("finance")}
           >
-            Finance
-          </NavTopLink>
+            <NavLink
+              href="/finance"
+              active={pathname === "/finance"}
+              icon={PiggyBank}
+              onNavigate={onMobileClose}
+            >
+              Budget
+            </NavLink>
+            <NavLink
+              href="/finance/payrexx"
+              active={pathname.startsWith("/finance/payrexx")}
+              icon={Wallet}
+              onNavigate={onMobileClose}
+            >
+              Payrexx
+            </NavLink>
+          </NavSection>
         )}
 
         <NavSection

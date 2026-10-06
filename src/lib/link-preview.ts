@@ -21,7 +21,7 @@ const ROUTE_TITLES: { prefix: string; title: string; exact?: boolean }[] = [
   { prefix: "/tasks", title: "Alle Tasks" },
   { prefix: "/projects", title: "Projekte" },
   { prefix: "/ads", title: "Werbung" },
-  { prefix: "/payrexx", title: "Finance" },
+  { prefix: "/finance", title: "Finance" },
   { prefix: "/hours", title: "Meine Arbeitszeit" },
   { prefix: "/settings/newsletter", title: "Newslettereinstellungen" },
   { prefix: "/settings/schichtplan", title: "Schichtplan-Einstellungen" },

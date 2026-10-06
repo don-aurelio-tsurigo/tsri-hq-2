@@ -20,6 +20,17 @@ const nextConfig: NextConfig = {
       "./node_modules/libheif-js/**/*",
     ],
   },
+  async redirects() {
+    return [
+      // Payrexx lebt seit dem Finance-Ausbau unter /finance/payrexx.
+      { source: "/payrexx", destination: "/finance/payrexx", permanent: true },
+      {
+        source: "/payrexx/:path*",
+        destination: "/finance/payrexx/:path*",
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     // Print TIFFs regularly exceed phone-JPEG sizes; keep proxy/action limits
     // aligned with MAX_FILE_BYTES (200 MB) so DAM fallback uploads succeed.

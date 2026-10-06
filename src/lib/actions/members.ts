@@ -428,7 +428,7 @@ export async function setMemberCapability(formData: FormData) {
   }
 
   revalidatePath("/settings/members");
-  revalidatePath("/payrexx");
+  revalidatePath("/finance/payrexx");
   revalidatePath("/ads");
   revalidatePath("/newsletter");
   revalidatePath("/home");

@@ -12,10 +12,10 @@ import {
 import { requireCapability } from "@/lib/session";
 
 function revalidatePayrexx(payoutId?: string) {
-  revalidatePath("/payrexx");
-  revalidatePath("/payrexx/review");
-  revalidatePath("/payrexx/rules");
-  if (payoutId) revalidatePath(`/payrexx/${payoutId}`);
+  revalidatePath("/finance/payrexx");
+  revalidatePath("/finance/payrexx/review");
+  revalidatePath("/finance/payrexx/rules");
+  if (payoutId) revalidatePath(`/finance/payrexx/${payoutId}`);
 }
 
 /** Called from client; may return `{ error }` or redirect on success. */
@@ -48,7 +48,7 @@ export async function uploadPayrexxExport(
   }
 
   revalidatePayrexx(created.id);
-  redirect(`/payrexx/${created.id}`);
+  redirect(`/finance/payrexx/${created.id}`);
 }
 
 /** Called from client; redirects on success. */
@@ -57,7 +57,7 @@ export async function assignPayrexxLine(formData: FormData): Promise<void> {
   const lineId = String(formData.get("lineId") ?? "");
   const categoryKey = String(formData.get("categoryKey") ?? "");
   const rememberChannel = formData.get("rememberChannel") === "1";
-  const nextPath = String(formData.get("next") ?? "/payrexx/review");
+  const nextPath = String(formData.get("next") ?? "/finance/payrexx/review");
 
   if (!lineId || !categoryKey) return;
 
@@ -70,7 +70,7 @@ export async function assignPayrexxLine(formData: FormData): Promise<void> {
   if (!result) return;
 
   revalidatePayrexx(result.payoutId);
-  redirect(nextPath.startsWith("/payrexx") ? nextPath : "/payrexx/review");
+  redirect(nextPath.startsWith("/finance/payrexx") ? nextPath : "/finance/payrexx/review");
 }
 
 export async function deletePayrexxPayout(formData: FormData): Promise<void> {
@@ -80,7 +80,7 @@ export async function deletePayrexxPayout(formData: FormData): Promise<void> {
     await deletePayout(membership.organizationId, payoutId);
   }
   revalidatePayrexx();
-  redirect("/payrexx");
+  redirect("/finance/payrexx");
 }
 
 export async function savePayrexxChannelRule(formData: FormData): Promise<void> {
@@ -91,7 +91,7 @@ export async function savePayrexxChannelRule(formData: FormData): Promise<void> 
     await upsertChannelRule(membership.organizationId, channel, categoryKey);
   }
   revalidatePayrexx();
-  redirect("/payrexx/rules");
+  redirect("/finance/payrexx/rules");
 }
 
 export async function removePayrexxChannelRule(
@@ -103,5 +103,5 @@ export async function removePayrexxChannelRule(
     await deleteChannelRule(membership.organizationId, ruleId);
   }
   revalidatePayrexx();
-  redirect("/payrexx/rules");
+  redirect("/finance/payrexx/rules");
 }

@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { ToastProvider } from "@/components/toast";
 import { listNavProjects } from "@/lib/projects";
 import { listNavTaskPins } from "@/lib/tasks";
 import { canAccessCivicMedia, canManageEditorial, hasCapability } from "@/lib/permissions";
@@ -49,7 +50,8 @@ export default async function AppLayout({
             aria-hidden
           />
           <main className="min-w-0 flex-1 px-4 py-6 md:px-6 md:py-8">
-            {children}
+            {/* AppShell suspends during SSR (useSearchParams); pages using useToast still need the provider */}
+            <ToastProvider>{children}</ToastProvider>
           </main>
         </div>
       }

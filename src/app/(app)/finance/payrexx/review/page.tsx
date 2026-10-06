@@ -14,7 +14,7 @@ export default async function PayrexxReviewPage() {
     <div className="mx-auto max-w-4xl space-y-8">
       <div>
         <Link
-          href="/payrexx"
+          href="/finance/payrexx"
           className="text-sm font-semibold text-[var(--accent)] hover:underline"
         >
           ← Payrexx-Tool
@@ -59,7 +59,7 @@ export default async function PayrexxReviewPage() {
                 >
                   <td className="px-4 py-2.5">
                     <Link
-                      href={`/payrexx/${row.payoutId}`}
+                      href={`/finance/payrexx/${row.payoutId}`}
                       className="font-semibold text-[var(--accent)] hover:underline"
                     >
                       {row.payoutDate}
@@ -76,7 +76,7 @@ export default async function PayrexxReviewPage() {
                   <td className="px-4 py-2.5">
                     <PayrexxAssignForm
                       lineId={row.id}
-                      next="/payrexx/review"
+                      next="/finance/payrexx/review"
                       channel={row.channel}
                     />
                   </td>
