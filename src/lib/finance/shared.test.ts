@@ -13,6 +13,7 @@ import {
   parseLooseAmount,
   parseLooseMonth,
   sumCells,
+  tokenFromHeaders,
   validityLabel,
 } from "./shared";
 
@@ -116,5 +117,18 @@ describe("company names", () => {
     assert.equal(companyLooseKey("Kunsthaus Zürich AG"), companyLooseKey("Kunsthaus"));
     assert.equal(companyLooseKey("Rent-a-Show AG / FBM"), "rent a show fbm");
     assert.notEqual(companyLooseKey("Kunsthaus"), companyLooseKey("Kunsthalle"));
+  });
+});
+
+describe("tokenFromHeaders", () => {
+  it("accepts Bearer with or without space and the bare token", () => {
+    const h = (v: Record<string, string>) => new Headers(v);
+    assert.equal(tokenFromHeaders(h({ authorization: "Bearer fin_abc" })), "fin_abc");
+    assert.equal(tokenFromHeaders(h({ authorization: "Bearerfin_abc" })), "fin_abc");
+    assert.equal(tokenFromHeaders(h({ authorization: "bearer   fin_abc " })), "fin_abc");
+    assert.equal(tokenFromHeaders(h({ authorization: "fin_abc" })), "fin_abc");
+    assert.equal(tokenFromHeaders(h({ "x-webhook-token": "fin_abc" })), "fin_abc");
+    assert.equal(tokenFromHeaders(h({ authorization: "Bearer" })), null);
+    assert.equal(tokenFromHeaders(h({})), null);
   });
 });

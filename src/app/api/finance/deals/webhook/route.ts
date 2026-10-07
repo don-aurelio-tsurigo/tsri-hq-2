@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@/generated/prisma/client";
-import {
-  findOrganizationByWebhookToken,
-  parseWebhookDeal,
-  upsertDealFromWebhook,
-} from "@/lib/finance/deals";
+import { findOrganizationByWebhookToken, upsertDealFromWebhook } from "@/lib/finance/deals";
+import { tokenFromHeaders } from "@/lib/finance/shared";
+import { parseWebhookDeal } from "@/lib/finance/webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +14,7 @@ function json(body: unknown, status = 200) {
 }
 
 function tokenFrom(request: Request): string | null {
-  const auth = request.headers.get("authorization");
-  if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
-  return request.headers.get("x-webhook-token")?.trim() || null;
+  return tokenFromHeaders(request.headers);
 }
 
 /**

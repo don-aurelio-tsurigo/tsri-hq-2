@@ -234,3 +234,13 @@ export function companyLooseKey(name: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * Accepts «Bearer <token>», but also «Bearer<token>» or the bare token –
+ * whitespace easily gets lost in Zapier header fields.
+ */
+export function tokenFromHeaders(headers: Headers): string | null {
+  const auth = headers.get("authorization")?.trim();
+  if (auth) return auth.replace(/^bearer\s*/i, "").trim() || null;
+  return headers.get("x-webhook-token")?.trim() || null;
+}
