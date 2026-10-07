@@ -13,16 +13,11 @@ import { execFileSync } from "node:child_process";
 import { createReadStream, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { backupR2, required } from "./lib/backup-r2";
 
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
-
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} fehlt.`);
-  return value;
-}
 
 function parsePrefix(): string {
   const i = process.argv.indexOf("--prefix");
@@ -48,19 +43,7 @@ function explainR2Error(error: unknown): never {
 
 async function main() {
   const databaseUrl = process.env.BACKUP_DATABASE_URL?.trim() || required("DATABASE_URL");
-  const accountId = required("BACKUP_R2_ACCOUNT_ID");
-  const bucket = required("BACKUP_R2_BUCKET_NAME");
-  // EU-Jurisdiction-Buckets brauchen https://<account>.eu.r2.cloudflarestorage.com
-  const endpoint =
-    process.env.BACKUP_R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`;
-  const client = new S3Client({
-    region: "auto",
-    endpoint,
-    credentials: {
-      accessKeyId: required("BACKUP_R2_ACCESS_KEY_ID"),
-      secretAccessKey: required("BACKUP_R2_SECRET_ACCESS_KEY"),
-    },
-  });
+  const { client, bucket } = backupR2();
 
   const send = (command: PutObjectCommand) => client.send(command).catch(explainR2Error);
 

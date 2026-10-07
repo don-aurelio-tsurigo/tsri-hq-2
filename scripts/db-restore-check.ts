@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { GetObjectCommand, ListObjectsV2Command, S3Client, type _Object } from "@aws-sdk/client-s3";
+import { backupR2, required } from "./lib/backup-r2";
 import { Client } from "pg";
 
 config({ path: ".env" });
@@ -25,12 +26,6 @@ config({ path: ".env.local", override: true });
 const MAX_AGE_HOURS = 48;
 // Tabellen, die in einer echten Produktions-DB nie leer sein dürfen.
 const MUST_HAVE_ROWS = ["public.user", "public._prisma_migrations"];
-
-function required(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} fehlt.`);
-  return value;
-}
 
 async function listAll(client: S3Client, bucket: string): Promise<_Object[]> {
   const objects: _Object[] = [];
@@ -47,17 +42,7 @@ async function listAll(client: S3Client, bucket: string): Promise<_Object[]> {
 
 async function main() {
   const restoreUrl = required("RESTORE_DATABASE_URL");
-  const accountId = required("BACKUP_R2_ACCOUNT_ID");
-  const bucket = required("BACKUP_R2_BUCKET_NAME");
-  const client = new S3Client({
-    region: "auto",
-    endpoint:
-      process.env.BACKUP_R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: required("BACKUP_R2_ACCESS_KEY_ID"),
-      secretAccessKey: required("BACKUP_R2_SECRET_ACCESS_KEY"),
-    },
-  });
+  const { client, bucket } = backupR2();
 
   const problems: string[] = [];
 
