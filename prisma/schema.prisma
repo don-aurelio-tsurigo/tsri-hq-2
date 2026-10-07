@@ -192,6 +192,7 @@ model Organization {
   financeDeals                FinanceDeal[]
   financeMonthCloses          FinanceMonthClose[]
   financeYears                FinanceYear[]
+  financeCompanies            FinanceCompany[]
 
   @@map("organization")
   @@schema("public")
@@ -1555,7 +1556,7 @@ model FinanceDeal {
   source            String
   externalId        String?
   title             String
-  organisation      String?
+  companyId         String?
   totalAmount       Decimal           @db.Decimal(14, 2)
   responsibleName   String?
   bexioUrl          String?
@@ -1567,9 +1568,11 @@ model FinanceDeal {
   updatedAt         DateTime          @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      FinanceCompany?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
   bookings     FinanceBooking[]
 
   @@unique([organizationId, source, externalId])
+  @@index([companyId])
   @@index([organizationId, status])
   @@map("finance_deal")
   @@schema("public")
@@ -1583,7 +1586,7 @@ model FinanceBooking {
   month           DateTime @db.Date
   title           String
   amount          Decimal  @db.Decimal(14, 2)
-  organisation    String?
+  companyId       String?
   responsibleName String?
   bexioUrl        String?
   notes           String?  @db.Text
@@ -1595,11 +1598,36 @@ model FinanceBooking {
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category     FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   deal         FinanceDeal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  company      FinanceCompany? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, airtableId])
   @@index([organizationId, month, categoryId])
+  @@index([companyId])
   @@index([dealId])
   @@map("finance_booking")
+  @@schema("public")
+}
+
+/// Kund:innen / Firmen (in der Oberfläche «Organisation»; «Organization» ist der Mandant)
+model FinanceCompany {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  /// Kleingeschrieben, Leerraum zusammengefasst – verhindert Duplikate durch Tippvarianten
+  nameKey        String
+  /// Organisations-ID aus Pipedrive (kommt über Zapier), optional
+  pipedriveId    String?
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deals        FinanceDeal[]
+  bookings     FinanceBooking[]
+
+  @@unique([organizationId, nameKey])
+  @@unique([organizationId, pipedriveId])
+  @@map("finance_company")
   @@schema("public")
 }
 

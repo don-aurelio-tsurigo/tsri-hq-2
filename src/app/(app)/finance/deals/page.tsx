@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { FinanceCompanyField } from "@/components/finance-company-combobox";
 import { FinanceDealStatusBadge } from "@/components/finance-deal-status-badge";
 import { FinanceWebhookPanel } from "@/components/finance-webhook-panel";
 import { getPublicAppOrigin } from "@/lib/app-url";
 import { createFinanceDeal } from "@/lib/actions/finance";
 import { prisma } from "@/lib/db";
+import { listCompanyOptions } from "@/lib/finance/companies";
 import { getWebhookToken, listDeals, type DealListItem } from "@/lib/finance/deals";
 import { formatChfExact, monthLabel } from "@/lib/finance/shared";
 import { pageTitle } from "@/lib/link-preview";
@@ -40,11 +42,12 @@ export default async function FinanceDealsPage({
   const q = (params.q ?? "").slice(0, 200);
   const organizationId = membership.organizationId;
 
-  const [deals, token, openCount, reviewCount] = await Promise.all([
+  const [deals, token, openCount, reviewCount, companies] = await Promise.all([
     listDeals(organizationId, filter, q),
     getWebhookToken(organizationId),
     prisma.financeDeal.count({ where: { organizationId, status: "open" } }),
     prisma.financeDeal.count({ where: { organizationId, changedAfterSplit: true } }),
+    listCompanyOptions(organizationId),
   ]);
   const counts: Partial<Record<FilterKey, number>> = { open: openCount, review: reviewCount };
 
@@ -79,7 +82,7 @@ export default async function FinanceDealsPage({
           </div>
           <div className="field">
             <label htmlFor="deal-org">Organisation</label>
-            <input id="deal-org" name="organisation" maxLength={500} />
+            <FinanceCompanyField companies={companies} name="company" inputId="deal-org" />
           </div>
           <div className="field">
             <label htmlFor="deal-amount">Gesamtbetrag (CHF)</label>
@@ -184,7 +187,14 @@ function DealRow({ deal }: { deal: DealListItem }) {
           {deal.title}
         </Link>
         <p className="text-xs text-[var(--muted)]">
-          {[deal.organisation, deal.responsibleName].filter(Boolean).join(" · ") || "—"}
+          {deal.company ? (
+            <Link href={`/finance/organisationen/${deal.company.id}`} className="hover:underline">
+              {deal.company.name}
+            </Link>
+          ) : null}
+          {deal.company && deal.responsibleName ? " · " : null}
+          {deal.responsibleName}
+          {!deal.company && !deal.responsibleName ? "—" : null}
         </p>
       </td>
       <td className="px-4 py-3 text-xs text-[var(--muted)]">

@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   addCellMaps,
   addMonths,
+  companyLooseKey,
+  companyNameKey,
   isCategoryActive,
   monthKey,
   monthKeyFromDate,
@@ -102,5 +104,17 @@ describe("category validity", () => {
     assert.equal(validityLabel({ validFrom: null, validUntil: 2026 }), "bis 2026");
     assert.equal(validityLabel({ validFrom: 2026, validUntil: 2027 }), "2026–2027");
     assert.equal(validityLabel({ validFrom: 2027, validUntil: 2027 }), "nur 2027");
+  });
+});
+
+describe("company names", () => {
+  it("normalises whitespace and case for matching", () => {
+    assert.equal(companyNameKey("  Hürlimannbad & Spa\n  Zürich "), "hürlimannbad & spa zürich");
+  });
+
+  it("spots likely duplicates", () => {
+    assert.equal(companyLooseKey("Kunsthaus Zürich AG"), companyLooseKey("Kunsthaus"));
+    assert.equal(companyLooseKey("Rent-a-Show AG / FBM"), "rent a show fbm");
+    assert.notEqual(companyLooseKey("Kunsthaus"), companyLooseKey("Kunsthalle"));
   });
 });

@@ -16,6 +16,14 @@ import {
   updateCategory,
 } from "@/lib/finance/categories";
 import {
+  CompanyError,
+  deleteCompany,
+  mergeCompanies,
+  resolveCompany,
+  updateCompany,
+  type CompanyInput,
+} from "@/lib/finance/companies";
+import {
   createBooking,
   createManualDeal,
   deleteBooking,
@@ -129,10 +137,14 @@ export async function createFinanceDeal(formData: FormData): Promise<void> {
   if (!title || !validAmount(amount)) {
     redirect("/finance/deals?neu=1&fehler=1");
   }
+  const companyId = await resolveCompany(membership.organizationId, {
+    id: cleanText(formData.get("companyId"), 100),
+    name: cleanText(formData.get("companyName"), 300) ?? "",
+  });
   const id = await createManualDeal({
     organizationId: membership.organizationId,
     title,
-    organisation: cleanText(formData.get("organisation")),
+    companyId,
     totalAmount: roundCents(amount),
     bexioUrl: cleanUrl(formData.get("bexioUrl")),
     responsibleName: cleanText(formData.get("responsibleName"), 200),
@@ -203,7 +215,7 @@ export async function markFinanceDealReviewed(dealId: string): Promise<ActionRes
 export async function updateFinanceDealMeta(input: {
   dealId: string;
   title: string;
-  organisation: string;
+  company: CompanyInput;
   totalAmount: number;
   bexioUrl: string;
 }): Promise<ActionResult> {
@@ -211,11 +223,18 @@ export async function updateFinanceDealMeta(input: {
   const title = cleanText(input.title);
   if (!title) return { error: "Titel fehlt." };
   if (!validAmount(input.totalAmount)) return { error: "Ungültiger Betrag." };
+  let companyId: string | null;
+  try {
+    companyId = await resolveCompany(membership.organizationId, input.company);
+  } catch (e) {
+    if (e instanceof CompanyError) return { error: e.message };
+    throw e;
+  }
   const ok = await updateDealMeta({
     organizationId: membership.organizationId,
     dealId: input.dealId,
     title,
-    organisation: cleanText(input.organisation),
+    companyId,
     totalAmount: roundCents(input.totalAmount),
     bexioUrl: cleanUrl(input.bexioUrl),
   });
@@ -239,7 +258,7 @@ export async function saveFinanceBooking(input: {
   month: MonthKey;
   title: string;
   amount: number;
-  organisation: string;
+  company: CompanyInput;
   notes: string;
 }): Promise<ActionResult> {
   const { membership } = await requireCapability("finance");
@@ -247,15 +266,15 @@ export async function saveFinanceBooking(input: {
   if (!title) return { error: "Titel fehlt." };
   if (!isMonthKey(input.month)) return { error: "Ungültiger Monat." };
   if (!validAmount(input.amount)) return { error: "Ungültiger Betrag." };
-  const data: BookingInput = {
-    categoryId: input.categoryId,
-    month: input.month,
-    title,
-    amount: roundCents(input.amount),
-    organisation: cleanText(input.organisation),
-    notes: cleanText(input.notes, 5000),
-  };
   try {
+    const data: BookingInput = {
+      categoryId: input.categoryId,
+      month: input.month,
+      title,
+      amount: roundCents(input.amount),
+      companyId: await resolveCompany(membership.organizationId, input.company),
+      notes: cleanText(input.notes, 5000),
+    };
     if (input.id) {
       const ok = await updateBooking(membership.organizationId, input.id, data);
       if (!ok) return { error: "Buchung nicht gefunden." };
@@ -368,4 +387,46 @@ export async function moveFinanceCategory(input: {
   const { membership } = await requireCapability("finance");
   if (input.direction !== -1 && input.direction !== 1) return { error: "Ungültige Richtung." };
   return categoryAction(() => moveCategory(membership.organizationId, input.id, input.direction));
+}
+
+// ─── Organisationen ──────────────────────────────────────────
+
+async function companyAction(run: () => Promise<void>): Promise<ActionResult> {
+  try {
+    await run();
+  } catch (e) {
+    if (e instanceof CompanyError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath("/finance", "layout");
+  return { ok: true };
+}
+
+export async function updateFinanceCompany(input: {
+  id: string;
+  name?: string;
+  notes?: string;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  return companyAction(() =>
+    updateCompany(membership.organizationId, input.id, {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.notes !== undefined ? { notes: cleanText(input.notes, 5000) } : {}),
+    }),
+  );
+}
+
+export async function mergeFinanceCompanies(input: {
+  sourceId: string;
+  targetId: string;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  return companyAction(() =>
+    mergeCompanies(membership.organizationId, input.sourceId, input.targetId),
+  );
+}
+
+export async function deleteFinanceCompany(id: string): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  return companyAction(() => deleteCompany(membership.organizationId, id));
 }

@@ -129,7 +129,7 @@ export type CellBooking = {
   month: MonthKey;
   title: string;
   amount: number;
-  organisation: string | null;
+  company: { id: string; name: string } | null;
   responsibleName: string | null;
   bexioUrl: string | null;
   notes: string | null;
@@ -150,6 +150,7 @@ export async function listCellBookings(
     },
     orderBy: [{ month: "asc" }, { amount: "desc" }, { title: "asc" }],
     include: {
+      company: { select: { id: true, name: true } },
       deal: {
         select: { id: true, title: true, _count: { select: { bookings: true } } },
       },
@@ -160,7 +161,7 @@ export async function listCellBookings(
     month: monthKeyFromDate(b.month),
     title: b.title,
     amount: Number(b.amount),
-    organisation: b.organisation,
+    company: b.company,
     responsibleName: b.responsibleName,
     bexioUrl: b.bexioUrl,
     notes: b.notes,

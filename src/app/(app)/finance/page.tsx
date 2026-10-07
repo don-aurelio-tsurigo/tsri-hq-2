@@ -1,5 +1,6 @@
 import { FinanceBudgetOverview } from "@/components/finance-budget-overview";
 import { getBudgetOverview } from "@/lib/finance/budget";
+import { listCompanyOptions } from "@/lib/finance/companies";
 import { pageTitle } from "@/lib/link-preview";
 import { requireCapability } from "@/lib/session";
 
@@ -18,7 +19,10 @@ export default async function FinancePage({
       ? parsed
       : new Date().getFullYear();
 
-  const overview = await getBudgetOverview(membership.organizationId, year);
+  const [overview, companies] = await Promise.all([
+    getBudgetOverview(membership.organizationId, year),
+    listCompanyOptions(membership.organizationId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -30,7 +34,7 @@ export default async function FinancePage({
           Budget {year}
         </h1>
       </header>
-      <FinanceBudgetOverview overview={overview} />
+      <FinanceBudgetOverview overview={overview} companies={companies} />
     </div>
   );
 }

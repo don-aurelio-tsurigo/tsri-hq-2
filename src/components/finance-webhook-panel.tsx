@@ -10,6 +10,7 @@ const EXAMPLE = `{
   "title": "{{Deal Title}}",
   "value": "{{Deal Value}}",
   "organisation": "{{Organization Name}}",
+  "org_id": "{{Organization ID}}",
   "owner": "{{Owner Name}}",
   "bexio_url": "{{Bexio Auftrag URL}}",
   "start_month": "2027-01",
@@ -114,7 +115,8 @@ export function FinanceWebhookPanel({
           <p className="text-xs font-bold text-[var(--muted)] uppercase">Beispiel-Body</p>
           <pre className="overflow-x-auto rounded bg-[var(--panel-muted)] p-3 text-xs">{EXAMPLE}</pre>
           <p className="text-xs text-[var(--muted)]">
-            Pflicht: <code>id</code>, <code>title</code>, <code>value</code>. Optional helfen{" "}
+            Pflicht: <code>id</code>, <code>title</code>, <code>value</code>. <code>org_id</code> ordnet
+            die Organisation auch nach Umbenennungen in Pipedrive richtig zu. Optional helfen{" "}
             <code>start_month</code>, <code>months</code> und <code>category</code> (Name wie in der Übersicht),
             den Aufteilen-Dialog vorzufüllen.
           </p>

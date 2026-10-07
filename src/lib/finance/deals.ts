@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { findOrCreateCompany } from "./companies";
 import {
   monthKeyFromDate,
   monthKeyToDate,
@@ -20,6 +21,8 @@ export type WebhookDeal = {
   title: string;
   totalAmount: number;
   organisation: string | null;
+  /** Pipedrive organisation ID – optional, makes matching robust against renames */
+  organisationId: string | null;
   responsibleName: string | null;
   bexioUrl: string | null;
   startMonth: MonthKey | null;
@@ -36,6 +39,8 @@ function pick(body: Record<string, unknown>, keys: string[]): unknown {
 }
 
 function text(v: unknown, max = 500): string | null {
+  // Zapier sometimes passes Pipedrive references as { value, name }
+  if (v && typeof v === "object" && "value" in v) v = (v as { value: unknown }).value;
   if (typeof v === "number") return String(v);
   if (typeof v !== "string") return null;
   const t = v.trim().replace(/\s+/g, " ");
@@ -72,6 +77,10 @@ export function parseWebhookDeal(
       title,
       totalAmount,
       organisation: text(pick(body, ["organisation", "organization", "org_name", "org", "firma"])),
+      organisationId: text(
+        pick(body, ["org_id", "organization_id", "organisation_id", "orgId", "pipedrive_org_id"]),
+        100,
+      ),
       responsibleName: text(pick(body, ["owner", "owner_name", "responsible", "zustaendig"]), 200),
       bexioUrl: text(pick(body, ["bexio_url", "bexioUrl", "bexio"]), 1000),
       startMonth: parseLooseMonth(pick(body, ["start_month", "startMonth", "start", "start_date"])),
@@ -102,10 +111,13 @@ export async function upsertDealFromWebhook(
     },
   };
   const existing = await prisma.financeDeal.findUnique({ where });
+  const companyId = deal.organisation
+    ? await findOrCreateCompany(organizationId, deal.organisation, deal.organisationId)
+    : null;
   const data = {
     title: deal.title,
     totalAmount: deal.totalAmount,
-    organisation: deal.organisation,
+    companyId,
     responsibleName: deal.responsibleName,
     bexioUrl: deal.bexioUrl,
     payload,
@@ -127,7 +139,7 @@ export async function upsertDealFromWebhook(
     data: {
       ...data,
       // Optional fields only overwrite when the webhook actually sends them
-      organisation: deal.organisation ?? existing.organisation,
+      companyId: companyId ?? existing.companyId,
       responsibleName: deal.responsibleName ?? existing.responsibleName,
       bexioUrl: deal.bexioUrl ?? existing.bexioUrl,
       changedAfterSplit: existing.changedAfterSplit || relevantChange,
@@ -165,7 +177,7 @@ export type DealListItem = {
   source: string;
   externalId: string | null;
   title: string;
-  organisation: string | null;
+  company: { id: string; name: string } | null;
   responsibleName: string | null;
   totalAmount: number;
   bookedAmount: number;
@@ -189,7 +201,7 @@ export async function listDeals(
   if (q) {
     where.OR = [
       { title: { contains: q, mode: "insensitive" } },
-      { organisation: { contains: q, mode: "insensitive" } },
+      { company: { name: { contains: q, mode: "insensitive" } } },
       { externalId: { equals: q } },
     ];
   }
@@ -198,7 +210,10 @@ export async function listDeals(
     where,
     orderBy: [{ createdAt: "desc" }],
     take: 300,
-    include: { bookings: { select: { amount: true, month: true } } },
+    include: {
+      bookings: { select: { amount: true, month: true } },
+      company: { select: { id: true, name: true } },
+    },
   });
 
   return deals.map((d) => {
@@ -208,7 +223,7 @@ export async function listDeals(
       source: d.source,
       externalId: d.externalId,
       title: d.title,
-      organisation: d.organisation,
+      company: d.company,
       responsibleName: d.responsibleName,
       totalAmount: Number(d.totalAmount),
       bookedAmount: roundCents(d.bookings.reduce((s, b) => s + Number(b.amount), 0)),
@@ -245,7 +260,7 @@ export type DealDetail = {
   source: string;
   externalId: string | null;
   title: string;
-  organisation: string | null;
+  company: { id: string; name: string } | null;
   responsibleName: string | null;
   bexioUrl: string | null;
   totalAmount: number;
@@ -272,7 +287,10 @@ export async function getDealDetail(
 ): Promise<DealDetail | null> {
   const deal = await prisma.financeDeal.findFirst({
     where: { id: dealId, organizationId },
-    include: { bookings: { orderBy: [{ month: "asc" }, { createdAt: "asc" }] } },
+    include: {
+      bookings: { orderBy: [{ month: "asc" }, { createdAt: "asc" }] },
+      company: { select: { id: true, name: true } },
+    },
   });
   if (!deal) return null;
 
@@ -295,7 +313,7 @@ export async function getDealDetail(
     source: deal.source,
     externalId: deal.externalId,
     title: deal.title,
-    organisation: deal.organisation,
+    company: deal.company,
     responsibleName: deal.responsibleName,
     bexioUrl: deal.bexioUrl,
     totalAmount: Number(deal.totalAmount),
@@ -353,7 +371,7 @@ export async function saveDealSplit(input: {
     where: { id: dealId, organizationId },
     select: {
       id: true,
-      organisation: true,
+      companyId: true,
       responsibleName: true,
       bexioUrl: true,
       bookings: { select: { id: true } },
@@ -383,7 +401,7 @@ export async function saveDealSplit(input: {
               ...data,
               organizationId,
               dealId,
-              organisation: deal.organisation,
+              companyId: deal.companyId,
               responsibleName: deal.responsibleName,
               bexioUrl: deal.bexioUrl,
             },
@@ -419,7 +437,7 @@ export async function updateDealMeta(input: {
   organizationId: string;
   dealId: string;
   title: string;
-  organisation: string | null;
+  companyId: string | null;
   totalAmount: number;
   bexioUrl: string | null;
 }) {
@@ -427,7 +445,7 @@ export async function updateDealMeta(input: {
     where: { id: input.dealId, organizationId: input.organizationId },
     data: {
       title: input.title,
-      organisation: input.organisation,
+      companyId: input.companyId,
       totalAmount: input.totalAmount,
       bexioUrl: input.bexioUrl,
     },
@@ -438,7 +456,7 @@ export async function updateDealMeta(input: {
 export async function createManualDeal(input: {
   organizationId: string;
   title: string;
-  organisation: string | null;
+  companyId: string | null;
   totalAmount: number;
   bexioUrl: string | null;
   responsibleName: string | null;
@@ -448,7 +466,7 @@ export async function createManualDeal(input: {
       organizationId: input.organizationId,
       source: "manual",
       title: input.title,
-      organisation: input.organisation,
+      companyId: input.companyId,
       totalAmount: input.totalAmount,
       bexioUrl: input.bexioUrl,
       responsibleName: input.responsibleName,
@@ -478,7 +496,7 @@ export type BookingInput = {
   month: MonthKey;
   title: string;
   amount: number;
-  organisation: string | null;
+  companyId: string | null;
   notes: string | null;
 };
 

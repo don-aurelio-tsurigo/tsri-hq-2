@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { FinanceCompanyCombobox } from "@/components/finance-company-combobox";
 import { FinanceDealGrid } from "@/components/finance-deal-grid";
 import { FinanceDealStatusBadge } from "@/components/finance-deal-status-badge";
 import { useToast } from "@/components/toast";
@@ -12,6 +14,7 @@ import {
   setFinanceDealStatus,
   updateFinanceDealMeta,
 } from "@/lib/actions/finance";
+import type { CompanyInput, CompanyOption } from "@/lib/finance/companies";
 import type { CategoryOption, DealDetail } from "@/lib/finance/deals";
 import { formatChfExact, parseAmountInput } from "@/lib/finance/shared";
 
@@ -24,9 +27,11 @@ const SOURCE_LABEL: Record<string, string> = {
 export function FinanceDealEditor({
   deal,
   categories,
+  companies,
 }: {
   deal: DealDetail;
   categories: CategoryOption[];
+  companies: CompanyOption[];
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -79,6 +84,7 @@ export function FinanceDealEditor({
         {editingMeta ? (
           <MetaForm
             deal={deal}
+            companies={companies}
             onDone={() => {
               setEditingMeta(false);
               router.refresh();
@@ -90,7 +96,18 @@ export function FinanceDealEditor({
               <dt className="text-[var(--muted)]">Betrag</dt>
               <dd className="font-semibold tabular-nums">{formatChfExact(deal.totalAmount)}</dd>
               <dt className="text-[var(--muted)]">Organisation</dt>
-              <dd>{deal.organisation ?? "—"}</dd>
+              <dd>
+                {deal.company ? (
+                  <Link
+                    href={`/finance/organisationen/${deal.company.id}`}
+                    className="font-semibold text-[var(--accent)] hover:underline"
+                  >
+                    {deal.company.name}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </dd>
               <dt className="text-[var(--muted)]">Zuständig</dt>
               <dd>{deal.responsibleName ?? "—"}</dd>
               <dt className="text-[var(--muted)]">Quelle</dt>
@@ -165,11 +182,19 @@ export function FinanceDealEditor({
   );
 }
 
-function MetaForm({ deal, onDone }: { deal: DealDetail; onDone: () => void }) {
+function MetaForm({
+  deal,
+  companies,
+  onDone,
+}: {
+  deal: DealDetail;
+  companies: CompanyOption[];
+  onDone: () => void;
+}) {
   const { showToast } = useToast();
   const [pending, startTransition] = useTransition();
   const [title, setTitle] = useState(deal.title);
-  const [organisation, setOrganisation] = useState(deal.organisation ?? "");
+  const [company, setCompany] = useState<CompanyInput>(deal.company);
   const [amount, setAmount] = useState(String(deal.totalAmount));
   const [bexioUrl, setBexioUrl] = useState(deal.bexioUrl ?? "");
 
@@ -184,7 +209,7 @@ function MetaForm({ deal, onDone }: { deal: DealDetail; onDone: () => void }) {
       const result = await updateFinanceDealMeta({
         dealId: deal.id,
         title,
-        organisation,
+        company,
         totalAmount: total,
         bexioUrl,
       });
@@ -201,7 +226,12 @@ function MetaForm({ deal, onDone }: { deal: DealDetail; onDone: () => void }) {
       </div>
       <div className="field">
         <label htmlFor="meta-org">Organisation</label>
-        <input id="meta-org" value={organisation} onChange={(e) => setOrganisation(e.target.value)} />
+        <FinanceCompanyCombobox
+          inputId="meta-org"
+          companies={companies}
+          value={company}
+          onChange={setCompany}
+        />
       </div>
       <div className="field">
         <label htmlFor="meta-amount">Betrag (CHF)</label>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FinanceDealEditor } from "@/components/finance-deal-editor";
+import { listCompanyOptions } from "@/lib/finance/companies";
 import { getDealDetail, listCategoryOptions } from "@/lib/finance/deals";
 import { pageTitle } from "@/lib/link-preview";
 import { requireCapability } from "@/lib/session";
@@ -14,9 +15,10 @@ export default async function FinanceDealPage({
 }) {
   const { id } = await params;
   const { membership } = await requireCapability("finance");
-  const [deal, categories] = await Promise.all([
+  const [deal, categories, companies] = await Promise.all([
     getDealDetail(membership.organizationId, id),
     listCategoryOptions(membership.organizationId),
+    listCompanyOptions(membership.organizationId),
   ]);
   if (!deal) notFound();
 
@@ -39,7 +41,12 @@ export default async function FinanceDealPage({
         </header>
       </div>
       {/* Remount after each save so rows pick up the new booking ids */}
-      <FinanceDealEditor key={deal.updatedAt} deal={deal} categories={categories} />
+      <FinanceDealEditor
+        key={deal.updatedAt}
+        deal={deal}
+        categories={categories}
+        companies={companies}
+      />
     </div>
   );
 }

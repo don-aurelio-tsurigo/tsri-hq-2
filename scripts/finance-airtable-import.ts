@@ -22,6 +22,7 @@
 
 import "dotenv/config";
 import { prisma } from "../src/lib/db";
+import { findOrCreateCompany } from "../src/lib/finance/companies";
 import { monthKey, monthKeyToDate, type MonthKey } from "../src/lib/finance/shared";
 
 const BASE_ID = "appYVePAGbxLDOkAF";
@@ -343,12 +344,19 @@ async function main() {
     });
   }
 
+  // Organisationen: eine Liste statt Freitext (gleiche Zuordnung wie im Tool)
+  const companyIdByName = new Map<string, string>();
+  for (const name of new Set(bookings.flatMap((b) => (b.organisation ? [b.organisation] : [])))) {
+    companyIdByName.set(name, await findOrCreateCompany(organizationId, name));
+  }
+  const companyId = (name: string | null) => (name ? (companyIdByName.get(name) ?? null) : null);
+
   const dealIdByOrder = new Map<string, string>();
   for (const [orderId, group] of dealGroups) {
     const first = group[0];
     const data = {
       title: first.title,
-      organisation: group.find((b) => b.organisation)?.organisation ?? null,
+      companyId: companyId(group.find((b) => b.organisation)?.organisation ?? null),
       responsibleName: group.find((b) => b.responsibleName)?.responsibleName ?? null,
       totalAmount: round2(group.reduce((s, b) => s + b.amount, 0)),
       bexioUrl: first.bexioUrl,
@@ -377,7 +385,7 @@ async function main() {
       month: monthKeyToDate(b.month),
       title: b.title,
       amount: b.amount,
-      organisation: b.organisation,
+      companyId: companyId(b.organisation),
       responsibleName: b.responsibleName,
       bexioUrl: b.bexioUrl,
       notes: b.notes,

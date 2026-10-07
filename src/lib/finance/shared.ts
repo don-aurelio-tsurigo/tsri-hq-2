@@ -154,7 +154,6 @@ export function addCellMaps(
   return out;
 }
 
-/** Spread a total over n rates in cents; rounding remainder goes into the last rate. */
 export function addMonths(key: MonthKey, count: number): MonthKey {
   const [y, m] = parseMonthKey(key);
   const total = y * 12 + m + count;
@@ -212,4 +211,26 @@ export function validityLabel(category: CategoryValidity): string | null {
   if (validFrom !== null) return `ab ${validFrom}`;
   if (validUntil !== null) return `bis ${validUntil}`;
   return null;
+}
+
+/** Display form of an organisation name: trimmed, inner whitespace collapsed. */
+export function normalizeCompanyName(name: string): string {
+  return name.trim().replace(/\s+/g, " ");
+}
+
+/** Matching key – must stay in sync with the SQL backfill in 20261010120000_finance_companies. */
+export function companyNameKey(name: string): string {
+  return normalizeCompanyName(name).toLowerCase();
+}
+
+/**
+ * Loose key for spotting likely duplicates: ignores punctuation, legal forms
+ * and a trailing city, e.g. «Kunsthaus Zürich AG» ≈ «Kunsthaus».
+ */
+export function companyLooseKey(name: string): string {
+  return companyNameKey(name)
+    .replace(/[^\p{L}\p{N} ]/gu, " ")
+    .replace(/\b(ag|gmbh|sa|sàrl|sarl|kg|genossenschaft|verein|stiftung|zürich|zurich)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }

@@ -25,6 +25,7 @@ import {
   Megaphone,
   MessageCircle,
   Bell,
+  Building2,
   Newspaper,
   PiggyBank,
   Pin,
@@ -617,6 +618,14 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Kategorien
+            </NavLink>
+            <NavLink
+              href="/finance/organisationen"
+              active={pathname.startsWith("/finance/organisationen")}
+              icon={Building2}
+              onNavigate={onMobileClose}
+            >
+              Organisationen
             </NavLink>
             <NavLink
               href="/finance/payrexx"

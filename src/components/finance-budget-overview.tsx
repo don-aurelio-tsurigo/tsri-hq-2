@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { ExternalLink, Lock, LockOpen, Pencil, Plus, Trash2, X } from "lucide-react";
+import { FinanceCompanyCombobox } from "@/components/finance-company-combobox";
 import { FinanceMonthPicker } from "@/components/finance-month-picker";
 import { useToast } from "@/components/toast";
 import { FinanceNewYearDialog } from "@/components/finance-new-year-dialog";
@@ -14,6 +15,7 @@ import {
   toggleFinanceMonthClosed,
 } from "@/lib/actions/finance";
 import type { BudgetOverview, CellBooking, OverviewCategory } from "@/lib/finance/budget";
+import type { CompanyInput, CompanyOption } from "@/lib/finance/companies";
 import {
   EMPTY_CELL,
   MONTH_LABELS,
@@ -63,7 +65,13 @@ type Row =
   | { type: "subtotal"; key: string; label: string; cells: CellMap }
   | { type: "total"; key: string; label: string; cells: CellMap; strong?: boolean };
 
-export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }) {
+export function FinanceBudgetOverview({
+  overview,
+  companies,
+}: {
+  overview: BudgetOverview;
+  companies: CompanyOption[];
+}) {
   const { showToast } = useToast();
   const [cells, setCells] = useState(overview.cells);
   const [closed, setClosed] = useState(() => new Set(overview.closedMonths));
@@ -478,6 +486,7 @@ export function FinanceBudgetOverview({ overview }: { overview: BudgetOverview }
         <BookingsDrawer
           drilldown={drilldown}
           categories={overview.categories}
+          companies={companies}
           onClose={() => setDrilldown(null)}
           onChanged={() => openDrilldown(drilldown.category, drilldown.months, drilldown.label)}
         />
@@ -565,11 +574,13 @@ function buildRows(
 function BookingsDrawer({
   drilldown,
   categories,
+  companies,
   onClose,
   onChanged,
 }: {
   drilldown: Drilldown;
   categories: OverviewCategory[];
+  companies: CompanyOption[];
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -640,13 +651,14 @@ function BookingsDrawer({
               <p className="mb-3 text-sm font-semibold">Neue Buchung</p>
               <BookingForm
                 categories={categories}
+                companies={companies}
                 initial={{
                   id: null,
                   title: "",
                   amount: "",
                   month: drilldown.months[drilldown.months.length === 1 ? 0 : drilldown.months.length - 1],
                   categoryId: drilldown.category.id,
-                  organisation: "",
+                  company: null,
                   notes: "",
                 }}
                 onCancel={() => setEditing(null)}
@@ -671,13 +683,14 @@ function BookingsDrawer({
                     <li className="py-3">
                       <BookingForm
                         categories={categories}
+                        companies={companies}
                         initial={{
                           id: b.id,
                           title: b.title,
                           amount: String(b.amount),
                           month: b.month,
                           categoryId: drilldown.category.id,
-                          organisation: b.organisation ?? "",
+                          company: b.company,
                           notes: b.notes ?? "",
                         }}
                         onCancel={() => setEditing(null)}
@@ -689,7 +702,14 @@ function BookingsDrawer({
                       <div className="min-w-0">
                         <p className="font-semibold">{b.title}</p>
                         <p className="mt-0.5 text-xs text-[var(--muted)]">
-                          {[b.organisation, b.responsibleName].filter(Boolean).join(" · ") || "—"}
+                          {b.company ? (
+                            <Link href={`/finance/organisationen/${b.company.id}`} className="hover:underline">
+                              {b.company.name}
+                            </Link>
+                          ) : null}
+                          {b.company && b.responsibleName ? " · " : null}
+                          {b.responsibleName}
+                          {!b.company && !b.responsibleName ? "—" : null}
                         </p>
                         {b.deal ? (
                           <p className="mt-1 text-xs">
@@ -758,18 +778,20 @@ type BookingFormValues = {
   amount: string;
   month: MonthKey;
   categoryId: string;
-  organisation: string;
+  company: CompanyInput;
   notes: string;
 };
 
 function BookingForm({
   initial,
   categories,
+  companies,
   onCancel,
   onDone,
 }: {
   initial: BookingFormValues;
   categories: OverviewCategory[];
+  companies: CompanyOption[];
   onCancel: () => void;
   onDone: () => void;
 }) {
@@ -871,10 +893,11 @@ function BookingForm({
       </div>
       <div className="field col-span-2">
         <label htmlFor={`${idPrefix}-org`}>Organisation</label>
-        <input
-          id={`${idPrefix}-org`}
-          value={values.organisation}
-          onChange={(e) => set({ organisation: e.target.value })}
+        <FinanceCompanyCombobox
+          inputId={`${idPrefix}-org`}
+          companies={companies}
+          value={values.company}
+          onChange={(company) => set({ company })}
         />
       </div>
       <div className="field col-span-2">
