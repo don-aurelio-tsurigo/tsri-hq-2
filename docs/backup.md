@@ -46,6 +46,7 @@ GitHub → Repo `tsri-hq-2` → **Settings → Secrets and variables → Actions
 | `BACKUP_R2_BUCKET_NAME` | Name des Backup-Buckets |
 | `BACKUP_R2_ACCESS_KEY_ID` | aus Schritt 1 |
 | `BACKUP_R2_SECRET_ACCESS_KEY` | aus Schritt 1 |
+| `BACKUP_R2_ENDPOINT` | **nur bei EU-Bucket** (Bucket → Settings → *S3 API*): `https://<account-id>.eu.r2.cloudflarestorage.com` |
 
 Falls bei der Render-Datenbank unter *Networking* der Zugriff auf IPs eingeschränkt ist, muss GitHub Actions zugelassen sein (`0.0.0.0/0`, Zugriff ist trotzdem passwortgeschützt).
 

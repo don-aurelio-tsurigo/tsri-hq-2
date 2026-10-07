@@ -33,18 +33,36 @@ function parsePrefix(): string {
   return prefix;
 }
 
+function explainR2Error(error: unknown): never {
+  const code = (error as { Code?: string; name?: string }).Code ?? (error as Error).name;
+  if (code === "AccessDenied") {
+    throw new Error(
+      "R2 hat den Upload abgelehnt (AccessDenied). Prüfen: Token hat «Object Read & Write» " +
+        "auf genau diesen Bucket, BACKUP_R2_BUCKET_NAME ist exakt der Bucket-Name, " +
+        "BACKUP_R2_ACCOUNT_ID gehört zum Token, und bei EU-Buckets ist BACKUP_R2_ENDPOINT gesetzt.",
+      { cause: error },
+    );
+  }
+  throw error;
+}
+
 async function main() {
   const databaseUrl = process.env.BACKUP_DATABASE_URL?.trim() || required("DATABASE_URL");
   const accountId = required("BACKUP_R2_ACCOUNT_ID");
   const bucket = required("BACKUP_R2_BUCKET_NAME");
+  // EU-Jurisdiction-Buckets brauchen https://<account>.eu.r2.cloudflarestorage.com
+  const endpoint =
+    process.env.BACKUP_R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`;
   const client = new S3Client({
     region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint,
     credentials: {
       accessKeyId: required("BACKUP_R2_ACCESS_KEY_ID"),
       secretAccessKey: required("BACKUP_R2_SECRET_ACCESS_KEY"),
     },
   });
+
+  const send = (command: PutObjectCommand) => client.send(command).catch(explainR2Error);
 
   const prefix = parsePrefix();
   const now = new Date();
@@ -66,7 +84,7 @@ async function main() {
     if (prefix === "daily" && now.getUTCDate() === 1) keys.push(`monthly/${stamp}.dump`);
 
     for (const key of keys) {
-      await client.send(
+      await send(
         new PutObjectCommand({
           Bucket: bucket,
           Key: key,
