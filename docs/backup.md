@@ -87,4 +87,11 @@ Einzelne Tabellen statt der ganzen Datenbank: in eine **separate** Datenbank ein
 
 ## Restore-Probe
 
-Einmal pro Quartal Variante B gegen eine Wegwerf-Datenbank (oder lokal) durchspielen und die App damit starten.
+Automatisch am 2. jedes Monats (**Actions → DB Restore-Probe**, auch manuell startbar): Der neueste Dump wird in eine Wegwerf-Postgres (pgvector, PG 18) im GitHub-Runner eingespielt, danach geprüft:
+
+- Restore läuft ohne Fehler durch
+- neuester Dump ist höchstens 48 h alt (fängt ein ausgefallenes Nachtbackup ab)
+- `user` und `_prisma_migrations` sind nicht leer
+- keine Migration aus dem Repo fehlt im Dump (ausser neueren als der Dump)
+
+Schlägt die Probe fehl, kommt eine E-Mail von GitHub. Script: `scripts/db-restore-check.ts`.
