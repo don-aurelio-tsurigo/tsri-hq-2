@@ -10,6 +10,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "tsx scripts/migrate-deploy.ts",
+    "db:backup": "tsx scripts/db-backup.ts",
     "db:push": "node scripts/db-push.js",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",

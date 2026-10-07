@@ -1,0 +1,48 @@
+name: DB Backup
+
+on:
+  schedule:
+    # Täglich 02:30 UTC (03:30 / 04:30 Zürich)
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      prefix:
+        description: "Ordner im Backup-Bucket (z.B. manual, pre-migration)"
+        default: manual
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Aktueller pg_dump aus dem offiziellen PostgreSQL-Repo (neuer als der Server ist ok, älter nicht).
+      - name: Install pg_dump
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -yq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - run: npm ci --ignore-scripts
+
+      - name: Backup
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_R2_ACCOUNT_ID: ${{ secrets.BACKUP_R2_ACCOUNT_ID }}
+          BACKUP_R2_BUCKET_NAME: ${{ secrets.BACKUP_R2_BUCKET_NAME }}
+          BACKUP_R2_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          BACKUP_R2_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          BACKUP_PREFIX: ${{ github.event.inputs.prefix || 'daily' }}
+        run: npx tsx scripts/db-backup.ts --prefix "$BACKUP_PREFIX"
