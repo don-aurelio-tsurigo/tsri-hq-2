@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FinanceSectionTabs } from "@/components/finance-section-tabs";
 import { FinanceCompanyField } from "@/components/finance-company-combobox";
 import { FinanceDealStatusBadge } from "@/components/finance-deal-status-badge";
 import { FinanceWebhookPanel } from "@/components/finance-webhook-panel";
@@ -64,6 +65,7 @@ export default async function FinanceDealsPage({
           </p>
         </div>
       </header>
+      <FinanceSectionTabs section="deals" active="deals" />
 
       <FinanceWebhookPanel
         url={`${getPublicAppOrigin()}/api/finance/deals/webhook`}

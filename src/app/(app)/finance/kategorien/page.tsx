@@ -1,4 +1,5 @@
 import { FinanceCategoryManager } from "@/components/finance-category-manager";
+import { FinanceSectionTabs } from "@/components/finance-section-tabs";
 import { availableYears } from "@/lib/finance/budget";
 import { listAdminCategories } from "@/lib/finance/categories";
 import { pageTitle } from "@/lib/link-preview";
@@ -32,6 +33,7 @@ export default async function FinanceCategoriesPage() {
           Jahr, wird sie dort markiert weiter angezeigt.
         </p>
       </header>
+      <FinanceSectionTabs section="budget" active="categories" />
       <FinanceCategoryManager categories={categories} years={years} />
     </div>
   );

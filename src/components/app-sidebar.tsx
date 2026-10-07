@@ -25,14 +25,12 @@ import {
   Megaphone,
   MessageCircle,
   Bell,
-  Building2,
   Newspaper,
   PiggyBank,
   Pin,
   Rss,
   Settings2,
   ScanFace,
-  Tags,
   Trash2,
   Users,
   Wallet,
@@ -597,7 +595,7 @@ export function AppSidebar({
           >
             <NavLink
               href="/finance"
-              active={pathname === "/finance"}
+              active={pathname === "/finance" || pathname.startsWith("/finance/kategorien")}
               icon={PiggyBank}
               onNavigate={onMobileClose}
             >
@@ -605,27 +603,14 @@ export function AppSidebar({
             </NavLink>
             <NavLink
               href="/finance/deals"
-              active={pathname.startsWith("/finance/deals")}
+              active={
+                pathname.startsWith("/finance/deals") ||
+                pathname.startsWith("/finance/organisationen")
+              }
               icon={Handshake}
               onNavigate={onMobileClose}
             >
               Deals
-            </NavLink>
-            <NavLink
-              href="/finance/kategorien"
-              active={pathname.startsWith("/finance/kategorien")}
-              icon={Tags}
-              onNavigate={onMobileClose}
-            >
-              Kategorien
-            </NavLink>
-            <NavLink
-              href="/finance/organisationen"
-              active={pathname.startsWith("/finance/organisationen")}
-              icon={Building2}
-              onNavigate={onMobileClose}
-            >
-              Organisationen
             </NavLink>
             <NavLink
               href="/finance/payrexx"

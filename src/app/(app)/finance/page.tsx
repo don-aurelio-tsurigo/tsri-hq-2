@@ -1,4 +1,5 @@
 import { FinanceBudgetOverview } from "@/components/finance-budget-overview";
+import { FinanceSectionTabs } from "@/components/finance-section-tabs";
 import { getBudgetOverview } from "@/lib/finance/budget";
 import { listCompanyOptions } from "@/lib/finance/companies";
 import { pageTitle } from "@/lib/link-preview";
@@ -34,6 +35,7 @@ export default async function FinancePage({
           Budget {year}
         </h1>
       </header>
+      <FinanceSectionTabs section="budget" active="overview" />
       <FinanceBudgetOverview overview={overview} companies={companies} />
     </div>
   );

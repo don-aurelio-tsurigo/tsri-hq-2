@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FinanceSectionTabs } from "@/components/finance-section-tabs";
 import { FinanceCompanyDuplicates } from "@/components/finance-company-duplicates";
 import { findLikelyDuplicates, listAdminCompanies } from "@/lib/finance/companies";
 import { formatChf } from "@/lib/finance/shared";
@@ -45,6 +46,7 @@ export default async function FinanceCompaniesPage({
           />
         </form>
       </header>
+      <FinanceSectionTabs section="deals" active="companies" />
 
       {duplicates.length > 0 && !query ? <FinanceCompanyDuplicates groups={duplicates} /> : null}
 
