@@ -281,7 +281,13 @@ async function generateSlidesFromSource(
   let draft: LlmCarouselDraft;
   try {
     draft = parseLlmCarouselDraft(toolBlock.input, format);
-  } catch {
+  } catch (error) {
+    console.error(
+      "[carousel] LLM-Antwort Schema-Prüfung fehlgeschlagen",
+      { model: response.model, stopReason: response.stop_reason, format },
+      error,
+      JSON.stringify(toolBlock.input).slice(0, 4000),
+    );
     throw new AiGenerationError(
       "LLM-Antwort ist ungültig (Schema-Prüfung fehlgeschlagen).",
     );

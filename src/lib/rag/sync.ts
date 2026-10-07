@@ -125,7 +125,7 @@ function buildArticlesPageQuery(sinceDay: string): string {
         published {
           title
           lead
-          authors { name }
+          authors { author { name } }
           image { url }
           blocks {
             __typename

@@ -27,7 +27,7 @@ export type WepublishApiArticle = {
   published?: {
     title?: string | null;
     lead?: string | null;
-    authors?: Array<{ name?: string | null } | null> | null;
+    authors?: Array<{ author?: { name?: string | null } | null } | null> | null;
     image?: { url?: string | null } | null;
     blocks?: WepublishApiBlock[] | null;
   } | null;
@@ -206,7 +206,7 @@ export function extractRagArticle(
     lead: published.lead ?? null,
     publishedAt: node.publishedAt ?? null,
     authors: (published.authors ?? [])
-      .map((a) => (a?.name ?? "").trim())
+      .map((a) => (a?.author?.name ?? "").trim())
       .filter(Boolean),
     tags: (node.tags ?? [])
       .map((t) => (t?.tag ?? "").trim())

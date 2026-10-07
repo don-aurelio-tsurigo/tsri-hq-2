@@ -84,10 +84,26 @@ export type LlmCarouselDraft =
   | z.infer<typeof llmTsueritippSchema>
   | z.infer<typeof llmSixibriefSchema>;
 
+function maxSlidesForFormat(format: CarouselFormat): number {
+  return format === "6ibrief" ? 30 : 10;
+}
+
+/** The model sometimes overshoots the slide limit on long articles; keep the outro and drop the overflow before it. */
+function trimExcessSlides(input: unknown, max: number): unknown {
+  if (!input || typeof input !== "object") return input;
+  const slides = (input as { slides?: unknown }).slides;
+  if (!Array.isArray(slides) || slides.length <= max) return input;
+  return {
+    ...input,
+    slides: [...slides.slice(0, max - 1), slides[slides.length - 1]],
+  };
+}
+
 export function parseLlmCarouselDraft(
-  input: unknown,
+  rawInput: unknown,
   format: CarouselFormat,
 ): LlmCarouselDraft {
+  const input = trimExcessSlides(rawInput, maxSlidesForFormat(format));
   if (format === "tsueritipp") {
     return llmTsueritippSchema.parse(input);
   }

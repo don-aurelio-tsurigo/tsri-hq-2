@@ -48,7 +48,7 @@ type ArticleQueryData = {
       preTitle?: string | null;
       title?: string | null;
       lead?: string | null;
-      authors?: Array<{ name?: string | null } | null> | null;
+      authors?: Array<{ author?: { name?: string | null } | null } | null> | null;
       image?: {
         url?: string | null;
         l?: string | null;
@@ -72,7 +72,9 @@ query ArticleForCarousel($slug: String) {
       title
       lead
       authors {
-        name
+        author {
+          name
+        }
       }
       image {
         url
@@ -337,7 +339,7 @@ export async function fetchTsriArticleByUrl(
     preTitle: latest.preTitle?.trim() || null,
     lead,
     authors: (latest.authors ?? [])
-      .map((a) => a?.name?.trim())
+      .map((a) => a?.author?.name?.trim())
       .filter((name): name is string => Boolean(name)),
     tags: (article.tags ?? [])
       .map((t) => t?.tag?.trim())
