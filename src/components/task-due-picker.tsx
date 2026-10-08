@@ -61,6 +61,7 @@ export function TaskDuePicker({
   compact = true,
   recurrence,
   allowRecurrence = false,
+  variant = "default",
   onChange,
   onOpenChange,
 }: {
@@ -72,6 +73,8 @@ export function TaskDuePicker({
   recurrence?: unknown;
   /** Wiederholung einstellbar (persönliche/Team-Tasks) */
   allowRecurrence?: boolean;
+  /** "pill": Darstellung wie die Eigenschaften im Editor-Fenster */
+  variant?: "default" | "pill";
   /** Lokaler Modus (z. B. beim Erfassen): kein Server-Save */
   onChange?: (next: Date | null) => void;
   onOpenChange?: (open: boolean) => void;
@@ -201,7 +204,44 @@ export function TaskDuePicker({
 
   const tone = selected ? dueTone(selected) : null;
 
-  const trigger = selected ? (
+  const trigger = variant === "pill" ? (
+    <button
+      ref={buttonRef}
+      type="button"
+      disabled={pending}
+      aria-label={
+        selected ? `Fällig ${dueText(selected)}, Datum ändern` : "Fälligkeitsdatum setzen"
+      }
+      aria-expanded={open}
+      // Inline font: the global `button { font: inherit }` beats utilities.
+      style={{ font: "500 0.75rem/1 var(--font-body), system-ui, sans-serif" }}
+      className={[
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 transition-colors hover:border-[var(--fg)] disabled:opacity-60",
+        selected ? "border-[var(--border)]" : "border-dashed border-[var(--border)] text-[var(--muted)]",
+        tone === "late"
+          ? "text-[var(--danger)]"
+          : tone === "warn"
+            ? "text-[var(--warn,#9a6700)]"
+            : selected
+              ? "text-[var(--fg)]"
+              : "",
+      ].join(" ")}
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpenState((v) => !v);
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <Calendar className="size-3.5 shrink-0" strokeWidth={1.75} />
+      {selected ? dueText(selected) : "Fällig"}
+      {rule && !localMode && (
+        <span className="inline-flex items-center gap-0.5 text-[var(--muted)]">
+          <Repeat className="size-3" strokeWidth={1.75} aria-hidden />
+          {recurrenceLabel(rule)}
+        </span>
+      )}
+    </button>
+  ) : selected ? (
     <button
       ref={buttonRef}
       type="button"

@@ -149,6 +149,7 @@ export function ArticleRichEditor({
   onReady,
   onStartComment,
   onCommentClick,
+  placeholder = "Notizen, Pitch oder ganzer Artikeltext…",
   toolbarClassName = "",
   contentClassName = "",
 }: {
@@ -159,6 +160,7 @@ export function ArticleRichEditor({
   /** Shows «Kommentieren» on text selections (needs `editable`). */
   onStartComment?: (selection: CommentSelection) => void;
   onCommentClick?: (commentId: string) => void;
+  placeholder?: string;
   toolbarClassName?: string;
   contentClassName?: string;
 }) {
@@ -180,9 +182,7 @@ export function ArticleRichEditor({
         linkOnPaste: true,
         HTMLAttributes: { class: "wiki-editor-link" },
       }),
-      Placeholder.configure({
-        placeholder: "Notizen, Pitch oder ganzer Artikeltext…",
-      }),
+      Placeholder.configure({ placeholder }),
       CommentMark,
     ],
     content: markdownToHtml(initialMarkdown),

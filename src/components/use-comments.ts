@@ -3,28 +3,64 @@
 import { useEffect, useState } from "react";
 import {
   addArticleComment,
+  addTaskComment,
   deleteArticleComment,
+  deleteTaskComment,
   listArticleComments,
+  listTaskComments,
   setArticleCommentResolved,
 } from "@/lib/actions";
-import type { ArticleCommentView } from "@/lib/actions/article-comments";
-
-export type { ArticleCommentView };
+import type { CommentListResult, CommentView } from "@/lib/comment-types";
 
 export type CommentThread = {
-  root: ArticleCommentView;
-  replies: ArticleCommentView[];
+  root: CommentView;
+  replies: CommentView[];
 };
 
-/** Comments of one article, shared by the page comments and inline threads. */
+type ActionResult = { error?: string; id?: string } | { ok: true; id?: string };
+
+/** Server actions behind one kind of comments (article, task). */
+type CommentsApi = {
+  /** Form field that carries the id of the commented item. */
+  idField: string;
+  list: (id: string) => Promise<CommentListResult>;
+  add: (fd: FormData) => Promise<ActionResult>;
+  remove: (fd: FormData) => Promise<ActionResult>;
+  setResolved?: (fd: FormData) => Promise<ActionResult>;
+};
+
+const ARTICLE_COMMENTS: CommentsApi = {
+  idField: "articleId",
+  list: listArticleComments,
+  add: addArticleComment,
+  remove: deleteArticleComment,
+  setResolved: setArticleCommentResolved,
+};
+
+const TASK_COMMENTS: CommentsApi = {
+  idField: "taskId",
+  list: listTaskComments,
+  add: addTaskComment,
+  remove: deleteTaskComment,
+};
+
 export function useArticleComments(articleId: string) {
-  const [comments, setComments] = useState<ArticleCommentView[] | null>(null);
+  return useComments(articleId, ARTICLE_COMMENTS);
+}
+
+export function useTaskComments(taskId: string) {
+  return useComments(taskId, TASK_COMMENTS);
+}
+
+/** Comments of one item, shared by the comment list and inline threads. */
+function useComments(entityId: string, api: CommentsApi) {
+  const [comments, setComments] = useState<CommentView[] | null>(null);
   const [viewer, setViewer] = useState<{ id: string; name: string } | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
 
-  function apply(result: Awaited<ReturnType<typeof listArticleComments>>) {
+  function apply(result: CommentListResult) {
     if ("error" in result) {
       setError(result.error);
       return;
@@ -35,16 +71,16 @@ export function useArticleComments(articleId: string) {
 
   useEffect(() => {
     let cancelled = false;
-    void listArticleComments(articleId).then((result) => {
+    void api.list(entityId).then((result) => {
       if (!cancelled) apply(result);
     });
     return () => {
       cancelled = true;
     };
-  }, [articleId]);
+  }, [entityId, api]);
 
   async function refresh() {
-    apply(await listArticleComments(articleId));
+    apply(await api.list(entityId));
   }
 
   /** Returns the new comment's id, or null on failure. */
@@ -55,13 +91,16 @@ export function useArticleComments(articleId: string) {
   }): Promise<string | null> {
     setError(null);
     const fd = new FormData();
-    fd.set("articleId", articleId);
+    fd.set(api.idField, entityId);
     fd.set("body", input.body);
     if (input.parentId) fd.set("parentId", input.parentId);
     if (input.quote) fd.set("quote", input.quote);
-    const result = await addArticleComment(fd);
+    const result = await api.add(fd);
     if (!result.id) {
-      setError(result.error ?? "Kommentar konnte nicht gespeichert werden.");
+      setError(
+        ("error" in result && result.error) ||
+          "Kommentar konnte nicht gespeichert werden.",
+      );
       return null;
     }
     await refresh();
@@ -71,8 +110,8 @@ export function useArticleComments(articleId: string) {
   async function remove(id: string): Promise<boolean> {
     const fd = new FormData();
     fd.set("id", id);
-    const result = await deleteArticleComment(fd);
-    if ("error" in result) {
+    const result = await api.remove(fd);
+    if ("error" in result && result.error) {
       setError(result.error);
       return false;
     }
@@ -83,11 +122,12 @@ export function useArticleComments(articleId: string) {
   }
 
   async function setResolved(id: string, resolved: boolean) {
+    if (!api.setResolved) return;
     const fd = new FormData();
     fd.set("id", id);
     fd.set("resolved", resolved ? "1" : "");
-    const result = await setArticleCommentResolved(fd);
-    if ("error" in result) {
+    const result = await api.setResolved(fd);
+    if ("error" in result && result.error) {
       setError(result.error);
       return;
     }
@@ -117,4 +157,4 @@ export function useArticleComments(articleId: string) {
   };
 }
 
-export type ArticleCommentsState = ReturnType<typeof useArticleComments>;
+export type CommentsState = ReturnType<typeof useComments>;

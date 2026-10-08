@@ -97,6 +97,22 @@ export async function setArticleCommentResolved(formData: FormData) {
   return setArticleCommentResolvedAction(formData);
 }
 
+import {
+  listTaskComments as listTaskCommentsAction,
+  addTaskComment as addTaskCommentAction,
+  deleteTaskComment as deleteTaskCommentAction,
+} from "./actions/task-comments";
+
+export async function listTaskComments(taskId: string) {
+  return listTaskCommentsAction(taskId);
+}
+export async function addTaskComment(formData: FormData) {
+  return addTaskCommentAction(formData);
+}
+export async function deleteTaskComment(formData: FormData) {
+  return deleteTaskCommentAction(formData);
+}
+
 export async function createArticle(formData: FormData) {
   return createArticleAction(formData);
 }

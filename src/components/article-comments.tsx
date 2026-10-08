@@ -4,11 +4,11 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { format, isThisYear } from "date-fns";
 import { de } from "date-fns/locale";
 import { ArrowUp, ChevronRight, RotateCcw, Trash2 } from "lucide-react";
+import type { CommentView } from "@/lib/comment-types";
 import type {
-  ArticleCommentView,
-  ArticleCommentsState,
+  CommentsState,
   CommentThread,
-} from "@/components/use-article-comments";
+} from "@/components/use-comments";
 
 const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
 
@@ -66,8 +66,8 @@ export function CommentList({
   comments,
   onDelete,
 }: {
-  comments: ArticleCommentView[];
-  onDelete: (comment: ArticleCommentView) => void;
+  comments: CommentView[];
+  onDelete: (comment: CommentView) => void;
 }) {
   return (
     <ol>
@@ -216,20 +216,23 @@ export function QuoteLine({
   );
 }
 
-/** Page-level comments plus an overview of the threads on text passages. */
-export function ArticleComments({
+/**
+ * Page-level comments plus, where text passages can be commented
+ * (`onOpenThread`), an overview of those threads.
+ */
+export function CommentsSection({
   state,
   onOpenThread,
 }: {
-  state: ArticleCommentsState;
-  onOpenThread: (threadId: string) => void;
+  state: CommentsState;
+  onOpenThread?: (threadId: string) => void;
 }) {
   const [showResolved, setShowResolved] = useState(false);
   const { pageComments, threads, viewer, loaded, error } = state;
   const open = threads.filter((t) => !t.root.resolvedAt);
   const resolved = threads.filter((t) => t.root.resolvedAt);
 
-  function confirmDelete(c: ArticleCommentView) {
+  function confirmDelete(c: CommentView) {
     if (confirm("Kommentar löschen?")) void state.remove(c.id);
   }
 
@@ -254,7 +257,7 @@ export function ArticleComments({
         onSubmit={async (body) => (await state.add({ body })) !== null}
       />
 
-      {threads.length > 0 && (
+      {onOpenThread && threads.length > 0 && (
         <div className="mt-5">
           <h3 className="mb-1.5 text-sm font-semibold text-[var(--muted)]">
             Zu Textstellen{open.length > 0 ? ` · ${open.length}` : ""}

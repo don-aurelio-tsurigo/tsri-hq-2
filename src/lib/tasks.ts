@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import type { TaskStatus } from "@/generated/prisma/client";
 import { ensurePersonalSpace, getPersonalSpace } from "@/lib/spaces";
 
 export type InboxTask = Awaited<ReturnType<typeof getInboxTasks>>[number];
@@ -108,12 +107,7 @@ export async function listOpenProjectTasks(
   });
 }
 
-export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: "Offen",
-  doing: "In Arbeit",
-  done: "Erledigt",
-  cancelled: "Abgebrochen",
-};
+export { TASK_STATUS_LABELS } from "@/lib/task-status";
 
 export type NavTaskPin = {
   kind: "list" | "project";

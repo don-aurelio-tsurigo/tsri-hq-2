@@ -437,7 +437,7 @@ export async function updateTask(formData: FormData) {
   }
   revalidatePath("/projects");
   revalidatePath(`/projects/${task.spaceId}`);
-  return { ok: true as const };
+  return { ok: true as const, handedOff: handedOffSpaceId !== null };
 }
 
 async function loadEditableTask(taskId: string) {

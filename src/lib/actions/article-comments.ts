@@ -10,18 +10,7 @@ import {
   canViewSpace,
 } from "@/lib/permissions";
 
-export type ArticleCommentView = {
-  id: string;
-  body: string;
-  createdAt: string;
-  author: { id: string; name: string };
-  /** Set on replies: the thread start this answers. */
-  parentId: string | null;
-  /** Set on thread starts anchored to a text passage. */
-  quote: string | null;
-  resolvedAt: string | null;
-  canDelete: boolean;
-};
+import type { CommentListResult } from "@/lib/comment-types";
 
 const commentSchema = z.object({
   articleId: z.string().min(1),
@@ -46,10 +35,7 @@ const NOT_FOUND = { error: "Artikel nicht gefunden." };
 
 export async function listArticleComments(
   articleId: string,
-): Promise<
-  | { error: string }
-  | { comments: ArticleCommentView[]; viewer: { id: string; name: string } }
-> {
+): Promise<CommentListResult> {
   const loaded = await loadViewableArticle(articleId);
   if (!loaded) return NOT_FOUND;
   const { session, membership, article } = loaded;

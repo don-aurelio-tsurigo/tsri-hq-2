@@ -9,10 +9,8 @@ import {
   QuoteLine,
 } from "@/components/article-comments";
 import type { CommentSelection } from "@/components/article-rich-editor";
-import type {
-  ArticleCommentView,
-  ArticleCommentsState,
-} from "@/components/use-article-comments";
+import type { CommentView } from "@/lib/comment-types";
+import type { CommentsState } from "@/components/use-comments";
 
 export type ActiveComment =
   | { kind: "new"; selection: CommentSelection }
@@ -37,7 +35,7 @@ export function ArticleCommentPopover({
   active: ActiveComment;
   editor: Editor;
   containerRef: RefObject<HTMLElement | null>;
-  state: ArticleCommentsState;
+  state: CommentsState;
   onCreateThread: (selection: CommentSelection, body: string) => Promise<boolean>;
   onDeleteThread: (threadId: string) => void;
   onClose: () => void;
@@ -119,7 +117,7 @@ export function ArticleCommentPopover({
 
   if (active.kind === "thread" && !thread) return null;
 
-  function confirmDelete(c: ArticleCommentView) {
+  function confirmDelete(c: CommentView) {
     if (!confirm(c.parentId ? "Antwort löschen?" : "Ganzen Thread löschen?")) {
       return;
     }
