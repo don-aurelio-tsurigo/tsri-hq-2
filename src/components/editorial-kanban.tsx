@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { createArticle, updateArticle, moveArticleStage, archiveArticle, unarchiveArticle, deleteArticle } from "@/lib/actions";
+import { MessageSquare } from "lucide-react";
+import { createArticle, updateArticle, moveArticleStage } from "@/lib/actions";
+import { ArticleEditorDialog } from "@/components/article-editor-dialog";
+import { markdownToPlainText } from "@/lib/markdown-plain";
 import {
   EigenleistungRubrikManager,
   RubrikBadge,
@@ -29,7 +32,6 @@ import {
   type KanbanViewId,
 } from "@/lib/editorial";
 
-const DRAWER_MS = 280;
 const UNASSIGNED_KEY = "__unassigned__";
 
 export type KanbanArticle = {
@@ -56,6 +58,7 @@ export type KanbanArticle = {
   assigneeId: string | null;
   assignee: { id: string; name: string; email: string } | null;
   createdBy: { id: string; name: string };
+  _count?: { comments: number };
 };
 
 type Member = { id: string; name: string };
@@ -534,10 +537,14 @@ export function EditorialKanban({
           rubriken={activeRubriken}
           categories={activeCategories}
           onClose={() => setShowCreate(false)}
+          onCreated={(id) => {
+            setShowCreate(false);
+            setSelectedId(id);
+          }}
         />
       )}
 
-      <ArticleDetailDrawer
+      <ArticleEditorDialog
         article={selected}
         members={members}
         rubriken={rubriken}
@@ -673,7 +680,7 @@ function ArticleCard({
       </p>
       {article.description && (
         <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs text-[var(--muted)]">
-          {article.description}
+          {markdownToPlainText(article.description)}
         </p>
       )}
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -706,10 +713,21 @@ function ArticleCard({
           <span className="badge badge-muted">{article.assignee.name}</span>
         )}
       </div>
-      <p className="mt-2 text-[0.7rem] text-[var(--muted)]">
-        {showPublishAt && article.publishAt
-          ? `Publikation ${format(new Date(`${article.publishAt}T12:00:00`), "d. MMM yyyy", { locale: de })}`
-          : format(new Date(article.createdAt), "d. MMM yyyy", { locale: de })}
+      <p className="mt-2 flex items-center gap-2 text-[0.7rem] text-[var(--muted)]">
+        <span>
+          {showPublishAt && article.publishAt
+            ? `Publikation ${format(new Date(`${article.publishAt}T12:00:00`), "d. MMM yyyy", { locale: de })}`
+            : format(new Date(article.createdAt), "d. MMM yyyy", { locale: de })}
+        </span>
+        {!!article._count?.comments && (
+          <span
+            className="ml-auto inline-flex items-center gap-0.5"
+            title={`${article._count.comments} Kommentar${article._count.comments === 1 ? "" : "e"}`}
+          >
+            <MessageSquare className="size-3" aria-hidden />
+            {article._count.comments}
+          </span>
+        )}
       </p>
     </button>
   );
@@ -721,12 +739,14 @@ function CreateArticleDialog({
   rubriken,
   categories,
   onClose,
+  onCreated,
 }: {
   spaceId: string;
   members: Member[];
   rubriken: RubrikOption[];
   categories: CategoryOption[];
   onClose: () => void;
+  onCreated: (articleId: string) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -739,11 +759,11 @@ function CreateArticleDialog({
           setError(null);
           startTransition(async () => {
             const result = await createArticle(fd);
-            if (result?.error) {
-              setError(result.error);
+            if (!result.id) {
+              setError(result.error ?? "Artikel konnte nicht angelegt werden.");
               return;
             }
-            onClose();
+            onCreated(result.id);
           });
         }}
       >
@@ -754,7 +774,7 @@ function CreateArticleDialog({
           Neuer Artikel
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Startet in «Input». Kategorie und Eigenleistungs-Rubrik sind filterbar.
+          Startet in «Input». Danach öffnet sich der Editor zum Schreiben.
         </p>
 
         {error && (
@@ -767,15 +787,6 @@ function CreateArticleDialog({
           <div className="field">
             <label htmlFor="new-title">Titel</label>
             <input id="new-title" name="title" required maxLength={200} />
-          </div>
-          <div className="field">
-            <label htmlFor="new-body">Freitext</label>
-            <textarea
-              id="new-body"
-              name="description"
-              rows={8}
-              placeholder="Pitch, Notizen, Rohtext…"
-            />
           </div>
           <div className="field">
             <label htmlFor="new-category">Kategorie</label>
@@ -833,337 +844,6 @@ function CreateArticleDialog({
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-function ArticleDetailDrawer({
-  article,
-  members,
-  rubriken,
-  categories,
-  canEdit,
-  onClose,
-}: {
-  article: KanbanArticle | null;
-  members: Member[];
-  rubriken: RubrikOption[];
-  categories: CategoryOption[];
-  canEdit: boolean;
-  onClose: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const [panelArticle, setPanelArticle] = useState<KanbanArticle | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (article) {
-      setPanelArticle(article);
-      setError(null);
-      setMounted(true);
-      const id = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setVisible(true));
-      });
-      return () => cancelAnimationFrame(id);
-    }
-    setVisible(false);
-    const t = window.setTimeout(() => {
-      setMounted(false);
-      setPanelArticle(null);
-      setError(null);
-    }, DRAWER_MS);
-    return () => window.clearTimeout(t);
-  }, [article]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [mounted, onClose]);
-
-  if (!mounted || !panelArticle) return null;
-
-  const stage = isArticleStage(panelArticle.stage)
-    ? panelArticle.stage
-    : DEFAULT_ARTICLE_STAGE;
-  const fieldsEditable = canEdit && !panelArticle.archivedAt;
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
-      <button
-        type="button"
-        aria-label="Schliessen"
-        className={[
-          "absolute inset-0 bg-black/35 transition-opacity",
-          visible ? "opacity-100" : "opacity-0",
-        ].join(" ")}
-        style={{ transitionDuration: `${DRAWER_MS}ms` }}
-        onClick={onClose}
-      />
-      <aside
-        className={[
-          "relative flex h-full w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-[-12px_0_40px_rgba(0,0,0,0.12)] transition-transform ease-out",
-          visible ? "translate-x-0" : "translate-x-full",
-        ].join(" ")}
-        style={{ transitionDuration: `${DRAWER_MS}ms` }}
-      >
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
-              Artikel bearbeiten
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Erstellt{" "}
-              {format(new Date(panelArticle.createdAt), "d. MMMM yyyy, HH:mm", {
-                locale: de,
-              })}{" "}
-              · von {panelArticle.createdBy.name}
-            </p>
-          </div>
-          <button type="button" className="btn btn-ghost shrink-0" onClick={onClose}>
-            Schliessen
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-          <form
-            key={panelArticle.id}
-            className="flex flex-col gap-3"
-            action={(fd) => {
-              if (!canEdit) return;
-              setError(null);
-              startTransition(async () => {
-                const result = await updateArticle(fd);
-                if (result?.error) {
-                  setError(result.error);
-                  return;
-                }
-                onClose();
-              });
-            }}
-          >
-            <input type="hidden" name="id" value={panelArticle.id} />
-
-            {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-[var(--danger)]">
-                {error}
-              </p>
-            )}
-
-            <div className="field">
-              <label htmlFor="edit-title">Titel</label>
-              <input
-                id="edit-title"
-                name="title"
-                defaultValue={panelArticle.title}
-                required
-                disabled={!fieldsEditable}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="edit-body">Freitext</label>
-              <textarea
-                id="edit-body"
-                name="description"
-                rows={12}
-                defaultValue={panelArticle.description ?? ""}
-                disabled={!fieldsEditable}
-                className="font-mono text-sm"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="edit-stage">Stage</label>
-              <select
-                id="edit-stage"
-                name="stage"
-                defaultValue={stage}
-                disabled={!fieldsEditable}
-              >
-                {ARTICLE_STAGES.map((s) => (
-                  <option key={s} value={s}>
-                    {ARTICLE_STAGE_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="edit-category">Kategorie</label>
-              <select
-                id="edit-category"
-                name="categoryId"
-                defaultValue={panelArticle.categoryId ?? ""}
-                disabled={!fieldsEditable}
-              >
-                <option value="">— keine —</option>
-                {categories
-                  .filter(
-                    (c) =>
-                      c.active || c.id === panelArticle.categoryId,
-                  )
-                  .map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                      {!cat.active ? " (inaktiv)" : ""}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="edit-rubrik">Eigenleistungs-Rubrik</label>
-              <select
-                id="edit-rubrik"
-                name="eigenleistungRubrikId"
-                defaultValue={panelArticle.eigenleistungRubrikId ?? ""}
-                disabled={!fieldsEditable}
-              >
-                <option value="">— keine —</option>
-                {rubriken
-                  .filter(
-                    (r) =>
-                      r.active ||
-                      r.id === panelArticle.eigenleistungRubrikId,
-                  )
-                  .map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                      {!r.active ? " (inaktiv)" : ""}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="edit-publish">Publikationsdatum</label>
-              <input
-                id="edit-publish"
-                name="publishAt"
-                type="date"
-                defaultValue={panelArticle.publishAt ?? ""}
-                disabled={!fieldsEditable}
-              />
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Mit Datum erscheint der Artikel im Programm-Kalender.
-              </p>
-            </div>
-            <div className="field">
-              <label htmlFor="edit-assignee">Zuständig</label>
-              <select
-                id="edit-assignee"
-                name="assigneeId"
-                defaultValue={panelArticle.assigneeId ?? ""}
-                disabled={!fieldsEditable}
-              >
-                <option value="">— niemand —</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {canEdit && (
-              <div className="sticky bottom-0 space-y-3 border-t border-[var(--border)] bg-[var(--bg-elevated)] pt-4 pb-1">
-                <div className="flex flex-wrap justify-end gap-2">
-                  <button type="button" className="btn btn-ghost" onClick={onClose}>
-                    Abbrechen
-                  </button>
-                  {!panelArticle.archivedAt && (
-                    <button
-                      type="submit"
-                      className="btn btn-primary"
-                      disabled={pending}
-                    >
-                      {pending ? "…" : "Speichern"}
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--border)] pt-3">
-                  {panelArticle.archivedAt ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={pending}
-                      onClick={() => {
-                        setError(null);
-                        const fd = new FormData();
-                        fd.set("id", panelArticle.id);
-                        startTransition(async () => {
-                          const result = await unarchiveArticle(fd);
-                          if (result?.error) {
-                            setError(result.error);
-                            return;
-                          }
-                          onClose();
-                        });
-                      }}
-                    >
-                      Wiederherstellen
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={pending}
-                      onClick={() => {
-                        setError(null);
-                        const fd = new FormData();
-                        fd.set("id", panelArticle.id);
-                        startTransition(async () => {
-                          const result = await archiveArticle(fd);
-                          if (result?.error) {
-                            setError(result.error);
-                            return;
-                          }
-                          onClose();
-                        });
-                      }}
-                    >
-                      Archivieren
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    disabled={pending}
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Artikel «${panelArticle.title}» endgültig löschen?`,
-                        )
-                      ) {
-                        return;
-                      }
-                      setError(null);
-                      const fd = new FormData();
-                      fd.set("id", panelArticle.id);
-                      startTransition(async () => {
-                        const result = await deleteArticle(fd);
-                        if (result?.error) {
-                          setError(result.error);
-                          return;
-                        }
-                        onClose();
-                      });
-                    }}
-                  >
-                    Löschen
-                  </button>
-                </div>
-              </div>
-            )}
-          </form>
-        </div>
-      </aside>
     </div>
   );
 }

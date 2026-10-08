@@ -17,6 +17,7 @@ export async function listArticles(spaceId: string) {
       category: {
         select: { id: true, name: true, color: true, active: true },
       },
+      _count: { select: { comments: true } },
     },
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
   });

@@ -1,22 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { setArticlePublishAt, updateArticle } from "@/lib/actions";
-import {
-  ARTICLE_STAGES,
-  ARTICLE_STAGE_LABELS,
-  DEFAULT_ARTICLE_STAGE,
-  isArticleStage,
-} from "@/lib/editorial";
+import { ARTICLE_STAGE_LABELS, isArticleStage } from "@/lib/editorial";
+import { ArticleEditorDialog } from "@/components/article-editor-dialog";
 
 type ProgramCategory = {
   id: string;
@@ -48,8 +39,6 @@ type DayColumn = {
 };
 
 type ViewMode = "woche" | "liste";
-
-const DRAWER_MS = 280;
 
 function categoryCardStyle(color: string | null | undefined) {
   if (!color) return undefined;
@@ -176,19 +165,6 @@ export function EditorialProgram({
       fd.set("id", articleId);
       fd.set("categoryId", categoryId);
       return updateArticle(fd);
-    });
-  }
-
-  function saveArticle(fd: FormData) {
-    setError(null);
-    startTransition(async () => {
-      const result = await updateArticle(fd);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      setSelectedId(null);
-      router.refresh();
     });
   }
 
@@ -353,13 +329,15 @@ export function EditorialProgram({
         </div>
       )}
 
-      <ArticleDrawer
+      <ArticleEditorDialog
         article={selectedArticle}
         members={members}
         categories={categories}
-        pending={pending}
-        onClose={() => setSelectedId(null)}
-        onSave={saveArticle}
+        canEdit
+        onClose={() => {
+          setSelectedId(null);
+          router.refresh();
+        }}
       />
     </div>
   );
@@ -411,223 +389,6 @@ function ArticleChip({
         </span>
       )}
     </div>
-  );
-}
-
-function ArticleDrawer({
-  article,
-  members,
-  categories,
-  pending,
-  onClose,
-  onSave,
-}: {
-  article: ProgramArticle | null;
-  members: Member[];
-  categories: ProgramCategory[];
-  pending: boolean;
-  onClose: () => void;
-  onSave: (fd: FormData) => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const [panelArticle, setPanelArticle] = useState<ProgramArticle | null>(null);
-
-  useEffect(() => {
-    if (article) {
-      setPanelArticle(article);
-      setMounted(true);
-      const id = requestAnimationFrame(() => {
-        requestAnimationFrame(() => setVisible(true));
-      });
-      return () => cancelAnimationFrame(id);
-    }
-    setVisible(false);
-    const t = window.setTimeout(() => {
-      setMounted(false);
-      setPanelArticle(null);
-    }, DRAWER_MS);
-    return () => window.clearTimeout(t);
-  }, [article]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [mounted, onClose]);
-
-  if (!mounted || !panelArticle) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true">
-      <button
-        type="button"
-        aria-label="Schliessen"
-        className={[
-          "absolute inset-0 bg-black/35 transition-opacity",
-          visible ? "opacity-100" : "opacity-0",
-        ].join(" ")}
-        style={{ transitionDuration: `${DRAWER_MS}ms` }}
-        onClick={onClose}
-      />
-      <aside
-        className={[
-          "relative flex h-full w-full max-w-md flex-col border-l border-[var(--border)] bg-[var(--bg-elevated)] shadow-[-12px_0_40px_rgba(0,0,0,0.12)] transition-transform ease-out",
-          visible ? "translate-x-0" : "translate-x-full",
-        ].join(" ")}
-        style={{ transitionDuration: `${DRAWER_MS}ms` }}
-      >
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
-              Artikel bearbeiten
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Erstellt{" "}
-              {format(new Date(panelArticle.createdAt), "d. MMMM yyyy, HH:mm", {
-                locale: de,
-              })}{" "}
-              · von {panelArticle.createdBy.name}
-            </p>
-          </div>
-          <button type="button" className="btn btn-ghost shrink-0" onClick={onClose}>
-            Schliessen
-          </button>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-          <ArticleEditForm
-            key={panelArticle.id}
-            article={panelArticle}
-            members={members}
-            categories={categories}
-            pending={pending}
-            onSave={onSave}
-            onCancel={onClose}
-          />
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function ArticleEditForm({
-  article,
-  members,
-  categories,
-  pending,
-  onSave,
-  onCancel,
-}: {
-  article: ProgramArticle;
-  members: Member[];
-  categories: ProgramCategory[];
-  pending: boolean;
-  onSave: (fd: FormData) => void;
-  onCancel: () => void;
-}) {
-  const stage = isArticleStage(article.stage)
-    ? article.stage
-    : DEFAULT_ARTICLE_STAGE;
-
-  return (
-    <form className="flex flex-col gap-3" action={(fd) => onSave(fd)}>
-      <input type="hidden" name="id" value={article.id} />
-      <div className="field">
-        <label htmlFor={`prog-title-${article.id}`}>Titel</label>
-        <input
-          id={`prog-title-${article.id}`}
-          name="title"
-          defaultValue={article.title}
-          required
-          disabled={pending}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`prog-body-${article.id}`}>Freitext</label>
-        <textarea
-          id={`prog-body-${article.id}`}
-          name="description"
-          rows={10}
-          defaultValue={article.description ?? ""}
-          disabled={pending}
-          className="font-mono text-sm"
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`prog-publish-${article.id}`}>Publikationstag</label>
-        <input
-          id={`prog-publish-${article.id}`}
-          type="date"
-          name="publishAt"
-          defaultValue={article.publishAt ?? ""}
-          disabled={pending}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor={`prog-stage-${article.id}`}>Stage</label>
-        <select
-          id={`prog-stage-${article.id}`}
-          name="stage"
-          defaultValue={stage}
-          disabled={pending}
-        >
-          {ARTICLE_STAGES.map((s) => (
-            <option key={s} value={s}>
-              {ARTICLE_STAGE_LABELS[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor={`prog-category-${article.id}`}>Kategorie</label>
-        <select
-          id={`prog-category-${article.id}`}
-          name="categoryId"
-          defaultValue={article.categoryId ?? ""}
-          disabled={pending}
-        >
-          <option value="">— keine —</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor={`prog-assignee-${article.id}`}>Zuständig</label>
-        <select
-          id={`prog-assignee-${article.id}`}
-          name="assigneeId"
-          defaultValue={article.assigneeId ?? ""}
-          disabled={pending}
-        >
-          <option value="">— niemand —</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-[var(--border)] bg-[var(--bg-elevated)] pt-4 pb-1">
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>
-          Abbrechen
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? "…" : "Speichern"}
-        </button>
-      </div>
-    </form>
   );
 }
 

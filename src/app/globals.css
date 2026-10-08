@@ -423,6 +423,26 @@ textarea {
   color: var(--muted);
 }
 
+/* Article editor: roomier writing surface on top of .wiki-prose. */
+.article-prose {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.article-prose hr {
+  margin: 1.75em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.article-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .wiki-table-wrap {
   overflow-x: auto;
   margin: 0.85em 0;

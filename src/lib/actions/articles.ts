@@ -110,7 +110,7 @@ export async function createArticle(formData: FormData) {
     publishAt = raw ? new Date(`${raw}T12:00:00.000Z`) : null;
   }
 
-  await prisma.article.create({
+  const created = await prisma.article.create({
     data: {
       spaceId: space.id,
       title: parsed.data.title.trim(),
@@ -131,7 +131,7 @@ export async function createArticle(formData: FormData) {
   revalidatePath(`/projects/${space.id}`);
   revalidatePath("/programm");
 
-  return { ok: true as const };
+  return { ok: true as const, id: created.id };
 }
 
 const articleUpdateSchema = z.object({

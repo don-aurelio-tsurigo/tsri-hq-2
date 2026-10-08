@@ -77,6 +77,22 @@ import {
   deleteArticle as deleteArticleAction,
 } from "./actions/articles";
 
+import {
+  listArticleComments as listArticleCommentsAction,
+  addArticleComment as addArticleCommentAction,
+  deleteArticleComment as deleteArticleCommentAction,
+} from "./actions/article-comments";
+
+export async function listArticleComments(articleId: string) {
+  return listArticleCommentsAction(articleId);
+}
+export async function addArticleComment(formData: FormData) {
+  return addArticleCommentAction(formData);
+}
+export async function deleteArticleComment(formData: FormData) {
+  return deleteArticleCommentAction(formData);
+}
+
 export async function createArticle(formData: FormData) {
   return createArticleAction(formData);
 }
