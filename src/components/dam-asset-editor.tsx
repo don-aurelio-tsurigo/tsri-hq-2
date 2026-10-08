@@ -219,6 +219,17 @@ export function DamAssetEditor({
         crop.height >= 99.5);
     if (!isFullFrame) return;
     const next = defaultAspectCrop(value, stage.boxW, stage.boxH);
+    // Image already matches the ratio → the default crop is full frame too.
+    // Setting it again would re-trigger this effect forever.
+    if (
+      crop &&
+      Math.abs(crop.x - next.x) < 0.01 &&
+      Math.abs(crop.y - next.y) < 0.01 &&
+      Math.abs(crop.width - next.width) < 0.01 &&
+      Math.abs(crop.height - next.height) < 0.01
+    ) {
+      return;
+    }
     setDraft((prev) => ({
       ...prev,
       crop: {
