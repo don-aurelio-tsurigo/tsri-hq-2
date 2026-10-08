@@ -183,6 +183,8 @@ export async function copyProjectStructure(
       spaceId: sourceProjectId,
       archivedAt: null,
       status: { not: "cancelled" },
+      // Bei Serien nur den neuesten Task kopieren, nicht jede Wiederholung
+      recurrenceNext: { is: null },
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: {

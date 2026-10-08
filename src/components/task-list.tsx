@@ -55,15 +55,6 @@ function offsetLabel(dueOffsetDays: number | null | undefined) {
   return `${dueOffsetDays}d nachher`;
 }
 
-/** Wiederholung nur ausserhalb von Projekten/Vorlagen (siehe updateTask). */
-function canRecur(task: TaskRow, showDueOffset: boolean) {
-  return (
-    !showDueOffset &&
-    task.space?.type !== "project" &&
-    task.dueOffsetDays == null
-  );
-}
-
 function toDateInputValue(dueAt: Date | string | null) {
   if (!dueAt) return "";
   const date = typeof dueAt === "string" ? new Date(dueAt) : dueAt;
@@ -473,7 +464,7 @@ export function TaskList({
                         taskId={task.id}
                         dueAt={task.dueAt}
                         recurrence={task.recurrence}
-                        allowRecurrence={canRecur(task, showDueOffset)}
+                        allowRecurrence={!showDueOffset}
                         compact
                       />
                     </div>
@@ -532,7 +523,7 @@ export function TaskList({
                           taskId={task.id}
                           dueAt={task.dueAt}
                         recurrence={task.recurrence}
-                        allowRecurrence={canRecur(task, showDueOffset)}
+                        allowRecurrence={!showDueOffset}
                           compact={false}
                         />
                       </div>
@@ -653,7 +644,8 @@ function TaskDrawer({
 
   if (!mounted || !panelTask) return null;
 
-  const allowRecurrence = canRecur(panelTask, showDueOffset);
+  // Vorlagen (showDueOffset) haben keine Serien, siehe updateTask
+  const allowRecurrence = !showDueOffset;
   const rule = parseRecurrence(panelTask.recurrence);
 
   return (
