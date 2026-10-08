@@ -13,6 +13,7 @@ import {
   type Recurrence,
 } from "@/lib/recurrence";
 import { Prisma } from "@/generated/prisma/client";
+import { offsetFromEvent } from "@/lib/project-meta";
 
 const taskCreateSchema = z.object({
   spaceId: z.string().min(1),
@@ -279,13 +280,17 @@ export async function updateTask(formData: FormData) {
     } else {
       const rule = parseRecurrence(parsed.data.recurrence);
       if (!rule) return { error: "Ungültige Wiederholung." };
-      // Projekte (Event-Offsets, Vorlagen) vorerst ausgenommen
-      if (task.space.type === "project" || task.space.isTemplate) {
-        return { error: "Wiederholung ist in Projekten noch nicht möglich." };
+      // Vorlagen arbeiten nur mit Event-Offsets, dort vorerst keine Serien
+      if (task.space.isTemplate) {
+        return { error: "Wiederholung ist in Vorlagen noch nicht möglich." };
       }
       data.recurrence = rule;
       if (!task.dueAt && data.dueAt === undefined) {
         data.dueAt = todayUtcDate();
+        if (task.space.type === "project" && task.space.eventAt) {
+          const { offsetFromEvent } = await import("@/lib/projects");
+          data.dueOffsetDays = offsetFromEvent(task.space.eventAt, data.dueAt);
+        }
       }
     }
   }
@@ -371,12 +376,21 @@ export async function updateTask(formData: FormData) {
       data,
     });
 
-    if (completing && rule) {
+    // Keine Folge-Tasks in Vorlagen oder archivierten Projekten
+    if (completing && rule && !task.space.isTemplate && !task.space.archivedAt) {
       const existing = await tx.task.findUnique({
         where: { recurrenceFromId: task.id },
         select: { id: true },
       });
       if (!existing) {
+        const dueAt = nextDueAt(rule, updated.dueAt);
+        // Event-Projekte: Offset passend zum neuen Datum mitführen
+        const dueOffsetDays =
+          updated.spaceId === task.spaceId &&
+          task.space.type === "project" &&
+          task.space.eventAt
+            ? offsetFromEvent(task.space.eventAt, dueAt)
+            : null;
         await tx.task.create({
           data: {
             spaceId: updated.spaceId,
@@ -387,7 +401,8 @@ export async function updateTask(formData: FormData) {
             groupId: updated.groupId,
             sortOrder: updated.sortOrder,
             status: "todo",
-            dueAt: nextDueAt(rule, updated.dueAt),
+            dueAt,
+            dueOffsetDays,
             recurrence: rule,
             recurrenceFromId: task.id,
           },
