@@ -256,7 +256,7 @@ export function EditorialProgram({
             <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
               {weekLabel}
             </p>
-            <p className="text-sm text-[var(--muted)]">
+            <p className="hidden text-sm text-[var(--muted)] sm:block">
               Artikel mit Publikationsdatum aus der Redaktion · Klick zum
               Bearbeiten
             </p>
@@ -269,12 +269,12 @@ export function EditorialProgram({
                 <section
                   key={day.dateKey}
                   className={[
-                    "flex min-h-[260px] flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-elevated)] p-2.5",
+                    "flex flex-col rounded-[var(--radius)] lg:min-h-[260px] border border-[var(--border)] bg-[var(--bg-elevated)] p-2.5",
                     day.isToday ? "ring-2 ring-[var(--accent)]" : "",
                     day.isPast ? "opacity-80" : "",
                   ].join(" ")}
                 >
-                  <header className="mb-2 px-0.5">
+                  <header className="mb-2 flex items-baseline justify-between gap-2 px-0.5 lg:block">
                     <p
                       className={[
                         "text-xs font-semibold tracking-wide uppercase",
@@ -303,7 +303,7 @@ export function EditorialProgram({
                       </li>
                     ))}
                     {items.length === 0 && (
-                      <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-[var(--border)] px-2 py-6 text-center text-xs text-[var(--muted)]">
+                      <li className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-[var(--border)] px-2 py-2 text-center text-xs text-[var(--muted)] lg:py-6">
                         Keine Artikel
                       </li>
                     )}
@@ -485,7 +485,7 @@ function ArticleDrawer({
         ].join(" ")}
         style={{ transitionDuration: `${DRAWER_MS}ms` }}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
           <div>
             <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
               Artikel bearbeiten
@@ -503,7 +503,7 @@ function ArticleDrawer({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
           <ArticleEditForm
             key={panelArticle.id}
             article={panelArticle}
@@ -653,104 +653,186 @@ function ProgramTable({
   onCategory: (id: string, categoryId: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow)]">
-      <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-[var(--border)] text-xs font-semibold tracking-wide text-[var(--muted)]">
-            <th className="w-32 px-3 py-2.5 font-semibold">Wochentag</th>
-            <th className="w-40 px-3 py-2.5 font-semibold">Datum</th>
-            <th className="px-3 py-2.5 font-semibold">Titel</th>
-            <th className="w-44 px-3 py-2.5 font-semibold">Person</th>
-            <th className="w-48 px-3 py-2.5 font-semibold">Rubrik</th>
-          </tr>
-        </thead>
-        <tbody>
-          {articles.map((article) => {
-            const cat = article.category;
-            const active = selectedId === article.id;
-            return (
-              <tr
-                key={article.id}
-                className={`group border-b border-[var(--border)] last:border-b-0 ${
-                  cat ? "" : "bg-white"
-                } ${active ? "ring-inset ring-2 ring-[var(--accent)]" : ""}`}
-                style={categoryRowStyle(cat?.color)}
-              >
-                <td className="px-3 py-2.5 align-middle text-[var(--muted)] capitalize">
+    <>
+      <ul className="flex flex-col gap-2 md:hidden">
+        {articles.map((article) => {
+          const cat = article.category;
+          const active = selectedId === article.id;
+          return (
+            <li
+              key={article.id}
+              className={[
+                "rounded-[var(--radius)] border border-[var(--border)] p-3 shadow-sm",
+                cat ? "" : "bg-white",
+                active ? "ring-2 ring-[var(--accent)]" : "",
+              ].join(" ")}
+              style={categoryRowStyle(cat?.color)}
+            >
+              <div className="flex items-center justify-between gap-2 text-xs text-[var(--muted)]">
+                <span className="capitalize">
                   {article.publishAt
                     ? format(new Date(`${article.publishAt}T12:00:00`), "EEEE", {
                         locale: de,
                       })
                     : "—"}
-                </td>
-                <td className="px-3 py-2.5 align-middle">
-                  <input
-                    type="date"
-                    className="w-full min-w-[9.5rem] border-0 bg-transparent p-0 text-sm"
-                    disabled={pending}
-                    value={article.publishAt ?? ""}
-                    onChange={(e) =>
-                      onAssign(article.id, e.target.value || null)
-                    }
-                  />
-                </td>
-                <td className="px-3 py-2.5 align-middle">
-                  <button
-                    type="button"
-                    className="w-full text-left"
-                    onClick={() => onOpen(article.id)}
-                  >
-                    <p className="font-medium leading-snug underline-offset-2 hover:underline">
-                      {article.title}
-                    </p>
-                    <p className="mt-0.5 text-[0.7rem] text-[var(--muted)]">
-                      {stageLabel(article.stage)}
-                    </p>
-                  </button>
-                </td>
-                <td className="px-3 py-2.5 align-middle">
-                  <div className="flex items-center gap-2">
-                    <PersonAvatar name={article.assignee?.name} />
-                    <select
-                      className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm"
+                </span>
+                <input
+                  type="date"
+                  aria-label="Publikationsdatum"
+                  className="border-0 bg-transparent p-0 text-right text-sm text-[var(--fg)]"
+                  disabled={pending}
+                  value={article.publishAt ?? ""}
+                  onChange={(e) => onAssign(article.id, e.target.value || null)}
+                />
+              </div>
+              <button
+                type="button"
+                className="mt-1 w-full text-left"
+                onClick={() => onOpen(article.id)}
+              >
+                <p className="font-medium leading-snug">{article.title}</p>
+                <p className="mt-0.5 text-[0.7rem] text-[var(--muted)]">
+                  {stageLabel(article.stage)}
+                </p>
+              </button>
+              <div className="mt-2 flex items-center gap-2">
+                <PersonAvatar name={article.assignee?.name} />
+                <select
+                  aria-label="Person"
+                  className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm"
+                  disabled={pending}
+                  value={article.assignee?.id ?? ""}
+                  onChange={(e) => onAssignee(article.id, e.target.value)}
+                >
+                  <option value="">—</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Rubrik"
+                  className={[
+                    "max-w-[45%] rounded-full border-0 px-2.5 py-1 text-xs font-medium",
+                    cat ? "" : "bg-black/5 text-[var(--muted)]",
+                  ].join(" ")}
+                  style={categoryPillStyle(cat?.color)}
+                  disabled={pending}
+                  value={article.categoryId ?? ""}
+                  onChange={(e) => onCategory(article.id, e.target.value)}
+                >
+                  <option value="">—</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="hidden overflow-x-auto rounded-[var(--radius)] border border-[var(--border)] bg-white shadow-[var(--shadow)] md:block">
+        <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-[var(--border)] text-xs font-semibold tracking-wide text-[var(--muted)]">
+              <th className="w-32 px-3 py-2.5 font-semibold">Wochentag</th>
+              <th className="w-40 px-3 py-2.5 font-semibold">Datum</th>
+              <th className="px-3 py-2.5 font-semibold">Titel</th>
+              <th className="w-44 px-3 py-2.5 font-semibold">Person</th>
+              <th className="w-48 px-3 py-2.5 font-semibold">Rubrik</th>
+            </tr>
+          </thead>
+          <tbody>
+            {articles.map((article) => {
+              const cat = article.category;
+              const active = selectedId === article.id;
+              return (
+                <tr
+                  key={article.id}
+                  className={`group border-b border-[var(--border)] last:border-b-0 ${
+                    cat ? "" : "bg-white"
+                  } ${active ? "ring-inset ring-2 ring-[var(--accent)]" : ""}`}
+                  style={categoryRowStyle(cat?.color)}
+                >
+                  <td className="px-3 py-2.5 align-middle text-[var(--muted)] capitalize">
+                    {article.publishAt
+                      ? format(new Date(`${article.publishAt}T12:00:00`), "EEEE", {
+                          locale: de,
+                        })
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 align-middle">
+                    <input
+                      type="date"
+                      className="w-full min-w-[9.5rem] border-0 bg-transparent p-0 text-sm"
                       disabled={pending}
-                      value={article.assignee?.id ?? ""}
-                      onChange={(e) => onAssignee(article.id, e.target.value)}
+                      value={article.publishAt ?? ""}
+                      onChange={(e) =>
+                        onAssign(article.id, e.target.value || null)
+                      }
+                    />
+                  </td>
+                  <td className="px-3 py-2.5 align-middle">
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => onOpen(article.id)}
+                    >
+                      <p className="font-medium leading-snug underline-offset-2 hover:underline">
+                        {article.title}
+                      </p>
+                      <p className="mt-0.5 text-[0.7rem] text-[var(--muted)]">
+                        {stageLabel(article.stage)}
+                      </p>
+                    </button>
+                  </td>
+                  <td className="px-3 py-2.5 align-middle">
+                    <div className="flex items-center gap-2">
+                      <PersonAvatar name={article.assignee?.name} />
+                      <select
+                        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm"
+                        disabled={pending}
+                        value={article.assignee?.id ?? ""}
+                        onChange={(e) => onAssignee(article.id, e.target.value)}
+                      >
+                        <option value="">—</option>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 align-middle">
+                    <select
+                      className={[
+                        "rounded-full border-0 px-2.5 py-1 text-xs font-medium",
+                        cat ? "" : "bg-black/5 text-[var(--muted)]",
+                      ].join(" ")}
+                      style={categoryPillStyle(cat?.color)}
+                      disabled={pending}
+                      value={article.categoryId ?? ""}
+                      onChange={(e) => onCategory(article.id, e.target.value)}
                     >
                       <option value="">—</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 align-middle">
-                  <select
-                    className={[
-                      "rounded-full border-0 px-2.5 py-1 text-xs font-medium",
-                      cat ? "" : "bg-black/5 text-[var(--muted)]",
-                    ].join(" ")}
-                    style={categoryPillStyle(cat?.color)}
-                    disabled={pending}
-                    value={article.categoryId ?? ""}
-                    onChange={(e) => onCategory(article.id, e.target.value)}
-                  >
-                    <option value="">—</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
