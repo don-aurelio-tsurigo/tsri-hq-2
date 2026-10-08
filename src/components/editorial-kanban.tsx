@@ -89,6 +89,7 @@ export function EditorialKanban({
   const [manageCategories, setManageCategories] = useState(false);
   const [manageRubriken, setManageRubriken] = useState(false);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const activeRubriken = useMemo(
@@ -191,6 +192,13 @@ export function EditorialKanban({
   }, [members, byPerson]);
 
   const selected = articles.find((a) => a.id === selectedId) ?? null;
+  const activeFilterCount = [
+    query.trim(),
+    categoryId,
+    rubrikId,
+    view !== "wer" ? assigneeId : "",
+    createdFrom || createdTo,
+  ].filter(Boolean).length;
 
   function moveToStage(articleId: string, stage: ArticleStage) {
     const fd = new FormData();
@@ -218,7 +226,7 @@ export function EditorialKanban({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="inline-flex flex-wrap gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1"
+          className="grid w-full grid-cols-2 gap-1 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-1 sm:inline-flex sm:w-auto sm:flex-wrap"
           role="tablist"
           aria-label="Kanban-Ansicht"
         >
@@ -232,7 +240,7 @@ export function EditorialKanban({
                 role="tab"
                 aria-selected={active}
                 className={[
-                  "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+                  "rounded-lg px-3 py-1.5 text-sm font-semibold whitespace-nowrap transition-colors",
                   active
                     ? "bg-[var(--fg)] text-white"
                     : "text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)]",
@@ -244,15 +252,29 @@ export function EditorialKanban({
             );
           })}
         </div>
-        {canEdit && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setShowCreate(true)}
-          >
-            Neuer Artikel
-          </button>
-        )}
+        <div className="flex w-full gap-2 sm:w-auto">
+          <div className="flex flex-1 sm:hidden">
+            <button
+              type="button"
+              className="btn btn-ghost w-full"
+              aria-expanded={filtersOpen}
+              aria-controls="kanban-filters"
+              onClick={() => setFiltersOpen((o) => !o)}
+            >
+              {filtersOpen ? "Filter ausblenden" : "Filter"}
+              {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+            </button>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              className="btn btn-primary flex-1 sm:flex-none"
+              onClick={() => setShowCreate(true)}
+            >
+              Neuer Artikel
+            </button>
+          )}
+        </div>
       </div>
 
       {isAdmin && manageCategories && (
@@ -268,8 +290,14 @@ export function EditorialKanban({
         />
       )}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="field min-w-[180px] flex-1">
+      <div
+        id="kanban-filters"
+        className={[
+          "grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap",
+          filtersOpen ? "grid" : "hidden",
+        ].join(" ")}
+      >
+        <div className="field col-span-2 sm:min-w-[180px] sm:flex-1">
           <label htmlFor="filter-q">Suche (Freitext)</label>
           <input
             id="filter-q"
@@ -278,11 +306,11 @@ export function EditorialKanban({
             placeholder="Titel oder Text…"
           />
         </div>
-        <div className="field w-44">
+        <div className="field min-w-0 sm:w-44">
           <label htmlFor="filter-cat">
             Kategorie
             {isAdmin && (
-              <>
+              <span className="whitespace-nowrap">
                 {" "}
                 (
                 <button
@@ -296,7 +324,7 @@ export function EditorialKanban({
                   Bearbeiten
                 </button>
                 )
-              </>
+              </span>
             )}
           </label>
           <select
@@ -312,11 +340,11 @@ export function EditorialKanban({
             ))}
           </select>
         </div>
-        <div className="field w-44">
+        <div className="field min-w-0 sm:w-44">
           <label htmlFor="filter-rubrik">
             Eigenleistung
             {isAdmin && (
-              <>
+              <span className="whitespace-nowrap">
                 {" "}
                 (
                 <button
@@ -330,7 +358,7 @@ export function EditorialKanban({
                   Bearbeiten
                 </button>
                 )
-              </>
+              </span>
             )}
           </label>
           <select
@@ -347,7 +375,7 @@ export function EditorialKanban({
           </select>
         </div>
         {view !== "wer" && (
-          <div className="field w-44">
+          <div className="field min-w-0 sm:w-44">
             <label htmlFor="filter-assignee">Person</label>
             <select
               id="filter-assignee"
@@ -365,6 +393,7 @@ export function EditorialKanban({
         )}
         <DateRangeField
           id="filter-created"
+          className="col-span-2 sm:col-span-1"
           label="Erstellt"
           from={createdFrom}
           to={createdTo}
@@ -404,7 +433,7 @@ export function EditorialKanban({
           )}
         </div>
       ) : stageColumns ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:snap-none">
           {stageColumns.map((stage) => (
             <StageColumn
               key={stage}
@@ -427,7 +456,7 @@ export function EditorialKanban({
           ))}
         </div>
       ) : (
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:snap-none">
           {personColumns.map((col) => {
             const list = byPerson.get(col.key) ?? [];
             const dropKey = `person:${col.key}`;
@@ -435,7 +464,7 @@ export function EditorialKanban({
               <section
                 key={col.key}
                 className={[
-                  "flex w-64 shrink-0 flex-col rounded-xl border border-[var(--border)] bg-[color-mix(in_oklab,var(--bg-elevated)_88%,var(--bg))]",
+                  "flex w-[82vw] max-w-xs shrink-0 snap-start flex-col rounded-xl border sm:w-64 border-[var(--border)] bg-[color-mix(in_oklab,var(--bg-elevated)_88%,var(--bg))]",
                   dragOverKey === dropKey ? "ring-2 ring-[var(--accent)]" : "",
                 ].join(" ")}
                 onDragOver={(e) => {
@@ -547,7 +576,7 @@ function StageColumn({
   return (
     <section
       className={[
-        "flex w-64 shrink-0 flex-col rounded-xl border border-[var(--border)]",
+        "flex w-[82vw] max-w-xs shrink-0 snap-start flex-col rounded-xl border border-[var(--border)] sm:w-64",
         isDragOver ? "ring-2 ring-[var(--accent)]" : "",
       ].join(" ")}
       style={{
@@ -703,9 +732,9 @@ function CreateArticleDialog({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-3 sm:p-4">
       <form
-        className="card max-h-[90vh] w-full max-w-lg overflow-y-auto p-5"
+        className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto p-4 sm:p-5"
         action={(fd) => {
           setError(null);
           startTransition(async () => {
@@ -888,7 +917,7 @@ function ArticleDetailDrawer({
         ].join(" ")}
         style={{ transitionDuration: `${DRAWER_MS}ms` }}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5 sm:py-4">
           <div>
             <p className="text-xs font-semibold tracking-wide text-[var(--accent)] uppercase">
               Artikel bearbeiten
@@ -906,7 +935,7 @@ function ArticleDetailDrawer({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
           <form
             key={panelArticle.id}
             className="flex flex-col gap-3"
