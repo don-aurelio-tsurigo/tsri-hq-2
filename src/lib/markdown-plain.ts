@@ -2,6 +2,7 @@
 export function markdownToPlainText(markdown: string | null | undefined): string {
   if (!markdown) return "";
   return markdown
+    .replace(/<\/?span\b[^>]*>/g, "")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
     .replace(/^\s*([-*_]\s*){3,}$/gm, "")

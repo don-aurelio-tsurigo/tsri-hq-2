@@ -34,11 +34,19 @@ import {
   DEFAULT_ARTICLE_STAGE,
   isArticleStage,
 } from "@/lib/editorial";
+import type { Editor } from "@tiptap/react";
 import {
+  addCommentMark,
   ArticleRichEditor,
   countWords,
+  removeCommentMark,
 } from "@/components/article-rich-editor";
 import { ArticleComments } from "@/components/article-comments";
+import {
+  ArticleCommentPopover,
+  type ActiveComment,
+} from "@/components/article-comment-popover";
+import { useArticleComments } from "@/components/use-article-comments";
 
 const AUTOSAVE_MS = 800;
 
@@ -119,6 +127,12 @@ function EditorPanel({
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [activeComment, setActiveComment] = useState<ActiveComment | null>(
+    null,
+  );
+  const editorWrapRef = useRef<HTMLDivElement>(null);
+  const comments = useArticleComments(article.id);
 
   const [title, setTitle] = useState(article.title);
   const [body, setBody] = useState(article.description ?? "");
@@ -195,13 +209,40 @@ function EditorPanel({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      if (menuOpen) setMenuOpen(false);
+      if (activeComment) setActiveComment(null);
+      else if (menuOpen) setMenuOpen(false);
       else if (fullscreen) setFullscreen(false);
       else close();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen, fullscreen, close]);
+  }, [activeComment, menuOpen, fullscreen, close]);
+
+  const closeComment = useCallback(() => setActiveComment(null), []);
+
+  function openThread(threadId: string) {
+    const thread = comments.threads.find((t) => t.root.id === threadId);
+    if (!thread || thread.root.resolvedAt) return;
+    editorWrapRef.current
+      ?.querySelector(`[data-comment="${CSS.escape(threadId)}"]`)
+      ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setActiveComment({ kind: "thread", id: threadId });
+  }
+
+  // Only passages with an open thread are highlighted.
+  const openThreadIds = comments.threads
+    .filter((t) => !t.root.resolvedAt)
+    .map((t) => t.root.id);
+  const activeThreadId =
+    activeComment?.kind === "thread" ? activeComment.id : null;
+  const highlightCss = [
+    openThreadIds.length > 0 &&
+      `${openThreadIds.map((id) => `.article-comment-mark[data-comment="${CSS.escape(id)}"]`).join(",")}{background:color-mix(in oklab,var(--highlight) 45%,transparent);border-bottom:2px solid #e8c800;cursor:pointer}`,
+    activeThreadId &&
+      `.article-comment-mark[data-comment="${CSS.escape(activeThreadId)}"]{background:color-mix(in oklab,var(--highlight) 85%,transparent)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -437,18 +478,57 @@ function EditorPanel({
               </div>
             )}
 
-            {!fullscreen && <ArticleComments articleId={article.id} />}
+            {!fullscreen && (
+              <ArticleComments state={comments} onOpenThread={openThread} />
+            )}
 
-            <ArticleRichEditor
-              initialMarkdown={article.description ?? ""}
-              editable={editable}
-              toolbarClassName="sticky top-0 z-10 mt-4"
-              contentClassName="pt-4"
-              onChange={(md) => {
-                setBody(md);
-                queueChange("description", md);
-              }}
-            />
+            {highlightCss && <style>{highlightCss}</style>}
+            <div ref={editorWrapRef} className="relative">
+              <ArticleRichEditor
+                initialMarkdown={article.description ?? ""}
+                editable={editable}
+                toolbarClassName="sticky top-0 z-10 mt-4"
+                contentClassName="pt-4"
+                onReady={setEditor}
+                onStartComment={(selection) => {
+                  // Typing must go to the comment box, not into the text.
+                  // (Synchronous: Tiptap's blur command runs a frame later and
+                  // would steal focus back from the comment box.)
+                  editor?.view.dom.blur();
+                  setActiveComment({ kind: "new", selection });
+                }}
+                onCommentClick={openThread}
+                onChange={(md) => {
+                  setBody(md);
+                  queueChange("description", md);
+                }}
+              />
+              {activeComment && editor && (
+                <ArticleCommentPopover
+                  active={activeComment}
+                  editor={editor}
+                  containerRef={editorWrapRef}
+                  state={comments}
+                  onClose={closeComment}
+                  onCreateThread={async (selection, text) => {
+                    const id = await comments.add({
+                      body: text,
+                      quote: selection.quote,
+                    });
+                    if (!id) return false;
+                    addCommentMark(editor, selection, id);
+                    setActiveComment({ kind: "thread", id });
+                    return true;
+                  }}
+                  onDeleteThread={async (threadId) => {
+                    if (await comments.remove(threadId)) {
+                      if (editable) removeCommentMark(editor, threadId);
+                      setActiveComment(null);
+                    }
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
 

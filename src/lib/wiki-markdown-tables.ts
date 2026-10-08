@@ -17,6 +17,20 @@ const turndown = new TurndownService({
 });
 turndown.use(turndownTables);
 
+// Article comment anchors (<span data-comment="id">) survive as inline HTML.
+turndown.addRule("articleCommentAnchor", {
+  filter: (node) =>
+    node.nodeName === "SPAN" && (node as HTMLElement).hasAttribute("data-comment"),
+  replacement: (content, node) => {
+    const id = ((node as HTMLElement).getAttribute("data-comment") ?? "").replace(
+      /[^a-zA-Z0-9_-]/g,
+      "",
+    );
+    if (!content.trim() || !id) return content;
+    return `<span data-comment="${id}">${content}</span>`;
+  },
+});
+
 // Keep <br> inside cells — turndown's default "  \n" breaks GFM rows.
 turndown.addRule("tableCellBreak", {
   filter(node) {

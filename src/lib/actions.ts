@@ -81,6 +81,7 @@ import {
   listArticleComments as listArticleCommentsAction,
   addArticleComment as addArticleCommentAction,
   deleteArticleComment as deleteArticleCommentAction,
+  setArticleCommentResolved as setArticleCommentResolvedAction,
 } from "./actions/article-comments";
 
 export async function listArticleComments(articleId: string) {
@@ -91,6 +92,9 @@ export async function addArticleComment(formData: FormData) {
 }
 export async function deleteArticleComment(formData: FormData) {
   return deleteArticleCommentAction(formData);
+}
+export async function setArticleCommentResolved(formData: FormData) {
+  return setArticleCommentResolvedAction(formData);
 }
 
 export async function createArticle(formData: FormData) {

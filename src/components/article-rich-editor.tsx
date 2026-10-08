@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useReducer, useRef, type ReactNode } from "react";
+import { Mark, mergeAttributes } from "@tiptap/core";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapLink from "@tiptap/extension-link";
 import { Placeholder } from "@tiptap/extensions";
@@ -12,6 +14,7 @@ import {
   Link2,
   List,
   ListOrdered,
+  MessageSquarePlus,
   Minus,
   Quote,
   Strikethrough,
@@ -77,20 +80,85 @@ function ToolbarDivider() {
 }
 
 export function countWords(markdown: string): number {
-  const text = markdown.replace(/[#>*_~`\-[\]()]/g, " ").trim();
+  const text = markdown
+    .replace(/<\/?span\b[^>]*>/g, "")
+    .replace(/[#>*_~`\-[\]()]/g, " ")
+    .trim();
   return text ? text.split(/\s+/).length : 0;
+}
+
+/** Anchor of a comment thread on a text passage (`commentId` = thread start). */
+const CommentMark = Mark.create({
+  name: "comment",
+  inclusive: false,
+  excludes: "",
+  addAttributes() {
+    return {
+      commentId: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-comment"),
+        renderHTML: (attrs) => ({ "data-comment": attrs.commentId }),
+      },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-comment]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, { class: "article-comment-mark" }),
+      0,
+    ];
+  },
+});
+
+export type CommentSelection = { from: number; to: number; quote: string };
+
+export function addCommentMark(
+  editor: Editor,
+  range: { from: number; to: number },
+  commentId: string,
+) {
+  editor
+    .chain()
+    .setTextSelection(range)
+    .setMark("comment", { commentId })
+    .setTextSelection(range.to)
+    .run();
+}
+
+export function removeCommentMark(editor: Editor, commentId: string) {
+  const type = editor.schema.marks.comment;
+  if (!type) return;
+  const { tr, doc } = editor.state;
+  doc.descendants((node, pos) => {
+    for (const mark of node.marks) {
+      if (mark.type === type && mark.attrs.commentId === commentId) {
+        tr.removeMark(pos, pos + node.nodeSize, mark);
+      }
+    }
+  });
+  if (tr.docChanged) editor.view.dispatch(tr);
 }
 
 export function ArticleRichEditor({
   initialMarkdown,
   editable,
   onChange,
+  onReady,
+  onStartComment,
+  onCommentClick,
   toolbarClassName = "",
   contentClassName = "",
 }: {
   initialMarkdown: string;
   editable: boolean;
   onChange: (markdown: string) => void;
+  onReady?: (editor: Editor) => void;
+  /** Shows «Kommentieren» on text selections (needs `editable`). */
+  onStartComment?: (selection: CommentSelection) => void;
+  onCommentClick?: (commentId: string) => void;
   toolbarClassName?: string;
   contentClassName?: string;
 }) {
@@ -115,6 +183,7 @@ export function ArticleRichEditor({
       Placeholder.configure({
         placeholder: "Notizen, Pitch oder ganzer Artikeltext…",
       }),
+      CommentMark,
     ],
     content: markdownToHtml(initialMarkdown),
     editorProps: {
@@ -124,6 +193,7 @@ export function ArticleRichEditor({
     },
     onCreate: ({ editor: ed }) => {
       lastRef.current = htmlToWikiMarkdown(ed.getHTML());
+      onReady?.(ed);
     },
     onUpdate: ({ editor: ed }) => {
       const md = htmlToWikiMarkdown(ed.getHTML());
@@ -253,7 +323,38 @@ export function ArticleRichEditor({
           </ToolbarButton>
         </div>
       )}
-      <EditorContent editor={ed} />
+      {editable && onStartComment && (
+        <BubbleMenu
+          editor={ed}
+          shouldShow={({ editor: e, state }) =>
+            e.isEditable && !state.selection.empty && !e.isActive("codeBlock")
+          }
+          className="z-30 flex items-center rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-0.5 shadow-[var(--shadow)]"
+        >
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const { from, to } = ed.state.selection;
+              const quote = ed.state.doc.textBetween(from, to, " ").trim();
+              if (quote) onStartComment({ from, to, quote });
+            }}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-[var(--fg)] hover:bg-black/5"
+          >
+            <MessageSquarePlus className="size-4" />
+            Kommentieren
+          </button>
+        </BubbleMenu>
+      )}
+      <div
+        onClick={(e) => {
+          const anchor = (e.target as HTMLElement).closest("[data-comment]");
+          const id = anchor?.getAttribute("data-comment");
+          if (id && onCommentClick) onCommentClick(id);
+        }}
+      >
+        <EditorContent editor={ed} />
+      </div>
     </div>
   );
 }

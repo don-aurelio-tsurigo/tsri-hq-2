@@ -501,19 +501,30 @@ model Article {
   @@schema("public")
 }
 
-/// Kommentare zu einem Artikel (wie Seitenkommentare in Notion)
+/// Kommentare zu einem Artikel (wie in Notion): Seitenkommentare oder
+/// Threads zu einer Textstelle. Die Textstelle ist im Artikeltext mit
+/// <span data-comment="{id des Thread-Starts}"> markiert.
 model ArticleComment {
-  id        String   @id @default(cuid())
-  articleId String
-  authorId  String
-  body      String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  articleId  String
+  authorId   String
+  body       String    @db.Text
+  /// Antwort auf diesen Thread-Start (nur eine Ebene)
+  parentId   String?
+  /// Gesetzt bei Thread-Starts zu einer Textstelle: markierter Text
+  quote      String?   @db.Text
+  /// Thread als erledigt markiert (nur Thread-Starts)
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  author  User    @relation("ArticleCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  article Article          @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author  User             @relation("ArticleCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parent  ArticleComment?  @relation("ArticleCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ArticleComment[] @relation("ArticleCommentReplies")
 
   @@index([articleId, createdAt])
+  @@index([parentId])
   @@index([authorId])
   @@map("article_comment")
   @@schema("public")
