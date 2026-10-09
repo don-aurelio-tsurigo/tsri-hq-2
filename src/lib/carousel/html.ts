@@ -203,3 +203,44 @@ export function separateTsueritippEvents(html: string): string {
     "</i><br/><br/>$1",
   );
 }
+
+/**
+ * Serialize an on-canvas contentEditable element back into slide markup:
+ * only <b>, <i> and line breaks (as "\n") survive, like the sidebar textarea.
+ */
+export function slideHtmlFromEditable(root: Node): string {
+  const walk = (node: Node): string => {
+    let out = "";
+    node.childNodes.forEach((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        out += (child.textContent ?? "").replace(/ /g, " ");
+        return;
+      }
+      if (child.nodeType !== Node.ELEMENT_NODE) return;
+      const el = child as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "br") {
+        out += "\n";
+        return;
+      }
+      const inner = walk(el);
+      const weight = el.style?.fontWeight;
+      const bold =
+        tag === "b" ||
+        tag === "strong" ||
+        weight === "bold" ||
+        Number(weight) >= 600;
+      const italic = tag === "i" || tag === "em" || el.style?.fontStyle === "italic";
+      if (tag === "div" || tag === "p") {
+        if (out && !out.endsWith("\n")) out += "\n";
+      }
+      if (!inner) return;
+      let wrapped = inner;
+      if (italic) wrapped = `<i>${wrapped}</i>`;
+      if (bold) wrapped = `<b>${wrapped}</b>`;
+      out += wrapped;
+    });
+    return out;
+  };
+  return walk(root).replace(/\n$/, "");
+}

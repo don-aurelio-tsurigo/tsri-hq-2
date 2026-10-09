@@ -2,8 +2,22 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { Archive, Camera, LoaderCircle, Trash2, Upload } from "lucide-react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import {
+  Archive,
+  Camera,
+  LoaderCircle,
+  Redo2,
+  Trash2,
+  Undo2,
+  Upload,
+} from "lucide-react";
 import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { DamArchivePickerDialog } from "@/components/dam-archive-picker-dialog";
@@ -12,7 +26,11 @@ import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
 import { isQuoteCascadeFormat } from "@/lib/carousel/format";
-import { fileToCompressedDataUrl, probeImageSize } from "@/lib/carousel/image";
+import {
+  fileToCompressedDataUrl,
+  probeImageSize,
+  probeImageSizeAnyOrigin,
+} from "@/lib/carousel/image";
 import {
   DEFAULT_IMAGE_OVERLAY,
   defaultImageOverlayForSlideType,
@@ -26,6 +44,9 @@ import {
 } from "@/lib/carousel/slides";
 import {
   defaultImageTransformForSize,
+  fillImageTransformForSize,
+  fitImageTransform,
+  normalizeImageCrop,
   normalizeImageTransform,
   normalizeTransform,
 } from "@/lib/carousel/transform";
@@ -69,6 +90,25 @@ const QUOTE_CASCADE_ADDABLE_SLIDE_TYPES: SlideType[] = [
 const SIXIBRIEF_ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "outro"];
 
 const PREVIEW_SCALE = 0.42;
+
+/** Changes closer together than this become one undo step (drags, typing). */
+const HISTORY_GROUP_MS = 600;
+const HISTORY_LIMIT = 100;
+
+/** Wall-clock ms; only called from event handlers. */
+function historyNow() {
+  return Date.now();
+}
+
+function isTextEntryTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  );
+}
 
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -140,10 +180,24 @@ export function CarouselEditor({
   const [unsplashPickerOpen, setUnsplashPickerOpen] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
+  const [dragSlideId, setDragSlideId] = useState<string | null>(null);
+  /** Insertion index (0…slides.length) while a thumbnail is dragged. */
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
   const skipFirstSave = useRef(true);
   const saveToken = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const slidesRef = useRef(slides);
+  const historyRef = useRef<{
+    past: Slide[][];
+    future: Slide[][];
+    lastAt: number;
+  }>({ past: [], future: [], lastAt: 0 });
+  const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+  const shortcutRef = useRef<{ undo: () => void; redo: () => void }>({
+    undo: () => {},
+    redo: () => {},
+  });
 
   const active =
     slides.find((s) => s.id === activeId) ?? slides[0] ?? null;
@@ -168,6 +222,82 @@ export function CarouselEditor({
       setSelectedLayer("text");
     }
   }, [active, selectedLayer]);
+
+  useLayoutEffect(() => {
+    slidesRef.current = slides;
+  }, [slides]);
+
+  /** Snapshot the current slides before a change (grouped by time). */
+  function recordHistory() {
+    const h = historyRef.current;
+    const now = historyNow();
+    if (now - h.lastAt > HISTORY_GROUP_MS) {
+      h.past.push(slidesRef.current);
+      if (h.past.length > HISTORY_LIMIT) h.past.shift();
+    }
+    h.lastAt = now;
+    h.future = [];
+    setHistory({ canUndo: h.past.length > 0, canRedo: false });
+  }
+
+  function restoreSlides(next: Slide[]) {
+    const current = slidesRef.current;
+    // Jump to the slide the step touched (or keep the current one).
+    const changed = next.find(
+      (slide) => current.find((c) => c.id === slide.id) !== slide,
+    );
+    setSlides(next);
+    if (changed) {
+      setActiveId(changed.id);
+    } else if (!next.some((slide) => slide.id === activeId)) {
+      setActiveId(next[0]?.id ?? "");
+    }
+  }
+
+  function undo() {
+    if (!canEdit) return;
+    const h = historyRef.current;
+    const previous = h.past.pop();
+    if (!previous) return;
+    h.future.push(slidesRef.current);
+    h.lastAt = 0;
+    restoreSlides(previous);
+    setHistory({ canUndo: h.past.length > 0, canRedo: true });
+  }
+
+  function redo() {
+    if (!canEdit) return;
+    const h = historyRef.current;
+    const next = h.future.pop();
+    if (!next) return;
+    h.past.push(slidesRef.current);
+    h.lastAt = 0;
+    restoreSlides(next);
+    setHistory({ canUndo: true, canRedo: h.future.length > 0 });
+  }
+
+  useLayoutEffect(() => {
+    shortcutRef.current = { undo, redo };
+  });
+
+  useEffect(() => {
+    if (!canEdit) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      // Text fields keep their own native undo.
+      if (isTextEntryTarget(e.target)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        shortcutRef.current.undo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        shortcutRef.current.redo();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canEdit]);
 
   useEffect(() => {
     if (!canEdit) return;
@@ -196,6 +326,7 @@ export function CarouselEditor({
 
   function updateActive(patch: Partial<Slide>) {
     if (!active || !canEdit) return;
+    recordHistory();
     setSlides((prev) =>
       prev.map((s) =>
         s.id === active.id ? ({ ...s, ...patch } as Slide) : s,
@@ -246,6 +377,7 @@ export function CarouselEditor({
   function addSlide(type: SlideType) {
     if (!canEdit) return;
     const slide = createEmptySlide(type, lastCategory(slides), format);
+    recordHistory();
     setSlides((prev) => [...prev, slide]);
     setActiveId(slide.id);
   }
@@ -254,6 +386,7 @@ export function CarouselEditor({
     if (!canEdit || !active || slides.length <= 1) return;
     const idx = slides.findIndex((s) => s.id === active.id);
     const next = slides.filter((s) => s.id !== active.id);
+    recordHistory();
     setSlides(next);
     setActiveId(next[Math.max(0, idx - 1)]?.id ?? next[0]!.id);
   }
@@ -267,7 +400,27 @@ export function CarouselEditor({
     const next = [...slides];
     const [item] = next.splice(idx, 1);
     next.splice(nextIdx, 0, item!);
+    recordHistory();
     setSlides(next);
+  }
+
+  function moveSlideTo(slideId: string, insertIndex: number) {
+    if (!canEdit) return;
+    const from = slides.findIndex((s) => s.id === slideId);
+    if (from < 0) return;
+    const to = insertIndex > from ? insertIndex - 1 : insertIndex;
+    if (to === from) return;
+    const next = [...slides];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    recordHistory();
+    setSlides(next);
+    setActiveId(slideId);
+  }
+
+  function endThumbnailDrag() {
+    setDragSlideId(null);
+    setDropIndex(null);
   }
 
   async function handleExportAll() {
@@ -303,7 +456,11 @@ export function CarouselEditor({
     const imageTransform = size
       ? defaultImageTransformForSize(size.width, size.height)
       : { ...DEFAULT_IMAGE_TRANSFORM };
-    updateActive({ backgroundImageUrl: imageUrl, imageTransform });
+    updateActive({
+      backgroundImageUrl: imageUrl,
+      imageTransform,
+      imageCrop: undefined,
+    });
     setSelectedLayer("image");
   }
 
@@ -324,6 +481,7 @@ export function CarouselEditor({
       updateActive({
         backgroundImageUrl: dataUrl,
         imageTransform: defaultImageTransformForSize(width, height),
+        imageCrop: undefined,
       });
       setSelectedLayer("image");
     } catch (err) {
@@ -388,22 +546,51 @@ export function CarouselEditor({
             </p>
           ) : (
             <p className="text-sm text-[var(--muted)]">
-              Text/Bild im Preview ziehen · snap an Hilfslinien · Skala rechts
+              Text/Bild im Preview ziehen · Ecken ziehen zum Zoomen · Seiten
+              ziehen zum Zuschneiden ·
+              Doppelklick auf Text zum Bearbeiten · snap an Hilfslinien · Skala
+              rechts
             </p>
           )}
         </div>
-        <button
-          type="button"
-          className="btn btn-primary shrink-0"
-          disabled={exporting || slides.length === 0}
-          onClick={() => {
-            void handleExportAll();
-          }}
-        >
-          {exporting
-            ? `Exportiere… ${exportProgress ?? ""}`
-            : "Alle als PNG exportieren"}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {canEdit ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost !px-2.5"
+                disabled={!history.canUndo}
+                onClick={undo}
+                title="Rückgängig (⌘Z)"
+                aria-label="Rückgängig"
+              >
+                <Undo2 className="size-4" strokeWidth={1.75} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost !px-2.5"
+                disabled={!history.canRedo}
+                onClick={redo}
+                title="Wiederholen (⇧⌘Z)"
+                aria-label="Wiederholen"
+              >
+                <Redo2 className="size-4" strokeWidth={1.75} aria-hidden />
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-primary shrink-0"
+            disabled={exporting || slides.length === 0}
+            onClick={() => {
+              void handleExportAll();
+            }}
+          >
+            {exporting
+              ? `Exportiere… ${exportProgress ?? ""}`
+              : "Alle als PNG exportieren"}
+          </button>
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -417,6 +604,12 @@ export function CarouselEditor({
               onSelectLayer={setSelectedLayer}
               onImageTransform={(t) => setLayerTransform("image", t)}
               onTextTransform={(t) => setLayerTransform("text", t)}
+              onTextChange={canEdit ? (patch) => updateActive(patch) : undefined}
+              onImageCrop={
+                canEdit
+                  ? (crop) => updateActive({ imageCrop: crop ?? undefined })
+                  : undefined
+              }
               format={format}
             />
           ) : null}
@@ -428,15 +621,59 @@ export function CarouselEditor({
                   key={slide.id}
                   type="button"
                   onClick={() => setActiveId(slide.id)}
+                  draggable={canEdit && slides.length > 1}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", slide.id);
+                    setDragSlideId(slide.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!dragSlideId) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const after = e.clientX > rect.left + rect.width / 2;
+                    const next = after ? index + 1 : index;
+                    if (next !== dropIndex) setDropIndex(next);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragSlideId && dropIndex !== null) {
+                      moveSlideTo(dragSlideId, dropIndex);
+                    }
+                    endThumbnailDrag();
+                  }}
+                  onDragEnd={endThumbnailDrag}
                   className={[
-                    "shrink-0 overflow-hidden rounded-lg ring-2 transition",
+                    "relative shrink-0 overflow-hidden rounded-lg ring-2 transition",
                     slide.id === active?.id
                       ? "ring-[var(--accent)]"
                       : "ring-transparent hover:ring-[var(--border)]",
+                    dragSlideId === slide.id ? "opacity-40" : "",
+                    canEdit && slides.length > 1 ? "cursor-grab" : "",
                   ].join(" ")}
                   title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
                 >
-                  <CarouselSlidePreview slide={slide} scale={0.08} format={format} />
+                  {/* Inner images must not start their own drag. */}
+                  <span className="pointer-events-none block">
+                    <CarouselSlidePreview
+                      slide={slide}
+                      scale={0.08}
+                      format={format}
+                    />
+                  </span>
+                  {dragSlideId &&
+                  (dropIndex === index ||
+                    (dropIndex === slides.length &&
+                      index === slides.length - 1)) ? (
+                    <span
+                      aria-hidden
+                      className={[
+                        "pointer-events-none absolute inset-y-0 z-10 w-1 rounded-full bg-[var(--accent)]",
+                        dropIndex === index ? "left-0" : "right-0",
+                      ].join(" ")}
+                    />
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -747,6 +984,54 @@ export function CarouselEditor({
                       }
                     />
                   </Field>
+                  {selectedLayer === "image" && canEditImage ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-ghost px-3 py-1.5 text-sm"
+                        title="Bild füllt den ganzen Slide (Ränder werden abgeschnitten)"
+                        onClick={() => {
+                          const url =
+                            active && slideSupportsBackgroundImage(active)
+                              ? active.backgroundImageUrl
+                              : null;
+                          if (!url) return;
+                          void (async () => {
+                            const size = await probeImageSizeAnyOrigin(url);
+                            if (!size) return;
+                            setLayerTransform(
+                              "image",
+                              fillImageTransformForSize(size.width, size.height),
+                            );
+                          })();
+                        }}
+                      >
+                        Füllen
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost px-3 py-1.5 text-sm"
+                        title="Ganzes Bild sichtbar, zentriert"
+                        onClick={() =>
+                          setLayerTransform("image", fitImageTransform())
+                        }
+                      >
+                        Einpassen
+                      </button>
+                      {active &&
+                      slideSupportsBackgroundImage(active) &&
+                      normalizeImageCrop(active.imageCrop) ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-sm"
+                          title="Ganzes Bild wieder zeigen"
+                          onClick={() => updateActive({ imageCrop: undefined })}
+                        >
+                          Zuschnitt entfernen
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     className="btn btn-ghost px-3 py-1.5 text-sm"

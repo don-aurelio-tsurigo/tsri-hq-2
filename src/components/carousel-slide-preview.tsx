@@ -1,13 +1,33 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import {
+  backgroundColorForCategory,
   inkCssColor,
   resolveSlideInk,
   type SlideInk,
 } from "@/lib/carousel/categories";
 import { carouselFont, gtSectra, instrumentSans } from "@/lib/carousel/fonts";
-import { decodeHtmlEntities, sanitizeSlideHtml, separateTsueritippEvents } from "@/lib/carousel/html";
+import {
+  decodeHtmlEntities,
+  sanitizeSlideHtml,
+  separateTsueritippEvents,
+  slideHtmlFromEditable,
+} from "@/lib/carousel/html";
 import {
   GT_SECTRA_STACK,
   INSTRUMENT_SANS_STACK,
@@ -24,6 +44,11 @@ import {
   normalizeImageOverlay,
 } from "@/lib/carousel/overlay";
 import {
+  clampLayerScale,
+  containedImageSize,
+  imageCropClipPath,
+  MIN_CROP_VISIBLE,
+  normalizeImageCrop,
   normalizeImageTransform,
   normalizeTransform,
   snapTransformOffsets,
@@ -37,6 +62,7 @@ import {
   TIPP_LOGO_TEAL_SRC,
   TIPP_LOGO_WHITE_SRC,
   type EditableLayer,
+  type ImageCrop,
   type ImageOverlay,
   type LayerTransform,
   type Slide,
@@ -245,6 +271,8 @@ function ImageLayer({
   transform,
   overlay,
   overlayDefaults,
+  crop,
+  cropBackground,
   className,
   onPointerDown,
   onPointerMove,
@@ -254,6 +282,10 @@ function ImageLayer({
   transform: LayerTransform;
   overlay?: Partial<ImageOverlay> | null;
   overlayDefaults?: ImageOverlay;
+  /** Cut-off edges of the photo; null/undefined renders exactly as before. */
+  crop?: ImageCrop | null;
+  /** Shown where the photo is cropped away. */
+  cropBackground?: string;
   className?: string;
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
@@ -261,13 +293,22 @@ function ImageLayer({
 }) {
   const t = normalizeTransform(transform);
   const o = normalizeImageOverlay(overlay, overlayDefaults);
+  const c = url ? normalizeImageCrop(crop) : null;
   return (
+    <>
+      {c ? (
+        <div
+          className="absolute inset-0 z-0"
+          style={{ backgroundColor: cropBackground ?? DEFAULT_BG }}
+        />
+      ) : null}
     <div
       className={`absolute inset-0 z-0 overflow-hidden ${className ?? ""}`}
       style={{
         backgroundColor: "#1a1a1a",
         transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
         transformOrigin: "center center",
+        clipPath: c ? imageCropClipPath(c) : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -286,6 +327,7 @@ function ImageLayer({
         />
       ) : null}
     </div>
+    </>
   );
 }
 
@@ -325,6 +367,196 @@ function textTransformStyle(
   };
 }
 
+/** Only provided for the interactive editor canvas (never for export/thumbnails). */
+type CanvasEditContextValue = {
+  editingField: string | null;
+  caretPoint: { x: number; y: number } | null;
+  onFieldChange?: (field: string, value: string) => void;
+  stopEditing: () => void;
+  setManipulating: (layer: EditableLayer | null) => void;
+};
+
+const CanvasEditContext = createContext<CanvasEditContextValue | null>(null);
+
+function placeCaret(el: HTMLElement, point: { x: number; y: number } | null) {
+  const selection = window.getSelection();
+  if (!selection) return;
+  let range: Range | null = null;
+  if (point) {
+    if ("caretPositionFromPoint" in document) {
+      const pos = document.caretPositionFromPoint(point.x, point.y);
+      if (pos) {
+        range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+      }
+    } else if ("caretRangeFromPoint" in document) {
+      range = (
+        document as Document & {
+          caretRangeFromPoint: (x: number, y: number) => Range | null;
+        }
+      ).caretRangeFromPoint(point.x, point.y);
+    }
+  }
+  if (!range || !el.contains(range.startContainer)) {
+    range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+  } else {
+    range.collapse(true);
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+type SlideTextProps = {
+  /** Slide property this element shows (e.g. "headline", "bodyHtml"). */
+  field: string;
+  /** html: <b>/<i>/line breaks allowed; plain: text only. */
+  mode: "html" | "plain";
+  /** Raw stored value of the field. */
+  value: string;
+  multiline?: boolean;
+  as?: "p" | "div";
+  html?: string;
+  children?: ReactNode;
+} & Omit<HTMLAttributes<HTMLElement>, "children" | "dangerouslySetInnerHTML">;
+
+/**
+ * Renders a text field exactly as before; on the interactive canvas it is
+ * marked for double-click editing and swaps to an inline editor while active.
+ */
+function SlideText({
+  field,
+  mode,
+  value,
+  multiline = true,
+  as = "p",
+  html,
+  children,
+  ...rest
+}: SlideTextProps) {
+  const ctx = useContext(CanvasEditContext);
+  if (ctx?.onFieldChange && ctx.editingField === field) {
+    return (
+      <InlineTextEditor
+        as={as}
+        field={field}
+        mode={mode}
+        value={value}
+        multiline={multiline}
+        {...rest}
+      />
+    );
+  }
+  const Tag = as;
+  const marker = ctx?.onFieldChange ? { "data-edit-field": field } : {};
+  if (html !== undefined) {
+    return (
+      <Tag {...rest} {...marker} dangerouslySetInnerHTML={{ __html: html }} />
+    );
+  }
+  return (
+    <Tag {...rest} {...marker}>
+      {children}
+    </Tag>
+  );
+}
+
+function InlineTextEditor({
+  as,
+  field,
+  mode,
+  value,
+  multiline,
+  style,
+  onPointerDown,
+  ...rest
+}: Omit<SlideTextProps, "html" | "children"> & { as: "p" | "div" }) {
+  const ctx = useContext(CanvasEditContext);
+  const ref = useRef<HTMLDivElement>(null);
+  // Content is seeded once; afterwards the DOM owns it (no caret jumps).
+  const [initial] = useState(() => ({
+    value,
+    point: ctx?.caretPoint ?? null,
+  }));
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (mode === "html") {
+      el.innerHTML = sanitizeSlideHtml(initial.value);
+    } else {
+      el.textContent = decodeHtmlEntities(initial.value);
+    }
+    el.focus({ preventScroll: true });
+    placeCaret(el, initial.point);
+  }, [initial, mode]);
+
+  function commit() {
+    const el = ref.current;
+    if (!el || !ctx?.onFieldChange) return;
+    const next =
+      mode === "html"
+        ? slideHtmlFromEditable(el)
+        : el.innerText.replace(/ /g, " ").replace(/\n$/, "");
+    ctx.onFieldChange(field, multiline ? next : next.replace(/\n/g, " "));
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.currentTarget.blur();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!multiline) {
+        e.currentTarget.blur();
+        return;
+      }
+      document.execCommand("insertLineBreak");
+    }
+  }
+
+  const Tag = as as "div";
+  return (
+    <Tag
+      {...rest}
+      ref={ref as RefObject<HTMLDivElement>}
+      data-edit-field={field}
+      contentEditable={mode === "plain" ? "plaintext-only" : true}
+      suppressContentEditableWarning
+      spellCheck
+      style={{
+        ...style,
+        whiteSpace: mode === "plain" ? "pre-wrap" : style?.whiteSpace,
+        minWidth: "0.5em",
+        minHeight: "1em",
+        cursor: "text",
+        userSelect: "text",
+        outline: "2px solid var(--highlight)",
+        outlineOffset: 6,
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onPointerDown?.(e);
+      }}
+      onInput={commit}
+      onKeyDown={onKeyDown}
+      onPaste={(e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData("text/plain");
+        document.execCommand(
+          "insertText",
+          false,
+          multiline ? text : text.replace(/\s*\n\s*/g, " "),
+        );
+      }}
+      onBlur={() => ctx?.stopEditing()}
+    />
+  );
+}
+
 type InteractiveProps = {
   interactive?: boolean;
   selectedLayer?: EditableLayer | null;
@@ -335,8 +567,27 @@ type InteractiveProps = {
   format?: CarouselFormat;
 };
 
+/**
+ * Blocks page text selection while a layer or handle is dragged; released on
+ * the next pointerup/pointercancel anywhere in the window.
+ */
+function lockPageSelection() {
+  const body = document.body;
+  body.style.userSelect = "none";
+  body.style.webkitUserSelect = "none";
+  window.getSelection()?.removeAllRanges();
+  const release = () => {
+    body.style.userSelect = "";
+    body.style.webkitUserSelect = "";
+    window.removeEventListener("pointerup", release);
+    window.removeEventListener("pointercancel", release);
+  };
+  window.addEventListener("pointerup", release);
+  window.addEventListener("pointercancel", release);
+}
+
 function useLayerDrag({
-  enabled,
+  enabled: enabledProp,
   layer,
   selected,
   transform,
@@ -363,6 +614,10 @@ function useLayerDrag({
     startY: number;
     origin: LayerTransform;
   } | null>(null);
+  const editCtx = useContext(CanvasEditContext);
+  // While a text field is edited inline, clicks place the caret instead of dragging.
+  const editing = layer === "text" && Boolean(editCtx?.editingField);
+  const enabled = enabledProp && !editing;
 
   return {
     onPointerDown(e: PointerEvent<HTMLDivElement>) {
@@ -375,6 +630,8 @@ function useLayerDrag({
         startY: e.clientY,
         origin: { ...transform },
       };
+      editCtx?.setManipulating(layer);
+      lockPageSelection();
     },
     onPointerMove(e: PointerEvent<HTMLDivElement>) {
       if (!enabled || !dragRef.current || !onChange) return;
@@ -394,6 +651,7 @@ function useLayerDrag({
       if (!enabled) return;
       dragRef.current = null;
       onGuides?.({ v: null, h: null });
+      editCtx?.setManipulating(null);
       try {
         e.currentTarget.releasePointerCapture(e.pointerId);
       } catch {
@@ -402,7 +660,11 @@ function useLayerDrag({
     },
     className: [
       enabled ? "cursor-grab active:cursor-grabbing" : "",
-      selected && enabled ? "outline outline-2 outline-[var(--highlight)]" : "",
+      selected && enabledProp
+        ? "outline outline-2 outline-[var(--highlight)]"
+        : "",
+      // Marker for the selection overlay (corner handles); no styling.
+      enabledProp && editCtx ? `carousel-${layer}-layer` : "",
     ]
       .filter(Boolean)
       .join(" "),
@@ -426,6 +688,7 @@ function CoverPreview({
   }) {
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
+  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
   const isTipp = format === "tsueritipp";
   const isSixi = format === "6ibrief";
   const hasPhoto = Boolean(slide.backgroundImageUrl);
@@ -460,6 +723,8 @@ function CoverPreview({
         url={slide.backgroundImageUrl}
         transform={imageT}
         overlay={slide.imageOverlay}
+        crop={slide.imageCrop}
+        cropBackground={backgroundColorForCategory(slide.category)}
         className={imageDrag.className}
         onPointerDown={imageDrag.onPointerDown}
         onPointerMove={imageDrag.onPointerMove}
@@ -502,8 +767,12 @@ function CoverPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        {slide.overline ? (
-          <p
+        {slide.overline || editingField === "overline" ? (
+          <SlideText
+            field="overline"
+            mode="plain"
+            value={slide.overline}
+            multiline={false}
             className="font-normal"
             style={{
               fontSize: isSixi ? 41 : 35,
@@ -514,9 +783,13 @@ function CoverPreview({
             }}
           >
             {decodeHtmlEntities(slide.overline)}
-          </p>
+          </SlideText>
         ) : null}
-        <p
+        <SlideText
+          field="headline"
+          mode="plain"
+          value={slide.headline}
+          multiline={isTipp || isSixi}
           className={isSixi ? "font-medium" : "font-bold"}
           style={{
             fontSize: isSixi ? 81 : 68,
@@ -526,7 +799,7 @@ function CoverPreview({
           }}
         >
           {decodeHtmlEntities(slide.headline) || "Headline…"}
-        </p>
+        </SlideText>
       </div>
       {isSixi ? null : <BrandMark ink="light" />}
     </>
@@ -588,6 +861,8 @@ function TextPreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("text")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -612,7 +887,11 @@ function TextPreview({
         category={slide.category}
         ink={ink}
       />
-      <div
+      <SlideText
+        as="div"
+        field="bodyHtml"
+        mode="html"
+        value={slide.bodyHtml}
         className={`carousel-slide-text absolute z-30 overflow-hidden ${isSixi ? "sixibrief-text" : ""} ${textDrag.className}`}
         style={{
           left: isSixi ? 80 : 100,
@@ -631,15 +910,13 @@ function TextPreview({
         onPointerDown={textDrag.onPointerDown}
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
-        dangerouslySetInnerHTML={{
-          __html:
-            slideHtml(
-              isTipp
-                ? separateTsueritippEvents(slide.bodyHtml)
-                : slide.bodyHtml,
-            ) ||
-            "<span style='opacity:0.55'>Text…</span>",
-        }}
+        html={
+          slideHtml(
+            isTipp
+              ? separateTsueritippEvents(slide.bodyHtml)
+              : slide.bodyHtml,
+          ) || "<span style='opacity:0.55'>Text…</span>"
+        }
       />
       {isSixi ? null : <BrandMark ink={ink} />}
     </>
@@ -666,6 +943,7 @@ function QuotePreview({
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
+  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),
     layer: "image",
@@ -699,6 +977,8 @@ function QuotePreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("quote")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -749,7 +1029,10 @@ function QuotePreview({
         >
           «
         </p>
-        <p
+        <SlideText
+          field="quoteText"
+          mode="html"
+          value={slide.quoteText}
           className="carousel-slide-text font-bold"
           style={{
             fontSize: 53.4,
@@ -757,23 +1040,25 @@ function QuotePreview({
             whiteSpace: "pre-wrap",
             ...SLIDE_TEXT_HYPHENS,
           }}
-          dangerouslySetInnerHTML={{
-            __html: (() => {
-              const raw = slide.quoteText || "Zitat…";
-              const html = slideHtml(raw);
-              const plain = raw.replace(/<[^>]+>/g, "");
-              if (plain.trimEnd().endsWith("»")) return html;
-              return `${html}»`;
-            })(),
-          }}
+          html={(() => {
+            const raw = slide.quoteText || "Zitat…";
+            const html = slideHtml(raw);
+            const plain = raw.replace(/<[^>]+>/g, "");
+            if (plain.trimEnd().endsWith("»")) return html;
+            return `${html}»`;
+          })()}
         />
-        {slide.attribution ? (
-          <p
+        {slide.attribution || editingField === "attribution" ? (
+          <SlideText
+            field="attribution"
+            mode="plain"
+            value={slide.attribution}
+            multiline={false}
             className="font-normal opacity-95"
             style={{ fontSize: 40.05, lineHeight: 1.2, marginTop: 52 }}
           >
             {decodeHtmlEntities(slide.attribution)}
-          </p>
+          </SlideText>
         ) : null}
       </div>
       <BrandMark ink={ink} />
@@ -801,6 +1086,7 @@ function FragePreview({
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
+  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),
     layer: "image",
@@ -834,6 +1120,8 @@ function FragePreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("frage")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -873,7 +1161,10 @@ function FragePreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        <p
+        <SlideText
+          field="questionText"
+          mode="plain"
+          value={slide.questionText}
           className="carousel-slide-text italic font-normal"
           style={{
             fontSize: 53.4,
@@ -884,7 +1175,7 @@ function FragePreview({
           }}
         >
           {decodeHtmlEntities(slide.questionText) || "Frage…"}
-        </p>
+        </SlideText>
         <div style={{ marginTop: 56 }}>
           <p
             className="font-bold"
@@ -897,7 +1188,10 @@ function FragePreview({
           >
             «
           </p>
-          <p
+          <SlideText
+            field="quoteText"
+            mode="html"
+            value={slide.quoteText}
             className="carousel-slide-text font-bold"
             style={{
               fontSize: 53.4,
@@ -906,18 +1200,20 @@ function FragePreview({
               whiteSpace: "pre-wrap",
               ...SLIDE_TEXT_HYPHENS,
             }}
-            dangerouslySetInnerHTML={{
-              __html: (() => {
-                const raw = slide.quoteText || "Zitat…";
-                const html = slideHtml(raw);
-                const plain = raw.replace(/<[^>]+>/g, "");
-                if (plain.trimEnd().endsWith("»")) return html;
-                return `${html}»`;
-              })(),
-            }}
+            html={(() => {
+              const raw = slide.quoteText || "Zitat…";
+              const html = slideHtml(raw);
+              const plain = raw.replace(/<[^>]+>/g, "");
+              if (plain.trimEnd().endsWith("»")) return html;
+              return `${html}»`;
+            })()}
           />
-          {slide.attribution ? (
-            <p
+          {slide.attribution || editingField === "attribution" ? (
+            <SlideText
+              field="attribution"
+              mode="plain"
+              value={slide.attribution}
+              multiline={false}
               className="font-normal opacity-95"
               style={{
                 fontSize: 40.05,
@@ -927,7 +1223,7 @@ function FragePreview({
               }}
             >
               {decodeHtmlEntities(slide.attribution)}
-            </p>
+            </SlideText>
           ) : null}
         </div>
       </div>
@@ -1066,19 +1362,24 @@ function OutroPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        <p
+        <SlideText
+          field="headline"
+          mode="html"
+          value={slide.headline}
           className={isSixi ? "font-medium" : "font-bold"}
           style={{
             fontSize: isSixi ? 74 : 76,
             lineHeight: isSixi ? 1.28 : 1.32,
             fontWeight: isSixi ? 500 : undefined,
           }}
-          dangerouslySetInnerHTML={{
-            __html: slideHtml(slide.headline || "Headline…"),
-          }}
+          html={slideHtml(slide.headline || "Headline…")}
         />
         {isSixi ? null : (
-          <p
+          <SlideText
+            field="ctaText"
+            mode="plain"
+            value={slide.ctaText}
+            multiline={false}
             className="text-right font-normal tracking-[0.05em] uppercase"
             style={{
               fontSize: 40,
@@ -1088,11 +1389,15 @@ function OutroPreview({
             }}
           >
             {decodeHtmlEntities(slide.ctaText) || "LINK IN DER BIO"}
-          </p>
+          </SlideText>
         )}
       </div>
       {isSixi ? (
-        <p
+        <SlideText
+          field="ctaText"
+          mode="plain"
+          value={slide.ctaText}
+          multiline={false}
           className="absolute z-30 font-bold"
           style={{
             left: 80,
@@ -1105,11 +1410,570 @@ function OutroPreview({
           }}
         >
           {decodeHtmlEntities(slide.ctaText) || "→ Link in der Bio"}
-        </p>
+        </SlideText>
       ) : (
         <BrandMark ink={ink} />
       )}
     </>
+  );
+}
+
+type Corner = { x: 0 | 1; y: 0 | 1 };
+
+const CORNERS: Corner[] = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 1, y: 1 },
+];
+
+const HANDLE_SIZE = 12;
+const EDGE_HANDLE_LONG = 22;
+const EDGE_HANDLE_SHORT = 8;
+
+function slideImageUrl(slide: Slide): string | null {
+  return slide.type === "cover" ||
+    slide.type === "text" ||
+    slide.type === "quote" ||
+    slide.type === "frage"
+    ? slide.backgroundImageUrl
+    : null;
+}
+
+function slideImageTransform(slide: Slide): LayerTransform {
+  return slide.type === "cover" ||
+    slide.type === "text" ||
+    slide.type === "quote" ||
+    slide.type === "frage"
+    ? normalizeImageTransform(slide.imageTransform)
+    : normalizeImageTransform(null);
+}
+
+function slideImageCrop(slide: Slide): ImageCrop | null {
+  return slide.type === "cover" ||
+    slide.type === "text" ||
+    slide.type === "quote" ||
+    slide.type === "frage"
+    ? normalizeImageCrop(slide.imageCrop)
+    : null;
+}
+
+type CropSide = "left" | "right" | "top" | "bottom";
+
+/** What is being dragged right now (drives ghost + frame). */
+type Manipulation = EditableLayer | "crop";
+
+const CROP_SIDES: CropSide[] = ["top", "right", "bottom", "left"];
+
+/** Faded copy of the photo outside the frame while it is moved or cropped. */
+function ImageGhost({
+  url,
+  transform,
+  scale,
+}: {
+  url: string;
+  transform: LayerTransform;
+  scale: number;
+}) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute left-0 top-0 z-0 origin-top-left"
+      style={{
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        transform: `scale(${scale})`,
+        opacity: 0.35,
+      }}
+    >
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          transformOrigin: "center center",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 h-full w-full object-contain object-center"
+        />
+      </div>
+    </div>
+  );
+}
+
+type HandleDrag =
+  | {
+      kind: "image";
+      /** Pinned point (opposite handle) in canvas units. */
+      ax: number;
+      ay: number;
+      /** Unit vector from the pinned point towards the grabbed handle. */
+      ux: number;
+      uy: number;
+      d0: number;
+      origin: LayerTransform;
+    }
+  | {
+      kind: "text";
+      fx: number;
+      fy: number;
+      d0: number;
+      origin: LayerTransform;
+    }
+  | {
+      kind: "crop";
+      side: CropSide;
+      /** Uncropped photo bounds in canvas units. */
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      aspect: number;
+      origin: ImageCrop;
+    };
+
+/**
+ * Handles around the selected layer (Canva-style).
+ * Image: corners zoom with the opposite corner pinned; side handles crop.
+ * Text: corners scale around the block's anchor.
+ */
+function SelectionOverlay({
+  canvasRef,
+  scale,
+  slide,
+  layer,
+  showImageFrame,
+  onImageTransform,
+  onImageCrop,
+  onTextTransform,
+  onManipulate,
+}: {
+  canvasRef: RefObject<HTMLDivElement | null>;
+  scale: number;
+  slide: Slide;
+  layer: EditableLayer | null;
+  /** Dashed outline of the whole photo (while moving/cropping). */
+  showImageFrame: boolean;
+  onImageTransform?: (transform: LayerTransform) => void;
+  onImageCrop?: (crop: ImageCrop | null) => void;
+  onTextTransform?: (transform: LayerTransform) => void;
+  onManipulate: (kind: Manipulation | null) => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const handleRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const edgeRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragRef = useRef<HandleDrag | null>(null);
+  const positionRef = useRef<() => void>(() => {});
+
+  function imageElement() {
+    return canvasRef.current?.querySelector<HTMLImageElement>(
+      ".carousel-image-layer img",
+    );
+  }
+
+  function textElement() {
+    return canvasRef.current?.querySelector<HTMLElement>(".carousel-text-layer");
+  }
+
+  /** Photo bounds in canvas units: whole photo and its cropped (visible) part. */
+  function imageBounds() {
+    const img = imageElement();
+    if (!img || !img.naturalWidth) return null;
+    const size = containedImageSize(img.naturalWidth, img.naturalHeight);
+    const t = slideImageTransform(slide);
+    const w = size.width * t.scale;
+    const h = size.height * t.scale;
+    const full = {
+      left: CANVAS_WIDTH / 2 + t.x - w / 2,
+      top: CANVAS_HEIGHT / 2 + t.y - h / 2,
+      width: w,
+      height: h,
+    };
+    const crop = slideImageCrop(slide);
+    const cropped = crop
+      ? {
+          left: full.left + crop.left * w,
+          top: full.top + crop.top * h,
+          width: w * (1 - crop.left - crop.right),
+          height: h * (1 - crop.top - crop.bottom),
+        }
+      : full;
+    return {
+      full,
+      cropped,
+      crop,
+      aspect: img.naturalWidth / img.naturalHeight,
+    };
+  }
+
+  function toOverlay(b: { left: number; top: number; width: number; height: number }) {
+    return {
+      left: b.left * scale,
+      top: b.top * scale,
+      width: b.width * scale,
+      height: b.height * scale,
+    };
+  }
+
+  /** Bounds of the active layer in overlay pixels (may exceed the slide). */
+  function measure() {
+    const overlay = overlayRef.current;
+    if (!overlay || !layer) return null;
+    if (layer === "image") {
+      const bounds = imageBounds();
+      return bounds ? toOverlay(bounds.cropped) : null;
+    }
+    const el = textElement();
+    if (!el) return null;
+    const base = overlay.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return {
+      left: r.left - base.left,
+      top: r.top - base.top,
+      width: r.width,
+      height: r.height,
+    };
+  }
+
+  /** Handles sit on the visible part of the layer so they never leave the slide. */
+  function handleBounds() {
+    const bounds = measure();
+    if (!bounds) return null;
+    const maxW = CANVAS_WIDTH * scale;
+    const maxH = CANVAS_HEIGHT * scale;
+    const left = Math.max(0, bounds.left);
+    const top = Math.max(0, bounds.top);
+    const right = Math.min(maxW, bounds.left + bounds.width);
+    const bottom = Math.min(maxH, bounds.top + bounds.height);
+    if (right <= left || bottom <= top) return null;
+    return { left, top, width: right - left, height: bottom - top };
+  }
+
+  function position() {
+    const image = layer === "image" ? imageBounds() : null;
+    const bounds = image ? toOverlay(image.full) : null;
+    const visible = handleBounds();
+    const frame = frameRef.current;
+    if (frame) {
+      frame.style.display =
+        bounds && layer === "image" && showImageFrame ? "block" : "none";
+      if (bounds) {
+        frame.style.left = `${bounds.left}px`;
+        frame.style.top = `${bounds.top}px`;
+        frame.style.width = `${bounds.width}px`;
+        frame.style.height = `${bounds.height}px`;
+      }
+    }
+    CORNERS.forEach((corner, index) => {
+      const handle = handleRefs.current[index];
+      if (!handle) return;
+      handle.style.display = visible ? "block" : "none";
+      if (!visible) return;
+      handle.style.left = `${visible.left + corner.x * visible.width - HANDLE_SIZE / 2}px`;
+      handle.style.top = `${visible.top + corner.y * visible.height - HANDLE_SIZE / 2}px`;
+    });
+    CROP_SIDES.forEach((side, index) => {
+      const handle = edgeRefs.current[index];
+      if (!handle) return;
+      handle.style.display = visible && layer === "image" ? "block" : "none";
+      if (!visible) return;
+      const horizontal = side === "top" || side === "bottom";
+      const w = horizontal ? EDGE_HANDLE_LONG : EDGE_HANDLE_SHORT;
+      const h = horizontal ? EDGE_HANDLE_SHORT : EDGE_HANDLE_LONG;
+      const cx =
+        side === "left"
+          ? visible.left
+          : side === "right"
+            ? visible.left + visible.width
+            : visible.left + visible.width / 2;
+      const cy =
+        side === "top"
+          ? visible.top
+          : side === "bottom"
+            ? visible.top + visible.height
+            : visible.top + visible.height / 2;
+      handle.style.width = `${w}px`;
+      handle.style.height = `${h}px`;
+      handle.style.left = `${cx - w / 2}px`;
+      handle.style.top = `${cy - h / 2}px`;
+    });
+  }
+
+  // Imperative positioning keeps handles glued to the layer without re-renders.
+  useLayoutEffect(() => {
+    positionRef.current = position;
+    position();
+  });
+
+  useEffect(() => {
+    const reposition = () => positionRef.current();
+    const observer = new ResizeObserver(reposition);
+    const text = textElement();
+    if (text) observer.observe(text);
+    const img = imageElement();
+    img?.addEventListener("load", reposition);
+    window.addEventListener("resize", reposition);
+    void document.fonts?.ready.then(reposition);
+    return () => {
+      observer.disconnect();
+      img?.removeEventListener("load", reposition);
+      window.removeEventListener("resize", reposition);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer, slide.id, slideImageUrl(slide)]);
+
+  function onPointerDown(e: PointerEvent<HTMLDivElement>, corner: Corner) {
+    if (!layer) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (layer === "image") {
+      const visible = handleBounds();
+      if (!visible || !onImageTransform) return;
+      // Canvas units: grabbed handle H and the opposite (pinned) handle A.
+      const hx = (visible.left + corner.x * visible.width) / scale;
+      const hy = (visible.top + corner.y * visible.height) / scale;
+      const ax = (visible.left + (1 - corner.x) * visible.width) / scale;
+      const ay = (visible.top + (1 - corner.y) * visible.height) / scale;
+      const d0 = Math.max(1, Math.hypot(hx - ax, hy - ay));
+      dragRef.current = {
+        kind: "image",
+        ax,
+        ay,
+        ux: (hx - ax) / d0,
+        uy: (hy - ay) / d0,
+        d0,
+        origin: slideImageTransform(slide),
+      };
+    } else {
+      const el = textElement();
+      if (!el || !onTextTransform) return;
+      const rect = el.getBoundingClientRect();
+      const [originX = "50%", originY = "50%"] = getComputedStyle(el)
+        .transformOrigin.split(" ");
+      const fracX = el.offsetWidth ? parseFloat(originX) / el.offsetWidth : 0.5;
+      const fracY = el.offsetHeight
+        ? parseFloat(originY) / el.offsetHeight
+        : 0.5;
+      const fx = rect.left + fracX * rect.width;
+      const fy = rect.top + fracY * rect.height;
+      dragRef.current = {
+        kind: "text",
+        fx,
+        fy,
+        d0: Math.max(1, Math.hypot(e.clientX - fx, e.clientY - fy)),
+        origin: normalizeTransform(slide.textTransform),
+      };
+    }
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onManipulate(layer);
+    lockPageSelection();
+  }
+
+  function onCropPointerDown(e: PointerEvent<HTMLDivElement>, side: CropSide) {
+    if (layer !== "image" || !onImageCrop) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const bounds = imageBounds();
+    if (!bounds) return;
+    dragRef.current = {
+      kind: "crop",
+      side,
+      ...bounds.full,
+      aspect: bounds.aspect,
+      origin: bounds.crop ?? {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        aspect: bounds.aspect,
+      },
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onManipulate("crop");
+    lockPageSelection();
+  }
+
+  function onPointerMove(e: PointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (drag.kind === "crop") {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      // Pointer as a fraction of the whole (uncropped) photo.
+      const fx = ((e.clientX - rect.left) / scale - drag.left) / drag.width;
+      const fy = ((e.clientY - rect.top) / scale - drag.top) / drag.height;
+      const o = drag.origin;
+      const max = (opposite: number) => Math.max(0, 1 - MIN_CROP_VISIBLE - opposite);
+      const clamp = (value: number, opposite: number) =>
+        Math.min(max(opposite), Math.max(0, value));
+      const next: ImageCrop = { ...o, aspect: drag.aspect };
+      if (drag.side === "left") next.left = clamp(fx, o.right);
+      if (drag.side === "right") next.right = clamp(1 - fx, o.left);
+      if (drag.side === "top") next.top = clamp(fy, o.bottom);
+      if (drag.side === "bottom") next.bottom = clamp(1 - fy, o.top);
+      onImageCrop?.(normalizeImageCrop(next));
+      return;
+    }
+    if (drag.kind === "image") {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / scale;
+      const py = (e.clientY - rect.top) / scale;
+      // Distance along the diagonal → zoom factor; the pinned point stays put.
+      const d = (px - drag.ax) * drag.ux + (py - drag.ay) * drag.uy;
+      const s = clampLayerScale((drag.origin.scale * d) / drag.d0);
+      const ratio = s / drag.origin.scale;
+      const cx =
+        drag.ax + (CANVAS_WIDTH / 2 + drag.origin.x - drag.ax) * ratio;
+      const cy =
+        drag.ay + (CANVAS_HEIGHT / 2 + drag.origin.y - drag.ay) * ratio;
+      onImageTransform?.({
+        x: cx - CANVAS_WIDTH / 2,
+        y: cy - CANVAS_HEIGHT / 2,
+        scale: s,
+      });
+      return;
+    }
+    const dist = Math.hypot(e.clientX - drag.fx, e.clientY - drag.fy);
+    onTextTransform?.({
+      ...drag.origin,
+      scale: clampLayerScale((drag.origin.scale * dist) / drag.d0),
+    });
+  }
+
+  function onPointerUp(e: PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    onManipulate(null);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div
+      ref={overlayRef}
+      className="pointer-events-none absolute inset-0 z-[2]"
+      aria-hidden
+    >
+      <div
+        ref={frameRef}
+        className="absolute border border-dashed border-[var(--highlight)]"
+        style={{ display: "none" }}
+      />
+      {layer
+        ? CORNERS.map((corner, index) => (
+            <div
+              key={`${corner.x}-${corner.y}`}
+              ref={(el) => {
+                handleRefs.current[index] = el;
+              }}
+              className="pointer-events-auto absolute rounded-full border-2 border-[var(--highlight)] bg-white shadow"
+              style={{
+                display: "none",
+                width: HANDLE_SIZE,
+                height: HANDLE_SIZE,
+                cursor:
+                  corner.x === corner.y ? "nwse-resize" : "nesw-resize",
+                touchAction: "none",
+              }}
+              title={
+                layer === "image" ? "Ziehen zum Zoomen" : "Ziehen zum Skalieren"
+              }
+              onPointerDown={(e) => onPointerDown(e, corner)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            />
+          ))
+        : null}
+      {layer === "image" && onImageCrop
+        ? CROP_SIDES.map((side, index) => (
+            <div
+              key={side}
+              ref={(el) => {
+                edgeRefs.current[index] = el;
+              }}
+              className="pointer-events-auto absolute rounded-full border-2 border-[var(--highlight)] bg-white shadow"
+              style={{
+                display: "none",
+                cursor:
+                  side === "left" || side === "right"
+                    ? "ew-resize"
+                    : "ns-resize",
+                touchAction: "none",
+              }}
+              title="Ziehen zum Zuschneiden"
+              onPointerDown={(e) => onCropPointerDown(e, side)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            />
+          ))
+        : null}
+    </div>
+  );
+}
+
+const HTML_EDIT_FIELDS = new Set(["bodyHtml", "quoteText"]);
+
+function isHtmlEditField(slide: Slide, field: string) {
+  return (
+    HTML_EDIT_FIELDS.has(field) ||
+    (slide.type === "outro" && field === "headline")
+  );
+}
+
+/** Floating B / I / Fertig while a text field is edited on the canvas. */
+function InlineEditToolbar({ html }: { html: boolean }) {
+  const button =
+    "pointer-events-auto rounded-md px-2 py-1 text-xs font-semibold text-[var(--text)] hover:bg-[var(--bg)]";
+  return (
+    <div
+      className="pointer-events-auto absolute right-2 top-2 z-[3] flex items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-0.5 shadow-md"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      {html ? (
+        <>
+          <button
+            type="button"
+            className={`${button} font-bold`}
+            title="Fett (⌘B)"
+            onClick={() => document.execCommand("bold")}
+          >
+            B
+          </button>
+          <button
+            type="button"
+            className={`${button} italic`}
+            title="Kursiv (⌘I)"
+            onClick={() => document.execCommand("italic")}
+          >
+            I
+          </button>
+        </>
+      ) : null}
+      <button
+        type="button"
+        className={button}
+        title="Bearbeiten beenden (Esc)"
+        onClick={() => {
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) active.blur();
+        }}
+      >
+        Fertig
+      </button>
+    </div>
   );
 }
 
@@ -1122,16 +1986,35 @@ export function CarouselSlidePreview({
   onSelectLayer,
   onImageTransform,
   onTextTransform,
+  onTextChange,
+  onImageCrop,
   format,
 }: {
   slide: Slide;
   scale?: number;
   forExport?: boolean;
+  /** Enables side handles that crop the background photo. */
+  onImageCrop?: (crop: ImageCrop | null) => void;
+  /** Enables double-click text editing directly on the canvas. */
+  onTextChange?: (patch: Partial<Slide>) => void;
 } & InteractiveProps) {
   const [guides, setGuides] = useState<{
     v: number | null;
     h: number | null;
   }>({ v: null, h: null });
+  const [editing, setEditing] = useState<{
+    slideId: string;
+    field: string;
+    point: { x: number; y: number } | null;
+  } | null>(null);
+  const [manipulating, setManipulating] = useState<Manipulation | null>(
+    null,
+  );
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  const editable = interactive && !forExport;
+  const editingField =
+    editable && editing?.slideId === slide.id ? editing.field : null;
 
   const shared = {
     interactive: interactive && !forExport,
@@ -1144,7 +2027,28 @@ export function CarouselSlidePreview({
     onGuides: setGuides,
   };
 
-  return (
+  function handleDoubleClick(e: MouseEvent<HTMLDivElement>) {
+    if (!onTextChange || editingField) return;
+    const canvas = canvasRef.current;
+    const hit = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .find(
+        (el): el is HTMLElement =>
+          el instanceof HTMLElement &&
+          Boolean(el.dataset.editField) &&
+          Boolean(canvas?.contains(el)),
+      );
+    if (!hit?.dataset.editField) return;
+    e.preventDefault();
+    onSelectLayer?.("text");
+    setEditing({
+      slideId: slide.id,
+      field: hit.dataset.editField,
+      point: { x: e.clientX, y: e.clientY },
+    });
+  }
+
+  const canvas = (
     <div
       lang="de"
       data-carousel-canvas={forExport ? "true" : undefined}
@@ -1154,6 +2058,7 @@ export function CarouselSlidePreview({
         instrumentSans.variable,
         gtSectra.variable,
         forExport ? "" : "shadow-lg ring-1 ring-black/10",
+        editable ? "z-[1]" : "",
       ].join(" ")}
       style={{
         width: CANVAS_WIDTH * scale,
@@ -1161,13 +2066,18 @@ export function CarouselSlidePreview({
       }}
     >
       <div
+        ref={canvasRef}
         className="absolute left-0 top-0 origin-top-left"
         style={{
           width: CANVAS_WIDTH,
           height: CANVAS_HEIGHT,
           transform: `scale(${scale})`,
           fontFamily: CAROUSEL_FONT,
+          // Own alignment so thumbnails inside <button> (text-align: center)
+          // render exactly like the editor canvas and the PNG export.
+          textAlign: "left",
         }}
+        onDoubleClick={editable && onTextChange ? handleDoubleClick : undefined}
       >
         {slide.type === "cover" ? (
           <CoverPreview slide={slide} {...shared} />
@@ -1192,5 +2102,72 @@ export function CarouselSlidePreview({
         ) : null}
       </div>
     </div>
+  );
+
+  if (!editable) return canvas;
+
+  const imageUrl = slideImageUrl(slide);
+  const overlayLayer: EditableLayer | null = editingField
+    ? null
+    : selectedLayer === "image" && imageUrl
+      ? "image"
+      : selectedLayer === "text" && slide.type !== "tipp-item"
+        ? "text"
+        : null;
+
+  return (
+    <CanvasEditContext.Provider
+      value={{
+        editingField,
+        caretPoint: editing?.point ?? null,
+        onFieldChange: onTextChange
+          ? (field, value) =>
+              onTextChange({ [field]: value } as Partial<Slide>)
+          : undefined,
+        stopEditing: () => setEditing(null),
+        setManipulating,
+      }}
+    >
+      <div
+        className="relative shrink-0 select-none"
+        style={{
+          width: CANVAS_WIDTH * scale,
+          height: CANVAS_HEIGHT * scale,
+        }}
+      >
+        {manipulating === "image" && imageUrl ? (
+          <ImageGhost
+            url={imageUrl}
+            transform={slideImageTransform(slide)}
+            scale={scale}
+          />
+        ) : null}
+        {canvas}
+        {manipulating === "crop" && imageUrl ? (
+          // While cropping, the cut-away parts stay faintly visible on top.
+          <div className="pointer-events-none absolute inset-0 z-[1]">
+            <ImageGhost
+              url={imageUrl}
+              transform={slideImageTransform(slide)}
+              scale={scale}
+            />
+          </div>
+        ) : null}
+        <SelectionOverlay
+          canvasRef={canvasRef}
+          scale={scale}
+          slide={slide}
+          layer={overlayLayer}
+          showImageFrame={manipulating === "image" || manipulating === "crop"}
+          onImageTransform={onImageTransform}
+          onImageCrop={onImageCrop}
+          onTextTransform={onTextTransform}
+          onManipulate={setManipulating}
+        />
+        {editingField ? (
+          <InlineEditToolbar html={isHtmlEditField(slide, editingField)} />
+        ) : null}
+      </div>
+    </CanvasEditContext.Provider>
   );
 }

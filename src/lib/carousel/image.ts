@@ -51,3 +51,23 @@ export function probeImageSize(
     img.src = src;
   });
 }
+
+/** Natural size without CORS (size only — no pixel access needed). */
+export function probeImageSizeAnyOrigin(
+  src: string,
+): Promise<{ width: number; height: number } | null> {
+  return probeImageSize(src).then((size) => {
+    if (size) return size;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () =>
+        resolve(
+          img.naturalWidth > 0 && img.naturalHeight > 0
+            ? { width: img.naturalWidth, height: img.naturalHeight }
+            : null,
+        );
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  });
+}
