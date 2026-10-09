@@ -1890,6 +1890,9 @@ export function CarouselSlidePreview({
           height: CANVAS_HEIGHT,
           transform: `scale(${scale})`,
           fontFamily: CAROUSEL_FONT,
+          // Own alignment so thumbnails inside <button> (text-align: center)
+          // render exactly like the editor canvas and the PNG export.
+          textAlign: "left",
         }}
         onDoubleClick={editable && onTextChange ? handleDoubleClick : undefined}
       >

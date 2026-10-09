@@ -179,6 +179,9 @@ export function CarouselEditor({
   const [unsplashPickerOpen, setUnsplashPickerOpen] = useState(false);
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
+  const [dragSlideId, setDragSlideId] = useState<string | null>(null);
+  /** Insertion index (0…slides.length) while a thumbnail is dragged. */
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
   const skipFirstSave = useRef(true);
   const saveToken = useRef(0);
@@ -400,6 +403,25 @@ export function CarouselEditor({
     setSlides(next);
   }
 
+  function moveSlideTo(slideId: string, insertIndex: number) {
+    if (!canEdit) return;
+    const from = slides.findIndex((s) => s.id === slideId);
+    if (from < 0) return;
+    const to = insertIndex > from ? insertIndex - 1 : insertIndex;
+    if (to === from) return;
+    const next = [...slides];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    recordHistory();
+    setSlides(next);
+    setActiveId(slideId);
+  }
+
+  function endThumbnailDrag() {
+    setDragSlideId(null);
+    setDropIndex(null);
+  }
+
   async function handleExportAll() {
     setError(null);
     setExporting(true);
@@ -587,15 +609,59 @@ export function CarouselEditor({
                   key={slide.id}
                   type="button"
                   onClick={() => setActiveId(slide.id)}
+                  draggable={canEdit && slides.length > 1}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", slide.id);
+                    setDragSlideId(slide.id);
+                  }}
+                  onDragOver={(e) => {
+                    if (!dragSlideId) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const after = e.clientX > rect.left + rect.width / 2;
+                    const next = after ? index + 1 : index;
+                    if (next !== dropIndex) setDropIndex(next);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragSlideId && dropIndex !== null) {
+                      moveSlideTo(dragSlideId, dropIndex);
+                    }
+                    endThumbnailDrag();
+                  }}
+                  onDragEnd={endThumbnailDrag}
                   className={[
-                    "shrink-0 overflow-hidden rounded-lg ring-2 transition",
+                    "relative shrink-0 overflow-hidden rounded-lg ring-2 transition",
                     slide.id === active?.id
                       ? "ring-[var(--accent)]"
                       : "ring-transparent hover:ring-[var(--border)]",
+                    dragSlideId === slide.id ? "opacity-40" : "",
+                    canEdit && slides.length > 1 ? "cursor-grab" : "",
                   ].join(" ")}
                   title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
                 >
-                  <CarouselSlidePreview slide={slide} scale={0.08} format={format} />
+                  {/* Inner images must not start their own drag. */}
+                  <span className="pointer-events-none block">
+                    <CarouselSlidePreview
+                      slide={slide}
+                      scale={0.08}
+                      format={format}
+                    />
+                  </span>
+                  {dragSlideId &&
+                  (dropIndex === index ||
+                    (dropIndex === slides.length &&
+                      index === slides.length - 1)) ? (
+                    <span
+                      aria-hidden
+                      className={[
+                        "pointer-events-none absolute inset-y-0 z-10 w-1 rounded-full bg-[var(--accent)]",
+                        dropIndex === index ? "left-0" : "right-0",
+                      ].join(" ")}
+                    />
+                  ) : null}
                 </button>
               ))}
             </div>
