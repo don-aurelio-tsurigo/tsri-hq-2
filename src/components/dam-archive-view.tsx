@@ -153,7 +153,7 @@ export function DamArchiveView({
     [searchParams],
   );
   const view = useMemo((): ArchiveView => {
-    return searchParams.get("view") === "collections" ? "collections" : initialView;
+    return searchParams.get("view") === "photos" ? "photos" : initialView;
   }, [initialView, searchParams]);
   const [queryInput, setQueryInput] = useState(filters.q);
   const [prevQ, setPrevQ] = useState(filters.q);
@@ -269,13 +269,6 @@ export function DamArchiveView({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className={view === "photos" ? "btn btn-primary" : "btn btn-ghost"}
-          onClick={() => apply(filters, 1, false, "photos")}
-        >
-          Bilder
-        </button>
-        <button
-          type="button"
           className={view === "collections" ? "btn btn-primary" : "btn btn-ghost"}
           onClick={() =>
             startTransition(() => {
@@ -284,6 +277,13 @@ export function DamArchiveView({
           }
         >
           Collections
+        </button>
+        <button
+          type="button"
+          className={view === "photos" ? "btn btn-primary" : "btn btn-ghost"}
+          onClick={() => apply(filters, 1, false, "photos")}
+        >
+          Bilder
         </button>
       </div>
 

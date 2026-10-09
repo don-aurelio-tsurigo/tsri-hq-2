@@ -68,7 +68,7 @@ function many(
 export function parseArchiveView(
   params: Record<string, string | string[] | undefined>,
 ): ArchiveView {
-  return one(params, "view") === "collections" ? "collections" : "photos";
+  return one(params, "view") === "photos" ? "photos" : "collections";
 }
 
 export function parseArchiveFilters(
@@ -154,7 +154,7 @@ export function archiveHref(
   view: ArchiveView = "photos",
 ): string {
   const params = archiveFiltersToSearchParams(filters, page);
-  if (view === "collections") params.set("view", "collections");
+  if (view === "photos") params.set("view", "photos");
   const qs = params.toString();
   return qs ? `/dam/archive?${qs}` : "/dam/archive";
 }

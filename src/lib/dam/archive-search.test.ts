@@ -108,14 +108,14 @@ describe("archiveFiltersToSearchParams", () => {
     const filters = parseArchiveFilters({ q: "podium" });
     assert.equal(archiveFiltersToSearchParams(filters, 1).has("page"), false);
     assert.equal(archiveFiltersToSearchParams(filters, 3).get("page"), "3");
-    assert.equal(archiveHref(filters, 3), "/dam/archive?q=podium&page=3");
-    assert.equal(archiveHref(EMPTY_ARCHIVE_FILTERS), "/dam/archive");
+    assert.equal(archiveHref(filters, 3), "/dam/archive?q=podium&page=3&view=photos");
+    assert.equal(archiveHref(EMPTY_ARCHIVE_FILTERS, 1, "collections"), "/dam/archive");
   });
 });
 
 describe("archiveCollectionHref", () => {
   it("points at the archive filtered to one collection", () => {
-    assert.equal(archiveCollectionHref("col_1"), "/dam/archive?collection=col_1");
+    assert.equal(archiveCollectionHref("col_1"), "/dam/archive?collection=col_1&view=photos");
   });
 });
 
