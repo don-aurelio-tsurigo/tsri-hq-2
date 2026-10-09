@@ -16,6 +16,7 @@ import {
   type RefObject,
 } from "react";
 import {
+  backgroundColorForCategory,
   inkCssColor,
   resolveSlideInk,
   type SlideInk,
@@ -45,6 +46,9 @@ import {
 import {
   clampLayerScale,
   containedImageSize,
+  imageCropClipPath,
+  MIN_CROP_VISIBLE,
+  normalizeImageCrop,
   normalizeImageTransform,
   normalizeTransform,
   snapTransformOffsets,
@@ -58,6 +62,7 @@ import {
   TIPP_LOGO_TEAL_SRC,
   TIPP_LOGO_WHITE_SRC,
   type EditableLayer,
+  type ImageCrop,
   type ImageOverlay,
   type LayerTransform,
   type Slide,
@@ -266,6 +271,8 @@ function ImageLayer({
   transform,
   overlay,
   overlayDefaults,
+  crop,
+  cropBackground,
   className,
   onPointerDown,
   onPointerMove,
@@ -275,6 +282,10 @@ function ImageLayer({
   transform: LayerTransform;
   overlay?: Partial<ImageOverlay> | null;
   overlayDefaults?: ImageOverlay;
+  /** Cut-off edges of the photo; null/undefined renders exactly as before. */
+  crop?: ImageCrop | null;
+  /** Shown where the photo is cropped away. */
+  cropBackground?: string;
   className?: string;
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
@@ -282,13 +293,22 @@ function ImageLayer({
 }) {
   const t = normalizeTransform(transform);
   const o = normalizeImageOverlay(overlay, overlayDefaults);
+  const c = url ? normalizeImageCrop(crop) : null;
   return (
+    <>
+      {c ? (
+        <div
+          className="absolute inset-0 z-0"
+          style={{ backgroundColor: cropBackground ?? DEFAULT_BG }}
+        />
+      ) : null}
     <div
       className={`absolute inset-0 z-0 overflow-hidden ${className ?? ""}`}
       style={{
         backgroundColor: "#1a1a1a",
         transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
         transformOrigin: "center center",
+        clipPath: c ? imageCropClipPath(c) : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -307,6 +327,7 @@ function ImageLayer({
         />
       ) : null}
     </div>
+    </>
   );
 }
 
@@ -702,6 +723,8 @@ function CoverPreview({
         url={slide.backgroundImageUrl}
         transform={imageT}
         overlay={slide.imageOverlay}
+        crop={slide.imageCrop}
+        cropBackground={backgroundColorForCategory(slide.category)}
         className={imageDrag.className}
         onPointerDown={imageDrag.onPointerDown}
         onPointerMove={imageDrag.onPointerMove}
@@ -838,6 +861,8 @@ function TextPreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("text")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -952,6 +977,8 @@ function QuotePreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("quote")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -1093,6 +1120,8 @@ function FragePreview({
             url={slide.backgroundImageUrl}
             transform={imageT}
             overlay={slide.imageOverlay}
+            crop={slide.imageCrop}
+            cropBackground={slide.backgroundColor || DEFAULT_BG}
             overlayDefaults={defaultImageOverlayForSlideType("frage")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -1399,6 +1428,8 @@ const CORNERS: Corner[] = [
 ];
 
 const HANDLE_SIZE = 12;
+const EDGE_HANDLE_LONG = 22;
+const EDGE_HANDLE_SHORT = 8;
 
 function slideImageUrl(slide: Slide): string | null {
   return slide.type === "cover" ||
@@ -1417,6 +1448,22 @@ function slideImageTransform(slide: Slide): LayerTransform {
     ? normalizeImageTransform(slide.imageTransform)
     : normalizeImageTransform(null);
 }
+
+function slideImageCrop(slide: Slide): ImageCrop | null {
+  return slide.type === "cover" ||
+    slide.type === "text" ||
+    slide.type === "quote" ||
+    slide.type === "frage"
+    ? normalizeImageCrop(slide.imageCrop)
+    : null;
+}
+
+type CropSide = "left" | "right" | "top" | "bottom";
+
+/** What is being dragged right now (drives ghost + frame). */
+type Manipulation = EditableLayer | "crop";
+
+const CROP_SIDES: CropSide[] = ["top", "right", "bottom", "left"];
 
 /** Faded copy of the photo outside the frame while it is moved or cropped. */
 function ImageGhost({
@@ -1476,12 +1523,23 @@ type HandleDrag =
       fy: number;
       d0: number;
       origin: LayerTransform;
+    }
+  | {
+      kind: "crop";
+      side: CropSide;
+      /** Uncropped photo bounds in canvas units. */
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      aspect: number;
+      origin: ImageCrop;
     };
 
 /**
- * Corner handles around the selected layer (Canva-style).
- * Image: drag a corner to zoom/crop with the opposite corner pinned.
- * Text: drag a corner to scale around the block's anchor.
+ * Handles around the selected layer (Canva-style).
+ * Image: corners zoom with the opposite corner pinned; side handles crop.
+ * Text: corners scale around the block's anchor.
  */
 function SelectionOverlay({
   canvasRef,
@@ -1490,6 +1548,7 @@ function SelectionOverlay({
   layer,
   showImageFrame,
   onImageTransform,
+  onImageCrop,
   onTextTransform,
   onManipulate,
 }: {
@@ -1500,12 +1559,14 @@ function SelectionOverlay({
   /** Dashed outline of the whole photo (while moving/cropping). */
   showImageFrame: boolean;
   onImageTransform?: (transform: LayerTransform) => void;
+  onImageCrop?: (crop: ImageCrop | null) => void;
   onTextTransform?: (transform: LayerTransform) => void;
-  onManipulate: (layer: EditableLayer | null) => void;
+  onManipulate: (kind: Manipulation | null) => void;
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const handleRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const edgeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const dragRef = useRef<HandleDrag | null>(null);
   const positionRef = useRef<() => void>(() => {});
 
@@ -1519,25 +1580,53 @@ function SelectionOverlay({
     return canvasRef.current?.querySelector<HTMLElement>(".carousel-text-layer");
   }
 
-  /** Full bounds of the active layer in overlay pixels (may exceed the slide). */
+  /** Photo bounds in canvas units: whole photo and its cropped (visible) part. */
+  function imageBounds() {
+    const img = imageElement();
+    if (!img || !img.naturalWidth) return null;
+    const size = containedImageSize(img.naturalWidth, img.naturalHeight);
+    const t = slideImageTransform(slide);
+    const w = size.width * t.scale;
+    const h = size.height * t.scale;
+    const full = {
+      left: CANVAS_WIDTH / 2 + t.x - w / 2,
+      top: CANVAS_HEIGHT / 2 + t.y - h / 2,
+      width: w,
+      height: h,
+    };
+    const crop = slideImageCrop(slide);
+    const cropped = crop
+      ? {
+          left: full.left + crop.left * w,
+          top: full.top + crop.top * h,
+          width: w * (1 - crop.left - crop.right),
+          height: h * (1 - crop.top - crop.bottom),
+        }
+      : full;
+    return {
+      full,
+      cropped,
+      crop,
+      aspect: img.naturalWidth / img.naturalHeight,
+    };
+  }
+
+  function toOverlay(b: { left: number; top: number; width: number; height: number }) {
+    return {
+      left: b.left * scale,
+      top: b.top * scale,
+      width: b.width * scale,
+      height: b.height * scale,
+    };
+  }
+
+  /** Bounds of the active layer in overlay pixels (may exceed the slide). */
   function measure() {
     const overlay = overlayRef.current;
     if (!overlay || !layer) return null;
     if (layer === "image") {
-      const img = imageElement();
-      if (!img || !img.naturalWidth) return null;
-      const size = containedImageSize(img.naturalWidth, img.naturalHeight);
-      const t = slideImageTransform(slide);
-      const w = size.width * t.scale;
-      const h = size.height * t.scale;
-      const cx = CANVAS_WIDTH / 2 + t.x;
-      const cy = CANVAS_HEIGHT / 2 + t.y;
-      return {
-        left: (cx - w / 2) * scale,
-        top: (cy - h / 2) * scale,
-        width: w * scale,
-        height: h * scale,
-      };
+      const bounds = imageBounds();
+      return bounds ? toOverlay(bounds.cropped) : null;
     }
     const el = textElement();
     if (!el) return null;
@@ -1566,7 +1655,8 @@ function SelectionOverlay({
   }
 
   function position() {
-    const bounds = measure();
+    const image = layer === "image" ? imageBounds() : null;
+    const bounds = image ? toOverlay(image.full) : null;
     const visible = handleBounds();
     const frame = frameRef.current;
     if (frame) {
@@ -1586,6 +1676,31 @@ function SelectionOverlay({
       if (!visible) return;
       handle.style.left = `${visible.left + corner.x * visible.width - HANDLE_SIZE / 2}px`;
       handle.style.top = `${visible.top + corner.y * visible.height - HANDLE_SIZE / 2}px`;
+    });
+    CROP_SIDES.forEach((side, index) => {
+      const handle = edgeRefs.current[index];
+      if (!handle) return;
+      handle.style.display = visible && layer === "image" ? "block" : "none";
+      if (!visible) return;
+      const horizontal = side === "top" || side === "bottom";
+      const w = horizontal ? EDGE_HANDLE_LONG : EDGE_HANDLE_SHORT;
+      const h = horizontal ? EDGE_HANDLE_SHORT : EDGE_HANDLE_LONG;
+      const cx =
+        side === "left"
+          ? visible.left
+          : side === "right"
+            ? visible.left + visible.width
+            : visible.left + visible.width / 2;
+      const cy =
+        side === "top"
+          ? visible.top
+          : side === "bottom"
+            ? visible.top + visible.height
+            : visible.top + visible.height / 2;
+      handle.style.width = `${w}px`;
+      handle.style.height = `${h}px`;
+      handle.style.left = `${cx - w / 2}px`;
+      handle.style.top = `${cy - h / 2}px`;
     });
   }
 
@@ -1659,9 +1774,52 @@ function SelectionOverlay({
     lockPageSelection();
   }
 
+  function onCropPointerDown(e: PointerEvent<HTMLDivElement>, side: CropSide) {
+    if (layer !== "image" || !onImageCrop) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const bounds = imageBounds();
+    if (!bounds) return;
+    dragRef.current = {
+      kind: "crop",
+      side,
+      ...bounds.full,
+      aspect: bounds.aspect,
+      origin: bounds.crop ?? {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        aspect: bounds.aspect,
+      },
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onManipulate("crop");
+    lockPageSelection();
+  }
+
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!drag) return;
+    if (drag.kind === "crop") {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      // Pointer as a fraction of the whole (uncropped) photo.
+      const fx = ((e.clientX - rect.left) / scale - drag.left) / drag.width;
+      const fy = ((e.clientY - rect.top) / scale - drag.top) / drag.height;
+      const o = drag.origin;
+      const max = (opposite: number) => Math.max(0, 1 - MIN_CROP_VISIBLE - opposite);
+      const clamp = (value: number, opposite: number) =>
+        Math.min(max(opposite), Math.max(0, value));
+      const next: ImageCrop = { ...o, aspect: drag.aspect };
+      if (drag.side === "left") next.left = clamp(fx, o.right);
+      if (drag.side === "right") next.right = clamp(1 - fx, o.left);
+      if (drag.side === "top") next.top = clamp(fy, o.bottom);
+      if (drag.side === "bottom") next.bottom = clamp(1 - fy, o.top);
+      onImageCrop?.(normalizeImageCrop(next));
+      return;
+    }
     if (drag.kind === "image") {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -1729,11 +1887,33 @@ function SelectionOverlay({
                 touchAction: "none",
               }}
               title={
-                layer === "image"
-                  ? "Ziehen zum Zoomen/Zuschneiden"
-                  : "Ziehen zum Skalieren"
+                layer === "image" ? "Ziehen zum Zoomen" : "Ziehen zum Skalieren"
               }
               onPointerDown={(e) => onPointerDown(e, corner)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            />
+          ))
+        : null}
+      {layer === "image" && onImageCrop
+        ? CROP_SIDES.map((side, index) => (
+            <div
+              key={side}
+              ref={(el) => {
+                edgeRefs.current[index] = el;
+              }}
+              className="pointer-events-auto absolute rounded-full border-2 border-[var(--highlight)] bg-white shadow"
+              style={{
+                display: "none",
+                cursor:
+                  side === "left" || side === "right"
+                    ? "ew-resize"
+                    : "ns-resize",
+                touchAction: "none",
+              }}
+              title="Ziehen zum Zuschneiden"
+              onPointerDown={(e) => onCropPointerDown(e, side)}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
@@ -1807,11 +1987,14 @@ export function CarouselSlidePreview({
   onImageTransform,
   onTextTransform,
   onTextChange,
+  onImageCrop,
   format,
 }: {
   slide: Slide;
   scale?: number;
   forExport?: boolean;
+  /** Enables side handles that crop the background photo. */
+  onImageCrop?: (crop: ImageCrop | null) => void;
   /** Enables double-click text editing directly on the canvas. */
   onTextChange?: (patch: Partial<Slide>) => void;
 } & InteractiveProps) {
@@ -1824,7 +2007,7 @@ export function CarouselSlidePreview({
     field: string;
     point: { x: number; y: number } | null;
   } | null>(null);
-  const [manipulating, setManipulating] = useState<EditableLayer | null>(
+  const [manipulating, setManipulating] = useState<Manipulation | null>(
     null,
   );
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -1960,13 +2143,24 @@ export function CarouselSlidePreview({
           />
         ) : null}
         {canvas}
+        {manipulating === "crop" && imageUrl ? (
+          // While cropping, the cut-away parts stay faintly visible on top.
+          <div className="pointer-events-none absolute inset-0 z-[1]">
+            <ImageGhost
+              url={imageUrl}
+              transform={slideImageTransform(slide)}
+              scale={scale}
+            />
+          </div>
+        ) : null}
         <SelectionOverlay
           canvasRef={canvasRef}
           scale={scale}
           slide={slide}
           layer={overlayLayer}
-          showImageFrame={manipulating === "image"}
+          showImageFrame={manipulating === "image" || manipulating === "crop"}
           onImageTransform={onImageTransform}
+          onImageCrop={onImageCrop}
           onTextTransform={onTextTransform}
           onManipulate={setManipulating}
         />

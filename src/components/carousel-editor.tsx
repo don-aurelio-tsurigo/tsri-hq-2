@@ -46,6 +46,7 @@ import {
   defaultImageTransformForSize,
   fillImageTransformForSize,
   fitImageTransform,
+  normalizeImageCrop,
   normalizeImageTransform,
   normalizeTransform,
 } from "@/lib/carousel/transform";
@@ -455,7 +456,11 @@ export function CarouselEditor({
     const imageTransform = size
       ? defaultImageTransformForSize(size.width, size.height)
       : { ...DEFAULT_IMAGE_TRANSFORM };
-    updateActive({ backgroundImageUrl: imageUrl, imageTransform });
+    updateActive({
+      backgroundImageUrl: imageUrl,
+      imageTransform,
+      imageCrop: undefined,
+    });
     setSelectedLayer("image");
   }
 
@@ -476,6 +481,7 @@ export function CarouselEditor({
       updateActive({
         backgroundImageUrl: dataUrl,
         imageTransform: defaultImageTransformForSize(width, height),
+        imageCrop: undefined,
       });
       setSelectedLayer("image");
     } catch (err) {
@@ -540,7 +546,8 @@ export function CarouselEditor({
             </p>
           ) : (
             <p className="text-sm text-[var(--muted)]">
-              Text/Bild im Preview ziehen · Ecken ziehen zum Zoomen/Zuschneiden ·
+              Text/Bild im Preview ziehen · Ecken ziehen zum Zoomen · Seiten
+              ziehen zum Zuschneiden ·
               Doppelklick auf Text zum Bearbeiten · snap an Hilfslinien · Skala
               rechts
             </p>
@@ -598,6 +605,11 @@ export function CarouselEditor({
               onImageTransform={(t) => setLayerTransform("image", t)}
               onTextTransform={(t) => setLayerTransform("text", t)}
               onTextChange={canEdit ? (patch) => updateActive(patch) : undefined}
+              onImageCrop={
+                canEdit
+                  ? (crop) => updateActive({ imageCrop: crop ?? undefined })
+                  : undefined
+              }
               format={format}
             />
           ) : null}
@@ -1006,6 +1018,18 @@ export function CarouselEditor({
                       >
                         Einpassen
                       </button>
+                      {active &&
+                      slideSupportsBackgroundImage(active) &&
+                      normalizeImageCrop(active.imageCrop) ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost px-3 py-1.5 text-sm"
+                          title="Ganzes Bild wieder zeigen"
+                          onClick={() => updateActive({ imageCrop: undefined })}
+                        >
+                          Zuschnitt entfernen
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                   <button

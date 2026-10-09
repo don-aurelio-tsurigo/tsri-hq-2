@@ -4,6 +4,7 @@ import {
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_TRANSFORM,
   PORTRAIT_IMAGE_TRANSFORM,
+  type ImageCrop,
   type LayerTransform,
 } from "@/lib/carousel/types";
 
@@ -132,4 +133,48 @@ export function fillImageTransformForSize(
 /** Centered, whole photo visible (may leave bars). */
 export function fitImageTransform(): LayerTransform {
   return { x: 0, y: 0, scale: 1 };
+}
+
+/** Smallest visible part of the photo per axis after cropping. */
+export const MIN_CROP_VISIBLE = 0.05;
+
+function clampCropEdge(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return Math.min(1 - MIN_CROP_VISIBLE, Math.max(0, n));
+}
+
+/** Valid crop or null when nothing is cut off (rendering stays unchanged). */
+export function normalizeImageCrop(
+  crop?: Partial<ImageCrop> | null,
+): ImageCrop | null {
+  if (!crop || !(typeof crop.aspect === "number" && crop.aspect > 0)) {
+    return null;
+  }
+  const left = clampCropEdge(crop.left);
+  let right = clampCropEdge(crop.right);
+  const top = clampCropEdge(crop.top);
+  let bottom = clampCropEdge(crop.bottom);
+  if (left + right > 1 - MIN_CROP_VISIBLE) {
+    right = Math.max(0, 1 - MIN_CROP_VISIBLE - left);
+  }
+  if (top + bottom > 1 - MIN_CROP_VISIBLE) {
+    bottom = Math.max(0, 1 - MIN_CROP_VISIBLE - top);
+  }
+  if (left === 0 && right === 0 && top === 0 && bottom === 0) return null;
+  return { left, top, right, bottom, aspect: crop.aspect };
+}
+
+/**
+ * CSS clip-path for the (untransformed) 1080×1350 image box, where the photo
+ * is drawn with object-contain.
+ */
+export function imageCropClipPath(crop: ImageCrop): string {
+  const contained = containedImageSize(crop.aspect, 1);
+  const offsetX = (CANVAS_WIDTH - contained.width) / 2;
+  const offsetY = (CANVAS_HEIGHT - contained.height) / 2;
+  const top = offsetY + crop.top * contained.height;
+  const bottom = offsetY + crop.bottom * contained.height;
+  const left = offsetX + crop.left * contained.width;
+  const right = offsetX + crop.right * contained.width;
+  return `inset(${top}px ${right}px ${bottom}px ${left}px)`;
 }
