@@ -2107,6 +2107,8 @@ export function CarouselSlidePreview({
   if (!editable) return canvas;
 
   const imageUrl = slideImageUrl(slide);
+  // A cropped photo moves as its visible part only — no faded rest around it.
+  const imageCropped = Boolean(imageUrl && slideImageCrop(slide));
   const overlayLayer: EditableLayer | null = editingField
     ? null
     : selectedLayer === "image" && imageUrl
@@ -2135,7 +2137,7 @@ export function CarouselSlidePreview({
           height: CANVAS_HEIGHT * scale,
         }}
       >
-        {manipulating === "image" && imageUrl ? (
+        {manipulating === "image" && imageUrl && !imageCropped ? (
           <ImageGhost
             url={imageUrl}
             transform={slideImageTransform(slide)}
@@ -2158,7 +2160,10 @@ export function CarouselSlidePreview({
           scale={scale}
           slide={slide}
           layer={overlayLayer}
-          showImageFrame={manipulating === "image" || manipulating === "crop"}
+          showImageFrame={
+            (manipulating === "image" && !imageCropped) ||
+            manipulating === "crop"
+          }
           onImageTransform={onImageTransform}
           onImageCrop={onImageCrop}
           onTextTransform={onTextTransform}

@@ -12,6 +12,8 @@ import {
 import {
   Archive,
   Camera,
+  Copy,
+  ImagePlus,
   LoaderCircle,
   Redo2,
   Trash2,
@@ -39,6 +41,7 @@ import {
 import {
   createEmptySlide,
   defaultCategoryForFormat,
+  duplicateSlide,
   lastCategory,
   themeFieldsForCategory,
 } from "@/lib/carousel/slides";
@@ -54,6 +57,7 @@ import {
   resolveSlideInk,
 } from "@/lib/carousel/categories";
 import {
+  CANVAS_WIDTH,
   DEFAULT_BG,
   DEFAULT_IMAGE_TRANSFORM,
   DEFAULT_TRANSFORM,
@@ -91,6 +95,12 @@ const SIXIBRIEF_ADDABLE_SLIDE_TYPES: SlideType[] = ["cover", "text", "outro"];
 
 const PREVIEW_SCALE = 0.42;
 
+/** Thumbnail strip: fit all slides in one row between these scales. */
+const THUMB_GAP = 8;
+const THUMB_MIN_SCALE = 0.05;
+const THUMB_MAX_SCALE = 0.1;
+const THUMB_FALLBACK_SCALE = 0.08;
+
 /** Changes closer together than this become one undo step (drags, typing). */
 const HISTORY_GROUP_MS = 600;
 const HISTORY_LIMIT = 100;
@@ -98,6 +108,27 @@ const HISTORY_LIMIT = 100;
 /** Wall-clock ms; only called from event handlers. */
 function historyNow() {
   return Date.now();
+}
+
+/** Image URL from a drag out of another web page (prefers the <img> src). */
+function droppedImageUrl(data: DataTransfer): string | null {
+  const html = data.getData("text/html");
+  if (html) {
+    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const src = match?.[1]?.replace(/&amp;/g, "&");
+    if (src && /^(https?:|data:image\/)/i.test(src)) return src;
+  }
+  const uri = data
+    .getData("text/uri-list")
+    .split(/\r?\n/)
+    .find((line) => line && !line.startsWith("#"));
+  return uri && /^https?:/i.test(uri) ? uri.trim() : null;
+}
+
+/** Only outside files / web images — not our own thumbnail drags. */
+function isExternalImageDrag(data: DataTransfer): boolean {
+  const types = Array.from(data.types);
+  return types.includes("Files") || types.includes("text/uri-list");
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -183,6 +214,14 @@ export function CarouselEditor({
   const [dragSlideId, setDragSlideId] = useState<string | null>(null);
   /** Insertion index (0…slides.length) while a thumbnail is dragged. */
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  /** Distance between two thumbnails, measured when a drag starts. */
+  const [dragStep, setDragStep] = useState(0);
+  const thumbStripRef = useRef<HTMLDivElement>(null);
+  /** Thumbnail centers (strip content coordinates) at drag start. */
+  const thumbCentersRef = useRef<number[]>([]);
+  const [thumbStripWidth, setThumbStripWidth] = useState(0);
+  /** An image file/URL is dragged over the large preview. */
+  const [imageDragOver, setImageDragOver] = useState(false);
   const [pending, startTransition] = useTransition();
   const skipFirstSave = useRef(true);
   const saveToken = useRef(0);
@@ -202,12 +241,6 @@ export function CarouselEditor({
   const active =
     slides.find((s) => s.id === activeId) ?? slides[0] ?? null;
 
-  const activeIndex = active
-    ? slides.findIndex((s) => s.id === active.id)
-    : -1;
-  const disableMoveLeft = !active || activeIndex <= 0;
-  const disableMoveRight =
-    !active || activeIndex < 0 || activeIndex >= slides.length - 1;
   const overlayDefaults = active
     ? defaultImageOverlayForSlideType(active.type)
     : DEFAULT_IMAGE_OVERLAY;
@@ -226,6 +259,28 @@ export function CarouselEditor({
   useLayoutEffect(() => {
     slidesRef.current = slides;
   }, [slides]);
+
+  useEffect(() => {
+    const strip = thumbStripRef.current;
+    if (!strip) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setThumbStripWidth(entry.contentRect.width);
+    });
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, []);
+
+  // All thumbnails in one row across the full width (scrolls only if very many).
+  const thumbScale = thumbStripWidth
+    ? Math.min(
+        THUMB_MAX_SCALE,
+        Math.max(
+          THUMB_MIN_SCALE,
+          (thumbStripWidth - THUMB_GAP * (slides.length - 1) - 4) /
+            (slides.length * CANVAS_WIDTH),
+        ),
+      )
+    : THUMB_FALLBACK_SCALE;
 
   /** Snapshot the current slides before a change (grouped by time). */
   function recordHistory() {
@@ -382,6 +437,18 @@ export function CarouselEditor({
     setActiveId(slide.id);
   }
 
+  function duplicateActive() {
+    if (!canEdit || !active) return;
+    const idx = slides.findIndex((s) => s.id === active.id);
+    if (idx < 0) return;
+    const copy = duplicateSlide(active);
+    const next = [...slides];
+    next.splice(idx + 1, 0, copy);
+    recordHistory();
+    setSlides(next);
+    setActiveId(copy.id);
+  }
+
   function removeActive() {
     if (!canEdit || !active || slides.length <= 1) return;
     const idx = slides.findIndex((s) => s.id === active.id);
@@ -389,19 +456,6 @@ export function CarouselEditor({
     recordHistory();
     setSlides(next);
     setActiveId(next[Math.max(0, idx - 1)]?.id ?? next[0]!.id);
-  }
-
-  function moveActive(delta: -1 | 1) {
-    if (!canEdit || !active || slides.length <= 1) return;
-    const idx = slides.findIndex((s) => s.id === active.id);
-    if (idx < 0) return;
-    const nextIdx = idx + delta;
-    if (nextIdx < 0 || nextIdx >= slides.length) return;
-    const next = [...slides];
-    const [item] = next.splice(idx, 1);
-    next.splice(nextIdx, 0, item!);
-    recordHistory();
-    setSlides(next);
   }
 
   function moveSlideTo(slideId: string, insertIndex: number) {
@@ -421,6 +475,44 @@ export function CarouselEditor({
   function endThumbnailDrag() {
     setDragSlideId(null);
     setDropIndex(null);
+    setDragStep(0);
+  }
+
+  function startThumbnailDrag(slideId: string) {
+    const strip = thumbStripRef.current;
+    const thumbs = strip
+      ? Array.from(strip.querySelectorAll<HTMLElement>("[data-thumb]"))
+      : [];
+    thumbCentersRef.current = thumbs.map(
+      (el) => el.offsetLeft + el.offsetWidth / 2,
+    );
+    const step =
+      thumbs.length > 1
+        ? thumbs[1]!.offsetLeft - thumbs[0]!.offsetLeft
+        : (thumbs[0]?.offsetWidth ?? 0);
+    setDragStep(step);
+    setDragSlideId(slideId);
+    setDropIndex(slides.findIndex((s) => s.id === slideId));
+  }
+
+  /** Insertion index for the pointer, based on positions before shifting. */
+  function thumbDropIndexAt(clientX: number) {
+    const strip = thumbStripRef.current;
+    if (!strip) return null;
+    const x = clientX - strip.getBoundingClientRect().left + strip.scrollLeft;
+    return thumbCentersRef.current.filter((center) => center < x).length;
+  }
+
+  /** Live preview offset: others slide aside, the dragged one sits in the gap. */
+  function thumbShift(index: number) {
+    if (!dragSlideId || dropIndex === null || !dragStep) return 0;
+    const from = slides.findIndex((s) => s.id === dragSlideId);
+    if (from < 0) return 0;
+    const to = dropIndex > from ? dropIndex - 1 : dropIndex;
+    if (index === from) return (to - from) * dragStep;
+    if (from < index && index <= to) return -dragStep;
+    if (to <= index && index < from) return dragStep;
+    return 0;
   }
 
   async function handleExportAll() {
@@ -494,6 +586,30 @@ export function CarouselEditor({
     }
   }
 
+  const canDropImage = Boolean(
+    canEdit && active && slideSupportsBackgroundImage(active),
+  );
+
+  function handleImageDrop(data: DataTransfer) {
+    const file = Array.from(data.files).find((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (file) {
+      void handleImageFile(file);
+      return;
+    }
+    if (data.files.length > 0) {
+      setError("Bitte eine Bilddatei ablegen.");
+      return;
+    }
+    const url = droppedImageUrl(data);
+    if (url) {
+      void applyBackgroundImage(url);
+      return;
+    }
+    setError("Kein Bild gefunden – bitte eine Bilddatei ablegen.");
+  }
+
   const saveLabel =
     saveState === "saving" || pending
       ? "Speichert…"
@@ -548,8 +664,8 @@ export function CarouselEditor({
             <p className="text-sm text-[var(--muted)]">
               Text/Bild im Preview ziehen · Ecken ziehen zum Zoomen · Seiten
               ziehen zum Zuschneiden ·
-              Doppelklick auf Text zum Bearbeiten · snap an Hilfslinien · Skala
-              rechts
+              Doppelklick auf Text zum Bearbeiten · Bild per Drag & Drop auf den
+              Slide · snap an Hilfslinien · Skala rechts
             </p>
           )}
         </div>
@@ -596,112 +712,118 @@ export function CarouselEditor({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col items-center gap-4">
           {active ? (
-            <CarouselSlidePreview
-              slide={active}
-              scale={PREVIEW_SCALE}
-              interactive={canEdit}
-              selectedLayer={selectedLayer}
-              onSelectLayer={setSelectedLayer}
-              onImageTransform={(t) => setLayerTransform("image", t)}
-              onTextTransform={(t) => setLayerTransform("text", t)}
-              onTextChange={canEdit ? (patch) => updateActive(patch) : undefined}
-              onImageCrop={
-                canEdit
-                  ? (crop) => updateActive({ imageCrop: crop ?? undefined })
-                  : undefined
-              }
-              format={format}
-            />
+            <div
+              className="relative"
+              onDragOver={(e) => {
+                if (!canDropImage || dragSlideId) return;
+                if (!isExternalImageDrag(e.dataTransfer)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                if (!imageDragOver) setImageDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                if (
+                  e.relatedTarget instanceof Node &&
+                  e.currentTarget.contains(e.relatedTarget)
+                ) {
+                  return;
+                }
+                setImageDragOver(false);
+              }}
+              onDrop={(e) => {
+                if (!canDropImage || dragSlideId) return;
+                if (!isExternalImageDrag(e.dataTransfer)) return;
+                e.preventDefault();
+                setImageDragOver(false);
+                handleImageDrop(e.dataTransfer);
+              }}
+            >
+              <CarouselSlidePreview
+                slide={active}
+                scale={PREVIEW_SCALE}
+                interactive={canEdit}
+                selectedLayer={selectedLayer}
+                onSelectLayer={setSelectedLayer}
+                onImageTransform={(t) => setLayerTransform("image", t)}
+                onTextTransform={(t) => setLayerTransform("text", t)}
+                onTextChange={canEdit ? (patch) => updateActive(patch) : undefined}
+                onImageCrop={
+                  canEdit
+                    ? (crop) => updateActive({ imageCrop: crop ?? undefined })
+                    : undefined
+                }
+                format={format}
+              />
+              {imageDragOver ? (
+                <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-[var(--accent)] bg-black/55 text-sm font-semibold text-white">
+                  <ImagePlus className="size-7" strokeWidth={1.75} aria-hidden />
+                  Bild als Hintergrund ablegen
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
-          <div className="flex w-full max-w-[460px] flex-col items-center gap-2">
-            <div className="flex w-full gap-2 overflow-x-auto pb-1">
-              {slides.map((slide, index) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  onClick={() => setActiveId(slide.id)}
-                  draggable={canEdit && slides.length > 1}
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", slide.id);
-                    setDragSlideId(slide.id);
-                  }}
-                  onDragOver={(e) => {
-                    if (!dragSlideId) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const after = e.clientX > rect.left + rect.width / 2;
-                    const next = after ? index + 1 : index;
-                    if (next !== dropIndex) setDropIndex(next);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragSlideId && dropIndex !== null) {
-                      moveSlideTo(dragSlideId, dropIndex);
+          <div className="flex w-full flex-col items-center gap-2">
+            <div
+              ref={thumbStripRef}
+              className="relative flex w-full gap-2 overflow-x-auto px-0.5 pt-0.5 pb-1 [&>*:first-child]:ml-auto [&>*:last-child]:mr-auto"
+              onDragOver={(e) => {
+                if (!dragSlideId) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                const next = thumbDropIndexAt(e.clientX);
+                if (next !== null && next !== dropIndex) setDropIndex(next);
+              }}
+              onDrop={(e) => {
+                if (!dragSlideId) return;
+                e.preventDefault();
+                if (dropIndex !== null) moveSlideTo(dragSlideId, dropIndex);
+                endThumbnailDrag();
+              }}
+            >
+              {slides.map((slide, index) => {
+                const shift = thumbShift(index);
+                return (
+                  <button
+                    key={slide.id}
+                    type="button"
+                    data-thumb
+                    onClick={() => setActiveId(slide.id)}
+                    draggable={canEdit && slides.length > 1}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", slide.id);
+                      startThumbnailDrag(slide.id);
+                    }}
+                    onDragEnd={endThumbnailDrag}
+                    className={[
+                      "relative shrink-0 overflow-hidden rounded-lg ring-2",
+                      dragSlideId
+                        ? "transition-transform duration-200 ease-out"
+                        : "transition",
+                      slide.id === active?.id
+                        ? "ring-[var(--accent)]"
+                        : "ring-transparent hover:ring-[var(--border)]",
+                      dragSlideId === slide.id ? "opacity-40" : "",
+                      canEdit && slides.length > 1 ? "cursor-grab" : "",
+                    ].join(" ")}
+                    style={
+                      shift ? { transform: `translateX(${shift}px)` } : undefined
                     }
-                    endThumbnailDrag();
-                  }}
-                  onDragEnd={endThumbnailDrag}
-                  className={[
-                    "relative shrink-0 overflow-hidden rounded-lg ring-2 transition",
-                    slide.id === active?.id
-                      ? "ring-[var(--accent)]"
-                      : "ring-transparent hover:ring-[var(--border)]",
-                    dragSlideId === slide.id ? "opacity-40" : "",
-                    canEdit && slides.length > 1 ? "cursor-grab" : "",
-                  ].join(" ")}
-                  title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
-                >
-                  {/* Inner images must not start their own drag. */}
-                  <span className="pointer-events-none block">
-                    <CarouselSlidePreview
-                      slide={slide}
-                      scale={0.08}
-                      format={format}
-                    />
-                  </span>
-                  {dragSlideId &&
-                  (dropIndex === index ||
-                    (dropIndex === slides.length &&
-                      index === slides.length - 1)) ? (
-                    <span
-                      aria-hidden
-                      className={[
-                        "pointer-events-none absolute inset-y-0 z-10 w-1 rounded-full bg-[var(--accent)]",
-                        dropIndex === index ? "left-0" : "right-0",
-                      ].join(" ")}
-                    />
-                  ) : null}
-                </button>
-              ))}
+                    title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
+                  >
+                    {/* Inner images must not start their own drag. */}
+                    <span className="pointer-events-none block">
+                      <CarouselSlidePreview
+                        slide={slide}
+                        scale={thumbScale}
+                        format={format}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-
-            {canEdit && slides.length > 1 ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
-                  disabled={disableMoveLeft}
-                  onClick={() => moveActive(-1)}
-                  title="Nach links verschieben"
-                  aria-label="Nach links verschieben"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost !px-2 !py-1 text-sm leading-none"
-                  disabled={disableMoveRight}
-                  onClick={() => moveActive(1)}
-                  title="Nach rechts verschieben"
-                  aria-label="Nach rechts verschieben"
-                >
-                  →
-                </button>
-              </div>
-            ) : null}
           </div>
 
           {canEdit ? (
@@ -721,6 +843,16 @@ export function CarouselEditor({
                   + {SLIDE_TYPE_LABEL[type]}
                 </button>
               ))}
+              <button
+                type="button"
+                className="btn btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-sm"
+                disabled={!active}
+                onClick={duplicateActive}
+                title="Kopie direkt nach dieser Slide einfügen"
+              >
+                <Copy className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                Duplizieren
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost px-3 py-1.5 text-sm text-[var(--danger)]"

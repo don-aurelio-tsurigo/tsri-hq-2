@@ -30,6 +30,11 @@ function newId() {
   return globalThis.crypto.randomUUID();
 }
 
+/** Deep copy of a slide with a fresh id (content, layout, crop and all). */
+export function duplicateSlide<T extends Slide>(slide: T): T {
+  return { ...structuredClone(slide), id: newId() };
+}
+
 export function defaultCategoryForFormat(format: CarouselFormat): string {
   return format === "tsueritipp" ? "TIPP" : DEFAULT_CATEGORY;
 }
