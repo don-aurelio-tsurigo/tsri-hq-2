@@ -96,3 +96,40 @@ export function snapTransformOffsets(
     guides: { v: sx.guide, h: sy.guide },
   };
 }
+
+export const MIN_LAYER_SCALE = 0.35;
+export const MAX_LAYER_SCALE = 3;
+
+export function clampLayerScale(scale: number): number {
+  return Math.min(MAX_LAYER_SCALE, Math.max(MIN_LAYER_SCALE, scale));
+}
+
+/** Size of an image drawn with object-contain into the 1080×1350 frame at 100%. */
+export function containedImageSize(
+  width: number,
+  height: number,
+): { width: number; height: number } {
+  if (!(width > 0 && height > 0)) {
+    return { width: CANVAS_WIDTH, height: CANVAS_HEIGHT };
+  }
+  const fit = Math.min(CANVAS_WIDTH / width, CANVAS_HEIGHT / height);
+  return { width: width * fit, height: height * fit };
+}
+
+/** Centered zoom so the photo covers the whole frame (no empty edges). */
+export function fillImageTransformForSize(
+  width: number,
+  height: number,
+): LayerTransform {
+  const contained = containedImageSize(width, height);
+  const scale = Math.max(
+    CANVAS_WIDTH / contained.width,
+    CANVAS_HEIGHT / contained.height,
+  );
+  return { x: 0, y: 0, scale: clampLayerScale(Math.ceil(scale * 1000) / 1000) };
+}
+
+/** Centered, whole photo visible (may leave bars). */
+export function fitImageTransform(): LayerTransform {
+  return { x: 0, y: 0, scale: 1 };
+}
