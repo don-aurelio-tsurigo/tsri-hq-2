@@ -33,6 +33,7 @@ import { updateCarouselSlides } from "@/lib/actions";
 import { exportAllCarouselSlides } from "@/lib/carousel/export";
 import type { CarouselFormat } from "@/lib/carousel/format";
 import { isQuoteCascadeFormat } from "@/lib/carousel/format";
+import { normalizeQuoteMarks } from "@/lib/carousel/quotes";
 import {
   fileToCompressedDataUrl,
   probeImageSize,
@@ -814,7 +815,20 @@ export function CarouselEditor({
                 onSelectLayer={setSelectedLayer}
                 onImageTransform={(t) => setLayerTransform("image", t)}
                 onTextTransform={(t) => setLayerTransform("text", t)}
-                onTextChange={canEdit ? (patch) => updateActive(patch) : undefined}
+                onTextChange={
+                  canEdit
+                    ? (patch) =>
+                        updateActive(
+                          "quoteText" in patch &&
+                            typeof patch.quoteText === "string"
+                            ? {
+                                ...patch,
+                                quoteText: normalizeQuoteMarks(patch.quoteText),
+                              }
+                            : patch,
+                        )
+                    : undefined
+                }
                 onImageCrop={
                   canEdit
                     ? (crop) => updateActive({ imageCrop: crop ?? undefined })

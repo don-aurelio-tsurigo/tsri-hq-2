@@ -68,6 +68,7 @@ import {
   type Slide,
 } from "@/lib/carousel/types";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { normalizeQuoteMarks } from "@/lib/carousel/quotes";
 
 const CAROUSEL_FONT =
   "var(--font-carousel), 'Roboto', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif";
@@ -1060,7 +1061,7 @@ function QuotePreview({
             ...SLIDE_TEXT_HYPHENS,
           }}
           html={(() => {
-            const raw = slide.quoteText || "Zitat…";
+            const raw = normalizeQuoteMarks(slide.quoteText || "Zitat…");
             const html = slideHtml(raw);
             const plain = raw.replace(/<[^>]+>/g, "");
             if (plain.trimEnd().endsWith("»")) return html;
@@ -1228,7 +1229,7 @@ function FragePreview({
               ...SLIDE_TEXT_HYPHENS,
             }}
             html={(() => {
-              const raw = slide.quoteText || "Zitat…";
+              const raw = normalizeQuoteMarks(slide.quoteText || "Zitat…");
               const html = slideHtml(raw);
               const plain = raw.replace(/<[^>]+>/g, "");
               if (plain.trimEnd().endsWith("»")) return html;

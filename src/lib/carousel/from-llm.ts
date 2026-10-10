@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeQuoteMarks } from "@/lib/carousel/quotes";
 import {
   backgroundColorForCategory,
   defaultInkForCategory,
@@ -171,7 +172,9 @@ export function llmDraftToSlides(
             ...quote,
             backgroundColor,
             ink,
-            quoteText: sanitizeSlideHtml(slide.quoteText.trim()),
+            quoteText: normalizeQuoteMarks(
+              sanitizeSlideHtml(slide.quoteText.trim()),
+            ),
             attribution: decodeHtmlEntities(slide.attribution.trim()),
           },
           format,
