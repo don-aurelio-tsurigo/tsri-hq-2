@@ -23,7 +23,8 @@ const assetSchema = z.object({
   size: z.number().int().nonnegative().optional(),
   rightsType: rightsSchema.optional(),
   keywords: z.array(z.string().trim().max(60)).max(24).optional(),
-  altText: z.string().trim().max(240).optional(),
+  // Autotag sends null when it produced no alt text (e.g. HEIC decode failed).
+  altText: z.string().nullish().transform((v) => v ?? undefined),
   notes: z.string().max(4000).optional(),
   credit: z.string().trim().max(200).optional(),
   collectionIds: z.array(z.string().min(1)).max(20).optional(),
@@ -135,6 +136,10 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
+    console.warn(
+      "[dam] complete validation failed",
+      JSON.stringify(parsed.error.issues.slice(0, 10)),
+    );
     return NextResponse.json(
       { error: "Metadaten unvollständig oder ungültig." },
       { status: 400 },
