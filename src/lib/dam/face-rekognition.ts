@@ -84,6 +84,8 @@ function getClient(): RekognitionClient {
       secretAccessKey: process.env.REKOGNITION_SECRET_ACCESS_KEY!.trim(),
     },
     maxAttempts: 6,
+    // Without timeouts a stalled request would block the face scheduler until restart.
+    requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
   });
   globalForRekognition.__damRekognitionClient = client;
   return client;

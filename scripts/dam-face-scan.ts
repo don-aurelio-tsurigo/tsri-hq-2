@@ -4,6 +4,7 @@
  * damit ein Testlauf vor dem Einschalten möglich ist.
  *
  *   npm run dam:face-scan -- --stats
+ *   npm run dam:face-scan -- --stuck         (Bilder, die seit >15 min warten)
  *   npm run dam:face-scan -- --limit 200
  *   npm run dam:face-scan                    (ganze Warteschlange)
  *   npm run dam:face-scan -- --retry-failed  (failed → pending, dann scannen)
@@ -38,6 +39,36 @@ async function main() {
   };
 
   try {
+    if (process.argv.includes("--stuck")) {
+      const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+      const stuck = await prisma.asset.findMany({
+        where: {
+          faceStatus: { in: ["pending", "processing", "failed"] },
+          status: { in: ["staging", "published"] },
+          deletedAt: null,
+          createdAt: { lt: cutoff },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          status: true,
+          faceStatus: true,
+          faceScannedAt: true,
+          width: true,
+          createdAt: true,
+          fileName: true,
+        },
+      });
+      console.log(`${stuck.length} wartende/fehlgeschlagene Bilder (max. 50):`);
+      for (const row of stuck) {
+        console.log(
+          `${row.createdAt.toISOString().slice(0, 16)} ${row.id} ${row.status}/${row.faceStatus}` +
+            ` width=${row.width ?? "—"} scannedAt=${row.faceScannedAt?.toISOString().slice(0, 16) ?? "—"} ${row.fileName}`,
+        );
+      }
+      return;
+    }
     if (process.argv.includes("--stats")) {
       await printStats();
       return;

@@ -8,6 +8,11 @@ const STALE_PROCESSING_MS = 10 * 60 * 1000;
 const RETRY_FAILED_AFTER_MS = 6 * 60 * 60 * 1000;
 const RETRY_FAILED_BATCH = 20;
 const PROGRESS_LOG_EVERY = 50;
+/**
+ * Upload processing (process.ts) sets `width`; its queue is in-memory and lost on
+ * deploys. After this grace period an asset is scanned even without width.
+ */
+const PROCESSING_GRACE_MINUTES = 15;
 /** Stay well below Rekognition's 5 TPS default in eu-central-1. */
 const PAUSE_BETWEEN_ASSETS_MS = 400;
 
@@ -39,6 +44,8 @@ async function requeueOldFailures(): Promise<void> {
     WHERE "id" IN (
       SELECT "id" FROM "asset"
       WHERE "faceStatus" = 'failed'::"FaceScanStatus"
+        AND "status" IN ('staging'::"AssetStatus", 'published'::"AssetStatus")
+        AND "deletedAt" IS NULL
         AND ("faceScannedAt" IS NULL OR "faceScannedAt" < ${cutoff})
       LIMIT ${RETRY_FAILED_BATCH}
     )
@@ -46,8 +53,9 @@ async function requeueOldFailures(): Promise<void> {
 }
 
 /**
- * Claims the next pending assets. Only processed images (width set) in staging
- * or the archive; newest first so fresh uploads don't wait behind the backfill.
+ * Claims the next pending assets in staging or the archive, newest first so fresh
+ * uploads don't wait behind a backfill. Waits for upload processing (width set),
+ * but not forever — see PROCESSING_GRACE_MINUTES.
  */
 async function claimPending(limit: number): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
@@ -57,7 +65,10 @@ async function claimPending(limit: number): Promise<string[]> {
       WHERE "faceStatus" = 'pending'::"FaceScanStatus"
         AND "status" IN ('staging'::"AssetStatus", 'published'::"AssetStatus")
         AND "deletedAt" IS NULL
-        AND "width" IS NOT NULL
+        AND (
+          "width" IS NOT NULL
+          OR "createdAt" < NOW() - make_interval(mins => ${PROCESSING_GRACE_MINUTES})
+        )
       ORDER BY "createdAt" DESC
       LIMIT ${limit}
       FOR UPDATE SKIP LOCKED
