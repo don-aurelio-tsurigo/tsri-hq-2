@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Allow opening the app via 127.0.0.1 in local dev (HMR / assets).
   allowedDevOrigins: ["127.0.0.1", "localhost"],
+  // Don't advertise the framework to attackers.
+  poweredByHeader: false,
   serverExternalPackages: [
     "sharp",
     "exifr",
@@ -28,6 +30,32 @@ const nextConfig: NextConfig = {
         source: "/payrexx/:path*",
         destination: "/finance/payrexx/:path*",
         permanent: true,
+      },
+    ];
+  },
+  // Baseline security headers for every response. Route-specific headers
+  // (e.g. the permissive CSP on /ads/frame) are not overridden by these.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
       },
     ];
   },
