@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
 } from "react";
 import {
@@ -155,6 +156,23 @@ function textLayerHint(slide: Slide): string {
   return plain.length > 32 ? `${plain.slice(0, 32)}…` : plain;
 }
 
+const COMPACT_QUERY = "(max-width: 767px)";
+
+function subscribeCompact(onChange: () => void) {
+  const media = window.matchMedia(COMPACT_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+/** Phones: view only (touch scrolling would fight with dragging layers). */
+function useCompactLayout() {
+  return useSyncExternalStore(
+    subscribeCompact,
+    () => window.matchMedia(COMPACT_QUERY).matches,
+    () => false,
+  );
+}
+
 function isTextEntryTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -244,6 +262,9 @@ export function CarouselEditor({
   /** Thumbnail centers (strip content coordinates) at drag start. */
   const thumbCentersRef = useRef<number[]>([]);
   const [thumbStripWidth, setThumbStripWidth] = useState(0);
+  const previewColumnRef = useRef<HTMLDivElement>(null);
+  const [previewColumnWidth, setPreviewColumnWidth] = useState(0);
+  const compact = useCompactLayout();
   /** An image file/URL is dragged over the large preview. */
   const [imageDragOver, setImageDragOver] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -283,6 +304,22 @@ export function CarouselEditor({
   useLayoutEffect(() => {
     slidesRef.current = slides;
   }, [slides]);
+
+  useEffect(() => {
+    const column = previewColumnRef.current;
+    if (!column) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setPreviewColumnWidth(entry.contentRect.width);
+    });
+    observer.observe(column);
+    return () => observer.disconnect();
+  }, []);
+
+  // Large preview shrinks to fit narrow screens (never wider than the column).
+  const previewScale = previewColumnWidth
+    ? Math.min(PREVIEW_SCALE, previewColumnWidth / CANVAS_WIDTH)
+    : PREVIEW_SCALE;
+  const canEditCanvas = canEdit && !compact;
 
   useEffect(() => {
     const strip = thumbStripRef.current;
@@ -651,7 +688,7 @@ export function CarouselEditor({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 basis-full space-y-2 md:basis-0">
           <Link
             href="/carousel"
             className="text-sm font-semibold text-[var(--accent)] hover:underline"
@@ -660,13 +697,13 @@ export function CarouselEditor({
           </Link>
           {canEdit ? (
             <input
-              className="w-full max-w-xl border-0 bg-transparent font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight outline-none ring-0 placeholder:text-[var(--muted)]"
+              className="w-full max-w-xl border-0 bg-transparent font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight outline-none ring-0 placeholder:text-[var(--muted)] sm:text-3xl"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Arbeitstitel"
             />
           ) : (
-            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight sm:text-3xl">
               {title}
             </h1>
           )}
@@ -684,6 +721,10 @@ export function CarouselEditor({
             <p className="text-sm text-[var(--muted)]">
               Nur Ansicht — nur der Ersteller kann speichern.
             </p>
+          ) : compact ? (
+            <p className="text-sm text-[var(--muted)]">
+              Ansicht auf dem Handy — zum Bearbeiten am Computer öffnen.
+            </p>
           ) : (
             <p className="text-sm text-[var(--muted)]">
               Text/Bild im Preview ziehen · Ecken ziehen zum Zoomen · Seiten
@@ -693,7 +734,7 @@ export function CarouselEditor({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canEdit ? (
             <>
               <button
@@ -733,8 +774,11 @@ export function CarouselEditor({
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex flex-col items-center gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          ref={previewColumnRef}
+          className="flex min-w-0 flex-col items-center gap-4"
+        >
           {active ? (
             <div
               className="relative"
@@ -764,8 +808,8 @@ export function CarouselEditor({
             >
               <CarouselSlidePreview
                 slide={active}
-                scale={PREVIEW_SCALE}
-                interactive={canEdit}
+                scale={previewScale}
+                interactive={canEditCanvas}
                 selectedLayer={selectedLayer}
                 onSelectLayer={setSelectedLayer}
                 onImageTransform={(t) => setLayerTransform("image", t)}
