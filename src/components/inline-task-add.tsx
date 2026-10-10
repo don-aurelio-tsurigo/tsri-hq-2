@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { format } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import {
   TaskAssigneePicker,
   type AssigneeMember,
 } from "@/components/task-assignee-picker";
 import { TaskDuePicker } from "@/components/task-due-picker";
 import type { TaskRow } from "@/components/task-list";
+import { type Recurrence } from "@/lib/recurrence";
 
 export type InlineTaskCreateDefaults = {
   spaceId: string;
@@ -15,6 +16,7 @@ export type InlineTaskCreateDefaults = {
   dueOffsetDays?: number | null;
   groupId?: string | null;
   assigneeId?: string | null;
+  recurrence?: Recurrence | null;
   /** Used for optimistic row display */
   space?: TaskRow["space"];
   group?: TaskRow["group"];
@@ -26,6 +28,8 @@ export type InlineTaskCreateResult = { error: string } | { ok: true };
 type InlineTaskAddProps = InlineTaskCreateDefaults & {
   placeholder?: string;
   members?: AssigneeMember[];
+  /** Wiederholung beim Erfassen wählbar (nicht in Vorlagen) */
+  allowRecurrence?: boolean;
   onCreate: (
     title: string,
     defaults: InlineTaskCreateDefaults,
@@ -48,6 +52,7 @@ export function InlineTaskAdd({
   group,
   assigneeName,
   members,
+  allowRecurrence = false,
   placeholder = "Aufgabe…",
   onCreate,
 }: InlineTaskAddProps) {
@@ -56,6 +61,9 @@ export function InlineTaskAdd({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [localDueAt, setLocalDueAt] = useState<Date | null>(null);
+  const [localRecurrence, setLocalRecurrence] = useState<Recurrence | null>(
+    null,
+  );
   const [localAssigneeId, setLocalAssigneeId] = useState<string | null>(null);
   const [localAssigneeName, setLocalAssigneeName] = useState<string | null>(
     null,
@@ -72,6 +80,7 @@ export function InlineTaskAdd({
 
   function initLocalMeta() {
     setLocalDueAt(parseDueProp(dueAt));
+    setLocalRecurrence(null);
     setLocalAssigneeId(assigneeId ?? null);
     setLocalAssigneeName(
       assigneeName ??
@@ -84,6 +93,7 @@ export function InlineTaskAdd({
     setTitle("");
     setError(null);
     setLocalDueAt(null);
+    setLocalRecurrence(null);
     setLocalAssigneeId(null);
     setLocalAssigneeName(null);
     setPickerOpen(false);
@@ -109,6 +119,7 @@ export function InlineTaskAdd({
       dueOffsetDays,
       groupId,
       assigneeId: localAssigneeId,
+      recurrence: localRecurrence,
       space,
       group,
       assigneeName: localAssigneeName,
@@ -124,6 +135,8 @@ export function InlineTaskAdd({
       return;
     }
 
+    // Wiederholung gilt nur für diesen Task, nicht für die nächsten Eingaben
+    setLocalRecurrence(null);
     focusTitle();
   }
 
@@ -206,9 +219,16 @@ export function InlineTaskAdd({
           <TaskDuePicker
             dueAt={localDueAt}
             compact
+            recurrence={localRecurrence}
+            allowRecurrence={allowRecurrence}
             onChange={(next) => {
               setLocalDueAt(next);
               focusTitle();
+            }}
+            onRecurrenceChange={(next) => {
+              setLocalRecurrence(next);
+              // Serie braucht ein Startdatum: ohne Auswahl ab heute
+              if (next && !localDueAt) setLocalDueAt(startOfDay(new Date()));
             }}
             onOpenChange={(next) => {
               setPickerOpen(next);
@@ -256,6 +276,7 @@ export function buildOptimisticTask(
     status: "todo",
     dueAt,
     dueOffsetDays: defaults.dueOffsetDays ?? null,
+    recurrence: defaults.recurrence ?? null,
     assigneeId: defaults.assigneeId ?? null,
     groupId:
       defaults.groupId === undefined ? null : defaults.groupId || null,
@@ -294,6 +315,9 @@ export function buildCreateTaskFormData(
   }
   if (defaults.assigneeId) {
     fd.set("assigneeId", defaults.assigneeId);
+  }
+  if (defaults.recurrence) {
+    fd.set("recurrence", JSON.stringify(defaults.recurrence));
   }
   return fd;
 }

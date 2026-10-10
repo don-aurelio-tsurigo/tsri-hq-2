@@ -559,6 +559,7 @@ export function GroupedTasksBoard({
                         space={inboxCreateSpace}
                         members={editMembers}
                         onCreate={createInlineTask}
+                        allowRecurrence={!isTemplate}
                       />
                     ) : undefined
                   }
@@ -614,6 +615,7 @@ export function GroupedTasksBoard({
                       }}
                       members={editMembers}
                       onCreate={createInlineTask}
+                      allowRecurrence={!isTemplate}
                     />
                   ) : undefined
                 }
@@ -664,6 +666,7 @@ export function GroupedTasksBoard({
                       space={personalSpaceMeta}
                       members={editMembers}
                       onCreate={createInlineTask}
+                      allowRecurrence={!isTemplate}
                     />
                   ) : undefined
                 }
@@ -787,6 +790,7 @@ export function GroupedTasksBoard({
                             group={{ id: group.id, name: group.name }}
                             members={editMembers}
                             onCreate={createInlineTask}
+                            allowRecurrence={!isTemplate}
                           />
                         ) : undefined
                       }

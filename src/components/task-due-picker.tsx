@@ -63,6 +63,7 @@ export function TaskDuePicker({
   allowRecurrence = false,
   variant = "default",
   onChange,
+  onRecurrenceChange,
   onOpenChange,
 }: {
   /** Wenn gesetzt: speichert direkt am Task. Sonst lokal via onChange. */
@@ -77,6 +78,8 @@ export function TaskDuePicker({
   variant?: "default" | "pill";
   /** Lokaler Modus (z. B. beim Erfassen): kein Server-Save */
   onChange?: (next: Date | null) => void;
+  /** Lokaler Modus: Wiederholung zurückgeben statt speichern */
+  onRecurrenceChange?: (next: Recurrence | null) => void;
   onOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
@@ -88,6 +91,8 @@ export function TaskDuePicker({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const localMode = typeof onChange === "function";
+  const showRecurrence =
+    allowRecurrence && (!localMode || typeof onRecurrenceChange === "function");
 
   const selected = toDateValue(dueAt);
   const rule = parseRecurrence(recurrence);
@@ -121,7 +126,7 @@ export function TaskDuePicker({
         Math.max(8, r.left),
         window.innerWidth - width - 8,
       );
-      const estimatedHeight = allowRecurrence && !localMode ? 420 : 340;
+      const estimatedHeight = showRecurrence ? 420 : 340;
       const top =
         r.bottom + 6 + estimatedHeight > window.innerHeight - 8
           ? Math.max(8, r.top - estimatedHeight - 6)
@@ -135,7 +140,7 @@ export function TaskDuePicker({
       window.removeEventListener("scroll", updatePos, true);
       window.removeEventListener("resize", updatePos);
     };
-  }, [open, isMobile, allowRecurrence, localMode]);
+  }, [open, isMobile, showRecurrence]);
 
   useEffect(() => {
     if (!open) return;
@@ -184,7 +189,11 @@ export function TaskDuePicker({
   }
 
   function saveRecurrence(next: Recurrence | null) {
-    if (localMode || !taskId) return;
+    if (localMode) {
+      onRecurrenceChange?.(next);
+      return;
+    }
+    if (!taskId) return;
     const fd = new FormData();
     fd.set("id", taskId);
     fd.set("recurrence", next ? JSON.stringify(next) : "");
@@ -234,7 +243,7 @@ export function TaskDuePicker({
     >
       <Calendar className="size-3.5 shrink-0" strokeWidth={1.75} />
       {selected ? dueText(selected) : "Fällig"}
-      {rule && !localMode && (
+      {rule && (
         <span className="inline-flex items-center gap-0.5 text-[var(--muted)]">
           <Repeat className="size-3" strokeWidth={1.75} aria-hidden />
           {recurrenceLabel(rule)}
@@ -263,7 +272,7 @@ export function TaskDuePicker({
       onMouseDown={(e) => e.stopPropagation()}
     >
       {dueText(selected)}
-      {rule && !localMode && (
+      {rule && (
         <Repeat
           className="ml-1 size-3"
           strokeWidth={1.75}
@@ -286,7 +295,11 @@ export function TaskDuePicker({
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <Calendar className="size-3.5" strokeWidth={1.75} />
+      {rule ? (
+        <Repeat className="size-3.5" strokeWidth={1.75} />
+      ) : (
+        <Calendar className="size-3.5" strokeWidth={1.75} />
+      )}
     </button>
   );
 
@@ -391,7 +404,7 @@ export function TaskDuePicker({
         </button>
       </div>
 
-      {allowRecurrence && !localMode && (
+      {showRecurrence && (
         <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-3">
           <label className="flex items-center justify-between gap-2 text-sm sm:text-xs">
             <span className="inline-flex items-center gap-1.5 font-medium">

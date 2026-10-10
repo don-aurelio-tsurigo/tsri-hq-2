@@ -23,6 +23,7 @@ const taskCreateSchema = z.object({
   dueOffsetDays: z.string().optional(),
   assigneeId: z.string().optional(),
   groupId: z.string().optional(),
+  recurrence: z.string().optional(),
 });
 
 export async function createTask(formData: FormData) {
@@ -39,6 +40,7 @@ export async function createTask(formData: FormData) {
     groupId: formData.has("groupId")
       ? String(formData.get("groupId") ?? "")
       : undefined,
+    recurrence: formData.get("recurrence") || undefined,
   });
   if (!parsed.success) {
     return { error: "Titel fehlt oder ist ungültig." };
@@ -126,9 +128,20 @@ export async function createTask(formData: FormData) {
     }
   }
 
+  let recurrence: Recurrence | null = null;
+  if (parsed.data.recurrence) {
+    recurrence = parseRecurrence(parsed.data.recurrence);
+    if (!recurrence) return { error: "Ungültige Wiederholung." };
+    if (space.isTemplate) {
+      return { error: "Wiederholung ist in Vorlagen noch nicht möglich." };
+    }
+  }
+
   let dueAt: Date | null = parsed.data.dueAt
     ? new Date(parsed.data.dueAt)
-    : null;
+    : recurrence
+      ? todayUtcDate()
+      : null;
   if (
     dueOffsetDays != null &&
     space.type === "project" &&
@@ -138,7 +151,7 @@ export async function createTask(formData: FormData) {
     dueAt = dueAtFromEvent(space.eventAt, dueOffsetDays);
   } else if (dueOffsetDays != null && space.isTemplate) {
     dueAt = null;
-  } else if (parsed.data.dueAt && space.type === "project" && space.eventAt) {
+  } else if (dueAt && space.type === "project" && space.eventAt) {
     const { offsetFromEvent } = await import("@/lib/projects");
     dueOffsetDays = offsetFromEvent(space.eventAt, dueAt!);
   }
@@ -153,6 +166,7 @@ export async function createTask(formData: FormData) {
       dueAt,
       dueOffsetDays,
       status: "todo",
+      ...(recurrence ? { recurrence } : {}),
       ...(groupId !== undefined ? { groupId } : {}),
     },
   });

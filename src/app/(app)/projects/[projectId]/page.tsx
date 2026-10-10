@@ -114,6 +114,7 @@ export default async function ProjectDetailPage({
         status: t.status,
         dueAt: t.dueAt,
         dueOffsetDays: t.dueOffsetDays,
+        recurrence: t.recurrence,
         assigneeId: t.assigneeId,
         groupId: t.groupId,
         createdAt: t.createdAt,

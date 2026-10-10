@@ -2,8 +2,7 @@ import { addDays, format, getISOWeek, isBefore, startOfDay } from "date-fns";
 import { de } from "date-fns/locale";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { CreateTaskForm } from "@/components/task-form";
-import { TaskList } from "@/components/task-list";
+import { GroupedTasksBoard } from "@/components/personal-tasks";
 import { prisma } from "@/lib/db";
 import { pageTitle, titleForSpaceSlug } from "@/lib/link-preview";
 import { EditorialKanban } from "@/components/editorial-kanban";
@@ -20,7 +19,7 @@ import {
   listMembersInTagPool,
   mergePickerMembers,
 } from "@/lib/membership-grants";
-import { listSpaceTasks } from "@/lib/tasks";
+import { listSpaceTasks, listTaskGroups } from "@/lib/tasks";
 import { listArticles } from "@/lib/articles";
 import {
   ensureDefaultEigenleistungRubriken,
@@ -576,22 +575,45 @@ export default async function SpacePage({
     );
   }
 
-  const tasks = await listSpaceTasks(space.id);
+  const [tasks, groups, members] = await Promise.all([
+    listSpaceTasks(space.id),
+    listTaskGroups(space.id),
+    prisma.membership.findMany({
+      where: {
+        organizationId: membership.organizationId,
+        archivedAt: null,
+      },
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
+  // Gleiche Darstellung wie private Tasks und Projekte
   return (
-    <div className="space-y-6">
-      <header>
-        <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
-          Team
-        </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          {space.name}
-        </h1>
-      </header>
-
-      {canEdit && <CreateTaskForm spaceId={space.id} />}
-
-      <TaskList tasks={tasks} />
-    </div>
+    <GroupedTasksBoard
+      spaceId={space.id}
+      eyebrow="Team"
+      title={space.name}
+      description={space.description}
+      canEdit={canEdit}
+      members={members.map((m) => m.user)}
+      currentUserId={session.user.id}
+      groups={groups.map((g) => ({ id: g.id, name: g.name }))}
+      tasks={tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        status: t.status,
+        dueAt: t.dueAt,
+        recurrence: t.recurrence,
+        assigneeId: t.assigneeId,
+        groupId: t.groupId,
+        createdAt: t.createdAt,
+        assignee: t.assignee,
+        createdBy: t.createdBy,
+        group: t.group,
+        space: { id: space.id, name: space.name, type: space.type },
+      }))}
+    />
   );
 }
