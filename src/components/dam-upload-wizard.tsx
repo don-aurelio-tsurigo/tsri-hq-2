@@ -1120,7 +1120,7 @@ export function DamUploadWizard({
             notes: d.notes.trim(),
             credit: d.credit.trim() || selectedCredit,
             keywords: d.keywords,
-            altText: d.altText,
+            altText: d.altText ?? undefined,
             collectionIds: d.collectionIds,
             newCollections: d.newCollections,
           })),
