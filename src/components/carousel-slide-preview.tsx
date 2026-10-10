@@ -273,6 +273,7 @@ function ImageLayer({
   overlayDefaults,
   crop,
   cropBackground,
+  onTop,
   className,
   onPointerDown,
   onPointerMove,
@@ -286,6 +287,8 @@ function ImageLayer({
   crop?: ImageCrop | null;
   /** Shown where the photo is cropped away. */
   cropBackground?: string;
+  /** Stack the photo above the text layer. */
+  onTop?: boolean;
   className?: string;
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
@@ -303,7 +306,7 @@ function ImageLayer({
         />
       ) : null}
     <div
-      className={`absolute inset-0 z-0 overflow-hidden ${className ?? ""}`}
+      className={`absolute inset-0 ${onTop ? "z-[35]" : "z-0"} overflow-hidden ${className ?? ""}`}
       style={{
         backgroundColor: "#1a1a1a",
         transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
@@ -406,6 +409,11 @@ function placeCaret(el: HTMLElement, point: { x: number; y: number } | null) {
   }
   selection.removeAllRanges();
   selection.addRange(range);
+}
+
+/** Faded "+ label" for an empty optional field on the editor canvas. */
+function EmptyFieldHint({ label }: { label: string }) {
+  return <span style={{ opacity: 0.45, fontStyle: "italic" }}>+ {label}</span>;
 }
 
 type SlideTextProps = {
@@ -688,7 +696,10 @@ function CoverPreview({
   }) {
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
-  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
+  const editCtx = useContext(CanvasEditContext);
+  const editingField = editCtx?.editingField ?? null;
+  // Editor only: empty optional fields stay visible as a hint to double-click.
+  const canvasEditable = Boolean(editCtx?.onFieldChange);
   const isTipp = format === "tsueritipp";
   const isSixi = format === "6ibrief";
   const hasPhoto = Boolean(slide.backgroundImageUrl);
@@ -725,6 +736,7 @@ function CoverPreview({
         overlay={slide.imageOverlay}
         crop={slide.imageCrop}
         cropBackground={backgroundColorForCategory(slide.category)}
+        onTop={slide.imageOnTop}
         className={imageDrag.className}
         onPointerDown={imageDrag.onPointerDown}
         onPointerMove={imageDrag.onPointerMove}
@@ -767,7 +779,7 @@ function CoverPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
       >
-        {slide.overline || editingField === "overline" ? (
+        {slide.overline || editingField === "overline" || canvasEditable ? (
           <SlideText
             field="overline"
             mode="plain"
@@ -782,7 +794,9 @@ function CoverPreview({
               fontWeight: isSixi ? 400 : undefined,
             }}
           >
-            {decodeHtmlEntities(slide.overline)}
+            {decodeHtmlEntities(slide.overline) || (
+              <EmptyFieldHint label="Overline" />
+            )}
           </SlideText>
         ) : null}
         <SlideText
@@ -863,6 +877,7 @@ function TextPreview({
             overlay={slide.imageOverlay}
             crop={slide.imageCrop}
             cropBackground={slide.backgroundColor || DEFAULT_BG}
+            onTop={slide.imageOnTop}
             overlayDefaults={defaultImageOverlayForSlideType("text")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -943,7 +958,10 @@ function QuotePreview({
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
-  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
+  const editCtx = useContext(CanvasEditContext);
+  const editingField = editCtx?.editingField ?? null;
+  // Editor only: empty optional fields stay visible as a hint to double-click.
+  const canvasEditable = Boolean(editCtx?.onFieldChange);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),
     layer: "image",
@@ -979,6 +997,7 @@ function QuotePreview({
             overlay={slide.imageOverlay}
             crop={slide.imageCrop}
             cropBackground={slide.backgroundColor || DEFAULT_BG}
+            onTop={slide.imageOnTop}
             overlayDefaults={defaultImageOverlayForSlideType("quote")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -1048,7 +1067,9 @@ function QuotePreview({
             return `${html}»`;
           })()}
         />
-        {slide.attribution || editingField === "attribution" ? (
+        {slide.attribution ||
+        editingField === "attribution" ||
+        canvasEditable ? (
           <SlideText
             field="attribution"
             mode="plain"
@@ -1057,7 +1078,9 @@ function QuotePreview({
             className="font-normal opacity-95"
             style={{ fontSize: 40.05, lineHeight: 1.2, marginTop: 52 }}
           >
-            {decodeHtmlEntities(slide.attribution)}
+            {decodeHtmlEntities(slide.attribution) || (
+              <EmptyFieldHint label="Name, Rolle" />
+            )}
           </SlideText>
         ) : null}
       </div>
@@ -1086,7 +1109,10 @@ function FragePreview({
   const inkColor = inkCssColor(ink);
   const imageT = normalizeImageTransform(slide.imageTransform);
   const textT = normalizeTransform(slide.textTransform);
-  const editingField = useContext(CanvasEditContext)?.editingField ?? null;
+  const editCtx = useContext(CanvasEditContext);
+  const editingField = editCtx?.editingField ?? null;
+  // Editor only: empty optional fields stay visible as a hint to double-click.
+  const canvasEditable = Boolean(editCtx?.onFieldChange);
   const imageDrag = useLayerDrag({
     enabled: Boolean(interactive && hasImage),
     layer: "image",
@@ -1122,6 +1148,7 @@ function FragePreview({
             overlay={slide.imageOverlay}
             crop={slide.imageCrop}
             cropBackground={slide.backgroundColor || DEFAULT_BG}
+            onTop={slide.imageOnTop}
             overlayDefaults={defaultImageOverlayForSlideType("frage")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
@@ -1208,7 +1235,9 @@ function FragePreview({
               return `${html}»`;
             })()}
           />
-          {slide.attribution || editingField === "attribution" ? (
+          {slide.attribution ||
+        editingField === "attribution" ||
+        canvasEditable ? (
             <SlideText
               field="attribution"
               mode="plain"
@@ -1222,7 +1251,9 @@ function FragePreview({
                 textAlign: "left",
               }}
             >
-              {decodeHtmlEntities(slide.attribution)}
+              {decodeHtmlEntities(slide.attribution) || (
+              <EmptyFieldHint label="Name, Rolle" />
+            )}
             </SlideText>
           ) : null}
         </div>
@@ -1936,7 +1967,7 @@ function isHtmlEditField(slide: Slide, field: string) {
 /** Floating B / I / Fertig while a text field is edited on the canvas. */
 function InlineEditToolbar({ html }: { html: boolean }) {
   const button =
-    "pointer-events-auto rounded-md px-2 py-1 text-xs font-semibold text-[var(--text)] hover:bg-[var(--bg)]";
+    "pointer-events-auto rounded-md px-2 py-1 text-xs font-semibold text-[var(--fg)] hover:bg-[var(--bg)]";
   return (
     <div
       className="pointer-events-auto absolute right-2 top-2 z-[3] flex items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-0.5 shadow-md"

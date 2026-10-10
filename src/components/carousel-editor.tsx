@@ -12,7 +12,12 @@ import {
 import {
   Archive,
   Camera,
+  ChevronDown,
+  ChevronUp,
   Copy,
+  Image as ImageIcon,
+  Lock,
+  Type,
   ImagePlus,
   LoaderCircle,
   Redo2,
@@ -20,7 +25,6 @@ import {
   Undo2,
   Upload,
 } from "lucide-react";
-import { CarouselFormatTextarea } from "@/components/carousel-format-textarea";
 import { CarouselSlidePreview } from "@/components/carousel-slide-preview";
 import { DamArchivePickerDialog } from "@/components/dam-archive-picker-dialog";
 import { UnsplashPickerDialog } from "@/components/unsplash-picker-dialog";
@@ -129,6 +133,26 @@ function droppedImageUrl(data: DataTransfer): string | null {
 function isExternalImageDrag(data: DataTransfer): boolean {
   const types = Array.from(data.types);
   return types.includes("Files") || types.includes("text/uri-list");
+}
+
+/** Short plain-text hint of a slide's text layer for the layer list. */
+function textLayerHint(slide: Slide): string {
+  const raw =
+    slide.type === "cover" || slide.type === "outro"
+      ? slide.headline
+      : slide.type === "text"
+        ? slide.bodyHtml
+        : slide.type === "quote"
+          ? slide.quoteText
+          : slide.type === "frage"
+            ? slide.questionText
+            : (slide.items[0]?.title ?? "");
+  const plain = raw
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return plain.length > 32 ? `${plain.slice(0, 32)}…` : plain;
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -941,166 +965,40 @@ export function CarouselEditor({
                   {SLIDE_TYPE_LABEL[active.type]}
                 </p>
                 <h2 className="mt-1 font-[family-name:var(--font-display)] text-lg font-semibold">
-                  Inhalt
+                  Gestaltung
                 </h2>
+                {canEdit ? (
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Text per Doppelklick direkt auf dem Slide bearbeiten.
+                  </p>
+                ) : null}
               </div>
-
-              {active.type === "cover" ? (
-                <>
-                  <Field label="Overline">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.overline}
-                      onChange={(e) =>
-                        updateActive({ overline: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="Headline">
-                    <textarea
-                      className="min-h-28 w-full"
-                      disabled={!canEdit}
-                      value={active.headline}
-                      onChange={(e) =>
-                        updateActive({ headline: e.target.value })
-                      }
-                    />
-                  </Field>
-                </>
-              ) : null}
-
-              {active.type === "text" ? (
-                <div className="field">
-                  <CarouselFormatTextarea
-                    label="Text"
-                    disabled={!canEdit}
-                    value={active.bodyHtml}
-                    onChange={(bodyHtml) => updateActive({ bodyHtml })}
-                    placeholder="Schon wieder ist es heiss…"
-                    className="min-h-48 w-full font-mono text-sm"
-                  />
-                </div>
-              ) : null}
-
-              {active.type === "quote" ? (
-                <>
-                  <div className="field">
-                    <CarouselFormatTextarea
-                      label="Zitat"
-                      disabled={!canEdit}
-                      value={active.quoteText}
-                      onChange={(quoteText) => updateActive({ quoteText })}
-                      className="min-h-40 w-full font-mono text-sm"
-                    />
-                  </div>
-                  <Field label="Attribution">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.attribution}
-                      onChange={(e) =>
-                        updateActive({ attribution: e.target.value })
-                      }
-                      placeholder="Name, Rolle"
-                    />
-                  </Field>
-                </>
-              ) : null}
-
-              {active.type === "frage" ? (
-                <>
-                  <Field label="Frage">
-                    <textarea
-                      className="min-h-24 w-full"
-                      disabled={!canEdit}
-                      value={active.questionText}
-                      onChange={(e) =>
-                        updateActive({ questionText: e.target.value })
-                      }
-                      placeholder="Wenn Sie neue Leute kennenlernen…"
-                    />
-                  </Field>
-                  <div className="field">
-                    <CarouselFormatTextarea
-                      label="Zitat"
-                      disabled={!canEdit}
-                      value={active.quoteText}
-                      onChange={(quoteText) => updateActive({ quoteText })}
-                      className="min-h-40 w-full font-mono text-sm"
-                    />
-                  </div>
-                  <Field label="Attribution">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.attribution}
-                      onChange={(e) =>
-                        updateActive({ attribution: e.target.value })
-                      }
-                      placeholder="Name, Rolle"
-                    />
-                  </Field>
-                </>
-              ) : null}
-
-              {active.type === "outro" ? (
-                <>
-                  <Field label="Headline">
-                    <textarea
-                      className="min-h-28 w-full"
-                      disabled={!canEdit}
-                      value={active.headline}
-                      onChange={(e) =>
-                        updateActive({ headline: e.target.value })
-                      }
-                    />
-                  </Field>
-                  <Field label="CTA">
-                    <input
-                      className="w-full"
-                      disabled={!canEdit}
-                      value={active.ctaText}
-                      onChange={(e) =>
-                        updateActive({ ctaText: e.target.value })
-                      }
-                    />
-                  </Field>
-                </>
-              ) : null}
 
               {canEdit ? (
                 <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3">
                   <p className="text-xs font-extrabold tracking-wider text-[var(--muted)] uppercase">
                     Ebene
                   </p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={[
-                        "btn px-3 py-1.5 text-sm",
-                        selectedLayer === "text"
-                          ? "btn-primary"
-                          : "btn-ghost",
-                      ].join(" ")}
-                      onClick={() => setSelectedLayer("text")}
-                    >
-                      Text
-                    </button>
-                    <button
-                      type="button"
-                      className={[
-                        "btn px-3 py-1.5 text-sm",
-                        selectedLayer === "image"
-                          ? "btn-primary"
-                          : "btn-ghost",
-                      ].join(" ")}
-                      disabled={!canEditImage}
-                      onClick={() => setSelectedLayer("image")}
-                    >
-                      Bild
-                    </button>
-                  </div>
+                  <LayerList
+                    layers={
+                      canEditImage
+                        ? active && slideImageOnTop(active)
+                          ? ["image", "text"]
+                          : ["text", "image"]
+                        : ["text"]
+                    }
+                    selected={selectedLayer}
+                    textHint={active ? textLayerHint(active) : ""}
+                    onSelect={setSelectedLayer}
+                    onMove={(layer, direction) => {
+                      // Two layers: moving either one swaps the stacking order.
+                      const imageOnTop =
+                        (layer === "image") === (direction === "up");
+                      updateActive({
+                        imageOnTop: imageOnTop ? true : undefined,
+                      });
+                    }}
+                  />
                   <Field label={`Skalierung (${Math.round(transform.scale * 100)}%)`}>
                     <input
                       type="range"
@@ -1507,6 +1405,115 @@ export function CarouselEditor({
           }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function slideImageOnTop(slide: Slide): boolean {
+  return (
+    (slide.type === "cover" ||
+      slide.type === "text" ||
+      slide.type === "quote" ||
+      slide.type === "frage") &&
+    Boolean(slide.imageOnTop)
+  );
+}
+
+const LAYER_META: Record<
+  EditableLayer,
+  { label: string; icon: typeof Type }
+> = {
+  text: { label: "Text", icon: Type },
+  image: { label: "Bild", icon: ImageIcon },
+};
+
+/** Layer panel: top of the list = front. Click selects, arrows restack. */
+function LayerList({
+  layers,
+  selected,
+  textHint,
+  onSelect,
+  onMove,
+}: {
+  layers: EditableLayer[];
+  selected: EditableLayer;
+  textHint: string;
+  onSelect: (layer: EditableLayer) => void;
+  onMove: (layer: EditableLayer, direction: "up" | "down") => void;
+}) {
+  const arrow =
+    "inline-flex size-6 items-center justify-center rounded-md text-[var(--muted)] hover:bg-[var(--bg)] hover:text-[var(--fg)] disabled:pointer-events-none disabled:opacity-30";
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)]">
+      {layers.map((layer, index) => {
+        const { label, icon: Icon } = LAYER_META[layer];
+        const isSelected = selected === layer;
+        return (
+          <div
+            key={layer}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
+            onClick={() => onSelect(layer)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(layer);
+              }
+            }}
+            className={[
+              "flex cursor-pointer items-center gap-2 border-b border-[var(--border)] px-2 py-1.5 text-sm",
+              isSelected
+                ? "bg-[var(--accent)]/12 font-semibold"
+                : "hover:bg-[var(--bg)]",
+            ].join(" ")}
+          >
+            <Icon
+              className="size-4 shrink-0 text-[var(--muted)]"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1 truncate">
+              {label}
+              {layer === "text" && textHint ? (
+                <span className="ml-1.5 font-normal text-[var(--muted)]">
+                  {textHint}
+                </span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              className={arrow}
+              disabled={index === 0}
+              title="Nach vorne"
+              aria-label={`${label} nach vorne`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(layer, "up");
+              }}
+            >
+              <ChevronUp className="size-4" strokeWidth={2} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={arrow}
+              disabled={index === layers.length - 1}
+              title="Nach hinten"
+              aria-label={`${label} nach hinten`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(layer, "down");
+              }}
+            >
+              <ChevronDown className="size-4" strokeWidth={2} aria-hidden />
+            </button>
+          </div>
+        );
+      })}
+      <div className="flex items-center gap-2 px-2 py-1.5 text-sm text-[var(--muted)]">
+        <Lock className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+        <span className="flex-1">Hintergrund</span>
+      </div>
     </div>
   );
 }
