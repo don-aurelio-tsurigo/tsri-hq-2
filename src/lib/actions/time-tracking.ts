@@ -100,43 +100,46 @@ export async function upsertTimeEntry(formData: FormData) {
 
   const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
 
-  const entry = await prisma.timeEntry.upsert({
-    where: {
-      organizationId_userId_date: {
+  // Eintrag + Segmente atomar ersetzen — sonst bleibt bei einem Abbruch ein Tag ohne Segmente zurück.
+  await prisma.$transaction(async (tx) => {
+    const entry = await tx.timeEntry.upsert({
+      where: {
+        organizationId_userId_date: {
+          organizationId: membership.organizationId,
+          userId: session.user.id,
+          date,
+        },
+      },
+      create: {
         organizationId: membership.organizationId,
         userId: session.user.id,
         date,
+        type,
+        note: parsed.data.note?.trim() || null,
       },
-    },
-    create: {
-      organizationId: membership.organizationId,
-      userId: session.user.id,
-      date,
-      type,
-      note: parsed.data.note?.trim() || null,
-    },
-    update: {
-      type,
-      note: parsed.data.note?.trim() || null,
-    },
-  });
-
-  await prisma.timeSegment.deleteMany({ where: { timeEntryId: entry.id } });
-
-  if (!isAbsent && segments.length > 0) {
-    const ordered = segments
-      .slice()
-      .sort((a, b) => a.startTime.localeCompare(b.startTime));
-    await prisma.timeSegment.createMany({
-      data: ordered.map((s, index) => ({
-        timeEntryId: entry.id,
-        type: s.type,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        sortOrder: index,
-      })),
+      update: {
+        type,
+        note: parsed.data.note?.trim() || null,
+      },
     });
-  }
+
+    await tx.timeSegment.deleteMany({ where: { timeEntryId: entry.id } });
+
+    if (!isAbsent && segments.length > 0) {
+      const ordered = segments
+        .slice()
+        .sort((a, b) => a.startTime.localeCompare(b.startTime));
+      await tx.timeSegment.createMany({
+        data: ordered.map((s, index) => ({
+          timeEntryId: entry.id,
+          type: s.type,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          sortOrder: index,
+        })),
+      });
+    }
+  });
 
   revalidatePath("/hours");
   revalidatePath("/home");

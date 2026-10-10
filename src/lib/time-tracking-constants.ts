@@ -71,50 +71,6 @@ export function segmentDurationMinutes(
   return duration;
 }
 
-function hoursFromSegmentsOfType(
-  segments: readonly TimeSegmentInput[],
-  kind: TimeSegmentKind,
-): number {
-  const minutes = segments
-    .filter((s) => s.type === kind)
-    .reduce(
-      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
-      0,
-    );
-  return Math.round((minutes / 60) * 100) / 100;
-}
-
-/**
- * Netto-Arbeitszeit: Summe work − Summe break, in Stunden (2 Dezimalen).
- * Pause darf innerhalb von Arbeit liegen; wird pauschal abgezogen.
- * Leere Liste / nur Pause → 0.
- */
-export function computeWorkedHours(
-  segments: readonly TimeSegmentInput[],
-): number {
-  const workMinutes = segments
-    .filter((s) => s.type === "work")
-    .reduce(
-      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
-      0,
-    );
-  const breakMinutes = segments
-    .filter((s) => s.type === "break")
-    .reduce(
-      (sum, s) => sum + segmentDurationMinutes(s.startTime, s.endTime),
-      0,
-    );
-  const minutes = Math.max(0, workMinutes - breakMinutes);
-  return Math.round((minutes / 60) * 100) / 100;
-}
-
-/** Summe der Pause-Segmente in Stunden (2 Dezimalen). */
-export function computeBreakHours(
-  segments: readonly TimeSegmentInput[],
-): number {
-  return hoursFromSegmentsOfType(segments, "break");
-}
-
 /** Half-open [start, end) ranges in minutes-from-midnight (end may be +24h). */
 function segmentRangesOfType(
   segments: readonly TimeSegmentInput[],
@@ -130,6 +86,68 @@ function segmentRangesOfType(
     ranges.push({ start, end });
   }
   return ranges;
+}
+
+/** Sorted, disjoint union of the given ranges. */
+function mergeRanges(
+  ranges: readonly { start: number; end: number }[],
+): { start: number; end: number }[] {
+  const sorted = ranges.slice().sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  for (const r of sorted) {
+    const last = merged[merged.length - 1];
+    if (last && r.start <= last.end) {
+      last.end = Math.max(last.end, r.end);
+    } else {
+      merged.push({ ...r });
+    }
+  }
+  return merged;
+}
+
+/** Minuten Arbeit, abzüglich nur jener Pausenanteile, die in einen Arbeitsblock fallen. */
+function workedMinutes(segments: readonly TimeSegmentInput[]): number {
+  const work = mergeRanges(segmentRangesOfType(segments, "work"));
+  const breaks = mergeRanges(segmentRangesOfType(segments, "break"));
+  let total = 0;
+  for (const w of work) {
+    let minutes = w.end - w.start;
+    for (const b of breaks) {
+      minutes -= Math.max(0, Math.min(w.end, b.end) - Math.max(w.start, b.start));
+    }
+    total += minutes;
+  }
+  return total;
+}
+
+function minutesToHours(minutes: number): number {
+  return Math.round((minutes / 60) * 100) / 100;
+}
+
+/**
+ * Netto-Arbeitszeit in Stunden (2 Dezimalen).
+ * Pausen werden nur abgezogen, soweit sie innerhalb eines Arbeitsblocks liegen —
+ * eine Lücke zwischen zwei Arbeitsblöcken zählt bereits als Pause und wird nicht
+ * doppelt abgezogen, auch wenn sie zusätzlich als Pause erfasst ist.
+ * Leere Liste / nur Pause → 0.
+ */
+export function computeWorkedHours(
+  segments: readonly TimeSegmentInput[],
+): number {
+  return minutesToHours(workedMinutes(segments));
+}
+
+/**
+ * Effektive Pause in Stunden (2 Dezimalen): Zeit zwischen erstem Arbeitsbeginn und
+ * letztem Arbeitsende, die nicht gearbeitet wurde (Lücken + Pausen in Blöcken).
+ */
+export function computeBreakHours(
+  segments: readonly TimeSegmentInput[],
+): number {
+  const work = mergeRanges(segmentRangesOfType(segments, "work"));
+  if (work.length === 0) return 0;
+  const span = work[work.length - 1]!.end - work[0]!.start;
+  return minutesToHours(Math.max(0, span - workedMinutes(segments)));
 }
 
 function rangesOverlap(
@@ -168,6 +186,23 @@ export function formatHours(hours: number): string {
   return Number.isInteger(rounded)
     ? String(rounded)
     : rounded.toFixed(2).replace(/\.?0+$/, "");
+}
+
+export const APP_TIME_ZONE = "Europe/Zurich";
+
+/**
+ * Heutiges Kalenderdatum in Zürich als lokales Date (12:00), unabhängig von der
+ * Server-Zeitzone (Render läuft in UTC — sonst wäre "heute" nachts um 0–2 Uhr falsch).
+ */
+export function todayInZurich(now: Date = new Date()): Date {
+  const key = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y!, m! - 1, d!, 12, 0, 0, 0);
 }
 
 /** Calendar day key in local timezone (matches week UI / date-fns ranges). */
