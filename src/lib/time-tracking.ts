@@ -1,5 +1,6 @@
 import {
   addDays,
+  addMonths,
   eachDayOfInterval,
   endOfMonth,
   endOfWeek,
@@ -15,6 +16,7 @@ import {
   dailyTargetHours,
   formatSegmentsSummary,
   TIME_ENTRY_TYPE_LABELS,
+  todayInZurich,
   toTimeDateKey,
   type TimeEntryTypeValue,
   type TimeSegmentInput,
@@ -112,7 +114,7 @@ export type DaySummary = {
   holidayName: string | null;
   /** Potenzielles Tages-Soll (0 an WE/Feiertagen). */
   baseSollHours: number;
-  /** Zählt nach Abwesenheit: Krank/Ferien senken das Soll (wie Excel). */
+  /** Zählt nach Abwesenheit: Krank/Ferien/Feiertag senken das Soll (wie Excel). */
   sollHours: number;
   /** Nur effektiv gearbeitete Stunden (Typ Arbeit, Summe der Segmente). */
   workedHours: number;
@@ -159,11 +161,17 @@ function toEntryRow(row: {
   };
 }
 
+/**
+ * Soll/Ist/Saldo für einen Zeitraum. Tage nach `saldoThrough` (Default: heute in
+ * Zürich) werden zwar aufgelistet, zählen aber nicht ins Soll/Ist — sonst stünde
+ * mitten in Woche/Monat ein Minus für Tage, die noch gar nicht stattgefunden haben.
+ */
 export function summarizePeriod(
   start: Date,
   end: Date,
   entries: TimeEntryRow[],
   pensumPercent: number,
+  saldoThrough: Date = todayInZurich(),
 ): PeriodSummary {
   const byKey = new Map(
     entries.map((e) => [toTimeDateKey(e.date), e] as const),
@@ -174,7 +182,9 @@ export function summarizePeriod(
     const entry = byKey.get(dateKey) ?? null;
     const baseSollHours = daySollHours(date, pensumPercent);
     const absent =
-      entry?.type === "sick" || entry?.type === "vacation";
+      entry?.type === "sick" ||
+      entry?.type === "vacation" ||
+      entry?.type === "holiday";
     return {
       dateKey,
       date,
@@ -188,10 +198,12 @@ export function summarizePeriod(
     } satisfies DaySummary;
   });
 
+  const throughKey = toTimeDateKey(saldoThrough);
+  const counted = days.filter((d) => d.dateKey <= throughKey);
   const sollHours =
-    Math.round(days.reduce((sum, d) => sum + d.sollHours, 0) * 100) / 100;
+    Math.round(counted.reduce((sum, d) => sum + d.sollHours, 0) * 100) / 100;
   const istHours =
-    Math.round(days.reduce((sum, d) => sum + d.workedHours, 0) * 100) / 100;
+    Math.round(counted.reduce((sum, d) => sum + d.workedHours, 0) * 100) / 100;
 
   return {
     sollHours,
@@ -230,7 +242,7 @@ export async function getWeekTimeSummary(
   organizationId: string,
   userId: string,
   pensumPercent: number,
-  weekAnchor: Date = new Date(),
+  weekAnchor: Date = todayInZurich(),
 ) {
   const start = startOfWeek(weekAnchor, { weekStartsOn: 1 });
   const end = endOfWeek(weekAnchor, { weekStartsOn: 1 });
@@ -251,7 +263,7 @@ export async function getMonthTimeSummary(
   organizationId: string,
   userId: string,
   pensumPercent: number,
-  monthAnchor: Date = new Date(),
+  monthAnchor: Date = todayInZurich(),
 ) {
   const start = startOfMonth(monthAnchor);
   const end = endOfMonth(monthAnchor);
@@ -274,7 +286,7 @@ export async function getCurrentWeekProgress(
   userId: string,
   pensumPercent: number,
 ) {
-  const today = new Date();
+  const today = todayInZurich();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const through = today < weekStart ? weekStart : today;
   const entries = await listTimeEntriesInRange(
@@ -297,7 +309,7 @@ export async function getPastWeekTimeGaps(
   organizationId: string,
   userId: string,
   pensumPercent: number,
-  today: Date = new Date(),
+  today: Date = todayInZurich(),
 ): Promise<{
   weekStart: Date;
   weekEnd: Date;
@@ -350,26 +362,62 @@ export async function getPastWeekTimeGaps(
   };
 }
 
-/** Calendar year start (local) through today — avoids charging Soll for future days. */
-export async function getYearToDateTimeSummary(
+export type MonthBalance = {
+  monthKey: string;
+  label: string;
+  /** Monat enthält heute → Soll/Ist nur bis heute, Saldo noch offen. */
+  isRunning: boolean;
+  sollHours: number;
+  istHours: number;
+  diffHours: number;
+  sickDays: number;
+  vacationDays: number;
+};
+
+/**
+ * Monatssaldi der letzten `count` Monate (inkl. laufendem), neuester zuerst.
+ * Überstunden werden nur innerhalb eines Monats kompensiert — es gibt bewusst
+ * keinen Übertrag und kein kumuliertes Jahressaldo.
+ */
+export async function getMonthlyBalances(
   organizationId: string,
   userId: string,
   pensumPercent: number,
-  today: Date = new Date(),
-) {
-  const start = new Date(today.getFullYear(), 0, 1, 12, 0, 0, 0);
-  const end = today;
+  count = 12,
+  today: Date = todayInZurich(),
+): Promise<MonthBalance[]> {
+  const currentMonth = startOfMonth(today);
+  const firstMonth = addMonths(currentMonth, -(count - 1));
   const entries = await listTimeEntriesInRange(
     organizationId,
     userId,
-    start,
-    end,
+    firstMonth,
+    endOfMonth(currentMonth),
   );
-  return {
-    start,
-    end,
-    ...summarizePeriod(start, end, entries, pensumPercent),
-  };
+
+  const balances: MonthBalance[] = [];
+  for (let i = 0; i < count; i++) {
+    const start = addMonths(currentMonth, -i);
+    const end = endOfMonth(start);
+    const startKey = toTimeDateKey(start);
+    const endKey = toTimeDateKey(end);
+    const inMonth = entries.filter((e) => {
+      const key = toTimeDateKey(e.date);
+      return key >= startKey && key <= endKey;
+    });
+    const summary = summarizePeriod(start, end, inMonth, pensumPercent, today);
+    balances.push({
+      monthKey: startKey.slice(0, 7),
+      label: format(start, "MMMM yyyy", { locale: de }),
+      isRunning: i === 0,
+      sollHours: summary.sollHours,
+      istHours: summary.istHours,
+      diffHours: summary.diffHours,
+      sickDays: summary.sickDays,
+      vacationDays: summary.vacationDays,
+    });
+  }
+  return balances;
 }
 
 export type TeamMemberHoursRow = {
@@ -381,16 +429,18 @@ export type TeamMemberHoursRow = {
   archived: boolean;
   week: PeriodSummary;
   month: PeriodSummary;
-  year: PeriodSummary;
+  /** Abgeschlossener Vormonat — dessen Saldo ist verfallen bzw. massgeblich. */
+  prevMonth: PeriodSummary;
 };
 
 export async function listTeamHoursOverview(
   organizationId: string,
 ): Promise<TeamMemberHoursRow[]> {
-  const today = new Date();
-  const yearStart = new Date(today.getFullYear(), 0, 1, 12, 0, 0, 0);
+  const today = todayInZurich();
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
+  const prevMonthStart = addMonths(monthStart, -1);
+  const prevMonthEnd = endOfMonth(prevMonthStart);
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
 
   const members = await prisma.membership.findMany({
@@ -406,7 +456,7 @@ export async function listTeamHoursOverview(
     where: {
       organizationId,
       date: {
-        gte: new Date(`${toTimeDateKey(yearStart)}T12:00:00.000Z`),
+        gte: new Date(`${toTimeDateKey(prevMonthStart)}T12:00:00.000Z`),
         lte: new Date(`${toTimeDateKey(rangeEnd)}T12:00:00.000Z`),
       },
     },
@@ -450,10 +500,10 @@ export async function listTeamHoursOverview(
         inRange(monthStart, monthEnd),
         m.pensumPercent,
       ),
-      year: summarizePeriod(
-        yearStart,
-        today,
-        inRange(yearStart, today),
+      prevMonth: summarizePeriod(
+        prevMonthStart,
+        prevMonthEnd,
+        inRange(prevMonthStart, prevMonthEnd),
         m.pensumPercent,
       ),
     };

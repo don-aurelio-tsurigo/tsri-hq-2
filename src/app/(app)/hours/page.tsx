@@ -5,6 +5,7 @@ import { pageTitle } from "@/lib/link-preview";
 import { requireMembership } from "@/lib/session";
 import {
   dailyTargetHours,
+  todayInZurich,
   toTimeDateKey,
 } from "@/lib/time-tracking-constants";
 import {
@@ -17,12 +18,12 @@ export const metadata = pageTitle("Meine Arbeitszeit");
 
 function parseWeekParam(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return startOfWeek(new Date(), { weekStartsOn: 1 });
+    return startOfWeek(todayInZurich(), { weekStartsOn: 1 });
   }
   try {
     return startOfWeek(parseISO(value), { weekStartsOn: 1 });
   } catch {
-    return startOfWeek(new Date(), { weekStartsOn: 1 });
+    return startOfWeek(todayInZurich(), { weekStartsOn: 1 });
   }
 }
 
@@ -51,7 +52,7 @@ export default async function HoursPage({
     ),
   ]);
 
-  const todayKey = toTimeDateKey(new Date());
+  const todayKey = toTimeDateKey(todayInZurich());
   const weekData = {
     startKey: toTimeDateKey(week.start),
     endKey: toTimeDateKey(week.end),
@@ -67,6 +68,9 @@ export default async function HoursPage({
     monthIst: month.istHours,
     monthDiff: month.diffHours,
     monthLabel: format(week.start, "MMMM", { locale: de }),
+    monthIsRunning:
+      toTimeDateKey(month.start) <= todayKey &&
+      todayKey <= toTimeDateKey(month.end),
     sickDays: week.sickDays,
     vacationDays: week.vacationDays,
     days: week.days.map((d) => ({

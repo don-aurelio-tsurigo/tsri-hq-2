@@ -52,6 +52,8 @@ type WeekData = {
   monthIst: number;
   monthDiff: number;
   monthLabel: string;
+  /** Monat enthält heute → Soll/Saldo nur bis heute. */
+  monthIsRunning: boolean;
   sickDays: number;
   vacationDays: number;
   days: WeekDay[];
@@ -440,6 +442,7 @@ export function TimeTrackingWeek({
   weekBasePath?: string;
 }) {
   const router = useRouter();
+  const weekIsRunning = week.days.some((d) => d.isToday);
   const [openKey, setOpenKey] = useState<string | null>(
     () => week.days.find((d) => d.isToday)?.dateKey ?? null,
   );
@@ -494,7 +497,10 @@ export function TimeTrackingWeek({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="card grid grid-cols-3 gap-4 p-4">
           <SummaryStat label="Ist Woche" value={`${formatHours(week.istHours)} h`} />
-          <SummaryStat label="Soll Woche" value={`${formatHours(week.sollHours)} h`} />
+          <SummaryStat
+            label={weekIsRunning ? "Soll bis heute" : "Soll Woche"}
+            value={`${formatHours(week.sollHours)} h`}
+          />
           <SummaryStat
             label="Differenz"
             value={formatSignedHours(week.diffHours)}
@@ -507,7 +513,7 @@ export function TimeTrackingWeek({
             value={`${formatHours(week.monthIst)} h`}
           />
           <SummaryStat
-            label="Soll Monat"
+            label={week.monthIsRunning ? "Soll bis heute" : "Soll Monat"}
             value={`${formatHours(week.monthSoll)} h`}
           />
           <SummaryStat

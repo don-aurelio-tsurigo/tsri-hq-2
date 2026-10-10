@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { format } from "date-fns";
+import { addMonths, format } from "date-fns";
 import { de } from "date-fns/locale";
 import { pageTitle } from "@/lib/link-preview";
 import { requireAdmin } from "@/lib/session";
 import { listTeamHoursOverview } from "@/lib/time-tracking";
+import { formatHours, todayInZurich } from "@/lib/time-tracking-constants";
 
 export const metadata = pageTitle("Teamarbeitszeit");
-import { formatHours } from "@/lib/time-tracking-constants";
 
 function signed(hours: number) {
   const sign = hours > 0 ? "+" : "";
@@ -22,8 +22,9 @@ function saldoClass(hours: number) {
 export default async function AdminHoursPage() {
   const { membership } = await requireAdmin();
   const rows = await listTeamHoursOverview(membership.organizationId);
-  const yearLabel = format(new Date(), "yyyy");
-  const monthLabel = format(new Date(), "MMMM", { locale: de });
+  const today = todayInZurich();
+  const monthLabel = format(today, "MMMM", { locale: de });
+  const prevMonthLabel = format(addMonths(today, -1), "MMMM", { locale: de });
 
   return (
     <div className="space-y-8">
@@ -34,6 +35,10 @@ export default async function AdminHoursPage() {
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
           Arbeitszeit Team
         </h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Überstunden werden nur innerhalb eines Monats kompensiert — der Saldo
+          verfällt Ende Monat, es gibt keinen Übertrag.
+        </p>
       </header>
 
       <div className="card overflow-x-auto">
@@ -43,8 +48,12 @@ export default async function AdminHoursPage() {
               <th className="px-4 py-3 font-semibold">Person</th>
               <th className="px-3 py-3 font-semibold">Pensum</th>
               <th className="px-3 py-3 font-semibold">Woche</th>
-              <th className="px-3 py-3 font-semibold">{monthLabel}</th>
-              <th className="px-3 py-3 font-semibold">Jahr {yearLabel}</th>
+              <th className="px-3 py-3 font-semibold">
+                {monthLabel} <span className="font-normal normal-case">(bis heute)</span>
+              </th>
+              <th className="px-3 py-3 font-semibold">
+                {prevMonthLabel} <span className="font-normal normal-case">(Abschluss)</span>
+              </th>
               <th className="px-4 py-3 font-semibold" />
             </tr>
           </thead>
@@ -91,12 +100,12 @@ export default async function AdminHoursPage() {
                   </p>
                 </td>
                 <td className="px-3 py-3">
-                  <p className={saldoClass(row.year.diffHours)}>
-                    {signed(row.year.diffHours)}
+                  <p className={saldoClass(row.prevMonth.diffHours)}>
+                    {signed(row.prevMonth.diffHours)}
                   </p>
                   <p className="text-xs text-[var(--muted)]">
-                    {formatHours(row.year.istHours)} /{" "}
-                    {formatHours(row.year.sollHours)} h
+                    {formatHours(row.prevMonth.istHours)} /{" "}
+                    {formatHours(row.prevMonth.sollHours)} h
                   </p>
                 </td>
                 <td className="px-4 py-3 text-right">

@@ -9,12 +9,13 @@ import { requireAdmin } from "@/lib/session";
 import {
   dailyTargetHours,
   formatHours,
+  todayInZurich,
   toTimeDateKey,
 } from "@/lib/time-tracking-constants";
 import {
+  getMonthlyBalances,
   getMonthTimeSummary,
   getWeekTimeSummary,
-  getYearToDateTimeSummary,
   weekLabel,
 } from "@/lib/time-tracking";
 
@@ -22,18 +23,24 @@ export const metadata = pageTitle("Teamarbeitszeit");
 
 function parseWeekParam(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return startOfWeek(new Date(), { weekStartsOn: 1 });
+    return startOfWeek(todayInZurich(), { weekStartsOn: 1 });
   }
   try {
     return startOfWeek(parseISO(value), { weekStartsOn: 1 });
   } catch {
-    return startOfWeek(new Date(), { weekStartsOn: 1 });
+    return startOfWeek(todayInZurich(), { weekStartsOn: 1 });
   }
 }
 
 function signed(hours: number) {
   const sign = hours > 0 ? "+" : "";
   return `${sign}${formatHours(hours)} h`;
+}
+
+function saldoTone(hours: number) {
+  if (hours > 0.01) return "text-emerald-700";
+  if (hours < -0.01) return "text-[var(--danger)]";
+  return "";
 }
 
 export default async function AdminMemberHoursPage({
@@ -63,7 +70,7 @@ export default async function AdminMemberHoursPage({
   const weekStart = parseWeekParam(weekParam);
   const pensum = target.pensumPercent;
 
-  const [week, month, year] = await Promise.all([
+  const [week, month, balances] = await Promise.all([
     getWeekTimeSummary(
       membership.organizationId,
       userId,
@@ -76,14 +83,10 @@ export default async function AdminMemberHoursPage({
       pensum,
       weekStart,
     ),
-    getYearToDateTimeSummary(
-      membership.organizationId,
-      userId,
-      pensum,
-    ),
+    getMonthlyBalances(membership.organizationId, userId, pensum),
   ]);
 
-  const todayKey = toTimeDateKey(new Date());
+  const todayKey = toTimeDateKey(todayInZurich());
   const basePath = `/settings/hours/${userId}`;
 
   const weekData = {
@@ -101,6 +104,9 @@ export default async function AdminMemberHoursPage({
     monthIst: month.istHours,
     monthDiff: month.diffHours,
     monthLabel: format(week.start, "MMMM", { locale: de }),
+    monthIsRunning:
+      toTimeDateKey(month.start) <= todayKey &&
+      todayKey <= toTimeDateKey(month.end),
     sickDays: week.sickDays,
     vacationDays: week.vacationDays,
     days: week.days.map((d) => ({
@@ -128,13 +134,6 @@ export default async function AdminMemberHoursPage({
     })),
   };
 
-  const yearTone =
-    year.diffHours > 0.01
-      ? "text-emerald-700"
-      : year.diffHours < -0.01
-        ? "text-[var(--danger)]"
-        : "";
-
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header>
@@ -155,34 +154,6 @@ export default async function AdminMemberHoursPage({
         <p className="mt-2 text-[var(--muted)]">
           {target.user.email} · Pensum {pensum}% · nur Einsicht
         </p>
-        <div className="card mt-4 grid grid-cols-3 gap-4 p-4">
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Ist Jahr
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums">
-              {formatHours(year.istHours)} h
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Soll Jahr
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums">
-              {formatHours(year.sollHours)} h
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-              Saldo Jahr
-            </p>
-            <p
-              className={`mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums ${yearTone}`}
-            >
-              {signed(year.diffHours)}
-            </p>
-          </div>
-        </div>
       </header>
 
       <TimeTrackingWeek
@@ -190,6 +161,64 @@ export default async function AdminMemberHoursPage({
         readOnly
         weekBasePath={basePath}
       />
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
+            Monatssaldi
+          </h2>
+          <p className="text-sm text-[var(--muted)]">
+            Letzte 12 Monate. Überstunden werden nur innerhalb eines Monats
+            kompensiert — kein Übertrag.
+          </p>
+        </div>
+        <div className="card overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-xs tracking-wide text-[var(--muted)] uppercase">
+                <th className="px-4 py-3 font-semibold">Monat</th>
+                <th className="px-3 py-3 text-right font-semibold">Ist</th>
+                <th className="px-3 py-3 text-right font-semibold">Soll</th>
+                <th className="px-3 py-3 text-right font-semibold">Saldo</th>
+                <th className="px-4 py-3 font-semibold">Abwesend</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {balances.map((m) => (
+                <tr key={m.monthKey}>
+                  <td className="px-4 py-3 font-semibold">
+                    {m.label}
+                    {m.isRunning && (
+                      <span className="ml-2 rounded-full bg-[var(--highlight)] px-2 py-0.5 text-[0.65rem] font-extrabold uppercase">
+                        Bis heute
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {formatHours(m.istHours)} h
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-[var(--muted)]">
+                    {formatHours(m.sollHours)} h
+                  </td>
+                  <td
+                    className={`px-3 py-3 text-right font-bold tabular-nums ${saldoTone(m.diffHours)}`}
+                  >
+                    {signed(m.diffHours)}
+                  </td>
+                  <td className="px-4 py-3 text-[var(--muted)]">
+                    {[
+                      m.sickDays > 0 ? `${m.sickDays}× Krank` : null,
+                      m.vacationDays > 0 ? `${m.vacationDays}× Ferien` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }
