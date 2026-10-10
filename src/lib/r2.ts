@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutBucketCorsCommand,
   PutObjectCommand,
@@ -211,6 +212,21 @@ export async function getObject(key: string): Promise<{
     contentType: res.ContentType || "application/octet-stream",
     metadata: res.Metadata ?? {},
   };
+}
+
+/** Stored byte size, or null when the object does not exist. */
+export async function objectSize(key: string): Promise<number | null> {
+  try {
+    const res = await getClient().send(
+      new HeadObjectCommand({ Bucket: getR2Bucket(), Key: key }),
+    );
+    return res.ContentLength ?? 0;
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } })
+      .$metadata?.httpStatusCode;
+    if (status === 404) return null;
+    throw error;
+  }
 }
 
 export async function getObjectBuffer(key: string): Promise<Buffer> {

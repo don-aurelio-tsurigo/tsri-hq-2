@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { looksLikeHeicBytes, sniffImageContentType } from "@/lib/dam/accept";
+import {
+  looksLikeHeicBytes,
+  looksLikeImageBytes,
+  sniffImageContentType,
+} from "@/lib/dam/accept";
 import { extractExif } from "@/lib/dam/exif";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { parseUploadObjectRequest } from "@/lib/dam/upload-object-body";
@@ -23,6 +27,13 @@ export async function POST(request: Request) {
   const prefix = `staging/${ctx.session.user.id}/`;
   if (!parsed.r2Key.startsWith(prefix) || parsed.r2Key.includes("..")) {
     return NextResponse.json({ error: "Ungültiger r2Key." }, { status: 400 });
+  }
+
+  if (!looksLikeImageBytes(parsed.bytes)) {
+    return NextResponse.json(
+      { error: "Datei ist leer oder kein Bild. Bitte erneut auswählen." },
+      { status: 400 },
+    );
   }
 
   try {

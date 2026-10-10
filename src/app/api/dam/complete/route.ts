@@ -7,6 +7,7 @@ import { buildFileName } from "@/lib/dam/filename";
 import { uniqueKeywords } from "@/lib/dam/keywords";
 import { enqueueDamProcessing } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
+import { objectSize } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -180,6 +181,19 @@ export async function POST(request: Request) {
   const prefix = `staging/${userId}/${batch.id}/`;
   if (body.assets.some((a) => !a.r2Key.startsWith(prefix))) {
     return NextResponse.json({ error: "r2Key gehört nicht zu diesem Batch." }, { status: 400 });
+  }
+
+  // iOS PWA uploads have arrived as 0-byte objects; never accept those.
+  const sizes = await Promise.all(
+    body.assets.map((a) => objectSize(a.r2Key).catch(() => -1)),
+  );
+  const emptyIndex = sizes.findIndex((size) => size === null || size === 0);
+  if (emptyIndex >= 0) {
+    const name = body.assets[emptyIndex].originalName;
+    return NextResponse.json(
+      { error: `«${name}» ist leer angekommen. Bitte das Foto erneut hochladen.` },
+      { status: 400 },
+    );
   }
 
   try {

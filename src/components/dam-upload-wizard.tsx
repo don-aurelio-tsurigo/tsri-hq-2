@@ -636,10 +636,24 @@ export function DamUploadWizard({
           errors.push(reason);
           continue;
         }
+        // iOS PWA hands out lazy photo files whose XHR upload body can be
+        // empty; buffer once here and upload from the in-memory copy.
+        let buffered: File;
+        try {
+          const bytes = await file.arrayBuffer();
+          if (bytes.byteLength === 0) throw new Error("empty");
+          buffered = new File([bytes], file.name, {
+            type: file.type,
+            lastModified: file.lastModified,
+          });
+        } catch {
+          errors.push(`«${file.name || "Foto"}» konnte nicht gelesen werden. Bitte erneut auswählen.`);
+          continue;
+        }
         additions.push({
           id: crypto.randomUUID(),
-          file,
-          previewUrl: await previewUrlForFile(file),
+          file: buffered,
+          previewUrl: await previewUrlForFile(buffered),
         });
       }
 
