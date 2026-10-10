@@ -543,6 +543,9 @@ function InlineTextEditor({
         minHeight: "1em",
         cursor: "text",
         userSelect: "text",
+        // Native caret is scaled with the canvas and often vanishes;
+        // InlineCaret draws a visible one instead.
+        caretColor: "transparent",
         outline: "2px solid var(--highlight)",
         outlineOffset: 6,
       }}
@@ -1965,6 +1968,114 @@ function isHtmlEditField(slide: Slide, field: string) {
   );
 }
 
+/** Screen rect of a collapsed selection (falls back to a neighbouring char). */
+function collapsedCaretRect(range: Range, editor: HTMLElement): DOMRect | null {
+  const direct = Array.from(range.getClientRects()).find((r) => r.height > 0);
+  if (direct) return direct;
+  const node = range.startContainer;
+  const offset = range.startOffset;
+  if (node.nodeType === Node.TEXT_NODE) {
+    const length = node.textContent?.length ?? 0;
+    const probe = document.createRange();
+    if (offset < length) {
+      probe.setStart(node, offset);
+      probe.setEnd(node, offset + 1);
+      const r = probe.getClientRects()[0];
+      if (r) return new DOMRect(r.left, r.top, 0, r.height);
+    }
+    if (offset > 0) {
+      probe.setStart(node, offset - 1);
+      probe.setEnd(node, offset);
+      const r = probe.getClientRects()[0];
+      if (r) return new DOMRect(r.right, r.top, 0, r.height);
+    }
+  } else if (node instanceof Element) {
+    const child = node.childNodes[offset] ?? node.childNodes[offset - 1];
+    if (child instanceof Element) {
+      const r = child.getBoundingClientRect();
+      if (r.height > 0) return new DOMRect(r.left, r.top, 0, r.height);
+    }
+  }
+  // Empty editor: start of its first line.
+  const box = editor.getBoundingClientRect();
+  const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+  const scaleY = editor.offsetHeight ? box.height / editor.offsetHeight : 1;
+  const height = Number.isFinite(lineHeight)
+    ? lineHeight * scaleY
+    : Math.min(box.height, 24);
+  return new DOMRect(box.left, box.top, 0, height);
+}
+
+/**
+ * A crisp, blinking caret for inline editing. The browser's own caret lives
+ * inside the scaled-down canvas and is drawn sub-pixel thin (often invisible).
+ */
+function InlineCaret({
+  wrapperRef,
+  canvasRef,
+}: {
+  wrapperRef: RefObject<HTMLDivElement | null>;
+  canvasRef: RefObject<HTMLDivElement | null>;
+}) {
+  const caretRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function update() {
+      const caret = caretRef.current;
+      const wrapper = wrapperRef.current;
+      const editor = canvasRef.current?.querySelector<HTMLElement>(
+        "[contenteditable]",
+      );
+      const selection = window.getSelection();
+      if (!caret || !wrapper || !editor) return;
+      const range =
+        selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      const show =
+        range !== null &&
+        range.collapsed &&
+        document.activeElement === editor &&
+        editor.contains(range.startContainer);
+      if (!show) {
+        caret.style.display = "none";
+        return;
+      }
+      const rect = collapsedCaretRect(range, editor);
+      if (!rect) {
+        caret.style.display = "none";
+        return;
+      }
+      const base = wrapper.getBoundingClientRect();
+      caret.style.display = "block";
+      caret.style.left = `${rect.left - base.left - 1}px`;
+      caret.style.top = `${rect.top - base.top}px`;
+      caret.style.height = `${Math.max(rect.height, 8)}px`;
+      caret.style.backgroundColor = getComputedStyle(editor).color;
+      // Restart blinking so the caret is solid right after it moves.
+      caret.style.animation = "none";
+      void caret.offsetWidth;
+      caret.style.animation = "";
+    }
+    update();
+    document.addEventListener("selectionchange", update);
+    document.addEventListener("input", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      document.removeEventListener("selectionchange", update);
+      document.removeEventListener("input", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [wrapperRef, canvasRef]);
+
+  return (
+    <div
+      ref={caretRef}
+      aria-hidden
+      className="carousel-inline-caret pointer-events-none absolute z-[3] w-[2px] rounded-full"
+      style={{ display: "none" }}
+    />
+  );
+}
+
 /** Floating B / I / Fertig while a text field is edited on the canvas. */
 function InlineEditToolbar({ html }: { html: boolean }) {
   const button =
@@ -2043,6 +2154,7 @@ export function CarouselSlidePreview({
     null,
   );
   const canvasRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const editable = interactive && !forExport;
   const editingField =
@@ -2163,6 +2275,7 @@ export function CarouselSlidePreview({
       }}
     >
       <div
+        ref={wrapperRef}
         className="relative shrink-0 select-none"
         style={{
           width: CANVAS_WIDTH * scale,
@@ -2202,7 +2315,10 @@ export function CarouselSlidePreview({
           onManipulate={setManipulating}
         />
         {editingField ? (
-          <InlineEditToolbar html={isHtmlEditField(slide, editingField)} />
+          <>
+            <InlineEditToolbar html={isHtmlEditField(slide, editingField)} />
+            <InlineCaret wrapperRef={wrapperRef} canvasRef={canvasRef} />
+          </>
         ) : null}
       </div>
     </CanvasEditContext.Provider>
