@@ -30,7 +30,10 @@ import { DamMailchimpCropDialog } from "@/components/dam-mailchimp-crop-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { useToast } from "@/components/toast";
 import { archiveCollectionHref } from "@/lib/dam/archive-filters";
-import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import {
+  downloadPublishedAssets,
+  PendingPhotoShare,
+} from "@/lib/dam/browser-download";
 import type { DamDownloadFormat } from "@/lib/dam/download-path";
 import { damEditorSrc, damFileSrc, isDefaultEditParams } from "@/lib/dam/edit-params";
 import { fileExtension } from "@/lib/dam/filename";
@@ -103,6 +106,7 @@ export function DamArchivePreview({
   const [draft, setDraft] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [pendingShare, setPendingShare] = useState<PendingPhotoShare | null>(null);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [mailchimpOpen, setMailchimpOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -112,6 +116,7 @@ export function DamArchivePreview({
   if (asset?.id !== seenId) {
     setSeenId(asset?.id);
     setDownloadError(null);
+    setPendingShare(null);
     setDownloading(false);
     setDownloadMenuOpen(false);
     setExportError(null);
@@ -251,11 +256,13 @@ export function DamArchivePreview({
     if (!asset || downloading) return;
     setDownloadMenuOpen(false);
     setDownloadError(null);
+    setPendingShare(null);
     setDownloading(true);
     try {
       await downloadPublishedAssets([asset.id], undefined, format);
     } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
+      if (err instanceof PendingPhotoShare) setPendingShare(err);
+      else setDownloadError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
     } finally {
       setDownloading(false);
     }
@@ -504,6 +511,22 @@ export function DamArchivePreview({
             </div>
             {downloadError ? (
               <p className="text-sm text-red-600">{downloadError}</p>
+            ) : null}
+            {pendingShare ? (
+              <button
+                type="button"
+                className="btn btn-primary w-full px-3 py-2 text-sm"
+                onClick={() => {
+                  const share = pendingShare;
+                  setPendingShare(null);
+                  share.share().catch((err: unknown) => {
+                    if (err instanceof PendingPhotoShare) setPendingShare(err);
+                    else setDownloadError(err instanceof Error ? err.message : "Sichern fehlgeschlagen.");
+                  });
+                }}
+              >
+                In Fotos sichern
+              </button>
             ) : null}
             {exportError ? (
               <p className="text-sm text-red-600">{exportError}</p>

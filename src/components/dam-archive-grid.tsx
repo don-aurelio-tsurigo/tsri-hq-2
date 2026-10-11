@@ -19,7 +19,10 @@ import {
   updateAssetMetadata,
 } from "@/lib/actions/dam";
 import type { ArchiveFacets } from "@/lib/dam/archive-search";
-import { downloadPublishedAssets } from "@/lib/dam/browser-download";
+import {
+  downloadPublishedAssets,
+  PendingPhotoShare,
+} from "@/lib/dam/browser-download";
 import { damEditorSrc, damFileSrc } from "@/lib/dam/edit-params";
 import { MAX_ARCHIVE_DOWNLOADS } from "@/lib/dam/download-constants";
 import { useFinePointer } from "@/lib/use-media-query";
@@ -55,6 +58,7 @@ export function DamArchiveGrid({
   const [editorId, setEditorId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
+  const [pendingShare, setPendingShare] = useState<PendingPhotoShare | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [trashIds, setTrashIds] = useState<string[] | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -232,6 +236,7 @@ export function DamArchiveGrid({
       return;
     }
     setError(null);
+    setPendingShare(null);
     setDownloading(true);
     setProgress(ids.length > 1 ? `0 / ${ids.length}` : null);
     try {
@@ -239,7 +244,8 @@ export function DamArchiveGrid({
         setProgress(total > 1 ? `${done} / ${total}` : null);
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
+      if (err instanceof PendingPhotoShare) setPendingShare(err);
+      else setError(err instanceof Error ? err.message : "Download fehlgeschlagen.");
     } finally {
       setDownloading(false);
       setProgress(null);
@@ -338,6 +344,24 @@ export function DamArchiveGrid({
         <p className="text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
+      ) : null}
+      {pendingShare ? (
+        <button
+          type="button"
+          className="btn btn-primary self-start"
+          onClick={() => {
+            const share = pendingShare;
+            setPendingShare(null);
+            share.share().catch((err: unknown) => {
+              if (err instanceof PendingPhotoShare) setPendingShare(err);
+              else setError(err instanceof Error ? err.message : "Sichern fehlgeschlagen.");
+            });
+          }}
+        >
+          {pendingShare.count > 1
+            ? `${pendingShare.count} Bilder in Fotos sichern`
+            : "In Fotos sichern"}
+        </button>
       ) : null}
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
