@@ -68,14 +68,19 @@ import {
   type Slide,
 } from "@/lib/carousel/types";
 import type { CarouselFormat } from "@/lib/carousel/format";
+import { hyphenateHtml, hyphenateText } from "@/lib/carousel/hyphenate";
 import { normalizeQuoteMarks } from "@/lib/carousel/quotes";
 
 const CAROUSEL_FONT =
   "var(--font-carousel), 'Roboto', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', system-ui, sans-serif";
 
+/**
+ * Break points come from hyphenateText (soft hyphens), not the browser —
+ * so every browser and the PNG export wrap slide text identically.
+ */
 const SLIDE_TEXT_HYPHENS: CSSProperties = {
-  hyphens: "auto",
-  WebkitHyphens: "auto",
+  hyphens: "manual",
+  WebkitHyphens: "manual",
 };
 
 /** Spiral calendar close to 🗓️ (Twemoji-style), not a UI line icon. */
@@ -546,6 +551,9 @@ function InlineTextEditor({
         // Native caret is scaled with the canvas and often vanishes;
         // InlineCaret draws a visible one instead.
         caretColor: "transparent",
+        // Raw text while typing: browser hyphenation as a close approximation.
+        hyphens: style?.hyphens ? "auto" : undefined,
+        WebkitHyphens: style?.hyphens ? "auto" : undefined,
         outline: "2px solid var(--highlight)",
         outlineOffset: 6,
       }}
@@ -930,10 +938,12 @@ function TextPreview({
         onPointerMove={textDrag.onPointerMove}
         onPointerUp={textDrag.onPointerUp}
         html={
-          slideHtml(
-            isTipp
-              ? separateTsueritippEvents(slide.bodyHtml)
-              : slide.bodyHtml,
+          hyphenateHtml(
+            slideHtml(
+              isTipp
+                ? separateTsueritippEvents(slide.bodyHtml)
+                : slide.bodyHtml,
+            ),
           ) || "<span style='opacity:0.55'>Text…</span>"
         }
       />
@@ -1065,7 +1075,7 @@ function QuotePreview({
           }}
           html={(() => {
             const raw = normalizeQuoteMarks(slide.quoteText || "Zitat…");
-            const html = slideHtml(raw);
+            const html = hyphenateHtml(slideHtml(raw));
             const plain = raw.replace(/<[^>]+>/g, "");
             if (plain.trimEnd().endsWith("»")) return html;
             return `${html}»`;
@@ -1205,7 +1215,7 @@ function FragePreview({
             ...SLIDE_TEXT_HYPHENS,
           }}
         >
-          {decodeHtmlEntities(slide.questionText) || "Frage…"}
+          {hyphenateText(decodeHtmlEntities(slide.questionText)) || "Frage…"}
         </SlideText>
         <div style={{ marginTop: 56 }}>
           <p
@@ -1233,7 +1243,7 @@ function FragePreview({
             }}
             html={(() => {
               const raw = normalizeQuoteMarks(slide.quoteText || "Zitat…");
-              const html = slideHtml(raw);
+              const html = hyphenateHtml(slideHtml(raw));
               const plain = raw.replace(/<[^>]+>/g, "");
               if (plain.trimEnd().endsWith("»")) return html;
               return `${html}»`;
@@ -1305,13 +1315,14 @@ function TippItemPreview({
             style={{ marginBottom: index === slide.items.length - 1 ? 0 : 56 }}
           >
             <p className="font-bold" style={{ fontSize: 52, lineHeight: 1.15 }}>
-              {decodeHtmlEntities(item.title) || "Wochentag: Thema."}
+              {hyphenateText(decodeHtmlEntities(item.title)) ||
+                "Wochentag: Thema."}
             </p>
             <p
               className="font-normal"
               style={{ fontSize: 40, lineHeight: 1.25, marginTop: 16 }}
             >
-              {decodeHtmlEntities(item.body) || "Termintext…"}
+              {hyphenateText(decodeHtmlEntities(item.body)) || "Termintext…"}
             </p>
             {item.meta ? (
               <p
@@ -1319,7 +1330,9 @@ function TippItemPreview({
                 style={{ fontSize: 36, lineHeight: 1.2, marginTop: 16 }}
               >
                 <CalendarIcon />
-                {withCalendarEmoji(decodeHtmlEntities(item.meta)).text}
+                {hyphenateText(
+                  withCalendarEmoji(decodeHtmlEntities(item.meta)).text,
+                )}
               </p>
             ) : null}
           </div>

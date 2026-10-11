@@ -623,9 +623,10 @@ textarea {
   }
 }
 
+/* Soft hyphens come from hyphenateText; browsers must not add their own. */
 .carousel-slide-text {
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 
 .sixibrief-text b {
