@@ -52,12 +52,8 @@ export type SolverInput = {
   members: SolverMember[];
   quotas: SolverQuota[];
   vacations: SolverVacation[];
-  /** Existing non-proposed campaigns (and council stubs including skipped) */
+  /** Existing campaigns in the month */
   existing: SolverExisting[];
-  /** Type id for Züri Briefing (compensation target) */
-  briefingTypeId: string | null;
-  /** Type id for Gemeinderats-Briefing */
-  councilTypeId: string | null;
 };
 
 export type SolverResult = {
@@ -281,8 +277,8 @@ function typeById(types: SolverType[], typeId: string) {
 /**
  * Pure shift-plan proposal generator (no DB).
  * Hard rules: max 1 assignment per person/day, vacations + fixedDayOff,
- * fixed quotas, quota caps, ≥1 evening shift (unless all evening types excluded),
- * council only on non-skipped stubs. Soft: spread a person's shifts
+ * fixed quotas, quota caps, ≥1 evening shift (unless all evening types
+ * excluded). Soft: spread a person's shifts
  * across the month instead of stacking earliest dates.
  */
 export function generateProposal(input: SolverInput): SolverResult {
@@ -307,49 +303,12 @@ export function generateProposal(input: SolverInput): SolverResult {
     assign(state, ex.userId, ex.typeId, ex.dateKey);
   }
 
-  // Council compensation: unmet fixed council quotas due to skipped stubs
-  // become extra hard Züri-Briefing targets for those users.
-  const extraBriefing = new Map<string, number>();
-  if (input.councilTypeId && input.briefingTypeId) {
-    const councilType = typesById.get(input.councilTypeId);
-    const openCouncilSlots = councilType?.slotDateKeys.length ?? 0;
-    const councilQuotas = input.quotas.filter(
-      (q) => q.typeId === input.councilTypeId && q.isFixed,
-    );
-    const totalFixedDemand = councilQuotas.reduce(
-      (s, q) => s + q.minCount,
-      0,
-    );
-    if (totalFixedDemand > openCouncilSlots && councilQuotas.length > 0) {
-      let shortage = totalFixedDemand - openCouncilSlots;
-      // Distribute shortage proportionally to fixed council authors
-      for (const q of councilQuotas) {
-        if (shortage <= 0) break;
-        const take = Math.min(q.minCount, shortage);
-        if (take > 0) {
-          extraBriefing.set(
-            q.userId,
-            (extraBriefing.get(q.userId) ?? 0) + take,
-          );
-          const m = memberById(input.members, q.userId);
-          warnings.push(
-            `${m?.name ?? q.userId}: ${take}× Gemeinderat entfällt (Sitzung skipped) → ${take}× zusätzliches Züri-Briefing.`,
-          );
-          shortage -= take;
-        }
-      }
-    }
-  }
-
-  // --- Phase 1: fixed quotas (council first, then others) ---
-  const fixedQuotas = [
-    ...input.quotas.filter(
-      (q) => q.isFixed && q.typeId === input.councilTypeId,
-    ),
-    ...input.quotas.filter(
-      (q) => q.isFixed && q.typeId !== input.councilTypeId,
-    ),
-  ];
+  // --- Phase 1: fixed quotas, scarce types first (fewest slots) ---
+  const slotCount = (typeId: string) =>
+    typesById.get(typeId)?.slotDateKeys.length ?? 0;
+  const fixedQuotas = input.quotas
+    .filter((q) => q.isFixed)
+    .sort((a, b) => slotCount(a.typeId) - slotCount(b.typeId));
 
   for (const q of fixedQuotas) {
     const member = memberById(input.members, q.userId);
@@ -359,20 +318,7 @@ export function generateProposal(input: SolverInput): SolverResult {
     const target = q.minCount;
     let have = getCount(state, q.userId, q.typeId);
 
-    // For council authors with compensation, reduce council target by extra
-    let effectiveTarget = target;
-    if (
-      input.councilTypeId &&
-      q.typeId === input.councilTypeId &&
-      extraBriefing.has(q.userId)
-    ) {
-      effectiveTarget = Math.max(
-        0,
-        target - (extraBriefing.get(q.userId) ?? 0),
-      );
-    }
-
-    while (have < effectiveTarget) {
+    while (have < target) {
       const dates = availableDates(
         state,
         member,
@@ -382,7 +328,7 @@ export function generateProposal(input: SolverInput): SolverResult {
       );
       if (dates.length === 0) {
         warnings.push(
-          `Fixquote ${type.name} für ${member.name}: ${have}/${effectiveTarget} möglich (Ferien/freier Tag/Konflikte).`,
+          `Fixquote ${type.name} für ${member.name}: ${have}/${target} möglich (Ferien/freier Tag/Konflikte).`,
         );
         break;
       }
@@ -393,41 +339,6 @@ export function generateProposal(input: SolverInput): SolverResult {
       );
       assign(state, member.userId, type.id, pick);
       have += 1;
-    }
-  }
-
-  // Apply compensation as hard briefing quotas
-  if (input.briefingTypeId) {
-    const briefingType = typesById.get(input.briefingTypeId);
-    if (briefingType) {
-      for (const [userId, extra] of extraBriefing) {
-        const member = memberById(input.members, userId);
-        if (!member) continue;
-        let have = getCount(state, userId, briefingType.id);
-        const target = have + extra;
-        while (have < target) {
-          const dates = availableDates(
-            state,
-            member,
-            briefingType,
-            input.vacations,
-            quotas,
-          );
-          if (dates.length === 0) {
-            warnings.push(
-              `Kompensations-Briefing für ${member.name}: nur ${have - (target - extra)}/${extra} zusätzlich möglich.`,
-            );
-            break;
-          }
-          assign(
-            state,
-            member.userId,
-            briefingType.id,
-            pickSpreadDate(dates, state.userDays.get(member.userId)),
-          );
-          have += 1;
-        }
-      }
     }
   }
 

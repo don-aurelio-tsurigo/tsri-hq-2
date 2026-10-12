@@ -67,14 +67,6 @@ const SHIFT_PLAN_TYPES: {
     schedulingMode: "newsletter",
   },
   {
-    name: "Gemeinderats-Briefing",
-    frequency: "weekly",
-    weekdays: [],
-    isNewsletter: true,
-    isEveningShift: true,
-    schedulingMode: "manualDates",
-  },
-  {
     name: "Repo",
     frequency: "daily",
     weekdays: DEFAULT_WEEKDAYS_BY_FREQUENCY.daily,
@@ -90,11 +82,41 @@ export function isShiftPlanManagedType(name: string): boolean {
   return SHIFT_PLAN_MANAGED_TYPE_NAMES.includes(name);
 }
 
-export const COUNCIL_TYPE_NAME = "Gemeinderats-Briefing";
-export const BRIEFING_TYPE_NAME = "Züri Briefing";
 export const REPO_TYPE_NAME = "Repo";
 
+/**
+ * Früher gab es einen fest eingebauten Gemeinderats-Typ mit einzeln
+ * erfassten Sitzungsterminen («manualDates»). Diesen ausblenden; Gemeinderat
+ * wird wie jeder andere Newsletter selbst angelegt.
+ */
+async function retireLegacyManualDateTypes(organizationId: string) {
+  const legacy = await prisma.newsletterType.findMany({
+    where: { organizationId, schedulingMode: "manualDates" },
+    select: { id: true },
+  });
+  for (const row of legacy) {
+    // Leere Sitzungs-Platzhalter ohne Autor:in entfernen
+    await prisma.newsletterCampaign.deleteMany({
+      where: {
+        typeId: row.id,
+        authorId: null,
+        status: { in: ["planned", "skipped"] },
+      },
+    });
+    await prisma.newsletterType.update({
+      where: { id: row.id },
+      data: {
+        schedulingMode: "newsletter",
+        active: false,
+        isNewsletter: false,
+      },
+    });
+  }
+}
+
 export async function ensureShiftPlanTypes(organizationId: string) {
+  await retireLegacyManualDateTypes(organizationId);
+
   const existing = await prisma.newsletterType.findMany({
     where: { organizationId },
     select: {
@@ -156,14 +178,6 @@ export async function ensureShiftPlanTypes(organizationId: string) {
     if (row.weekdays.length === 0 && def.weekdays.length > 0) {
       patch.weekdays = def.weekdays;
       patch.frequency = def.frequency;
-    }
-    // manualDates types should keep empty weekdays
-    if (
-      def.schedulingMode === "manualDates" &&
-      row.weekdays.length > 0 &&
-      row.schedulingMode !== "manualDates"
-    ) {
-      patch.weekdays = [];
     }
     // One-time named color when still on schema default
     if (row.color === NEWSLETTER_TYPE_COLOR_DEFAULT) {
@@ -301,29 +315,20 @@ export async function listShiftPlanMonth(
   const byDate = new Map<string, ShiftPlanSlot[]>();
 
   for (const type of types) {
-    let keys: string[];
-    if (type.schedulingMode === "manualDates") {
-      keys = campaigns
-        .filter((c) => c.typeId === type.id)
-        .map((c) => c.date.toISOString().slice(0, 10));
-      keys = [...new Set(keys)].sort();
-    } else {
-      const campaignKeys = campaigns
-        .filter((c) => c.typeId === type.id)
-        .map((c) => c.date.toISOString().slice(0, 10));
-      keys = scheduledOrCampaignDateKeysInMonth(
-        type.weekdays,
-        year,
-        monthIndex0,
-        campaignKeys,
-      );
-    }
+    const campaignKeys = campaigns
+      .filter((c) => c.typeId === type.id)
+      .map((c) => c.date.toISOString().slice(0, 10));
+    const keys = scheduledOrCampaignDateKeysInMonth(
+      type.weekdays,
+      year,
+      monthIndex0,
+      campaignKeys,
+    );
 
     for (const dateKey of keys) {
       const existing = campaignByKey.get(`${type.id}:${dateKey}`);
       // Feiertage/Sommerpause ausblenden, bereits besetzte Einsätze aber zeigen
       if (
-        type.schedulingMode !== "manualDates" &&
         isDateKeyHiddenForType(dateKey, type.id, calendarSettings) &&
         !(existing?.authorId && existing.status !== "proposed")
       ) {
@@ -376,43 +381,6 @@ export async function listShiftPlanMonth(
     nextMonth: monthParamKey(next),
     days,
   };
-}
-
-export async function listCouncilSessionStubs(
-  organizationId: string,
-  monthAnchor?: Date,
-) {
-  const council = await prisma.newsletterType.findFirst({
-    where: {
-      organizationId,
-      name: COUNCIL_TYPE_NAME,
-      active: true,
-    },
-  });
-  if (!council) return [];
-
-  const whereDate =
-    monthAnchor != null
-      ? {
-          gte: new Date(
-            `${format(startOfMonth(monthAnchor), "yyyy-MM-dd")}T12:00:00.000Z`,
-          ),
-          lte: new Date(
-            `${format(endOfMonth(monthAnchor), "yyyy-MM-dd")}T12:00:00.000Z`,
-          ),
-        }
-      : undefined;
-
-  return prisma.newsletterCampaign.findMany({
-    where: {
-      typeId: council.id,
-      ...(whereDate ? { date: whereDate } : {}),
-    },
-    include: {
-      author: { select: { id: true, name: true } },
-    },
-    orderBy: { date: "asc" },
-  });
 }
 
 export function parseMonthYear(month: number, year: number): Date {

@@ -7,8 +7,6 @@ import { prisma } from "@/lib/db";
 import { membershipInTagPool } from "@/lib/membership-grants";
 import { requireEditorialLead, requireMembership } from "@/lib/session";
 import {
-  BRIEFING_TYPE_NAME,
-  COUNCIL_TYPE_NAME,
   ensureShiftPlanTypes,
   listShiftPlanTypes,
 } from "@/lib/shift-plan";
@@ -262,95 +260,6 @@ export async function clearMemberShiftQuotas(formData: FormData) {
   return { ok: true as const };
 }
 
-const councilStubSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  note: z
-    .string()
-    .trim()
-    .max(500)
-    .transform((v) => (v.length === 0 ? null : v)),
-});
-
-export async function createCouncilSessionStub(formData: FormData) {
-  const { session, membership } = await requireEditorialLead();
-  await ensureShiftPlanTypes(membership.organizationId);
-
-  const parsed = councilStubSchema.safeParse({
-    date: formData.get("date"),
-    note: formData.get("note") ?? "",
-  });
-  if (!parsed.success) return { error: "Datum prüfen." };
-
-  const council = await prisma.newsletterType.findFirst({
-    where: {
-      organizationId: membership.organizationId,
-      name: COUNCIL_TYPE_NAME,
-      active: true,
-    },
-  });
-  if (!council) return { error: "Gemeinderats-Briefing-Typ fehlt." };
-
-  const date = new Date(`${parsed.data.date}T12:00:00.000Z`);
-  const existing = await prisma.newsletterCampaign.findFirst({
-    where: { typeId: council.id, date },
-  });
-  if (existing) {
-    if (existing.status === "skipped") {
-      await prisma.newsletterCampaign.update({
-        where: { id: existing.id },
-        data: {
-          status: "planned",
-          authorId: null,
-          note: parsed.data.note,
-        },
-      });
-      revalidateShiftPaths();
-      return { ok: true as const, id: existing.id };
-    }
-    return { error: "Für dieses Datum gibt es schon einen Termin." };
-  }
-
-  const created = await prisma.newsletterCampaign.create({
-    data: {
-      typeId: council.id,
-      authorId: null,
-      createdById: session.user.id,
-      date,
-      status: "planned",
-      note: parsed.data.note,
-    },
-  });
-
-  revalidateShiftPaths();
-  return { ok: true as const, id: created.id };
-}
-
-export async function markCouncilSessionSkipped(formData: FormData) {
-  const { membership } = await requireEditorialLead();
-  const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "Fehlende ID." };
-
-  const campaign = await prisma.newsletterCampaign.findUnique({
-    where: { id },
-    include: { type: true },
-  });
-  if (
-    !campaign ||
-    campaign.type.organizationId !== membership.organizationId ||
-    campaign.type.name !== COUNCIL_TYPE_NAME
-  ) {
-    return { error: "Sitzungstermin nicht gefunden." };
-  }
-
-  await prisma.newsletterCampaign.update({
-    where: { id },
-    data: { status: "skipped" },
-  });
-
-  revalidateShiftPaths();
-  return { ok: true as const };
-}
-
 const monthSchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
   year: z.coerce.number().int().min(2000).max(2100),
@@ -411,31 +320,18 @@ export async function generateShiftPlanProposal(formData: FormData) {
       getNewsletterCalendarSettings(membership.organizationId),
     ]);
 
-  const briefingType = types.find((t) => t.name === BRIEFING_TYPE_NAME);
-  const councilType = types.find((t) => t.name === COUNCIL_TYPE_NAME);
-
   const solverTypes: SolverType[] = types.map((t) => {
-    let slotDateKeys: string[];
-    if (t.schedulingMode === "manualDates") {
-      // Non-skipped stubs (incl. empty planned / with author / proposed)
-      slotDateKeys = campaigns
-        .filter((c) => c.typeId === t.id && c.status !== "skipped")
-        .map((c) => c.date.toISOString().slice(0, 10));
-      slotDateKeys = [...new Set(slotDateKeys)].sort();
-    } else {
-      const campaignKeys = campaigns
-        .filter((c) => c.typeId === t.id)
-        .map((c) => c.date.toISOString().slice(0, 10));
-      slotDateKeys = scheduledOrCampaignDateKeysInMonth(
-        t.weekdays,
-        year,
-        month - 1,
-        campaignKeys,
-      ).filter(
-        (dateKey) =>
-          !isDateKeyHiddenForType(dateKey, t.id, calendarSettings),
-      );
-    }
+    const campaignKeys = campaigns
+      .filter((c) => c.typeId === t.id)
+      .map((c) => c.date.toISOString().slice(0, 10));
+    const slotDateKeys = scheduledOrCampaignDateKeysInMonth(
+      t.weekdays,
+      year,
+      month - 1,
+      campaignKeys,
+    ).filter(
+      (dateKey) => !isDateKeyHiddenForType(dateKey, t.id, calendarSettings),
+    );
     return {
       id: t.id,
       name: t.name,
@@ -481,28 +377,18 @@ export async function generateShiftPlanProposal(formData: FormData) {
     quotas: solverQuotas,
     vacations: solverVacations,
     existing: solverExisting,
-    briefingTypeId: briefingType?.id ?? null,
-    councilTypeId: councilType?.id ?? null,
   });
 
-  // Replace existing proposed rows in month (keep council date stubs as empty planned)
+  // Replace existing proposed rows in month
   const proposedRows = await prisma.newsletterCampaign.findMany({
     where: {
       type: { organizationId: membership.organizationId },
       status: "proposed",
       date: { gte: dateFrom, lte: dateTo },
     },
-    include: { type: { select: { name: true } } },
   });
   for (const row of proposedRows) {
-    if (row.type.name === COUNCIL_TYPE_NAME) {
-      await prisma.newsletterCampaign.update({
-        where: { id: row.id },
-        data: { status: "planned", authorId: null },
-      });
-    } else {
-      await prisma.newsletterCampaign.delete({ where: { id: row.id } });
-    }
+    await prisma.newsletterCampaign.delete({ where: { id: row.id } });
   }
 
   if (assignments.length > 0) {
@@ -710,18 +596,7 @@ export async function clearShiftSlot(formData: FormData) {
     ) {
       return { error: "Eintrag nicht gefunden." };
     }
-    // Council stubs: clear author but keep date row unless proposed
-    if (
-      campaign.type.name === COUNCIL_TYPE_NAME &&
-      campaign.status !== "proposed"
-    ) {
-      await prisma.newsletterCampaign.update({
-        where: { id: campaign.id },
-        data: { authorId: null, status: "planned" },
-      });
-    } else {
-      await prisma.newsletterCampaign.delete({ where: { id: campaign.id } });
-    }
+    await prisma.newsletterCampaign.delete({ where: { id: campaign.id } });
     revalidateShiftPaths();
     return { ok: true as const };
   }

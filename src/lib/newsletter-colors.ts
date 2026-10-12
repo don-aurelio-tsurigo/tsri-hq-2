@@ -9,6 +9,7 @@ export const NEWSLETTER_TYPE_COLORS_BY_NAME: Record<string, string> = {
   Tsüritipp: "#b45309",
   "Gemeinderats-Briefing": "#6d28d9",
   "Gemeinderats Briefing": "#6d28d9",
+  Gemeinderatsbriefing: "#6d28d9",
   Repo: "#475569",
   "6iBrief": "#be185d",
 };

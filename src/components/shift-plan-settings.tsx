@@ -4,8 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   clearMemberShiftQuotas,
-  createCouncilSessionStub,
-  markCouncilSessionSkipped,
   saveMemberShiftQuotas,
 } from "@/lib/actions";
 
@@ -28,14 +26,6 @@ type QuotaRow = {
   minCount: number;
   maxCount: number;
   isFixed: boolean;
-};
-
-type CouncilStub = {
-  id: string;
-  dateKey: string;
-  status: string;
-  note: string | null;
-  authorName: string | null;
 };
 
 type QuotaMode = "open" | "off" | "fixed" | "range";
@@ -344,56 +334,17 @@ export function ShiftPlanSettings({
   members,
   types,
   quotas,
-  councilStubs,
 }: {
   members: MemberRow[];
   types: TypeRow[];
   quotas: QuotaRow[];
-  councilStubs: CouncilStub[];
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [councilDate, setCouncilDate] = useState("");
-  const [councilNote, setCouncilNote] = useState("");
-
   function runPending(fn: () => Promise<void>) {
     startTransition(fn);
-  }
-
-  function addCouncil() {
-    setError(null);
-    setMessage(null);
-    const fd = new FormData();
-    fd.set("date", councilDate);
-    fd.set("note", councilNote);
-    startTransition(async () => {
-      const result = await createCouncilSessionStub(fd);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      setCouncilDate("");
-      setCouncilNote("");
-      setMessage("Sitzungstermin eingetragen.");
-      router.refresh();
-    });
-  }
-
-  function skipCouncil(id: string) {
-    setError(null);
-    const fd = new FormData();
-    fd.set("id", id);
-    startTransition(async () => {
-      const result = await markCouncilSessionSkipped(fd);
-      if (result?.error) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-    });
   }
 
   return (
@@ -452,93 +403,6 @@ export function ShiftPlanSettings({
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-            Gemeinderats-Sitzungen
-          </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Unregelmässige Termine manuell erfassen. Ausgefallene Sitzungen auf
-            «fällt aus» setzen (nicht löschen).
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-          <label className="text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Datum</span>
-            <input
-              className="input"
-              type="date"
-              value={councilDate}
-              onChange={(e) => setCouncilDate(e.target.value)}
-            />
-          </label>
-          <label className="grow text-sm">
-            <span className="mb-1 block text-[var(--muted)]">Notiz</span>
-            <input
-              className="input w-full min-w-[12rem]"
-              value={councilNote}
-              onChange={(e) => setCouncilNote(e.target.value)}
-              placeholder="optional"
-            />
-          </label>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={pending || !councilDate}
-            onClick={addCouncil}
-          >
-            Termin hinzufügen
-          </button>
-        </div>
-
-        <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
-          {councilStubs.map((s) => (
-            <li
-              key={s.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
-            >
-              <div>
-                <span
-                  className={
-                    s.status === "skipped"
-                      ? "text-[var(--muted)] line-through"
-                      : "font-medium"
-                  }
-                >
-                  {s.dateKey}
-                </span>
-                {s.note ? (
-                  <span className="ml-2 text-[var(--muted)]">· {s.note}</span>
-                ) : null}
-                {s.authorName ? (
-                  <span className="ml-2 text-[var(--muted)]">
-                    · {s.authorName}
-                  </span>
-                ) : null}
-                {s.status === "skipped" ? (
-                  <span className="ml-2 text-amber-700">fällt aus</span>
-                ) : null}
-              </div>
-              {s.status !== "skipped" && (
-                <button
-                  type="button"
-                  className="text-[var(--muted)] underline-offset-2 hover:underline"
-                  disabled={pending}
-                  onClick={() => skipCouncil(s.id)}
-                >
-                  Als ausgefallen markieren
-                </button>
-              )}
-            </li>
-          ))}
-          {councilStubs.length === 0 && (
-            <li className="px-4 py-6 text-sm text-[var(--muted)]">
-              Noch keine Sitzungstermine.
-            </li>
-          )}
-        </ul>
-      </section>
     </div>
   );
 }

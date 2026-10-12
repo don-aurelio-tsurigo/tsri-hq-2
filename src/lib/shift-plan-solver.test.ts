@@ -32,9 +32,10 @@ const repo = {
 };
 const council = {
   id: "council",
-  name: "Gemeinderats-Briefing",
+  name: "Gemeinderatsbriefing",
   isEveningShift: true,
-  schedulingMode: "manualDates" as const,
+  schedulingMode: "newsletter" as const,
+  // Donnerstage ohne Pausen (2026-09-03 und 2026-09-17 sitzungsfrei)
   slotDateKeys: ["2026-09-10", "2026-09-24"],
 };
 
@@ -68,8 +69,6 @@ function baseInput(over: Partial<SolverInput> = {}): SolverInput {
     quotas: [],
     vacations: [],
     existing: [],
-    briefingTypeId: "briefing",
-    councilTypeId: "council",
     ...over,
   };
 }
@@ -181,7 +180,6 @@ describe("generateProposal", () => {
           },
         ],
         types: [briefing, repo],
-        councilTypeId: null,
       }),
     );
     const n = result.assignments.filter(
@@ -190,7 +188,7 @@ describe("generateProposal", () => {
     assert.equal(n, 2);
   });
 
-  it("only assigns council on stub dates", () => {
+  it("only assigns a type on its slot dates", () => {
     const result = generateProposal(
       baseInput({
         quotas: [
@@ -212,48 +210,10 @@ describe("generateProposal", () => {
     }
   });
 
-  it("compensates skipped council with extra briefings", () => {
-    // Only one open council slot but fixed demand 2 → 1 compensation briefing
-    const result = generateProposal(
-      baseInput({
-        types: [
-          briefing,
-          repo,
-          { ...council, slotDateKeys: ["2026-09-10"] },
-        ],
-        quotas: [
-          {
-            userId: "cara",
-            typeId: "council",
-            minCount: 2,
-            maxCount: 2,
-            isFixed: true,
-          },
-        ],
-        existing: [
-          {
-            userId: null,
-            typeId: "council",
-            dateKey: "2026-09-24",
-            status: "skipped",
-          },
-        ],
-      }),
-    );
-    assert.ok(
-      result.warnings.some((w) => w.includes("zusätzliches Züri-Briefing")),
-    );
-    const briefings = result.assignments.filter(
-      (a) => a.userId === "cara" && a.typeId === "briefing",
-    );
-    assert.ok(briefings.length >= 1);
-  });
-
   it("ensures at least one evening shift when possible", () => {
     const result = generateProposal(
       baseInput({
         types: [briefing, repo],
-        councilTypeId: null,
         members: [{ userId: "solo", name: "Solo", fixedDayOff: null, eveningBlockedWeekdays: [] }],
       }),
     );
@@ -408,7 +368,6 @@ describe("generateProposal", () => {
       baseInput({
         members: [{ userId: "dana", name: "Dana", fixedDayOff: null, eveningBlockedWeekdays: [] }],
         types: [briefing],
-        councilTypeId: null,
         quotas: [
           {
             userId: "dana",

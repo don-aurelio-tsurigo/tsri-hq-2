@@ -337,8 +337,6 @@ import {
   deleteShiftQuota as deleteShiftQuotaAction,
   saveMemberShiftQuotas as saveMemberShiftQuotasAction,
   clearMemberShiftQuotas as clearMemberShiftQuotasAction,
-  createCouncilSessionStub as createCouncilSessionStubAction,
-  markCouncilSessionSkipped as markCouncilSessionSkippedAction,
   generateShiftPlanProposal as generateShiftPlanProposalAction,
   confirmShiftPlanMonth as confirmShiftPlanMonthAction,
   upsertShiftSlot as upsertShiftSlotAction,
@@ -356,12 +354,6 @@ export async function saveMemberShiftQuotas(formData: FormData) {
 }
 export async function clearMemberShiftQuotas(formData: FormData) {
   return clearMemberShiftQuotasAction(formData);
-}
-export async function createCouncilSessionStub(formData: FormData) {
-  return createCouncilSessionStubAction(formData);
-}
-export async function markCouncilSessionSkipped(formData: FormData) {
-  return markCouncilSessionSkippedAction(formData);
 }
 export async function generateShiftPlanProposal(formData: FormData) {
   return generateShiftPlanProposalAction(formData);

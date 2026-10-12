@@ -421,8 +421,7 @@ export function ShiftPlanDirectory({
         ))}
         {filteredDays.length === 0 && (
           <p className="px-3 py-4 text-sm text-[var(--muted)]">
-            Keine Schichten in diesem Monat für die gewählten Typen. Für
-            Gemeinderat zuerst Sitzungstermine unter Einstellungen erfassen.
+            Keine Schichten in diesem Monat für die gewählten Typen.
           </p>
         )}
       </div>
