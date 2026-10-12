@@ -139,10 +139,6 @@ function eveningCount(
   return n;
 }
 
-function quotasForUser(userId: string, quotas: SolverQuota[]) {
-  return quotas.filter((q) => q.userId === userId);
-}
-
 function quotaForType(
   userId: string,
   typeId: string,
@@ -151,28 +147,14 @@ function quotaForType(
   return quotas.find((q) => q.userId === userId && q.typeId === typeId);
 }
 
-/** Vollständiges Profil: Quote für jeden Schichttyp → nur Typen mit max > 0. */
-export function isRestrictedProfile(
-  userId: string,
-  quotas: SolverQuota[],
-  typeCount: number,
-): boolean {
-  const userQuotas = quotasForUser(userId, quotas);
-  return userQuotas.length > 0 && userQuotas.length >= typeCount;
-}
-
+/** Ohne Regel = offen; Regel mit max 0 = ausgeschlossen. */
 export function isTypeEligible(
   userId: string,
   typeId: string,
   quotas: SolverQuota[],
-  typeCount: number,
 ): boolean {
   const q = quotaForType(userId, typeId, quotas);
-  if (q && q.maxCount === 0) return false;
-  if (isRestrictedProfile(userId, quotas, typeCount)) {
-    return q != null && q.maxCount > 0;
-  }
-  return true;
+  return !(q && q.maxCount === 0);
 }
 
 function canAssignMoreOfType(
@@ -193,7 +175,6 @@ function canAssign(
   dateKey: string,
   vacations: SolverVacation[],
   quotas: SolverQuota[],
-  typeCount: number,
 ): boolean {
   if (!type.slotDateKeys.includes(dateKey)) return false;
   if (state.slotOwner.has(slotKey(type.id, dateKey))) return false;
@@ -201,7 +182,7 @@ function canAssign(
   if (isOnVacation(member.userId, dateKey, vacations)) return false;
   if (isFixedDayOff(member, dateKey)) return false;
   if (isEveningBlocked(member, type, dateKey)) return false;
-  if (!isTypeEligible(member.userId, type.id, quotas, typeCount)) return false;
+  if (!isTypeEligible(member.userId, type.id, quotas)) return false;
   if (!canAssignMoreOfType(state, member.userId, type.id, quotas)) {
     return false;
   }
@@ -229,10 +210,9 @@ function availableDates(
   type: SolverType,
   vacations: SolverVacation[],
   quotas: SolverQuota[],
-  typeCount: number,
 ): string[] {
   return type.slotDateKeys.filter((d) =>
-    canAssign(state, member, type, d, vacations, quotas, typeCount),
+    canAssign(state, member, type, d, vacations, quotas),
   );
 }
 
@@ -301,7 +281,7 @@ function typeById(types: SolverType[], typeId: string) {
 /**
  * Pure shift-plan proposal generator (no DB).
  * Hard rules: max 1 assignment per person/day, vacations + fixedDayOff,
- * fixed quotas, quota caps, restricted profiles, ≥1 evening shift,
+ * fixed quotas, quota caps, ≥1 evening shift (unless all evening types excluded),
  * council only on non-skipped stubs. Soft: spread a person's shifts
  * across the month instead of stacking earliest dates.
  */
@@ -316,7 +296,6 @@ export function generateProposal(input: SolverInput): SolverResult {
 
   const monthKeys = dateKeysInMonth(input.year, input.month);
   const typesById = new Map(input.types.map((t) => [t.id, t]));
-  const typeCount = input.types.length;
   const quotas = input.quotas;
 
   // Seed fixed existing assignments (not proposed, not skipped)
@@ -400,7 +379,6 @@ export function generateProposal(input: SolverInput): SolverResult {
         type,
         input.vacations,
         quotas,
-        typeCount,
       );
       if (dates.length === 0) {
         warnings.push(
@@ -434,7 +412,6 @@ export function generateProposal(input: SolverInput): SolverResult {
             briefingType,
             input.vacations,
             quotas,
-            typeCount,
           );
           if (dates.length === 0) {
             warnings.push(
@@ -454,14 +431,18 @@ export function generateProposal(input: SolverInput): SolverResult {
     }
   }
 
-  // --- Phase 2: ensure ≥1 evening shift per member (not for restricted profiles) ---
+  // --- Phase 2: ensure ≥1 evening shift per member (skip if all evening types excluded) ---
   const eveningTypes = input.types.filter((t) => t.isEveningShift);
   for (const member of input.members) {
-    if (isRestrictedProfile(member.userId, quotas, typeCount)) continue;
+    if (
+      !eveningTypes.some((t) => isTypeEligible(member.userId, t.id, quotas))
+    ) {
+      continue;
+    }
     if (eveningCount(state, member.userId, input.types) >= 1) continue;
     let placed = false;
     for (const type of eveningTypes) {
-      if (!isTypeEligible(member.userId, type.id, quotas, typeCount)) {
+      if (!isTypeEligible(member.userId, type.id, quotas)) {
         continue;
       }
       const dates = availableDates(
@@ -470,7 +451,6 @@ export function generateProposal(input: SolverInput): SolverResult {
         type,
         input.vacations,
         quotas,
-        typeCount,
       );
       if (dates.length === 0) continue;
       assign(
@@ -495,7 +475,7 @@ export function generateProposal(input: SolverInput): SolverResult {
     const member = memberById(input.members, q.userId);
     const type = typeById(input.types, q.typeId);
     if (!member || !type) continue;
-    if (!isTypeEligible(q.userId, q.typeId, quotas, typeCount)) continue;
+    if (!isTypeEligible(q.userId, q.typeId, quotas)) continue;
     let have = getCount(state, q.userId, q.typeId);
     while (have < q.minCount) {
       const dates = availableDates(
@@ -504,7 +484,6 @@ export function generateProposal(input: SolverInput): SolverResult {
         type,
         input.vacations,
         quotas,
-        typeCount,
       );
       if (dates.length === 0) {
         warnings.push(
@@ -527,7 +506,7 @@ export function generateProposal(input: SolverInput): SolverResult {
     const member = memberById(input.members, q.userId);
     const type = typeById(input.types, q.typeId);
     if (!member || !type) continue;
-    if (!isTypeEligible(q.userId, q.typeId, quotas, typeCount)) continue;
+    if (!isTypeEligible(q.userId, q.typeId, quotas)) continue;
     let have = getCount(state, q.userId, q.typeId);
     while (have < q.maxCount) {
       const dates = availableDates(
@@ -536,7 +515,6 @@ export function generateProposal(input: SolverInput): SolverResult {
         type,
         input.vacations,
         quotas,
-        typeCount,
       );
       if (dates.length === 0) break;
       assign(
@@ -559,7 +537,7 @@ export function generateProposal(input: SolverInput): SolverResult {
 
       const candidates = input.members
         .filter((m) =>
-          canAssign(state, m, type, dateKey, input.vacations, quotas, typeCount),
+          canAssign(state, m, type, dateKey, input.vacations, quotas),
         )
         .map((m) => {
           const soft = softQuotas.find(

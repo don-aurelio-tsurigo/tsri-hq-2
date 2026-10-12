@@ -6,7 +6,12 @@ import type {
 import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
 import { de } from "date-fns/locale";
 import { prisma } from "@/lib/db";
-import { monthParamKey, parseMonthParam } from "@/lib/newsletter";
+import {
+  getNewsletterCalendarSettings,
+  isDateKeyHiddenForType,
+  monthParamKey,
+  parseMonthParam,
+} from "@/lib/newsletter";
 import {
   DEFAULT_WEEKDAYS_BY_FREQUENCY,
   isoWeekdayFromDateKey,
@@ -260,7 +265,7 @@ export async function listShiftPlanMonth(
   const year = monthStart.getFullYear();
   const monthIndex0 = monthStart.getMonth();
 
-  const [types, campaigns] = await Promise.all([
+  const [types, campaigns, calendarSettings] = await Promise.all([
     listShiftPlanTypes(organizationId),
     prisma.newsletterCampaign.findMany({
       where: {
@@ -284,6 +289,7 @@ export async function listShiftPlanMonth(
         },
       },
     }),
+    getNewsletterCalendarSettings(organizationId),
   ]);
 
   const campaignByKey = new Map<string, (typeof campaigns)[number]>();
@@ -315,6 +321,14 @@ export async function listShiftPlanMonth(
 
     for (const dateKey of keys) {
       const existing = campaignByKey.get(`${type.id}:${dateKey}`);
+      // Feiertage/Sommerpause ausblenden, bereits besetzte Einsätze aber zeigen
+      if (
+        type.schedulingMode !== "manualDates" &&
+        isDateKeyHiddenForType(dateKey, type.id, calendarSettings) &&
+        !(existing?.authorId && existing.status !== "proposed")
+      ) {
+        continue;
+      }
       const slot: ShiftPlanSlot = {
         dateKey,
         typeId: type.id,

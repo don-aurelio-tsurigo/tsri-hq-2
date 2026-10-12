@@ -56,18 +56,16 @@ function buildTypeDrafts(
   userId: string,
   types: TypeRow[],
   quotas: QuotaRow[],
-): { restrictedProfile: boolean; drafts: Record<string, TypeQuotaDraft> } {
+): Record<string, TypeQuotaDraft> {
   const userQuotas = quotas.filter((q) => q.userId === userId);
   const byType = new Map(userQuotas.map((q) => [q.newsletterTypeId, q]));
-  const restrictedProfile =
-    userQuotas.length > 0 && userQuotas.length >= types.length;
 
   const drafts: Record<string, TypeQuotaDraft> = {};
   for (const type of types) {
     const q = byType.get(type.id);
     if (!q) {
       drafts[type.id] = {
-        mode: restrictedProfile ? "off" : "open",
+        mode: "open",
         minCount: "0",
         maxCount: "0",
       };
@@ -80,7 +78,7 @@ function buildTypeDrafts(
     };
   }
 
-  return { restrictedProfile, drafts };
+  return drafts;
 }
 
 function MemberQuotaCard({
@@ -105,10 +103,7 @@ function MemberQuotaCard({
     () => buildTypeDrafts(member.userId, types, quotas),
     [member.userId, types, quotas],
   );
-  const [restrictedProfile, setRestrictedProfile] = useState(
-    initial.restrictedProfile,
-  );
-  const [drafts, setDrafts] = useState(initial.drafts);
+  const [drafts, setDrafts] = useState(initial);
 
   const hasCustomRules = useMemo(() => {
     return quotas.some((q) => q.userId === member.userId);
@@ -119,22 +114,6 @@ function MemberQuotaCard({
       ...prev,
       [typeId]: { ...prev[typeId]!, ...patch },
     }));
-  }
-
-  function toggleRestricted(next: boolean) {
-    setRestrictedProfile(next);
-    if (next) {
-      setDrafts((prev) => {
-        const nextDrafts = { ...prev };
-        for (const type of types) {
-          const draft = nextDrafts[type.id]!;
-          if (draft.mode === "open") {
-            nextDrafts[type.id] = { ...draft, mode: "off" };
-          }
-        }
-        return nextDrafts;
-      });
-    }
   }
 
   function save() {
@@ -181,7 +160,6 @@ function MemberQuotaCard({
       "payload",
       JSON.stringify({
         userId: member.userId,
-        restrictedProfile,
         entries,
       }),
     );
@@ -215,7 +193,6 @@ function MemberQuotaCard({
         onError(result.error);
         return;
       }
-      setRestrictedProfile(false);
       setDrafts(
         Object.fromEntries(
           types.map((t) => [
@@ -236,20 +213,10 @@ function MemberQuotaCard({
           <h3 className="font-medium">{member.name}</h3>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
             {hasCustomRules
-              ? restrictedProfile
-                ? "Begrenztes Profil — nur Schichten mit Limit > 0"
-                : "Einzelne Limits / Ausschlüsse"
+              ? "Individuelle Regeln — «Offen» = ohne Limit"
               : "Keine Sonderregeln — nimmt am normalen Pool teil"}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={restrictedProfile}
-            onChange={(e) => toggleRestricted(e.target.checked)}
-          />
-          Nur konfigurierte Schichttypen
-        </label>
       </header>
 
       <div className="overflow-x-auto">
@@ -293,9 +260,7 @@ function MemberQuotaCard({
                         })
                       }
                     >
-                      {!restrictedProfile ? (
-                        <option value="open">Offen</option>
-                      ) : null}
+                      <option value="open">Offen</option>
                       <option value="off">Ausgeschlossen (0)</option>
                       <option value="fixed">Fix</option>
                       <option value="range">Bereich (min–max)</option>
@@ -450,10 +415,10 @@ export function ShiftPlanSettings({
             Schichtregeln pro Person
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Pro Person alle Schichttypen auf einer Karte. Für Teilzeit z. B.
-            «Nur konfigurierte Schichttypen» aktivieren, Briefing auf Fix 4
-            setzen, Rest auf 0. Ohne Sonderregeln nimmt die Person am normalen
-            Pool teil (inkl. Repo).
+            Pro Person alle Schichttypen auf einer Karte. «Offen» heisst ohne
+            Limit, «Ausgeschlossen» heisst nie. Für Teilzeit z. B. Briefing auf
+            Fix 4 setzen, Rest auf «Ausgeschlossen». Wer alle Abendschichten
+            ausgeschlossen hat, bekommt keinen Pflicht-Abendeinsatz.
           </p>
         </div>
 

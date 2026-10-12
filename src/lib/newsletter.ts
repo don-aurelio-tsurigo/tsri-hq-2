@@ -222,6 +222,24 @@ function dateKeyInBlockedRanges(
   });
 }
 
+/**
+ * Kein Slot an diesem Tag: Feiertag (wenn ausgeblendet) oder Sommerpause.
+ * Gilt für Newsletter-Kalender und Schichtplan gleichermassen.
+ */
+export function isDateKeyHiddenForType(
+  dateKey: string,
+  typeId: string,
+  settings: Awaited<ReturnType<typeof getNewsletterCalendarSettings>>,
+): boolean {
+  if (settings.hidePublicHolidays) {
+    const [y, m, d] = dateKey.split("-").map(Number);
+    if (holidayNameForDate(new Date(Date.UTC(y!, m! - 1, d!, 12)))) {
+      return true;
+    }
+  }
+  return dateKeyInBlockedRanges(dateKey, settings.blockedRanges, typeId);
+}
+
 /** Virtual rhythm slots for a calendar month + existing campaigns. */
 export async function listNewsletterCalendarMonth(
   organizationId: string,
@@ -281,12 +299,7 @@ export async function listNewsletterCalendarMonth(
         new Date(Date.UTC(y!, m! - 1, d!, 12)),
       );
 
-      if (settings.hidePublicHolidays && holidayName) continue;
-      if (
-        dateKeyInBlockedRanges(dateKey, settings.blockedRanges, type.id)
-      ) {
-        continue;
-      }
+      if (isDateKeyHiddenForType(dateKey, type.id, settings)) continue;
 
       const existing = campaignByKey.get(`${type.id}:${dateKey}`);
       const slot: NewsletterCalendarSlot = {

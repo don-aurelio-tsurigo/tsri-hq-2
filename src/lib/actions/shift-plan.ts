@@ -21,6 +21,10 @@ import {
   type SolverVacation,
 } from "@/lib/shift-plan-solver";
 import { scheduledOrCampaignDateKeysInMonth } from "@/lib/newsletter-constants";
+import {
+  getNewsletterCalendarSettings,
+  isDateKeyHiddenForType,
+} from "@/lib/newsletter";
 
 function revalidateShiftPaths() {
   revalidatePath("/schichtplan");
@@ -130,7 +134,6 @@ const quotaEntrySchema = z.object({
 
 const saveMemberQuotasSchema = z.object({
   userId: z.string().min(1),
-  restrictedProfile: z.boolean(),
   entries: z.array(quotaEntrySchema),
 });
 
@@ -169,21 +172,13 @@ export async function saveMemberShiftQuotas(formData: FormData) {
   });
   const typeIds = new Set(types.map((t) => t.id));
 
-  if (parsed.restrictedProfile && parsed.entries.length !== types.length) {
-    return { error: "Begrenztes Profil: alle Schichttypen müssen gesetzt sein." };
-  }
-
   for (const entry of parsed.entries) {
     if (!typeIds.has(entry.newsletterTypeId)) {
       return { error: "Unbekannter Schichttyp." };
     }
 
-    let mode = entry.mode;
-    if (parsed.restrictedProfile && mode === "open") {
-      mode = "off";
-    }
-
-    if (!parsed.restrictedProfile && mode === "open") {
+    const mode = entry.mode;
+    if (mode === "open") {
       await prisma.shiftQuota.deleteMany({
         where: {
           organizationId: membership.organizationId,
@@ -379,7 +374,7 @@ export async function generateShiftPlanProposal(formData: FormData) {
   );
   const dateTo = new Date(`${format(monthEnd, "yyyy-MM-dd")}T12:00:00.000Z`);
 
-  const [types, editorialMembers, quotas, vacations, campaigns] =
+  const [types, editorialMembers, quotas, vacations, campaigns, calendarSettings] =
     await Promise.all([
       listShiftPlanTypes(membership.organizationId),
       prisma.membership.findMany({
@@ -413,6 +408,7 @@ export async function generateShiftPlanProposal(formData: FormData) {
         },
         include: { type: { select: { id: true, name: true } } },
       }),
+      getNewsletterCalendarSettings(membership.organizationId),
     ]);
 
   const briefingType = types.find((t) => t.name === BRIEFING_TYPE_NAME);
@@ -435,6 +431,9 @@ export async function generateShiftPlanProposal(formData: FormData) {
         year,
         month - 1,
         campaignKeys,
+      ).filter(
+        (dateKey) =>
+          !isDateKeyHiddenForType(dateKey, t.id, calendarSettings),
       );
     }
     return {

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   generateProposal,
-  isRestrictedProfile,
   isTypeEligible,
   pickSpreadDate,
   type SolverInput,
@@ -293,7 +292,7 @@ describe("generateProposal", () => {
     );
   });
 
-  it("restricted profile only assigns allowed shift types", () => {
+  it("fully configured profile only assigns allowed shift types", () => {
     const quotas = [
       {
         userId: "dana",
@@ -311,9 +310,8 @@ describe("generateProposal", () => {
         isFixed: true,
       },
     ];
-    assert.equal(isRestrictedProfile("dana", quotas, 3), true);
-    assert.equal(isTypeEligible("dana", "briefing", quotas, 3), true);
-    assert.equal(isTypeEligible("dana", "repo", quotas, 3), false);
+    assert.equal(isTypeEligible("dana", "briefing", quotas), true);
+    assert.equal(isTypeEligible("dana", "repo", quotas), false);
 
     const result = generateProposal(
       baseInput({
@@ -342,7 +340,6 @@ describe("generateProposal", () => {
         isFixed: true,
       },
     ];
-    assert.equal(isRestrictedProfile("alice", quotas, 3), false);
 
     const result = generateProposal(baseInput({ quotas }));
     const aliceRepo = result.assignments.filter(
@@ -351,7 +348,7 @@ describe("generateProposal", () => {
     assert.ok(aliceRepo.length >= 1);
   });
 
-  it("explicit max 0 blocks a shift type without restricting the whole profile", () => {
+  it("explicit max 0 blocks only that shift type", () => {
     const quotas = [
       {
         userId: "alice",
@@ -362,8 +359,7 @@ describe("generateProposal", () => {
       },
       { userId: "alice", typeId: "repo", minCount: 0, maxCount: 0, isFixed: true },
     ];
-    assert.equal(isRestrictedProfile("alice", quotas, 3), false);
-    assert.equal(isTypeEligible("alice", "repo", quotas, 3), false);
+    assert.equal(isTypeEligible("alice", "repo", quotas), false);
 
     const result = generateProposal(baseInput({ quotas }));
     assert.ok(
@@ -371,6 +367,25 @@ describe("generateProposal", () => {
         (a) => a.userId === "alice" && a.typeId === "repo",
       ),
     );
+  });
+
+  it("skips the evening guarantee when all evening types are excluded", () => {
+    const quotas = [
+      { userId: "erin", typeId: "briefing", minCount: 0, maxCount: 0, isFixed: true },
+      { userId: "erin", typeId: "council", minCount: 0, maxCount: 0, isFixed: true },
+    ];
+    const result = generateProposal(
+      baseInput({
+        members: [{ userId: "erin", name: "Erin", fixedDayOff: null, eveningBlockedWeekdays: [] }],
+        quotas,
+      }),
+    );
+    assert.ok(
+      result.assignments.every(
+        (a) => a.userId !== "erin" || a.typeId === "repo",
+      ),
+    );
+    assert.ok(!result.warnings.some((w) => w.includes("kein Abendeinsatz")));
   });
 
   it("pickSpreadDate starts near the middle then maximizes gaps", () => {
