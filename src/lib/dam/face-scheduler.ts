@@ -1,4 +1,5 @@
 import { faceRecognitionEnabled, faceSettings } from "@/lib/dam/face-rekognition";
+import { damProcessingBusy } from "@/lib/dam/process-queue";
 import { prisma } from "@/lib/db";
 
 const INTERVAL_MS = 30 * 1000;
@@ -15,6 +16,8 @@ const PROGRESS_LOG_EVERY = 50;
 const PROCESSING_GRACE_MINUTES = 15;
 /** Stay well below Rekognition's 5 TPS default in eu-central-1. */
 const PAUSE_BETWEEN_ASSETS_MS = 400;
+/** Poll interval while upload processing holds the image memory. */
+const WAIT_FOR_PROCESSING_MS = 2000;
 
 const globalForFaceScheduler = globalThis as unknown as {
   __damFaceSchedulerStarted?: boolean;
@@ -87,9 +90,13 @@ export async function runDamFaceScan(maxAssets = Infinity): Promise<FaceRunSumma
 
   let processed = 0;
   while (processed < maxAssets) {
+    // Never decode images in parallel with upload processing (memory spikes).
+    // Nothing claimed yet: stop; processDamAssets kicks a new run when done.
+    if (damProcessingBusy()) break;
     const ids = await claimPending(Math.min(faceSettings().batchSize, maxAssets - processed));
     if (ids.length === 0) break;
     for (const id of ids) {
+      while (damProcessingBusy()) await sleep(WAIT_FOR_PROCESSING_MS);
       processed += 1;
       try {
         const result = await scanAssetFaces(id);

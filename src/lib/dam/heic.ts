@@ -29,7 +29,9 @@ export async function jpegBufferFromHeic(
   if (!decoded.width || !decoded.height) {
     throw new Error("HEIC decode produced empty image");
   }
-  const raw = Buffer.from(decoded.data);
+  // View on the decoded pixels; Buffer.from(array) would copy ~200 MB per 48 MP photo.
+  const { data } = decoded;
+  const raw = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   return sharp(raw, {
     raw: {
       width: decoded.width,

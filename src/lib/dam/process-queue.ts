@@ -23,6 +23,16 @@ export function endDamAsset(assetId: string): void {
   queueState().__damProcessingIds!.delete(assetId);
 }
 
+/** True while uploads are being processed or waiting; the face scan yields then. */
+export function damProcessingBusy(): boolean {
+  const g = queueState();
+  return (
+    Boolean(g.__damProcessRunning) ||
+    g.__damProcessQueue!.length > 0 ||
+    g.__damProcessingIds!.size > 0
+  );
+}
+
 /**
  * Run DAM EXIF/thumb/autotag work off the HTTP request.
  * Next `after()` is aborted when the user navigates away (e.g. to Meine Uploads).

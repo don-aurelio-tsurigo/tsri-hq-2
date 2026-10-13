@@ -2,6 +2,7 @@ import sharp from "sharp";
 import type { FaceScanStatus } from "@/generated/prisma/client";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
 import { jpegForAutotag } from "@/lib/dam/autotag";
+import { baseDerivativeKey, isDefaultEditParams } from "@/lib/dam/derivatives";
 import { syncAssetPersons } from "@/lib/dam/face-persons";
 import {
   deleteFaces,
@@ -12,6 +13,7 @@ import {
   searchUsersByFace,
   type FaceBox,
 } from "@/lib/dam/face-rekognition";
+import { derivativeKey } from "@/lib/dam/filename";
 import { faceCropKey } from "@/lib/dam/r2-keys";
 import { prisma } from "@/lib/db";
 import { deleteObject, getObject, putObject } from "@/lib/r2";
@@ -94,6 +96,26 @@ async function writeFaceCrops(
 }
 
 /**
+ * Loads the smallest unedited image for the scan: the 2000 px web derivative
+ * instead of the original. Decoding a 48 MP original (HEIC) costs several
+ * hundred MB and pushed the instance over its memory limit. The classic web key
+ * holds the edited render once a recipe is applied, so it is only used for
+ * unedited assets; the original stays the last resort.
+ */
+async function loadScanSource(asset: { r2Key: string; editParams: unknown }): Promise<Buffer> {
+  const keys = [baseDerivativeKey(asset.r2Key, "web")];
+  if (isDefaultEditParams(asset.editParams)) keys.push(derivativeKey(asset.r2Key, "web"));
+  for (const key of keys) {
+    try {
+      return (await getObject(key)).buffer;
+    } catch {
+      /* not written (yet) — try the next source */
+    }
+  }
+  return (await getObject(asset.r2Key)).buffer;
+}
+
+/**
  * Detects and indexes faces of one asset, matches them against known persons
  * and stores AssetFace rows + crop thumbnails. Boxes refer to the EXIF-rotated
  * master (same orientation as all derivatives), not to editParams.
@@ -120,6 +142,7 @@ async function scanAssetFacesInner(
     select: {
       id: true,
       r2Key: true,
+      editParams: true,
       status: true,
       deletedAt: true,
       _count: { select: { faces: true } },
@@ -134,7 +157,7 @@ async function scanAssetFacesInner(
     return { status: "done", ...empty };
   }
 
-  const { buffer } = await getObject(asset.r2Key);
+  const buffer = await loadScanSource(asset);
   if (!looksLikeImageBytes(buffer)) {
     await setFaceStatus([assetId], "skipped");
     return { status: "skipped", ...empty };
