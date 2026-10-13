@@ -280,6 +280,7 @@ function ImageLayer({
   crop,
   cropBackground,
   onTop,
+  boxColor,
   className,
   onPointerDown,
   onPointerMove,
@@ -295,6 +296,8 @@ function ImageLayer({
   cropBackground?: string;
   /** Stack the photo above the text layer. */
   onTop?: boolean;
+  /** Fill of the photo box where the photo leaves gaps (default dark grey). */
+  boxColor?: string;
   className?: string;
   onPointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
@@ -314,7 +317,7 @@ function ImageLayer({
     <div
       className={`absolute inset-0 ${onTop ? "z-[35]" : "z-0"} overflow-hidden ${className ?? ""}`}
       style={{
-        backgroundColor: "#1a1a1a",
+        backgroundColor: boxColor ?? "#1a1a1a",
         transform: `translate(${t.x}px, ${t.y}px) scale(${t.scale})`,
         transformOrigin: "center center",
         clipPath: c ? imageCropClipPath(c) : undefined,
@@ -879,8 +882,17 @@ function TextPreview({
     onGuides,
   });
 
+  // Text slides keep their colour behind a photo (6iBrief stays dark).
+  const keepColorBehindImage = hasImage && !isSixi;
+
   return (
     <>
+      {keepColorBehindImage ? (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: slide.backgroundColor || DEFAULT_BG }}
+        />
+      ) : null}
       {hasImage ? (
         <>
           <ImageLayer
@@ -890,6 +902,7 @@ function TextPreview({
             crop={slide.imageCrop}
             cropBackground={slide.backgroundColor || DEFAULT_BG}
             onTop={slide.imageOnTop}
+            boxColor={keepColorBehindImage ? "transparent" : undefined}
             overlayDefaults={defaultImageOverlayForSlideType("text")}
             className={imageDrag.className}
             onPointerDown={imageDrag.onPointerDown}
