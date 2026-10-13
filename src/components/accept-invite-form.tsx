@@ -73,6 +73,32 @@ export function AcceptInviteForm({
             />
           </div>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="field">
+            <label htmlFor="birthDate">Geburtsdatum</label>
+            <input
+              id="birthDate"
+              name="birthDate"
+              type="date"
+              autoComplete="bday"
+              required
+              max={new Date().toISOString().slice(0, 10)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="phone">Telefonnummer</label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              required
+              minLength={3}
+              maxLength={40}
+              placeholder="+41 79 123 45 67"
+            />
+          </div>
+        </div>
         <div className="field">
           <label htmlFor="password">Passwort wählen</label>
           <input

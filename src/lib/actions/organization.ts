@@ -73,6 +73,8 @@ const acceptSchema = z.object({
   token: z.string().min(1),
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  phone: z.string().trim().min(3).max(40),
   password: z.string().min(8).max(128),
 });
 
@@ -81,10 +83,15 @@ export async function acceptInvitation(formData: FormData) {
     token: formData.get("token"),
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
+    birthDate: String(formData.get("birthDate") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return { error: "Bitte Vorname, Nachname und Passwort (min. 8) angeben." };
+    return {
+      error:
+        "Bitte Vorname, Nachname, Geburtsdatum, Telefonnummer und Passwort (min. 8) angeben.",
+    };
   }
 
   const invitation = await prisma.invitation.findUnique({
@@ -103,6 +110,11 @@ export async function acceptInvitation(formData: FormData) {
   const firstName = parsed.data.firstName;
   const lastName = parsed.data.lastName;
   const name = joinDisplayName(firstName, lastName);
+  const phone = parsed.data.phone;
+  const birthDate = new Date(`${parsed.data.birthDate}T12:00:00.000Z`);
+  if (Number.isNaN(birthDate.getTime()) || birthDate > new Date()) {
+    return { error: "Bitte ein gültiges Geburtsdatum angeben." };
+  }
   let user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
@@ -113,6 +125,8 @@ export async function acceptInvitation(formData: FormData) {
         firstName,
         lastName,
         email,
+        phone,
+        birthDate,
         emailVerified: true,
         accounts: {
           create: {
@@ -146,7 +160,7 @@ export async function acceptInvitation(formData: FormData) {
     }
     await prisma.user.update({
       where: { id: user.id },
-      data: { name, firstName, lastName },
+      data: { name, firstName, lastName, phone, birthDate },
     });
   }
 
