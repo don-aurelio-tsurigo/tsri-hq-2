@@ -21,6 +21,20 @@ export async function previewUrlForFile(file: File): Promise<string> {
     } catch (error) {
       console.warn("[dam] HEIC canvas preview failed", error);
     }
+    // Firefox and Chrome have no HEIC decoder; let the server render a JPEG.
+    try {
+      const res = await fetch("/api/dam/heic-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: await file.arrayBuffer(),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob.size > 0) return URL.createObjectURL(blob);
+      }
+    } catch (error) {
+      console.warn("[dam] HEIC server preview failed", error);
+    }
   }
   // Copy bytes so xhr.send(file) cannot detach the blob: URL used in <img>.
   const type = sniffed ?? (file.type || "image/jpeg");
