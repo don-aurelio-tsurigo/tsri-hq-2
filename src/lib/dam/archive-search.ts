@@ -7,7 +7,7 @@ import {
   ARCHIVE_PAGE_SIZE,
   type ArchiveFilters,
 } from "@/lib/dam/archive-filters";
-import type { RatingFilter } from "@/lib/dam/rating-filter";
+import { ratingWhereInput } from "@/lib/dam/rating-filter";
 import { prisma } from "@/lib/db";
 import { parseEditParams } from "@/lib/dam/edit-params";
 import { latestWepublishExportedAt, wepublishExportLogSelect } from "@/lib/dam/export-wepublish";
@@ -85,15 +85,6 @@ export type ArchiveSearchResult = {
   pageCount: number;
 };
 
-function ratingWhere(filter: RatingFilter): Prisma.AssetWhereInput | undefined {
-  if (filter === "all") return undefined;
-  const target = Number(filter.slice(2));
-  if (target === 0) {
-    return { OR: [{ rating: null }, { rating: 0 }] };
-  }
-  return { rating: target };
-}
-
 function publishedWhere(
   filters: ArchiveFilters,
   ftsIds: string[] | null,
@@ -104,7 +95,7 @@ function publishedWhere(
       OR: filters.keywords.map((keyword) => ({ keywords: { has: keyword } })),
     });
   }
-  const rating = ratingWhere(filters.rating);
+  const rating = ratingWhereInput(filters.rating);
   if (rating) and.push(rating);
 
   const where: Prisma.AssetWhereInput = {

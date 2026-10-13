@@ -6,6 +6,7 @@ import {
 import {
   parseRatingFilterParam,
   ratingFilterToParam,
+  ratingWhereInput,
   type RatingFilter,
 } from "@/lib/dam/rating-filter";
 
@@ -53,22 +54,13 @@ export function isDamArchiveReviewReminderDay(now = new Date()): boolean {
   return day === reminderDay;
 }
 
-function ratingClause(filter: RatingFilter): Prisma.AssetWhereInput | undefined {
-  if (filter === "all") return undefined;
-  const target = Number(filter.slice(2));
-  if (target === 0) {
-    return { OR: [{ rating: null }, { rating: 0 }] };
-  }
-  return { rating: target };
-}
-
 export function reviewQueueWhere(
   reviewedUntil: Date,
   openedAt: Date,
   filters: ReviewQueueFilters = EMPTY_REVIEW_FILTERS,
 ): Prisma.AssetWhereInput {
   const and: Prisma.AssetWhereInput[] = [];
-  const rating = ratingClause(filters.rating);
+  const rating = ratingWhereInput(filters.rating);
   if (rating) and.push(rating);
   if (filters.collectionId === ARCHIVE_NO_COLLECTION) {
     and.push({ collections: { none: {} } });

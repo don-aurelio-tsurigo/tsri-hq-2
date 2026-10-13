@@ -19,9 +19,15 @@ import { DamPublishDialog } from "@/components/dam-publish-dialog";
 import { DamRatingStars } from "@/components/dam-rating-stars";
 import { damEditorSrc, damFileSrc } from "@/lib/dam/edit-params";
 import {
-  RATING_FILTERS,
+  RATING_OPS,
+  RATING_VALUES,
+  isNoopRatingFilter,
+  makeRatingFilter,
   matchesRatingFilter,
+  ratingFilterLabel,
+  ratingFilterParts,
   type RatingFilter,
+  type RatingOp,
 } from "@/lib/dam/rating-filter";
 import {
   damWepublishExportedHint,
@@ -44,6 +50,7 @@ export function DamPersonalGrid({
   const [collections, setCollections] = useState(allCollections);
   const [filterId, setFilterId] = useState<string | "all">("all");
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
+  const [ratingOp, setRatingOp] = useState<RatingOp>("eq");
   const [focused, setFocused] = useState(0);
   const [anchor, setAnchor] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -367,12 +374,51 @@ export function DamPersonalGrid({
         role="radiogroup"
         aria-label="Rating-Filter"
       >
-        <div className="inline-flex flex-wrap rounded-full border-2 border-[var(--border)] bg-white p-0.5">
-          {RATING_FILTERS.map((option) => {
-            const active = ratingFilter === option.value;
+        <div
+          className="inline-flex rounded-full border-2 border-[var(--border)] bg-white p-0.5"
+          role="group"
+          aria-label="Vergleich"
+        >
+          {RATING_OPS.map((option) => {
+            const active = ratingOp === option.value;
             return (
               <button
                 key={option.value}
+                type="button"
+                aria-pressed={active}
+                title={option.title}
+                className={[
+                  "min-w-8 rounded-full px-2.5 py-1.5 text-sm font-semibold",
+                  active
+                    ? "bg-[var(--fg)] text-white"
+                    : "text-[var(--muted)] hover:text-[var(--fg)]",
+                ].join(" ")}
+                onClick={() => {
+                  setRatingOp(option.value);
+                  const parts = ratingFilterParts(ratingFilter);
+                  if (parts) {
+                    setRatingFilter(makeRatingFilter(option.value, parts.value));
+                    setFocused(0);
+                    setAnchor(0);
+                  }
+                }}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="inline-flex flex-wrap rounded-full border-2 border-[var(--border)] bg-white p-0.5">
+          {[
+            "all" as RatingFilter,
+            ...RATING_VALUES.filter((n) => !isNoopRatingFilter(ratingOp, n)).map(
+              (n) => makeRatingFilter(ratingOp, n),
+            ),
+          ].map((value) => {
+            const active = ratingFilter === value;
+            return (
+              <button
+                key={value}
                 type="button"
                 role="radio"
                 aria-checked={active}
@@ -383,12 +429,12 @@ export function DamPersonalGrid({
                     : "text-[var(--muted)] hover:text-[var(--fg)]",
                 ].join(" ")}
                 onClick={() => {
-                  setRatingFilter(option.value);
+                  setRatingFilter(value);
                   setFocused(0);
                   setAnchor(0);
                 }}
               >
-                {option.label}
+                {ratingFilterLabel(value)}
               </button>
             );
           })}

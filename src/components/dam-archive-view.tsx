@@ -22,7 +22,8 @@ import {
   type ArchiveView,
 } from "@/lib/dam/archive-filters";
 import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-search";
-import { RATING_FILTERS, ratingFilterLabel } from "@/lib/dam/rating-filter";
+import { DamRatingFilterSelect } from "@/components/dam-rating-filter-select";
+import { ratingFilterLabel } from "@/lib/dam/rating-filter";
 import { DAM_RIGHTS_LABELS } from "@/lib/dam/types";
 import type { ArchiveAssetCard } from "@/lib/dam/types";
 
@@ -388,24 +389,11 @@ export function DamArchiveView({
               value={filters.credit ? [filters.credit] : []}
               onChange={(next) => commit({ credit: next[0] ?? "" })}
             />
-            <div className="field">
-              <label htmlFor="dam-rating">Sterne</label>
-              <select
-                id="dam-rating"
-                value={filters.rating}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  const option = RATING_FILTERS.find((item) => item.value === value);
-                  commit({ rating: option?.value ?? "all" });
-                }}
-              >
-                {RATING_FILTERS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <DamRatingFilterSelect
+              id="dam-rating"
+              value={filters.rating}
+              onChange={(rating) => commit({ rating })}
+            />
             <div className="field">
               <label htmlFor="dam-from">Aufgenommen von</label>
               <input

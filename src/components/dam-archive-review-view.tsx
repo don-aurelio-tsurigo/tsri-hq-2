@@ -8,11 +8,8 @@ import { DamArchiveCollectionsGrid } from "@/components/dam-archive-collections-
 import { DamArchiveGrid } from "@/components/dam-archive-grid";
 import type { ArchiveView } from "@/lib/dam/archive-filters";
 import type { ArchiveCollectionCard, ArchiveFacets } from "@/lib/dam/archive-search";
-import {
-  RATING_FILTERS,
-  ratingFilterLabel,
-  type RatingFilter,
-} from "@/lib/dam/rating-filter";
+import { DamRatingFilterSelect } from "@/components/dam-rating-filter-select";
+import { ratingFilterLabel, type RatingFilter } from "@/lib/dam/rating-filter";
 import {
   parseReviewFilters,
   reviewHref,
@@ -106,25 +103,12 @@ export function DamArchiveReviewView({
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <div className="field min-w-[10rem]">
-          <label htmlFor="dam-review-rating">Sterne</label>
-          <select
-            id="dam-review-rating"
-            value={filters.rating}
-            onChange={(event) => {
-              const option = RATING_FILTERS.find(
-                (item) => item.value === event.target.value,
-              );
-              navigate({ rating: option?.value ?? "all" });
-            }}
-          >
-            {RATING_FILTERS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <DamRatingFilterSelect
+          id="dam-review-rating"
+          className="field min-w-[10rem]"
+          value={filters.rating}
+          onChange={(rating) => navigate({ rating })}
+        />
       </div>
 
       {(filters.rating !== "all" || filters.collectionId) && (
