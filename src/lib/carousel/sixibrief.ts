@@ -1,7 +1,7 @@
 import type { SlideInk } from "@/lib/carousel/categories";
 
 /** Top bar from the 6iBrief Canva templates. */
-export const SIXIBRIEF_BAR = "#5d57f5";
+export const SIXIBRIEF_BAR = "#ffb3cc";
 export const SIXIBRIEF_BAR_HEIGHT = 22;
 export const SIXIBRIEF_BG = "#ffffff";
 export const SIXIBRIEF_INK: SlideInk = "dark";
