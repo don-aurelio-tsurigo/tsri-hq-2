@@ -17,12 +17,18 @@ type Section = keyof typeof SECTIONS;
 export function FinanceSectionTabs<S extends Section>({
   section,
   active,
+  bare = false,
 }: {
   section: S;
   active: (typeof SECTIONS)[S][number]["key"];
+  /** Without own bottom border, for placing the tabs inside a bordered header row. */
+  bare?: boolean;
 }) {
   return (
-    <nav className="flex gap-1 border-b-2 border-[var(--border)]" aria-label="Bereich">
+    <nav
+      className={["flex gap-1", bare ? "" : "border-b-2 border-[var(--border)]"].join(" ")}
+      aria-label="Bereich"
+    >
       {SECTIONS[section].map((tab) => {
         const isActive = tab.key === active;
         return (

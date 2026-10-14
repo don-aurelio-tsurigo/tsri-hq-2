@@ -26,16 +26,13 @@ export default async function FinancePage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <header>
-        <p className="text-sm font-semibold tracking-wide text-[var(--accent)] uppercase">
-          Finance
-        </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Budget {year}
+    <div className="space-y-3">
+      <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1 border-b-2 border-[var(--border)]">
+        <h1 className="pb-1.5 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight">
+          <span className="text-[var(--accent)]">Finance</span> · Budget {year}
         </h1>
+        <FinanceSectionTabs section="budget" active="overview" bare />
       </header>
-      <FinanceSectionTabs section="budget" active="overview" />
       <FinanceBudgetOverview overview={overview} companies={companies} />
     </div>
   );

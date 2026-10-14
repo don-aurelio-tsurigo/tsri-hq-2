@@ -161,7 +161,7 @@ export function FinanceBudgetOverview({
   const colsPerMonth = metrics.length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav className="flex flex-wrap gap-1" aria-label="Jahr">
           {overview.years.map((y) => (
@@ -169,7 +169,7 @@ export function FinanceBudgetOverview({
               key={y}
               href={`/finance?jahr=${y}`}
               className={[
-                "rounded-lg px-3 py-1.5 text-sm font-semibold",
+                "rounded-lg px-2.5 py-1 text-sm font-semibold",
                 y === overview.year
                   ? "bg-[var(--fg)] !text-white"
                   : "text-[var(--muted)] hover:bg-[var(--panel-muted)]",
@@ -181,7 +181,7 @@ export function FinanceBudgetOverview({
           <button
             type="button"
             onClick={() => setNewYearOpen(true)}
-            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent-soft)]"
             title="Neues Budgetjahr anlegen"
           >
             <Plus className="size-3.5" /> {Math.max(...overview.years) + 1}
@@ -195,7 +195,7 @@ export function FinanceBudgetOverview({
               onClick={() => setView(v)}
               aria-pressed={view === v}
               className={[
-                "rounded-lg px-3 py-1.5 text-sm font-semibold",
+                "rounded-lg px-2.5 py-1 text-sm font-semibold",
                 view === v
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--muted)] hover:bg-[var(--panel-muted)]",
@@ -216,13 +216,13 @@ export function FinanceBudgetOverview({
           .
         </div>
       ) : (
-        <div className="card max-h-[calc(100svh-13rem)] overflow-auto">
+        <div className="card max-h-[calc(100svh-10rem)] overflow-auto">
           <table className="border-separate border-spacing-0 text-sm tabular-nums">
             <thead>
               <tr>
                 <th
                   rowSpan={2}
-                  className="sticky top-0 left-0 z-30 w-[9.5rem] min-w-[9.5rem] sm:w-auto sm:min-w-[16rem] border-r-2 border-b-2 border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-left font-semibold"
+                  className="sticky top-0 left-0 z-30 w-[9.5rem] min-w-[9.5rem] sm:w-auto sm:min-w-[16rem] border-r-2 border-b-2 border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1 text-left font-semibold"
                 >
                   Kategorie
                 </th>
@@ -234,7 +234,7 @@ export function FinanceBudgetOverview({
                       key={m}
                       colSpan={colsPerMonth}
                       className={[
-                        "sticky top-0 z-20 h-10 border-r border-b border-[var(--border)] px-2 text-left font-semibold whitespace-nowrap",
+                        "sticky top-0 z-20 h-8 border-r border-b border-[var(--border)] px-2 text-left font-semibold whitespace-nowrap",
                         m === currentMonth ? "bg-[var(--accent-soft)]" : isClosed ? "bg-[#f3f3f3]" : "bg-[var(--bg-elevated)]",
                       ].join(" ")}
                     >
@@ -258,7 +258,7 @@ export function FinanceBudgetOverview({
                 })}
                 <th
                   colSpan={yearMetrics.length}
-                  className="sticky top-0 z-20 h-10 border-b border-l-2 border-[var(--border)] bg-[var(--panel-muted)] px-2 text-left font-semibold"
+                  className="sticky top-0 z-20 h-8 border-b border-l-2 border-[var(--border)] bg-[var(--panel-muted)] px-2 text-left font-semibold"
                 >
                   Jahr {overview.year}
                 </th>
@@ -269,7 +269,7 @@ export function FinanceBudgetOverview({
                     <th
                       key={`${m}-${metric}`}
                       className={[
-                        "sticky top-10 z-20 border-b-2 border-[var(--border)] px-2 py-1 text-right text-xs font-semibold text-[var(--muted)] whitespace-nowrap",
+                        "sticky top-8 z-20 border-b-2 border-[var(--border)] px-2 py-0.5 text-right text-xs font-semibold text-[var(--muted)] whitespace-nowrap",
                         i === metrics.length - 1 ? "border-r" : "",
                         m === currentMonth ? "bg-[var(--accent-soft)]" : closed.has(m) ? "bg-[#f3f3f3]" : "bg-[var(--bg-elevated)]",
                       ].join(" ")}
@@ -282,7 +282,7 @@ export function FinanceBudgetOverview({
                   <th
                     key={`year-${metric}`}
                     className={[
-                      "sticky top-10 z-20 border-b-2 border-[var(--border)] bg-[var(--panel-muted)] px-2 py-1 text-right text-xs font-semibold whitespace-nowrap",
+                      "sticky top-8 z-20 border-b-2 border-[var(--border)] bg-[var(--panel-muted)] px-2 py-0.5 text-right text-xs font-semibold whitespace-nowrap",
                       i === 0 ? "border-l-2" : "",
                     ].join(" ")}
                     title={
@@ -302,7 +302,7 @@ export function FinanceBudgetOverview({
                   return (
                     <tr key={row.key}>
                       <th
-                        className="sticky left-0 z-10 border-r-2 border-b border-[var(--border)] bg-[var(--fg)] px-3 py-1.5 text-left text-xs font-bold tracking-wider text-white uppercase"
+                        className="sticky left-0 z-10 border-r-2 border-b border-[var(--border)] bg-[var(--fg)] px-3 py-0.5 text-left text-xs font-bold tracking-wider text-white uppercase"
                       >
                         {row.label}
                       </th>
@@ -329,7 +329,7 @@ export function FinanceBudgetOverview({
                   <tr key={row.key} className={["group", rowTone].join(" ")}>
                     <th
                       className={[
-                        "sticky left-0 z-10 max-w-[9.5rem] sm:max-w-[20rem] border-r-2 border-b border-[var(--border)] px-3 py-1.5 text-left font-[inherit] whitespace-nowrap",
+                        "sticky left-0 z-10 max-w-[9.5rem] sm:max-w-[20rem] border-r-2 border-b border-[var(--border)] px-3 py-0.5 text-left font-[inherit] whitespace-nowrap",
                         row.type === "total" && row.strong
                           ? "bg-[var(--highlight-soft)]"
                           : row.type === "total"
@@ -342,7 +342,7 @@ export function FinanceBudgetOverview({
                       </span>
                       {isCategory && row.category.inactive ? (
                         <span
-                          className="block text-xs font-medium text-amber-700"
+                          className="block text-[11px] leading-tight font-medium text-amber-700"
                           title="In diesem Jahr eigentlich nicht aktiv, hat aber Zahlen"
                         >
                           {validityLabel(row.category) ?? "nicht aktiv"} · hat Zahlen
@@ -374,7 +374,7 @@ export function FinanceBudgetOverview({
                                   defaultValue={value === 0 ? "" : String(value)}
                                   inputMode="decimal"
                                   aria-label={`${METRIC_LABEL[metric]} ${row.category.name} ${monthLabel(m)}`}
-                                  className="w-24 min-w-full bg-white px-2 py-1.5 text-right outline-2 outline-[var(--accent)]"
+                                  className="w-24 min-w-full bg-white px-2 py-0.5 text-right outline-2 outline-[var(--accent)]"
                                   onFocus={(e) => e.currentTarget.select()}
                                   onBlur={(e) => {
                                     if (e.currentTarget.dataset.cancel) {
@@ -401,7 +401,7 @@ export function FinanceBudgetOverview({
                                     setEditing({ categoryId: row.category.id, month: m, field: metric })
                                   }
                                   title={`${METRIC_LABEL[metric]} bearbeiten`}
-                                  className="block w-full min-w-[5.5rem] px-2 py-1.5 text-right hover:bg-[var(--accent-soft)]"
+                                  className="block w-full min-w-[5.5rem] px-2 py-0.5 text-right hover:bg-[var(--accent-soft)]"
                                 >
                                   <Amount value={value} />
                                 </button>
@@ -417,7 +417,7 @@ export function FinanceBudgetOverview({
                                 type="button"
                                 onClick={() => openDrilldown(row.category, [m], monthLabel(m))}
                                 title="Buchungen anzeigen"
-                                className="block w-full min-w-[5.5rem] px-2 py-1.5 text-right font-semibold underline-offset-2 hover:bg-[var(--accent-soft)] hover:underline"
+                                className="block w-full min-w-[5.5rem] px-2 py-0.5 text-right font-semibold underline-offset-2 hover:bg-[var(--accent-soft)] hover:underline"
                               >
                                 <Amount value={value} />
                               </button>
@@ -426,7 +426,7 @@ export function FinanceBudgetOverview({
                         }
 
                         return (
-                          <td key={`${m}-${metric}`} className={`${base} min-w-[5.5rem] px-2 py-1.5 text-right`}>
+                          <td key={`${m}-${metric}`} className={`${base} min-w-[5.5rem] px-2 py-0.5 text-right`}>
                             <Amount value={value} />
                           </td>
                         );
@@ -435,7 +435,7 @@ export function FinanceBudgetOverview({
                     {yearMetrics.map((metric, i) => {
                       const value = totals[metric];
                       const cls = [
-                        "min-w-[6.5rem] border-b border-[var(--border)]/70 px-2 py-1.5 text-right font-semibold",
+                        "min-w-[6.5rem] border-b border-[var(--border)]/70 px-2 py-0.5 text-right font-semibold",
                         i === 0 ? "border-l-2" : "",
                         metric === "expected" ? "bg-[var(--panel-muted)]/40" : "",
                       ].join(" ");
@@ -448,7 +448,7 @@ export function FinanceBudgetOverview({
                                 openDrilldown(row.category, months, `Jahr ${overview.year}`)
                               }
                               title="Alle Buchungen des Jahres anzeigen"
-                              className="block w-full px-2 py-1.5 text-right underline-offset-2 hover:bg-[var(--accent-soft)] hover:underline"
+                              className="block w-full px-2 py-0.5 text-right underline-offset-2 hover:bg-[var(--accent-soft)] hover:underline"
                             >
                               <Amount value={value} />
                             </button>
