@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   assetIds: z.array(z.string().min(1).max(64)).min(1).max(MAX_ARCHIVE_DOWNLOADS),
-  format: z.enum(["original", "jpeg"]).optional().default("jpeg"),
+  format: z.enum(["original", "jpeg", "source"]).optional().default("jpeg"),
 });
 
 export async function POST(request: Request) {

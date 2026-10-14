@@ -48,9 +48,15 @@ export const RAW_EXT = new Set([
   ".x3f",
 ]);
 
-/** Print TIFFs regularly exceed 40 MB; 200 MB covers typical press masters. */
-export const MAX_FILE_BYTES = 200 * 1024 * 1024;
+/**
+ * Browser uploads go straight to R2 via presigned PUT, so the app server never
+ * holds the bytes. Print montages reach ~650 MB; 1 GB leaves headroom.
+ */
+export const MAX_FILE_BYTES = 1024 * 1024 * 1024;
 export const MAX_FILE_MB = MAX_FILE_BYTES / (1024 * 1024);
+/** The server fallback buffers the whole body in RAM; keep it well below that. */
+export const MAX_SERVER_UPLOAD_BYTES = 200 * 1024 * 1024;
+export const MAX_SERVER_UPLOAD_MB = MAX_SERVER_UPLOAD_BYTES / (1024 * 1024);
 export const MAX_FILES = 40;
 
 export function fileExtension(name: string): string {

@@ -1,7 +1,13 @@
 import sharp from "sharp";
-import { decodeHeicIfNeeded } from "./heic";
+import { decodeHeicSource, type ImageSource } from "./heic";
 
 export const MASTER_MAX_EDGE = 4000;
+
+/**
+ * sharp refuses inputs above ~268 MP by default. Print montages can exceed
+ * that; libvips streams TIFF strips, so a higher cap stays within RAM.
+ */
+export const MAX_INPUT_PIXELS = 1_000_000_000;
 
 export type MasterImage = {
   buffer: Buffer;
@@ -28,9 +34,12 @@ function chooseMasterFormat(meta: SharpMetadata): MasterFormat {
  * (no upscaling). HEIC/HEIF becomes JPEG; TIFF and PNG (incl. alpha) keep
  * their container. Aspect ratio is preserved.
  */
-export async function createMasterImage(original: Buffer): Promise<MasterImage> {
-  const decoded = await decodeHeicIfNeeded(original);
-  const image = sharp(decoded, { failOn: "none" }).rotate();
+export async function createMasterImage(original: ImageSource): Promise<MasterImage> {
+  const decoded = await decodeHeicSource(original);
+  const image = sharp(decoded, {
+    failOn: "none",
+    limitInputPixels: MAX_INPUT_PIXELS,
+  }).rotate();
   const meta = await image.clone().metadata();
   if (!meta.width || !meta.height) {
     throw new Error("Bild konnte nicht gelesen werden.");

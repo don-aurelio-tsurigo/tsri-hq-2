@@ -477,6 +477,16 @@ export function DamArchivePreview({
                     >
                       Original
                     </button>
+                    {asset.hasSourceFile ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--accent-soft)]"
+                        onClick={() => void downloadAsset("source")}
+                      >
+                        Original-TIFF (verlustfrei)
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"

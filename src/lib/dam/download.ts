@@ -3,7 +3,7 @@ import {
   publishedDownloadPath,
   type DamDownloadFormat,
 } from "@/lib/dam/download-path";
-import { replaceKeyExtension } from "@/lib/dam/filename";
+import { fileExtension, replaceKeyExtension } from "@/lib/dam/filename";
 import { prisma } from "@/lib/db";
 
 export type { DamDownloadFormat } from "@/lib/dam/download-path";
@@ -25,7 +25,7 @@ export async function createPublishedDownloadLinks(
 
   const assets = await prisma.asset.findMany({
     where: { id: { in: unique }, status: "published" },
-    select: { id: true, fileName: true },
+    select: { id: true, fileName: true, sourceR2Key: true },
   });
   if (assets.length === 0) return { error: "Keine publizierten Bilder gefunden." };
 
@@ -34,14 +34,21 @@ export async function createPublishedDownloadLinks(
     .map((id) => byId.get(id))
     .filter((asset): asset is (typeof assets)[number] => Boolean(asset));
 
-  const files: SignedDownloadFile[] = ordered.map((asset) => ({
-    id: asset.id,
-    fileName:
-      format === "jpeg"
-        ? replaceKeyExtension(asset.fileName, "jpg")
-        : asset.fileName,
-    url: publishedDownloadPath(asset.id, format),
-  }));
+  const files: SignedDownloadFile[] = ordered.map((asset) => {
+    // Assets without a kept source fall back to the regular original.
+    const assetFormat =
+      format === "source" && !asset.sourceR2Key ? "original" : format;
+    return {
+      id: asset.id,
+      fileName:
+        assetFormat === "jpeg"
+          ? replaceKeyExtension(asset.fileName, "jpg")
+          : assetFormat === "source" && asset.sourceR2Key
+            ? replaceKeyExtension(asset.fileName, fileExtension(asset.sourceR2Key))
+            : asset.fileName,
+      url: publishedDownloadPath(asset.id, assetFormat),
+    };
+  });
 
   await prisma.exportLog.createMany({
     data: files.map((file) => ({

@@ -106,6 +106,17 @@ export function uniqueDownloadName(used: Set<string>, fileName: string): string 
   return candidate;
 }
 
+/** Lossless upload kept beside the master, e.g. `…/foto_001_source.tiff`. */
+export function sourceKey(r2Key: string): string {
+  const slash = r2Key.lastIndexOf("/");
+  const file = slash >= 0 ? r2Key.slice(slash + 1) : r2Key;
+  const dir = slash >= 0 ? r2Key.slice(0, slash + 1) : "";
+  const dot = file.lastIndexOf(".");
+  const base = dot >= 0 ? file.slice(0, dot) : file;
+  const ext = dot >= 0 ? file.slice(dot) : "";
+  return `${dir}${base}_source${ext}`;
+}
+
 export function derivativeKey(
   r2Key: string,
   kind: "thumb" | "web",

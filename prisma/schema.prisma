@@ -1289,6 +1289,8 @@ model Asset {
   width         Int?
   height        Int?
   editParams    Json?
+  /// Lossless upload kept next to the 4000px master (print TIFFs only).
+  sourceR2Key   String?
   faceStatus    FaceScanStatus @default(pending)
   faceScannedAt DateTime?
   uploadedBy    String

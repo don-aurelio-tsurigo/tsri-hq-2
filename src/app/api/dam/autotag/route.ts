@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
 import { autotagFromImageBuffer } from "@/lib/dam/autotag";
-import { getObjectBuffer } from "@/lib/r2";
+import { readImageHead } from "@/lib/dam/heic";
+import { withObjectFile } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -38,14 +39,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const original = await getObjectBuffer(r2Key);
-    if (!looksLikeImageBytes(original)) {
+    const tags = await withObjectFile(r2Key, async ({ path }) => {
+      if (!looksLikeImageBytes(await readImageHead(path))) return null;
+      return autotagFromImageBuffer(userId, path);
+    });
+    if (!tags) {
       return NextResponse.json(
         { error: "Datei ist kein Bild." },
         { status: 400 },
       );
     }
-    const tags = await autotagFromImageBuffer(userId, original);
     return NextResponse.json(tags);
   } catch (error) {
     console.error("[dam] autotag route failed", error);

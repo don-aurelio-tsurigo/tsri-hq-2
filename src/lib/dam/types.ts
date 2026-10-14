@@ -82,4 +82,6 @@ export type ArchiveAssetCard = {
   collections: { id: string; name: string }[];
   lastWepublishExportedAt: string | null;
   editParams: DamEditParams;
+  /** A lossless print TIFF is kept beside the master. */
+  hasSourceFile: boolean;
 };

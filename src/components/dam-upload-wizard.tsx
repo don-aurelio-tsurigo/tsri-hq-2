@@ -14,9 +14,15 @@ import {
 } from "lucide-react";
 import { DamCombobox } from "@/components/dam-combobox";
 import { DamKeywordEditor } from "@/components/dam-meta-edit";
-import { MAX_FILE_BYTES, MAX_FILE_MB, MAX_FILES, rejectReason } from "@/lib/dam/accept";
+import {
+  MAX_FILE_BYTES,
+  MAX_FILE_MB,
+  MAX_FILES,
+  MAX_SERVER_UPLOAD_BYTES,
+  rejectReason,
+} from "@/lib/dam/accept";
 import { uniqueKeywords, fillSeriesKeywordGaps } from "@/lib/dam/keywords";
-import { previewUrlForFile } from "@/lib/dam/preview-url";
+import { LARGE_FILE_BYTES, previewUrlForFile } from "@/lib/dam/preview-url";
 import {
   defaultCollectionName,
   creditDisplayName,
@@ -314,7 +320,13 @@ async function putFile(
       xhr.onerror = () => reject(new Error("R2_CORS"));
       xhr.send(file.slice(0, file.size, contentType || file.type || "application/octet-stream"));
     });
-  } catch {
+  } catch (error) {
+    // The server fallback buffers the body in RAM; big TIFFs must go direct.
+    if (file.size > MAX_SERVER_UPLOAD_BYTES) {
+      throw error instanceof Error && error.message !== "R2_CORS"
+        ? error
+        : new Error("Direkter Upload nach R2 fehlgeschlagen. Bitte erneut versuchen.");
+    }
     await putViaServer(r2Key, file, contentType, onProgress);
   }
 }
@@ -637,16 +649,22 @@ export function DamUploadWizard({
           continue;
         }
         // iOS PWA hands out lazy photo files whose XHR upload body can be
-        // empty; buffer once here and upload from the in-memory copy.
-        let buffered: File;
-        try {
-          const bytes = await file.arrayBuffer();
-          if (bytes.byteLength === 0) throw new Error("empty");
-          buffered = new File([bytes], file.name, {
-            type: file.type,
-            lastModified: file.lastModified,
-          });
-        } catch {
+        // empty; buffer once here and upload from the in-memory copy. Large
+        // print files come from desktops, where copying them would only cost RAM.
+        let buffered: File = file;
+        if (file.size <= LARGE_FILE_BYTES) {
+          try {
+            const bytes = await file.arrayBuffer();
+            if (bytes.byteLength === 0) throw new Error("empty");
+            buffered = new File([bytes], file.name, {
+              type: file.type,
+              lastModified: file.lastModified,
+            });
+          } catch {
+            errors.push(`«${file.name || "Foto"}» konnte nicht gelesen werden. Bitte erneut auswählen.`);
+            continue;
+          }
+        } else if (file.size === 0) {
           errors.push(`«${file.name || "Foto"}» konnte nicht gelesen werden. Bitte erneut auswählen.`);
           continue;
         }

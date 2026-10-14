@@ -24,8 +24,8 @@ export {
 // ShareLink (Phase 7) is not in the schema yet. Downloads stay published-only,
 // so a later public share URL must keep checking status === "published".
 
-async function deleteR2Keys(r2Key: string): Promise<void> {
-  const keys = r2KeysForAsset(r2Key);
+async function deleteR2Keys(r2Key: string, sourceR2Key: string | null): Promise<void> {
+  const keys = r2KeysForAsset(r2Key, sourceR2Key);
   const results = await Promise.allSettled(keys.map((key) => deleteObject(key)));
   const failed = results.filter((result) => result.status === "rejected");
   if (failed.length === keys.length) {
@@ -90,7 +90,7 @@ export async function purgeAssetById(
 ): Promise<{ error?: string }> {
   const asset = await prisma.asset.findFirst({
     where: { id: assetId, status: { in: ["archived", "rejected"] } },
-    select: { id: true, status: true, uploadedBy: true, r2Key: true },
+    select: { id: true, status: true, uploadedBy: true, r2Key: true, sourceR2Key: true },
   });
   if (!asset || !canDeleteAsset({ id: userId }, asset)) {
     return { error: "Bild nicht gefunden." };
@@ -102,7 +102,7 @@ export async function purgeAssetById(
     return { error: "Gesichtsdaten konnten nicht gelöscht werden." };
   }
   try {
-    await deleteR2Keys(asset.r2Key);
+    await deleteR2Keys(asset.r2Key, asset.sourceR2Key);
   } catch (error) {
     console.error("[dam] purge r2 failed", asset.id, error);
     return { error: "Datei in R2 konnte nicht gelöscht werden." };
@@ -124,7 +124,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
       status: "archived",
       deletedAt: { lt: trashCutoffDate(now) },
     },
-    select: { id: true, r2Key: true },
+    select: { id: true, r2Key: true, sourceR2Key: true },
     take: 200,
   });
   const rejected = await prisma.asset.findMany({
@@ -132,7 +132,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
       status: "rejected",
       updatedAt: { lt: rejectedCutoffDate(now) },
     },
-    select: { id: true, r2Key: true },
+    select: { id: true, r2Key: true, sourceR2Key: true },
     take: 200,
   });
 
@@ -144,7 +144,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
   for (const asset of archived) {
     try {
       await deleteAssetFaceData([asset.id]);
-      await deleteR2Keys(asset.r2Key);
+      await deleteR2Keys(asset.r2Key, asset.sourceR2Key);
       await prisma.asset.delete({ where: { id: asset.id } });
       archivedCount += 1;
     } catch (error) {
@@ -155,7 +155,7 @@ export async function purgeExpiredDamAssets(now = new Date()): Promise<DamPurgeS
   for (const asset of rejected) {
     try {
       await deleteAssetFaceData([asset.id]);
-      await deleteR2Keys(asset.r2Key);
+      await deleteR2Keys(asset.r2Key, asset.sourceR2Key);
       await prisma.asset.delete({ where: { id: asset.id } });
       rejectedCount += 1;
     } catch (error) {

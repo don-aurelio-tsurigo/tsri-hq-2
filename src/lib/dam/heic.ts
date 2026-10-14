@@ -1,3 +1,4 @@
+import { open, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import sharp from "sharp";
@@ -52,4 +53,27 @@ export async function jpegBufferFromHeic(
 export async function decodeHeicIfNeeded(input: Buffer): Promise<Buffer> {
   if (!looksLikeHeicBytes(input)) return input;
   return jpegBufferFromHeic(input);
+}
+
+/** Image bytes in memory, or a path to them on disk (large originals). */
+export type ImageSource = Buffer | string;
+
+/** First bytes of a source, enough for format sniffing. */
+export async function readImageHead(input: ImageSource, length = 64): Promise<Buffer> {
+  if (typeof input !== "string") return input.subarray(0, length);
+  const handle = await open(input, "r");
+  try {
+    const head = Buffer.alloc(length);
+    const { bytesRead } = await handle.read(head, 0, length, 0);
+    return head.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
+/** Like decodeHeicIfNeeded, but leaves non-HEIC files on disk for sharp. */
+export async function decodeHeicSource(input: ImageSource): Promise<ImageSource> {
+  if (typeof input !== "string") return decodeHeicIfNeeded(input);
+  if (!looksLikeHeicBytes(await readImageHead(input))) return input;
+  return jpegBufferFromHeic(await readFile(input));
 }

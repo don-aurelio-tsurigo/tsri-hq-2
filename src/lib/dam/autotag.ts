@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import sharp from "sharp";
-import { decodeHeicIfNeeded } from "@/lib/dam/heic";
+import { decodeHeicSource, type ImageSource } from "@/lib/dam/heic";
 import { sanitizeAiKeywords } from "@/lib/dam/keywords";
+import { MAX_INPUT_PIXELS } from "@/lib/dam/master";
 import { consumeMemberQuota, refundMemberQuota } from "@/lib/member-quota";
 
 export type AutotagSkipReason = "no_key" | "quota";
@@ -29,9 +30,9 @@ function getClient(): Anthropic | null {
   return new Anthropic({ apiKey });
 }
 
-export async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
-  const decoded = await decodeHeicIfNeeded(buffer);
-  return sharp(decoded)
+export async function jpegForAutotag(source: ImageSource): Promise<Buffer> {
+  const decoded = await decodeHeicSource(source);
+  return sharp(decoded, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: 1536, withoutEnlargement: true })
     .jpeg({ quality: 80 })
@@ -40,9 +41,9 @@ export async function jpegForAutotag(buffer: Buffer): Promise<Buffer> {
 
 export async function autotagFromImageBuffer(
   userId: string,
-  buffer: Buffer,
+  source: ImageSource,
 ): Promise<AutotagResult> {
-  const jpeg = await jpegForAutotag(buffer);
+  const jpeg = await jpegForAutotag(source);
   return autotagImage(userId, jpeg);
 }
 

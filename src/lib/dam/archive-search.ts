@@ -232,6 +232,7 @@ export async function searchPublishedAssets(
         height: true,
         rightsType: true,
         editParams: true,
+        sourceR2Key: true,
         collections: {
           select: { collection: { select: { id: true, name: true } } },
         },
@@ -259,6 +260,7 @@ export async function searchPublishedAssets(
       collections: row.collections.map((link) => link.collection),
       lastWepublishExportedAt: latestWepublishExportedAt(row.exports),
       editParams: parseEditParams(row.editParams),
+      hasSourceFile: row.sourceR2Key !== null,
     })),
     total,
     page: safePage,

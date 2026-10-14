@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { MAX_FILE_BYTES } from "./accept.ts";
+import { MAX_SERVER_UPLOAD_BYTES } from "./accept.ts";
 import { parseUploadObjectRequest } from "./upload-object-body.ts";
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -65,7 +65,7 @@ describe("parseUploadObjectRequest", () => {
         "content-type": "image/jpeg",
         "x-r2-key": "staging/u/b/big.jpg",
       },
-      body: Buffer.alloc(MAX_FILE_BYTES + 1),
+      body: Buffer.alloc(MAX_SERVER_UPLOAD_BYTES + 1),
     });
     const parsed = await parseUploadObjectRequest(request);
     assert.equal(parsed.ok, false);

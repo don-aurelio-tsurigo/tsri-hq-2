@@ -3,10 +3,11 @@ import { writeEditedDerivatives } from "@/lib/dam/derivatives";
 import {
   buildArchiveKey,
   fileExtension,
+  sourceKey,
 } from "@/lib/dam/filename";
 import { r2KeysForAsset } from "@/lib/dam/r2-keys";
 import { prisma } from "@/lib/db";
-import { deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
+import { copyObject, deleteObject, getObjectBuffer, putObject } from "@/lib/r2";
 
 const CONCURRENCY = 2;
 
@@ -76,6 +77,7 @@ async function publishOne(
     select: {
       id: true,
       r2Key: true,
+      sourceR2Key: true,
       fileName: true,
       editParams: true,
     },
@@ -130,11 +132,16 @@ async function publishOne(
   const contentType = sniffImageContentType(original) ?? "image/jpeg";
   await putObject(archiveKey, original, contentType);
   await writeEditedDerivatives(archiveKey, original, asset.editParams);
+  const archiveSourceKey = asset.sourceR2Key ? sourceKey(archiveKey) : null;
+  if (asset.sourceR2Key && archiveSourceKey) {
+    await copyObject(asset.sourceR2Key, archiveSourceKey);
+  }
 
   await prisma.asset.update({
     where: { id: asset.id },
     data: {
       r2Key: archiveKey,
+      sourceR2Key: archiveSourceKey,
       notes,
       status: "published",
       publishedAt: new Date(),
@@ -144,7 +151,7 @@ async function publishOne(
       },
     },
   });
-  await deleteKeysQuietly(r2KeysForAsset(asset.r2Key));
+  await deleteKeysQuietly(r2KeysForAsset(asset.r2Key, asset.sourceR2Key));
   return {};
 }
 

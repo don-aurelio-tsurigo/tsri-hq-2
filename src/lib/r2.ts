@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -8,6 +9,12 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createWriteStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { contentDispositionAttachment } from "@/lib/dam/filename";
 
 export class R2ConfigError extends Error {
@@ -214,6 +221,28 @@ export async function getObject(key: string): Promise<{
   };
 }
 
+/**
+ * Stream an object to a temp file and run `fn` on its path. Print TIFFs reach
+ * 650 MB; a Buffer plus SDK byte array would double that in RAM.
+ */
+export async function withObjectFile<T>(
+  key: string,
+  fn: (file: { path: string; metadata: Record<string, string> }) => Promise<T>,
+): Promise<T> {
+  const dir = await mkdtemp(path.join(tmpdir(), "r2-"));
+  try {
+    const res = await getClient().send(
+      new GetObjectCommand({ Bucket: getR2Bucket(), Key: key }),
+    );
+    if (!res.Body) throw new Error(`Leeres R2-Objekt: ${key}`);
+    const filePath = path.join(dir, "object");
+    await pipeline(res.Body as Readable, createWriteStream(filePath));
+    return await fn({ path: filePath, metadata: res.Metadata ?? {} });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 /** Stored byte size, or null when the object does not exist. */
 export async function objectSize(key: string): Promise<number | null> {
   try {
@@ -232,6 +261,22 @@ export async function objectSize(key: string): Promise<number | null> {
 export async function getObjectBuffer(key: string): Promise<Buffer> {
   const { buffer } = await getObject(key);
   return buffer;
+}
+
+/** Server-side copy inside the bucket; the bytes never pass through the app. */
+export async function copyObject(sourceKey: string, targetKey: string): Promise<void> {
+  const bucket = getR2Bucket();
+  try {
+    await getClient().send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: `${bucket}/${sourceKey.split("/").map(encodeURIComponent).join("/")}`,
+        Key: targetKey,
+      }),
+    );
+  } catch (error) {
+    throw new R2AccessError(r2ErrorMessage("das Kopieren", error));
+  }
 }
 
 export async function deleteObject(key: string): Promise<void> {

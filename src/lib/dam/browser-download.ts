@@ -70,19 +70,24 @@ async function fetchAsFile(url: string, fileName: string): Promise<File> {
   return new File([blob], fileName, { type: blob.type || "image/jpeg" });
 }
 
+/** Native download (server answers with an attachment); never buffered in a Blob. */
+function saveViaLink(url: string, fileName: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 async function saveFromUrl(url: string, fileName: string) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("r2");
     saveBlob(await res.blob(), fileName);
   } catch {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    saveViaLink(url, fileName);
   }
 }
 
@@ -105,6 +110,14 @@ export async function downloadPublishedAssets(
   }
 
   const files = data.files;
+  // Lossless print TIFFs reach hundreds of MB: no share sheet, ZIP or Blob.
+  if (format === "source") {
+    for (const [index, file] of files.entries()) {
+      saveViaLink(file.url, file.fileName);
+      onProgress?.(index + 1, files.length);
+    }
+    return;
+  }
   if (shareToPhotosSupported()) {
     const shared: File[] = [];
     try {

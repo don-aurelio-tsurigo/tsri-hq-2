@@ -10,6 +10,7 @@ import {
 import {
   contentDispositionAttachment,
   derivativeKey,
+  fileExtension,
   replaceKeyExtension,
 } from "@/lib/dam/filename";
 import {
@@ -19,7 +20,7 @@ import {
 } from "@/lib/dam/edit-params";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
-import { getObject, putObject } from "@/lib/r2";
+import { getObject, presignGetUrl, putObject } from "@/lib/r2";
 import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -65,6 +66,7 @@ export async function GET(
     },
     select: {
       r2Key: true,
+      sourceR2Key: true,
       fileName: true,
       editParams: true,
       credit: true,
@@ -80,6 +82,20 @@ export async function GET(
   }
 
   try {
+    if (variant === "source") {
+      if (!asset.sourceR2Key) {
+        return NextResponse.json({ error: "not found" }, { status: 404 });
+      }
+      // Hundreds of MB: let the browser fetch straight from R2.
+      const url = await presignGetUrl(asset.sourceR2Key, {
+        fileName: replaceKeyExtension(
+          asset.fileName,
+          fileExtension(asset.sourceR2Key),
+        ),
+      });
+      return NextResponse.redirect(url, { status: 302 });
+    }
+
     if (baseOnly && (variant === "thumb" || variant === "web")) {
       const baseKey = baseDerivativeKey(asset.r2Key, variant);
       try {

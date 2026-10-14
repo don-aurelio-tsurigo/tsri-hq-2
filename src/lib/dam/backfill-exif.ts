@@ -1,8 +1,9 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { looksLikeImageBytes } from "@/lib/dam/accept";
 import { extractExif, resolveTakenAt } from "@/lib/dam/exif";
+import { readImageHead } from "@/lib/dam/heic";
 import { prisma } from "@/lib/db";
-import { getObject } from "@/lib/r2";
+import { withObjectFile } from "@/lib/r2";
 
 /** Read EXIF from the current R2 original and persist takenAt/dimensions. */
 export async function backfillAssetExif(assetId: string): Promise<void> {
@@ -20,10 +21,12 @@ export async function backfillAssetExif(assetId: string): Promise<void> {
   if (asset.takenAt && asset.width && asset.height) return;
 
   try {
-    const { buffer, metadata } = await getObject(asset.r2Key);
-    if (!looksLikeImageBytes(buffer)) return;
-
-    const exif = await extractExif(buffer);
+    const read = await withObjectFile(asset.r2Key, async ({ path, metadata }) => {
+      if (!looksLikeImageBytes(await readImageHead(path))) return null;
+      return { exif: await extractExif(path), metadata };
+    });
+    if (!read) return;
+    const { exif, metadata } = read;
     const takenAt = resolveTakenAt({
       exifTakenAt: exif.takenAt,
       metadata,

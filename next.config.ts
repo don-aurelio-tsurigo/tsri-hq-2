@@ -32,8 +32,8 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
-    // Print TIFFs regularly exceed phone-JPEG sizes; keep proxy/action limits
-    // aligned with MAX_FILE_BYTES (200 MB) so DAM fallback uploads succeed.
+    // Keep proxy/action limits aligned with MAX_SERVER_UPLOAD_BYTES (200 MB) so
+    // DAM fallback uploads succeed. Larger files only go direct to R2.
     proxyClientMaxBodySize: "200mb",
     serverActions: { bodySizeLimit: "200mb" },
     // Keep Render's 8 GB native-build cap from being blown by parallel workers.

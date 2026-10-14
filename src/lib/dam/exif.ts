@@ -1,6 +1,7 @@
 import exifr from "exifr";
 import sharp from "sharp";
 import type { Prisma } from "@/generated/prisma/client";
+import type { ImageSource } from "@/lib/dam/heic";
 
 export type ExtractedExif = {
   takenAt: Date | null;
@@ -45,9 +46,11 @@ function takenAtFromParsed(parsed: Record<string, unknown>): Date | null {
   );
 }
 
-async function parseExifBuffer(buffer: Buffer): Promise<Record<string, unknown> | undefined> {
+async function parseExifBuffer(
+  source: ImageSource,
+): Promise<Record<string, unknown> | undefined> {
   try {
-    return (await exifr.parse(buffer, {
+    return (await exifr.parse(source, {
       tiff: true,
       xmp: true,
       iptc: true,
@@ -57,8 +60,10 @@ async function parseExifBuffer(buffer: Buffer): Promise<Record<string, unknown> 
       translateValues: true,
       reviveValues: true,
       mergeOutput: true,
-      firstChunkSize: buffer.length,
-      chunkLimit: 1,
+      // In-memory: read it all at once. On disk: let exifr read chunks.
+      ...(typeof source === "string"
+        ? {}
+        : { firstChunkSize: source.length, chunkLimit: 1 }),
     })) as Record<string, unknown> | undefined;
   } catch {
     return undefined;
@@ -66,10 +71,10 @@ async function parseExifBuffer(buffer: Buffer): Promise<Record<string, unknown> 
 }
 
 async function parseViaSharpExifSegment(
-  buffer: Buffer,
+  source: ImageSource,
 ): Promise<Record<string, unknown> | undefined> {
   try {
-    const meta = await sharp(buffer, { failOn: "none" }).metadata();
+    const meta = await sharp(source, { failOn: "none", limitInputPixels: false }).metadata();
     if (!meta.exif || meta.exif.length <= 8) return undefined;
     const tiff = meta.exif.subarray(6);
     if (tiff.length <= 4) return undefined;
@@ -107,10 +112,10 @@ export function resolveTakenAt(opts: {
   );
 }
 
-export async function extractExif(buffer: Buffer): Promise<ExtractedExif> {
-  let parsed = await parseExifBuffer(buffer);
+export async function extractExif(source: ImageSource): Promise<ExtractedExif> {
+  let parsed = await parseExifBuffer(source);
   if (!parsed || !takenAtFromParsed(parsed)) {
-    const viaSharp = await parseViaSharpExifSegment(buffer);
+    const viaSharp = await parseViaSharpExifSegment(source);
     if (viaSharp) parsed = { ...parsed, ...viaSharp };
   }
 
@@ -131,7 +136,7 @@ export async function extractExif(buffer: Buffer): Promise<ExtractedExif> {
 
   if (!width || !height) {
     try {
-      const meta = await sharp(buffer, { failOn: "none" }).metadata();
+      const meta = await sharp(source, { failOn: "none", limitInputPixels: false }).metadata();
       width = width ?? meta.width ?? null;
       height = height ?? meta.height ?? null;
     } catch {

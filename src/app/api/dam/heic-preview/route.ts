@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { looksLikeHeicBytes, MAX_FILE_BYTES, MAX_FILE_MB } from "@/lib/dam/accept";
+import { looksLikeHeicBytes, MAX_SERVER_UPLOAD_BYTES, MAX_SERVER_UPLOAD_MB } from "@/lib/dam/accept";
 import { jpegBufferFromHeic } from "@/lib/dam/heic";
 import { getActiveMembershipContext } from "@/lib/session";
 
@@ -19,9 +19,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Ungültige Datei." }, { status: 400 });
   }
-  if (bytes.length > MAX_FILE_BYTES) {
+  if (bytes.length > MAX_SERVER_UPLOAD_BYTES) {
     return NextResponse.json(
-      { error: `Datei ist zu gross (max. ${MAX_FILE_MB} MB).` },
+      { error: `Datei ist zu gross (max. ${MAX_SERVER_UPLOAD_MB} MB).` },
       { status: 400 },
     );
   }

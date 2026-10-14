@@ -15,6 +15,8 @@ import { getActiveMembershipContext } from "@/lib/session";
 
 export const runtime = "nodejs";
 
+const UPLOAD_URL_TTL_SECONDS = 4 * 60 * 60;
+
 const fileSchema = z.object({
   name: z.string().min(1).max(240),
   type: z.string().max(120).optional().default(""),
@@ -106,7 +108,9 @@ export async function POST(request: Request) {
           sequence,
           ext,
         });
-        const uploadUrl = await presignPutUrl(r2Key, contentType);
+        // Files upload one after another; 650 MB TIFFs late in a batch would
+        // outlive the default 15-minute signature.
+        const uploadUrl = await presignPutUrl(r2Key, contentType, UPLOAD_URL_TTL_SECONDS);
         return {
           clientName: file.name,
           sequence,

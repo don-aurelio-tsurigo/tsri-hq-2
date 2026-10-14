@@ -1,4 +1,4 @@
-import { MAX_FILE_BYTES, MAX_FILE_MB } from "./accept";
+import { MAX_SERVER_UPLOAD_BYTES, MAX_SERVER_UPLOAD_MB } from "./accept";
 
 export type ParsedUploadObject =
   | { ok: true; r2Key: string; contentType: string; bytes: Buffer }
@@ -11,7 +11,7 @@ function isMultipart(contentType: string): boolean {
 function tooLarge(): ParsedUploadObject {
   return {
     ok: false,
-    error: `Datei ist zu gross (max. ${MAX_FILE_MB} MB).`,
+    error: `Datei ist zu gross (max. ${MAX_SERVER_UPLOAD_MB} MB).`,
     status: 400,
   };
 }
@@ -28,7 +28,7 @@ function parseErrorMessage(error: unknown): string {
   const text =
     error instanceof Error ? `${error.name} ${error.message}` : String(error);
   if (/size|limit|exceeded|too large|payload/i.test(text)) {
-    return `Datei ist zu gross (max. ${MAX_FILE_MB} MB).`;
+    return `Datei ist zu gross (max. ${MAX_SERVER_UPLOAD_MB} MB).`;
   }
   return "Ungültiges Formular.";
 }
@@ -59,7 +59,7 @@ export async function parseUploadObjectRequest(
       console.error("[dam] upload-object raw body read failed", error);
       return { ok: false, error: parseErrorMessage(error), status: 400 };
     }
-    if (bytes.length > MAX_FILE_BYTES) return tooLarge();
+    if (bytes.length > MAX_SERVER_UPLOAD_BYTES) return tooLarge();
     return { ok: true, r2Key: r2KeyHint, contentType: resolvedType, bytes };
   }
 
@@ -76,7 +76,7 @@ export async function parseUploadObjectRequest(
     String(form.get("contentType") ?? "").trim() || headerContentType;
   const file = form.get("file");
   if (!r2Key || !contentType || !(file instanceof Blob)) return missingFields();
-  if (file.size > MAX_FILE_BYTES) return tooLarge();
+  if (file.size > MAX_SERVER_UPLOAD_BYTES) return tooLarge();
   const bytes = Buffer.from(await file.arrayBuffer());
   return { ok: true, r2Key, contentType, bytes };
 }
