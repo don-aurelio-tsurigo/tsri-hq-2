@@ -13,11 +13,13 @@ ${categoryColorPromptBlock()}
 Setze category auf genau einen Namen (GROSSBUCHSTABEN); Farbe und Textkontrast folgen daraus automatisiert.
 
 WICHTIGSTE REGEL — Textmenge:
+- PLATZ AUF EINEM TEXT-SLIDE (gemessen am Template): Das Textfeld hat 17 Zeilen à ca. 30 Zeichen. Jede Leerzeile zwischen Absätzen kostet eine ganze Zeile, fett gesetzte Wörter brauchen mehr Platz. Was nicht hineinpasst, wird unten abgeschnitten — zu viel Text ist der häufigste Fehler.
 - Zähle zuerst die sichtbaren Zeichen des Artikel-Fliesstexts (ohne Lead/Teaser, ohne Bildunterschriften).
-- ARTIKEL UNTER 5000 ZEICHEN: Keine Kürzungen. Übernimm den Fliesstext 1:1 wortwörtlich und verteile ihn auf so viele Text-Slides wie nötig (innerhalb Cover + Text + Outro = 6–10 Slides insgesamt). Nicht zusammenfassen, nicht paraphrasieren, keine Sätze weglassen.
-- ARTIKEL AB 5000 ZEICHEN: Ziel bleibt möglichst der gesamte Fliesstext. Kürzen ist nur erlaubt, wenn der Text sonst nicht auf die verfügbaren Text-Slides passt — und dann nur durch Weglassen ganzer Sätze, nie durch Umschreiben.
-- Ziel pro Text-Slide: 400–500 sichtbare Zeichen UND 2–3 Absätze. Absätze mit <br/><br/> trennen (eine Leerzeile). Nicht einen einzigen langen Block ohne Umbruch.
-- Beispiel: Ein Artikel mit etwas über 2000 Zeichen wird typischerweise auf 4 Text-Slides à ca. 400–500 Zeichen mit je 2–3 Absätzen aufgeteilt (plus Cover und Outro).
+- KAPAZITÄT DES KARUSSELLS: Höchstens 8 Text-Slides (10 Slides inkl. Cover und Outro) à höchstens ca. 420 Zeichen — insgesamt also ca. 3300 Zeichen Fliesstext.
+- FLIESSTEXT BIS CA. 3300 ZEICHEN: Keine Kürzungen. Übernimm den Fliesstext 1:1 wortwörtlich und verteile ihn auf so viele Text-Slides wie nötig (innerhalb Cover + Text + Outro = 6–10 Slides insgesamt). Nicht zusammenfassen, nicht paraphrasieren, keine Sätze weglassen.
+- FLIESSTEXT ÜBER CA. 3300 ZEICHEN: Lass ganze Sätze weg, bis der Text auf die verfügbaren Text-Slides passt — bevorzugt Nebenaspekte, Wiederholungen und Detailangaben, nie die Kernaussagen. Niemals umschreiben und niemals Slides überfüllen. Die Längenlimits pro Slide haben immer Vorrang vor Vollständigkeit.
+- Ziel pro Text-Slide: 350–420 sichtbare Zeichen in 2 Absätzen (3 Absätze nur, wenn sie kurz sind). Absätze mit <br/><br/> trennen (eine Leerzeile). Nicht einen einzigen langen Block ohne Umbruch.
+- Beispiel: Ein Artikel mit etwas über 2000 Zeichen wird typischerweise auf 5 Text-Slides à ca. 400 Zeichen mit je 2 Absätzen aufgeteilt (plus Cover und Outro).
 - Den Artikel-Lead (Teaser/Intro-Absatz vor dem Fliesstext) NICHT verwenden — nur der eigentliche Artikeltext ab dem ersten Fliesstext-Absatz zählt.
 - Zwischenüberschriften im Artikel (z.B. "Namensänderung in Aussicht") nicht als Slide-Titel erfinden; den folgenden Fliesstext aber übernehmen.
 - Ändere den Text keinesfalls in der Aussage.
@@ -30,14 +32,14 @@ Cover:
 
 Text-Slides:
 - bodyHtml, nur <b>, <i> und Zeilenumbrüche (\\n oder <br/>), keine anderen Tags. Text = Original-Wortlaut.
-- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Zielband: 400–500 sichtbare Zeichen. Unter 400: mehr Originaltext auf diesen Slide holen (nächster Satz/Absatz), statt dünn zu lassen. Über 500: den letzten vollständigen Satz auf den nächsten Slide verschieben — niemals mitten im Satz oder mitten im Wort abschneiden.
+- ZEICHENZÄHLUNG — VERBINDLICH: Bevor du den Text final in die JSON-Ausgabe schreibst, zähle die Zeichen jedes bodyHtml-Texts explizit durch (in deinen Denkschritten, nicht in der Ausgabe) — addiere die Zeichenzahl wortweise oder in 10er-Blöcken zusammen, statt die Länge zu schätzen. Zielband: 350–420 sichtbare Zeichen. Unter 350: mehr Originaltext auf diesen Slide holen (nächster Satz/Absatz), statt dünn zu lassen. Über dem harten Maximum (siehe LÄNGENLIMIT): den letzten vollständigen Satz auf den nächsten Slide verschieben — niemals mitten im Satz oder mitten im Wort abschneiden. Im Zweifel lieber einen Satz weniger auf den Slide.
 - FETT-MARKIERUNG: Markiere pro Slide MINDESTENS 2, idealerweise 2–3 zentrale Begriffe oder kurze Wortgruppen (max. 3–5 Wörter je Markierung) mit <b>, die den Kerngedanken tragen (Zahlen, Kernaussagen, Kontraste). Nur bei sehr kurzen Slides (unter ca. 150 Zeichen) ist eine einzelne Markierung oder Verzicht akzeptabel. Verteile die Markierungen über den Text, nicht alle im selben Satz. Nicht ganze Sätze fett setzen, nicht mehr als 3 pro Slide.
-- ABSATZSTRUKTUR — VERBINDLICH: Jede Text-Slide hat 2 oder 3 Absätze, getrennt durch <br/><br/>. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke, Ende eines Zitats), nicht willkürlich mitten in einem Satz.
+- ABSATZSTRUKTUR — VERBINDLICH: Jede Text-Slide hat 2 Absätze (bei kurzen Absätzen auch 3), getrennt durch <br/><br/>. Jeder zusätzliche Absatz kostet eine Zeile Platz. Umbruch an inhaltlich sinnvoller Stelle (Themenwechsel, neuer Gedanke, Ende eines Zitats), nicht willkürlich mitten in einem Satz.
 - KEIN FRAGMENT: Jede Text-Slide muss mit einem vollständigen Satz enden (Punkt, Frage- oder Ausrufezeichen). Wenn der letzte Satz nicht mehr ganz auf den Slide passt, verschiebe den GESAMTEN Satz auf den nächsten Slide. Niemals Wörter, Satzteile oder Halbsätze am Slide-Ende abschneiden. Keinen Satz auf mehreren Slides wiederholen.
-- LÄNGENLIMIT:
-  - Ziel: 400–500 sichtbare Zeichen bei 2–3 Absätzen.
-  - Hartes Maximum: 530 ohne Absatzumbruch, 500 bei 1 oder 2 Umbrüchen (zwei oder drei Absätze).
-  - Lieber einen weiteren Text-Slide eröffnen, als einen Slide über 500 zu quetschen, Absätze wegzulassen oder einen Satz zu zerteilen.
+- LÄNGENLIMIT (gemessen am Template, nicht verhandelbar):
+  - Ziel: 350–420 sichtbare Zeichen bei 2 Absätzen.
+  - Hartes Maximum: 480 bei 1 Absatz, 450 bei 2 Absätzen, 420 bei 3 Absätzen. Darüber läuft der Text unten aus dem Textfeld.
+  - Lieber einen weiteren Text-Slide eröffnen (oder bei vollem Karussell ganze Sätze weglassen, siehe KAPAZITÄT), als einen Slide zu überfüllen, Absätze wegzulassen oder einen Satz zu zerteilen.
 
 Quote-Slides (falls verwendet):
 - quoteText ohne öffnendes « (steht bereits als Grafik im Template), wortwörtlich, max. 300 Zeichen — falls länger, kürzen (Weglassen, nicht Umschreiben). Endet IMMER mit Schlusspunkt plus schliessendem Guillemet: .» (Frage/Ausruf: ?» bzw. !»). Das schliessende » nur einmal ganz am Ende, nicht verdoppeln.

@@ -18,6 +18,7 @@ import {
   Copy,
   Image as ImageIcon,
   Lock,
+  TriangleAlert,
   Type,
   ImagePlus,
   LoaderCircle,
@@ -255,6 +256,10 @@ export function CarouselEditor({
   const [selectedLayer, setSelectedLayer] = useState<EditableLayer>("text");
   const [articleOpen, setArticleOpen] = useState(Boolean(sourceArticle));
   const [dragSlideId, setDragSlideId] = useState<string | null>(null);
+  /** Slides whose text runs past the text box (measured by the thumbnails). */
+  const [overflowIds, setOverflowIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   /** Insertion index (0…slides.length) while a thumbnail is dragged. */
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   /** Distance between two thumbnails, measured when a drag starts. */
@@ -286,6 +291,10 @@ export function CarouselEditor({
 
   const active =
     slides.find((s) => s.id === activeId) ?? slides[0] ?? null;
+  const overflowingSlideNumbers = slides
+    .map((slide, index) => (overflowIds.has(slide.id) ? index + 1 : null))
+    .filter((n): n is number => n !== null);
+  const activeOverflows = Boolean(active && overflowIds.has(active.id));
 
   const overlayDefaults = active
     ? defaultImageOverlayForSlideType(active.type)
@@ -534,6 +543,16 @@ export function CarouselEditor({
     setActiveId(slideId);
   }
 
+  function markOverflow(slideId: string, overflowing: boolean) {
+    setOverflowIds((prev) => {
+      if (prev.has(slideId) === overflowing) return prev;
+      const next = new Set(prev);
+      if (overflowing) next.add(slideId);
+      else next.delete(slideId);
+      return next;
+    });
+  }
+
   function endThumbnailDrag() {
     setDragSlideId(null);
     setDropIndex(null);
@@ -713,6 +732,17 @@ export function CarouselEditor({
             {createdByName}
             {saveLabel ? ` · ${saveLabel}` : ""}
           </p>
+          {overflowingSlideNumbers.length > 0 ? (
+            <p
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--danger)]"
+              role="status"
+            >
+              <TriangleAlert className="size-4 shrink-0" strokeWidth={2} aria-hidden />
+              Zu viel Text auf{" "}
+              {overflowingSlideNumbers.length === 1 ? "Slide" : "Slides"}{" "}
+              {overflowingSlideNumbers.join(", ")}
+            </p>
+          ) : null}
           {error ? (
             <p className="text-sm text-[var(--danger)]" role="alert">
               {error}
@@ -845,6 +875,23 @@ export function CarouselEditor({
             </div>
           ) : null}
 
+          {activeOverflows ? (
+            <div
+              className="flex w-full max-w-[454px] items-start gap-2 rounded-lg border border-[var(--danger)] bg-[var(--danger)]/8 px-3 py-2 text-sm text-[var(--danger)]"
+              role="alert"
+            >
+              <TriangleAlert
+                className="mt-0.5 size-4 shrink-0"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span>
+                <b>Zu viel Text:</b> Der Text läuft unten aus dem Textfeld und
+                wird im Export abgeschnitten. Bitte kürzen.
+              </span>
+            </div>
+          ) : null}
+
           <div className="flex w-full flex-col items-center gap-2">
             <div
               ref={thumbStripRef}
@@ -892,7 +939,11 @@ export function CarouselEditor({
                     style={
                       shift ? { transform: `translateX(${shift}px)` } : undefined
                     }
-                    title={`${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`}
+                    title={
+                      overflowIds.has(slide.id)
+                        ? `${SLIDE_TYPE_LABEL[slide.type]} ${index + 1} – zu viel Text`
+                        : `${SLIDE_TYPE_LABEL[slide.type]} ${index + 1}`
+                    }
                   >
                     {/* Inner images must not start their own drag. */}
                     <span className="pointer-events-none block">
@@ -900,8 +951,19 @@ export function CarouselEditor({
                         slide={slide}
                         scale={thumbScale}
                         format={format}
+                        onOverflowChange={(overflowing) =>
+                          markOverflow(slide.id, overflowing)
+                        }
                       />
                     </span>
+                    {overflowIds.has(slide.id) ? (
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-[var(--danger)] text-[10px] font-bold text-white shadow ring-2 ring-white"
+                      >
+                        !
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}

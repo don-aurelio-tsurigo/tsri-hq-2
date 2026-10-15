@@ -933,6 +933,7 @@ function TextPreview({
         mode="html"
         value={slide.bodyHtml}
         className={`carousel-slide-text absolute z-30 overflow-hidden ${isSixi ? "sixibrief-text" : ""} ${textDrag.className}`}
+        data-slide-textbox="clip"
         style={{
           left: isSixi ? 80 : 100,
           right: isSixi ? 80 : 100,
@@ -1051,6 +1052,7 @@ function QuotePreview({
       />
       <div
         className={`absolute z-30 ${textDrag.className}`}
+        data-slide-textbox="free"
         style={{
           left: 100,
           right: 100,
@@ -1202,6 +1204,7 @@ function FragePreview({
       />
       <div
         className={`absolute z-30 ${textDrag.className}`}
+        data-slide-textbox="free"
         style={{
           left: 100,
           right: 100,
@@ -1312,6 +1315,7 @@ function TippItemPreview({
       />
       <div
         className="carousel-slide-text absolute z-30 overflow-hidden"
+        data-slide-textbox="clip"
         style={{
           left: 88,
           right: 88,
@@ -1477,6 +1481,20 @@ function OutroPreview({
       )}
     </>
   );
+}
+
+/**
+ * Does the slide's text run past its text box? "clip" boxes cut overflowing
+ * text off; "free" boxes let it spill over the slide (scaled by the text layer).
+ */
+function measureTextOverflow(canvas: HTMLElement, textScale: number): boolean {
+  const box = canvas.querySelector<HTMLElement>("[data-slide-textbox]");
+  if (!box) return false;
+  const tolerance = 2;
+  if (box.dataset.slideTextbox === "clip") {
+    return box.scrollHeight > box.clientHeight + tolerance;
+  }
+  return box.scrollHeight * textScale > box.clientHeight + tolerance;
 }
 
 type Corner = { x: 0 | 1; y: 0 | 1 };
@@ -2157,11 +2175,14 @@ export function CarouselSlidePreview({
   onTextTransform,
   onTextChange,
   onImageCrop,
+  onOverflowChange,
   format,
 }: {
   slide: Slide;
   scale?: number;
   forExport?: boolean;
+  /** Reports whether the slide's text runs past its text box. */
+  onOverflowChange?: (overflowing: boolean) => void;
   /** Enables side handles that crop the background photo. */
   onImageCrop?: (crop: ImageCrop | null) => void;
   /** Enables double-click text editing directly on the canvas. */
@@ -2181,6 +2202,37 @@ export function CarouselSlidePreview({
   );
   const canvasRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const overflowRef = useRef<boolean | null>(null);
+  const overflowCallbackRef = useRef(onOverflowChange);
+  const textScale = normalizeTransform(slide.textTransform).scale;
+
+  // Measure after every render, once fonts are in, and when the text box resizes.
+  useLayoutEffect(() => {
+    overflowCallbackRef.current = onOverflowChange;
+    const canvas = canvasRef.current;
+    if (!canvas || !onOverflowChange) return;
+    const report = () => {
+      const overflowing = measureTextOverflow(canvas, textScale);
+      if (overflowRef.current === overflowing) return;
+      overflowRef.current = overflowing;
+      overflowCallbackRef.current?.(overflowing);
+    };
+    report();
+    let cancelled = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) report();
+    });
+    const box = canvas.querySelector<HTMLElement>("[data-slide-textbox]");
+    const observer = new ResizeObserver(report);
+    if (box) {
+      observer.observe(box);
+      Array.from(box.children).forEach((child) => observer.observe(child));
+    }
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  });
 
   const editable = interactive && !forExport;
   const editingField =
