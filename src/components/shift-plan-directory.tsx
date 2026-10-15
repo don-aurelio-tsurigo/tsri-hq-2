@@ -244,16 +244,16 @@ export function ShiftPlanDirectory({
         key={`${slot.typeId}:${slot.dateKey}`}
         className={[
           "flex flex-wrap items-center gap-x-2 gap-y-1 border-l-[3px] px-3 py-1.5 sm:flex-nowrap sm:py-1",
-          proposed ? "bg-amber-50/50" : skipped ? "opacity-55" : "",
+          skipped ? "opacity-55" : "",
           rowClassName ?? "",
         ].join(" ")}
         style={{
           borderLeftColor: color,
-          background: proposed
+          borderLeftStyle: proposed ? "dashed" : undefined,
+          // Vorschläge behalten die Typfarbe; markiert über Label + gestrichelten Rand
+          background: skipped
             ? undefined
-            : skipped
-              ? undefined
-              : newsletterTypeSoftBackground(color, 8),
+            : newsletterTypeSoftBackground(color, 8),
         }}
       >
         {dateLabel ? (
