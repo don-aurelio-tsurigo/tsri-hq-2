@@ -41,6 +41,18 @@ type Day = {
 
 type TypeOption = { id: string; name: string; color: string };
 
+/** «2026-08-03» → «03.08.» */
+function shortDate(dateKey: string) {
+  return `${dateKey.slice(8, 10)}.${dateKey.slice(5, 7)}.`;
+}
+
+/** Montag der Woche als yyyy-MM-dd (für Wochentrenner) */
+function weekStartKey(dateKey: string) {
+  const d = new Date(`${dateKey}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 export function ShiftPlanDirectory({
   types,
   initialTypeId,
@@ -214,6 +226,121 @@ export function ShiftPlanDirectory({
     });
   }
 
+  /** Kompakt: jeder Tag hat höchstens eine Zeile → Datum direkt in der Zeile */
+  const compact = filteredDays.every((day) => day.slots.length <= 1);
+  // In der Einzelansicht steht der Schichtname schon im Filter
+  const showTypeName = !(compact && activeTypeId);
+
+  function renderSlot(
+    slot: Slot,
+    dateLabel: string | null,
+    rowClassName?: string,
+  ) {
+    const proposed = slot.campaign?.status === "proposed";
+    const skipped = slot.campaign?.status === "skipped";
+    const color = slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT;
+    return (
+      <li
+        key={`${slot.typeId}:${slot.dateKey}`}
+        className={[
+          "flex flex-wrap items-center gap-x-2 gap-y-1 border-l-[3px] px-3 py-1.5 sm:flex-nowrap sm:py-1",
+          proposed ? "bg-amber-50/50" : skipped ? "opacity-55" : "",
+          rowClassName ?? "",
+        ].join(" ")}
+        style={{
+          borderLeftColor: color,
+          background: proposed
+            ? undefined
+            : skipped
+              ? undefined
+              : newsletterTypeSoftBackground(color, 8),
+        }}
+      >
+        {dateLabel ? (
+          <span className="w-[5.5rem] shrink-0 text-sm font-semibold tabular-nums">
+            {dateLabel}
+          </span>
+        ) : null}
+        <div
+          className={[
+            "min-w-0 flex-1 sm:flex-none sm:shrink-0",
+            showTypeName ? "sm:w-44" : "sm:w-24",
+          ].join(" ")}
+        >
+          <p className="truncate text-sm leading-tight">
+            {showTypeName ? (
+              <>
+                <span
+                  className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                  style={{ background: color }}
+                  aria-hidden
+                />
+                {slot.typeName}
+              </>
+            ) : null}
+            {proposed ? (
+              <span className="ml-1.5 text-[10px] font-medium text-amber-800">
+                Vorschlag
+              </span>
+            ) : null}
+            {skipped ? (
+              <span className="ml-1.5 text-[10px] text-[var(--muted)]">
+                fällt aus
+              </span>
+            ) : null}
+          </p>
+          {slot.campaign?.note ? (
+            <p className="truncate text-[10px] leading-tight text-[var(--muted)]">
+              {slot.campaign.note}
+            </p>
+          ) : null}
+        </div>
+        <select
+          className="input order-last h-8 w-full min-w-0 py-0 text-sm sm:order-none sm:h-7 sm:w-auto sm:grow sm:max-w-xs"
+          disabled={pending || skipped}
+          value={slot.campaign?.authorId ?? ""}
+          onChange={(e) => assignAuthor(slot, e.target.value)}
+        >
+          <option value="">— Offen —</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <div className="shrink-0 text-xs sm:w-[5.5rem]">
+          {slot.campaign?.campaignUrl ? (
+            <a
+              href={slot.campaign.campaignUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-[var(--accent-hover)] underline underline-offset-2"
+            >
+              Kampagne
+              <ExternalLink className="size-3 shrink-0" aria-hidden />
+            </a>
+          ) : (
+            <span className="hidden text-[var(--muted)] sm:inline">
+              —
+            </span>
+          )}
+        </div>
+        {slot.campaign && !skipped ? (
+          <button
+            type="button"
+            className="shrink-0 text-xs text-[var(--muted)] underline-offset-2 hover:underline"
+            disabled={pending}
+            onClick={() => clearSlot(slot)}
+          >
+            Leeren
+          </button>
+        ) : (
+          <span className="hidden w-10 shrink-0 sm:block" aria-hidden />
+        )}
+      </li>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -349,110 +476,41 @@ export function ShiftPlanDirectory({
       )}
 
       <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-        {filteredDays.map((day, dayIndex) => (
-          <section
-            key={day.dateKey}
-            className={
-              dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
-            }
-          >
-            <header className="bg-black/[0.03] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--muted)]">
-              {day.weekdayLabel} · {day.dateKey}
-            </header>
-            <ul className="divide-y divide-[var(--border)]">
-              {day.slots.map((slot) => {
-                const proposed = slot.campaign?.status === "proposed";
-                const skipped = slot.campaign?.status === "skipped";
-                const color = slot.typeColor || NEWSLETTER_TYPE_COLOR_DEFAULT;
-                return (
-                  <li
-                    key={`${slot.typeId}:${slot.dateKey}`}
-                    className={[
-                      "flex flex-wrap items-center gap-x-2 gap-y-1 border-l-[3px] px-3 py-1.5 sm:flex-nowrap sm:py-1",
-                      proposed ? "bg-amber-50/50" : skipped ? "opacity-55" : "",
-                    ].join(" ")}
-                    style={{
-                      borderLeftColor: color,
-                      background: proposed
-                        ? undefined
-                        : skipped
-                          ? undefined
-                          : newsletterTypeSoftBackground(color, 8),
-                    }}
-                  >
-                    <div className="min-w-0 flex-1 sm:w-44 sm:flex-none sm:shrink-0">
-                      <p className="truncate text-sm leading-tight">
-                        <span
-                          className="mr-1.5 inline-block size-2 rounded-full align-middle"
-                          style={{ background: color }}
-                          aria-hidden
-                        />
-                        {slot.typeName}
-                        {proposed ? (
-                          <span className="ml-1.5 text-[10px] font-medium text-amber-800">
-                            Vorschlag
-                          </span>
-                        ) : null}
-                        {skipped ? (
-                          <span className="ml-1.5 text-[10px] text-[var(--muted)]">
-                            fällt aus
-                          </span>
-                        ) : null}
-                      </p>
-                      {slot.campaign?.note ? (
-                        <p className="truncate text-[10px] leading-tight text-[var(--muted)]">
-                          {slot.campaign.note}
-                        </p>
-                      ) : null}
-                    </div>
-                    <select
-                      className="input order-last h-8 w-full min-w-0 py-0 text-sm sm:order-none sm:h-7 sm:w-auto sm:grow sm:max-w-xs"
-                      disabled={pending || skipped}
-                      value={slot.campaign?.authorId ?? ""}
-                      onChange={(e) => assignAuthor(slot, e.target.value)}
-                    >
-                      <option value="">— Offen —</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="shrink-0 text-xs sm:w-[5.5rem]">
-                      {slot.campaign?.campaignUrl ? (
-                        <a
-                          href={slot.campaign.campaignUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-medium text-[var(--accent-hover)] underline underline-offset-2"
-                        >
-                          Kampagne
-                          <ExternalLink className="size-3 shrink-0" aria-hidden />
-                        </a>
-                      ) : (
-                        <span className="hidden text-[var(--muted)] sm:inline">
-                          —
-                        </span>
-                      )}
-                    </div>
-                    {slot.campaign && !skipped ? (
-                      <button
-                        type="button"
-                        className="shrink-0 text-xs text-[var(--muted)] underline-offset-2 hover:underline"
-                        disabled={pending}
-                        onClick={() => clearSlot(slot)}
-                      >
-                        Leeren
-                      </button>
-                    ) : (
-                      <span className="hidden w-10 shrink-0 sm:block" aria-hidden />
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+        {compact ? (
+          <ul>
+            {filteredDays.map((day, i) => {
+              const newWeek =
+                i > 0 &&
+                weekStartKey(day.dateKey) !==
+                  weekStartKey(filteredDays[i - 1].dateKey);
+              return renderSlot(
+                day.slots[0],
+                `${day.weekdayLabel} ${shortDate(day.dateKey)}`,
+                i === 0
+                  ? undefined
+                  : newWeek
+                    ? "border-t-2 border-t-black/30"
+                    : "border-t border-t-[var(--border)]",
+              );
+            })}
+          </ul>
+        ) : (
+          filteredDays.map((day, dayIndex) => (
+            <section
+              key={day.dateKey}
+              className={
+                dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
+              }
+            >
+              <header className="bg-black/[0.03] px-3 py-1.5 text-sm font-semibold text-[var(--fg)]">
+                {day.weekdayLabel} · {day.dateKey}
+              </header>
+              <ul className="divide-y divide-[var(--border)]">
+                {day.slots.map((slot) => renderSlot(slot, null))}
+              </ul>
+            </section>
+          ))
+        )}
         {filteredDays.length === 0 && (
           <p className="px-3 py-4 text-sm text-[var(--muted)]">
             {mineOnly
