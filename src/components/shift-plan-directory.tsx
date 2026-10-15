@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
@@ -43,13 +43,18 @@ type TypeOption = { id: string; name: string; color: string };
 
 export function ShiftPlanDirectory({
   types,
-  initialTypeIds,
+  initialTypeId,
+  initialMineOnly,
+  currentUserId,
   members,
   canManage,
   calendar,
 }: {
   types: TypeOption[];
-  initialTypeIds: string[];
+  /** null = alle Schichten */
+  initialTypeId: string | null;
+  initialMineOnly: boolean;
+  currentUserId: string;
   members: Member[];
   canManage: boolean;
   calendar: {
@@ -62,23 +67,19 @@ export function ShiftPlanDirectory({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    initialTypeIds.length > 0 ? initialTypeIds : types.map((t) => t.id),
+  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(
+    initialTypeId,
   );
+  const [mineOnly, setMineOnly] = useState(initialMineOnly);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
 
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-
-  useEffect(() => {
-    const typeIds = new Set(types.map((t) => t.id));
-    setSelectedIds((prev) => {
-      const next = prev.filter((id) => typeIds.has(id));
-      if (next.length === 0) return types.map((t) => t.id);
-      return next;
-    });
-  }, [types]);
+  // Gelöschte/deaktivierte Typen fallen auf «Alle Schichten» zurück
+  const activeTypeId =
+    selectedTypeId && types.some((t) => t.id === selectedTypeId)
+      ? selectedTypeId
+      : null;
 
   const [year, month] = calendar.monthKey.split("-").map(Number);
 
@@ -87,10 +88,14 @@ export function ShiftPlanDirectory({
       calendar.days
         .map((day) => ({
           ...day,
-          slots: day.slots.filter((s) => selectedSet.has(s.typeId)),
+          slots: day.slots.filter(
+            (s) =>
+              (!activeTypeId || s.typeId === activeTypeId) &&
+              (!mineOnly || s.campaign?.authorId === currentUserId),
+          ),
         }))
         .filter((day) => day.slots.length > 0),
-    [calendar.days, selectedSet],
+    [calendar.days, activeTypeId, mineOnly, currentUserId],
   );
 
   const proposedCount = useMemo(
@@ -104,27 +109,25 @@ export function ShiftPlanDirectory({
     [filteredDays],
   );
 
-  function syncUrl(nextIds: string[]) {
-    const params = new URLSearchParams(window.location.search);
-    params.delete("type");
-    if (nextIds.length > 0 && nextIds.length < types.length) {
-      for (const id of nextIds) params.append("type", id);
-    }
-    if (calendar.monthKey) params.set("month", calendar.monthKey);
-    const qs = params.toString();
-    router.replace(qs ? `/schichtplan?${qs}` : "/schichtplan", {
+  function hrefFor(monthKey: string, typeId: string | null, mine: boolean) {
+    const params = new URLSearchParams();
+    params.set("month", monthKey);
+    if (typeId) params.set("type", typeId);
+    if (mine) params.set("mine", "1");
+    return `/schichtplan?${params.toString()}`;
+  }
+
+  function selectType(typeId: string | null) {
+    setSelectedTypeId(typeId);
+    router.replace(hrefFor(calendar.monthKey, typeId, mineOnly), {
       scroll: false,
     });
   }
 
-  function toggleType(typeId: string) {
-    setSelectedIds((prev) => {
-      const has = prev.includes(typeId);
-      const next = has
-        ? prev.filter((id) => id !== typeId)
-        : [...prev, typeId];
-      syncUrl(next);
-      return next.length === 0 ? types.map((t) => t.id) : next;
+  function selectScope(mine: boolean) {
+    setMineOnly(mine);
+    router.replace(hrefFor(calendar.monthKey, activeTypeId, mine), {
+      scroll: false,
     });
   }
 
@@ -214,9 +217,9 @@ export function ShiftPlanDirectory({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
+        <div className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-start">
           <Link
-            href={`/schichtplan?month=${calendar.prevMonth}`}
+            href={hrefFor(calendar.prevMonth, activeTypeId, mineOnly)}
             className="btn btn-ghost px-2 py-1 text-sm"
           >
             ←
@@ -225,7 +228,7 @@ export function ShiftPlanDirectory({
             {calendar.monthLabel}
           </h2>
           <Link
-            href={`/schichtplan?month=${calendar.nextMonth}`}
+            href={hrefFor(calendar.nextMonth, activeTypeId, mineOnly)}
             className="btn btn-ghost px-2 py-1 text-sm"
           >
             →
@@ -233,7 +236,7 @@ export function ShiftPlanDirectory({
         </div>
 
         {canManage && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex w-full flex-wrap gap-1.5 sm:w-auto">
             <button
               type="button"
               className="btn btn-primary px-3 py-1.5 text-sm"
@@ -261,18 +264,46 @@ export function ShiftPlanDirectory({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1">
+      <div className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div
+          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-[var(--border)] p-0.5"
+          role="radiogroup"
+          aria-label="Ansicht"
+        >
+          {(
+            [
+              [false, "Alle Schichten"],
+              [true, "Meine Schichten"],
+            ] as const
+          ).map(([mine, label]) => (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={mineOnly === mine}
+              className={mineOnly === mine ? "rounded-full bg-[var(--fg)] px-2.5 py-0.5 text-xs font-medium text-[var(--bg-elevated)]" : "rounded-full px-2.5 py-0.5 text-xs text-[var(--muted)] hover:text-[var(--fg)]"}
+              onClick={() => selectScope(mine)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span
+          className="mx-1 h-4 w-px shrink-0 bg-[var(--border)]"
+          aria-hidden
+        />
         {types.map((t) => {
-          const active = selectedSet.has(t.id);
+          const active = activeTypeId === t.id;
           const color = t.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
           return (
             <button
               key={t.id}
               type="button"
+              aria-pressed={active}
               className={
                 active
-                  ? "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
-                  : "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
+                  ? "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                  : "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--border)] px-2.5 py-0.5 text-xs text-[var(--muted)]"
               }
               style={
                 active
@@ -282,7 +313,8 @@ export function ShiftPlanDirectory({
                     }
                   : undefined
               }
-              onClick={() => toggleType(t.id)}
+              title={active ? "Klicken, um alle Schichttypen zu zeigen" : undefined}
+              onClick={() => selectType(active ? null : t.id)}
             >
               <span
                 className="size-2 shrink-0 rounded-full"
@@ -336,7 +368,7 @@ export function ShiftPlanDirectory({
                   <li
                     key={`${slot.typeId}:${slot.dateKey}`}
                     className={[
-                      "flex items-center gap-2 border-l-[3px] px-3 py-1",
+                      "flex flex-wrap items-center gap-x-2 gap-y-1 border-l-[3px] px-3 py-1.5 sm:flex-nowrap sm:py-1",
                       proposed ? "bg-amber-50/50" : skipped ? "opacity-55" : "",
                     ].join(" ")}
                     style={{
@@ -348,7 +380,7 @@ export function ShiftPlanDirectory({
                           : newsletterTypeSoftBackground(color, 8),
                     }}
                   >
-                    <div className="min-w-0 w-36 shrink-0 sm:w-44">
+                    <div className="min-w-0 flex-1 sm:w-44 sm:flex-none sm:shrink-0">
                       <p className="truncate text-sm leading-tight">
                         <span
                           className="mr-1.5 inline-block size-2 rounded-full align-middle"
@@ -374,7 +406,7 @@ export function ShiftPlanDirectory({
                       ) : null}
                     </div>
                     <select
-                      className="input h-7 min-w-0 grow py-0 text-sm sm:max-w-xs"
+                      className="input order-last h-8 w-full min-w-0 py-0 text-sm sm:order-none sm:h-7 sm:w-auto sm:grow sm:max-w-xs"
                       disabled={pending || skipped}
                       value={slot.campaign?.authorId ?? ""}
                       onChange={(e) => assignAuthor(slot, e.target.value)}
@@ -386,7 +418,7 @@ export function ShiftPlanDirectory({
                         </option>
                       ))}
                     </select>
-                    <div className="w-[5.5rem] shrink-0 text-xs">
+                    <div className="shrink-0 text-xs sm:w-[5.5rem]">
                       {slot.campaign?.campaignUrl ? (
                         <a
                           href={slot.campaign.campaignUrl}
@@ -398,7 +430,9 @@ export function ShiftPlanDirectory({
                           <ExternalLink className="size-3 shrink-0" aria-hidden />
                         </a>
                       ) : (
-                        <span className="text-[var(--muted)]">—</span>
+                        <span className="hidden text-[var(--muted)] sm:inline">
+                          —
+                        </span>
                       )}
                     </div>
                     {slot.campaign && !skipped ? (
@@ -411,7 +445,7 @@ export function ShiftPlanDirectory({
                         Leeren
                       </button>
                     ) : (
-                      <span className="w-10 shrink-0" aria-hidden />
+                      <span className="hidden w-10 shrink-0 sm:block" aria-hidden />
                     )}
                   </li>
                 );
@@ -421,7 +455,9 @@ export function ShiftPlanDirectory({
         ))}
         {filteredDays.length === 0 && (
           <p className="px-3 py-4 text-sm text-[var(--muted)]">
-            Keine Schichten in diesem Monat für die gewählten Typen.
+            {mineOnly
+              ? "Du hast in diesem Monat keine Schichten für diese Auswahl."
+              : "Keine Schichten in diesem Monat für die gewählte Auswahl."}
           </p>
         )}
       </div>

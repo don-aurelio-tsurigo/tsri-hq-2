@@ -17,22 +17,27 @@ import { requireMembership } from "@/lib/session";
 
 function parseTypeFilterParam(
   value: string | string[] | undefined,
-): string[] {
-  if (!value) return [];
-  const raw = Array.isArray(value) ? value : [value];
-  return raw
-    .flatMap((v) => v.split(","))
-    .map((v) => v.trim())
-    .filter(Boolean);
+): string | null {
+  if (!value) return null;
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw?.split(",")[0]?.trim() || null;
 }
 
 export default async function SchichtplanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; type?: string | string[] }>;
+  searchParams: Promise<{
+    month?: string;
+    type?: string | string[];
+    mine?: string;
+  }>;
 }) {
-  const { membership } = await requireMembership();
-  const { month: monthParam, type: typeParam } = await searchParams;
+  const { session, membership } = await requireMembership();
+  const {
+    month: monthParam,
+    type: typeParam,
+    mine: mineParam,
+  } = await searchParams;
   await ensureShiftPlanTypes(membership.organizationId);
 
   const monthAnchor = parseMonthParam(monthParam);
@@ -63,9 +68,10 @@ export default async function SchichtplanPage({
     name: t.name,
     color: t.color,
   }));
-  const validFilter = typeFilter.filter((id) =>
-    typeOptions.some((t) => t.id === id),
-  );
+  const validTypeId =
+    typeFilter && typeOptions.some((t) => t.id === typeFilter)
+      ? typeFilter
+      : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-3">
@@ -85,7 +91,9 @@ export default async function SchichtplanPage({
 
       <ShiftPlanDirectory
         types={typeOptions}
-        initialTypeIds={validFilter}
+        initialTypeId={validTypeId}
+        initialMineOnly={mineParam === "1"}
+        currentUserId={session.user.id}
         members={members}
         canManage={canManageEditorial(membership)}
         calendar={{
