@@ -249,8 +249,7 @@ export function ShiftPlanDirectory({
         ].join(" ")}
         style={{
           borderLeftColor: color,
-          borderLeftStyle: proposed ? "dashed" : undefined,
-          // Vorschläge behalten die Typfarbe; markiert über Label + gestrichelten Rand
+          // Vorschläge behalten die Typfarbe; markiert über das Label
           background: skipped
             ? undefined
             : newsletterTypeSoftBackground(color, 8),

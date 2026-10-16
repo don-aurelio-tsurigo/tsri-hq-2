@@ -85,7 +85,7 @@ export default async function SchichtplanPage({
           </h1>
         </div>
         <p className="max-w-md text-xs text-[var(--muted)]">
-          Vorschläge sind gestrichelt markiert, bis sie bestätigt werden.
+          Vorschläge sind mit «Vorschlag» markiert, bis sie bestätigt werden.
         </p>
       </header>
 
