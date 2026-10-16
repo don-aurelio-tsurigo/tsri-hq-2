@@ -9,6 +9,10 @@ const SECTIONS = {
     { key: "deals", label: "Deals", href: "/finance/deals" },
     { key: "companies", label: "Organisationen", href: "/finance/organisationen" },
   ],
+  commissions: [
+    { key: "overview", label: "Abrechnung", href: "/finance/provisionen" },
+    { key: "models", label: "Modelle & Zuweisungen", href: "/finance/provisionen/modelle" },
+  ],
 } as const;
 
 type Section = keyof typeof SECTIONS;

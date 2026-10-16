@@ -1,8 +1,17 @@
 /** Server side of sales commissions: deal assignment and period locks. */
 
 import { prisma } from "@/lib/db";
-import { commissionPeriodOf, commissionSplitDiff } from "./commission";
-import { monthKeyToDate, roundCents, type MonthKey } from "./shared";
+import {
+  assignmentRangeError,
+  calculateCommission,
+  commissionPeriodOf,
+  commissionPeriodRange,
+  commissionSplitDiff,
+  type CommissionBasis,
+  type CommissionModelParams,
+  type CommissionResult,
+} from "./commission";
+import { monthKeyFromDate, monthKeyToDate, roundCents, type MonthKey } from "./shared";
 
 export type CommissionStatus = "undecided" | "relevant" | "not_relevant";
 
@@ -165,4 +174,376 @@ export async function getDealCommission(
         ? 0
         : commissionSplitDiff(Number(deal.totalAmount), { intern: intern ?? 0, extern: extern ?? 0 }),
   };
+}
+
+// ─── Modelle ───────────────────────────────────────────────────
+
+export type CommissionModelInput = CommissionModelParams & { name: string; notes: string | null };
+
+export type CommissionModelRow = CommissionModelInput & {
+  id: string;
+  archived: boolean;
+  assignmentCount: number;
+};
+
+type ModelRecord = {
+  id: string;
+  name: string;
+  baseAmount: Decimalish;
+  externRate: Decimalish;
+  internRateMin: Decimalish;
+  internRateMax: Decimalish;
+  threshold: Decimalish;
+  progressionBasis: CommissionBasis;
+};
+type Decimalish = { toString(): string };
+
+function modelParams(m: ModelRecord): CommissionModelParams {
+  return {
+    baseAmount: Number(m.baseAmount),
+    externRate: Number(m.externRate),
+    internRateMin: Number(m.internRateMin),
+    internRateMax: Number(m.internRateMax),
+    threshold: Number(m.threshold),
+    progressionBasis: m.progressionBasis,
+  };
+}
+
+export async function listCommissionModels(organizationId: string): Promise<CommissionModelRow[]> {
+  const rows = await prisma.financeCommissionModel.findMany({
+    where: { organizationId },
+    orderBy: [{ archivedAt: { sort: "asc", nulls: "first" } }, { name: "asc" }],
+    include: { _count: { select: { assignments: true } } },
+  });
+  return rows.map((m) => ({
+    id: m.id,
+    name: m.name,
+    notes: m.notes,
+    ...modelParams(m),
+    archived: m.archivedAt !== null,
+    assignmentCount: m._count.assignments,
+  }));
+}
+
+function validateModel(input: CommissionModelInput): string | null {
+  if (!input.name.trim()) return "Name fehlt.";
+  const rates = [input.externRate, input.internRateMin, input.internRateMax];
+  if (!rates.every((r) => Number.isFinite(r) && r >= 0 && r <= 1)) return "Sätze müssen zwischen 0 und 100 % liegen.";
+  if (input.internRateMin > input.internRateMax) return "Satz intern min. ist grösser als max.";
+  if (!Number.isFinite(input.baseAmount) || input.baseAmount < 0 || input.baseAmount >= 1e9) return "Ungültiger Grundbetrag.";
+  if (!Number.isFinite(input.threshold) || input.threshold <= 0 || input.threshold >= 1e11) return "Schwelle muss grösser als 0 sein.";
+  if (input.progressionBasis !== "intern" && input.progressionBasis !== "total") return "Ungültige Progressionsbasis.";
+  return null;
+}
+
+function modelData(input: CommissionModelInput) {
+  return {
+    name: input.name.trim().slice(0, 200),
+    notes: input.notes?.trim().slice(0, 5000) || null,
+    baseAmount: roundCents(input.baseAmount),
+    externRate: input.externRate,
+    internRateMin: input.internRateMin,
+    internRateMax: input.internRateMax,
+    threshold: roundCents(input.threshold),
+    progressionBasis: input.progressionBasis,
+  };
+}
+
+async function assertUniqueModelName(organizationId: string, name: string, exceptId?: string) {
+  const clash = await prisma.financeCommissionModel.findFirst({
+    where: { organizationId, name: { equals: name.trim(), mode: "insensitive" }, id: { not: exceptId } },
+    select: { id: true },
+  });
+  if (clash) throw new CommissionError("Es gibt bereits ein Modell mit diesem Namen.");
+}
+
+export async function createCommissionModel(organizationId: string, input: CommissionModelInput) {
+  const error = validateModel(input);
+  if (error) throw new CommissionError(error);
+  await assertUniqueModelName(organizationId, input.name);
+  await prisma.financeCommissionModel.create({ data: { organizationId, ...modelData(input) } });
+}
+
+/** Closed periods keep their snapshot, so changing parameters only affects open periods. */
+export async function updateCommissionModel(organizationId: string, id: string, input: CommissionModelInput) {
+  const error = validateModel(input);
+  if (error) throw new CommissionError(error);
+  await assertUniqueModelName(organizationId, input.name, id);
+  const res = await prisma.financeCommissionModel.updateMany({
+    where: { id, organizationId },
+    data: modelData(input),
+  });
+  if (res.count === 0) throw new CommissionError("Modell nicht gefunden.");
+}
+
+export async function setCommissionModelArchived(organizationId: string, id: string, archived: boolean) {
+  const res = await prisma.financeCommissionModel.updateMany({
+    where: { id, organizationId },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+  if (res.count === 0) throw new CommissionError("Modell nicht gefunden.");
+}
+
+// ─── Zuweisungen ───────────────────────────────────────────────
+
+export type CommissionAssignmentRow = {
+  id: string;
+  user: SalesPerson;
+  modelId: string;
+  modelName: string;
+  validFrom: MonthKey;
+  validUntil: MonthKey | null;
+};
+
+export async function listCommissionAssignments(organizationId: string): Promise<CommissionAssignmentRow[]> {
+  const rows = await prisma.financeCommissionAssignment.findMany({
+    where: { organizationId },
+    orderBy: [{ user: { name: "asc" } }, { validFrom: "asc" }],
+    include: { user: { select: { id: true, name: true } }, model: { select: { name: true } } },
+  });
+  return rows.map((a) => ({
+    id: a.id,
+    user: a.user,
+    modelId: a.modelId,
+    modelName: a.model.name,
+    validFrom: monthKeyFromDate(a.validFrom),
+    validUntil: a.validUntil ? monthKeyFromDate(a.validUntil) : null,
+  }));
+}
+
+export type CommissionAssignmentInput = {
+  id: string | null;
+  userId: string;
+  modelId: string;
+  validFrom: MonthKey;
+  validUntil: MonthKey | null;
+};
+
+export async function saveCommissionAssignment(organizationId: string, input: CommissionAssignmentInput) {
+  const [model, others, existing] = await Promise.all([
+    prisma.financeCommissionModel.findFirst({
+      where: { id: input.modelId, organizationId },
+      select: { archivedAt: true },
+    }),
+    prisma.financeCommissionAssignment.findMany({
+      where: { organizationId, userId: input.userId, id: { not: input.id ?? undefined } },
+      select: { validFrom: true, validUntil: true },
+    }),
+    input.id
+      ? prisma.financeCommissionAssignment.findFirst({
+          where: { id: input.id, organizationId },
+          select: { userId: true },
+        })
+      : null,
+  ]);
+  if (!model) throw new CommissionError("Modell nicht gefunden.");
+  if (input.id && !existing) throw new CommissionError("Zuweisung nicht gefunden.");
+  if (!existing || existing.userId !== input.userId) {
+    if (model.archivedAt) throw new CommissionError("Das Modell ist archiviert.");
+    const people = await listSalesPeople(organizationId);
+    if (!people.some((p) => p.id === input.userId)) {
+      throw new CommissionError("Diese Person ist nicht als Sales markiert.");
+    }
+  }
+  const error = assignmentRangeError([
+    ...others.map((o) => ({
+      validFrom: monthKeyFromDate(o.validFrom),
+      validUntil: o.validUntil ? monthKeyFromDate(o.validUntil) : null,
+    })),
+    { validFrom: input.validFrom, validUntil: input.validUntil },
+  ]);
+  if (error) throw new CommissionError(error);
+
+  const data = {
+    userId: input.userId,
+    modelId: input.modelId,
+    validFrom: monthKeyToDate(input.validFrom),
+    validUntil: input.validUntil ? monthKeyToDate(input.validUntil) : null,
+  };
+  if (input.id) await prisma.financeCommissionAssignment.update({ where: { id: input.id }, data });
+  else await prisma.financeCommissionAssignment.create({ data: { organizationId, ...data } });
+}
+
+export async function deleteCommissionAssignment(organizationId: string, id: string) {
+  await prisma.financeCommissionAssignment.deleteMany({ where: { id, organizationId } });
+}
+
+// ─── Periodenübersicht und Abschluss ───────────────────────────
+
+export type CommissionDealRow = {
+  id: string;
+  title: string;
+  company: string | null;
+  /** "YYYY-MM-DD" */
+  soldAt: string;
+  intern: number;
+  extern: number;
+};
+
+export type CommissionModelSnapshot = { modelId: string; name: string; params: CommissionModelParams };
+
+export type CommissionPersonRow = {
+  user: SalesPerson;
+  model: CommissionModelSnapshot | null;
+  deals: CommissionDealRow[];
+  /** null = deals but no model assigned */
+  result: CommissionResult | null;
+};
+
+export type CommissionPeriodOverview = {
+  period: MonthKey;
+  closed: { closedAt: string } | null;
+  rows: CommissionPersonRow[];
+  total: number;
+  /** All deals still waiting for a commission decision */
+  undecidedCount: number;
+  /** Reasons the period cannot be closed (empty = can close) */
+  closeBlockers: string[];
+};
+
+function todayIsoDate(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Zurich" });
+}
+
+export async function getCommissionPeriodOverview(
+  organizationId: string,
+  period: MonthKey,
+  onlyUserId?: string,
+): Promise<CommissionPeriodOverview> {
+  const periodDate = monthKeyToDate(period);
+  const { from, to } = commissionPeriodRange(period);
+  const userFilter = onlyUserId ? { userId: onlyUserId } : {};
+
+  const [closeRow, statements, assignments, deals, undecidedCount] = await Promise.all([
+    prisma.financeCommissionPeriodClose.findUnique({
+      where: { organizationId_period: { organizationId, period: periodDate } },
+    }),
+    prisma.financeCommissionStatement.findMany({
+      where: { organizationId, period: periodDate, ...userFilter },
+      include: { user: { select: { id: true, name: true } } },
+    }),
+    prisma.financeCommissionAssignment.findMany({
+      where: {
+        organizationId,
+        ...userFilter,
+        validFrom: { lte: periodDate },
+        OR: [{ validUntil: null }, { validUntil: { gte: periodDate } }],
+      },
+      include: { user: { select: { id: true, name: true } }, model: true },
+    }),
+    prisma.financeDeal.findMany({
+      where: {
+        organizationId,
+        commissionStatus: "relevant",
+        soldAt: { gte: from, lte: to },
+        ...(onlyUserId ? { salesUserId: onlyUserId } : {}),
+      },
+      orderBy: [{ soldAt: "asc" }, { createdAt: "asc" }],
+      include: { company: { select: { name: true } }, salesUser: { select: { id: true, name: true } } },
+    }),
+    onlyUserId
+      ? Promise.resolve(0)
+      : prisma.financeDeal.count({
+          where: { organizationId, commissionStatus: "undecided", status: { not: "ignored" } },
+        }),
+  ]);
+
+  const rowsByUser = new Map<string, CommissionPersonRow>();
+  const rowFor = (user: SalesPerson) => {
+    let row = rowsByUser.get(user.id);
+    if (!row) {
+      row = { user, model: null, deals: [], result: null };
+      rowsByUser.set(user.id, row);
+    }
+    return row;
+  };
+
+  for (const d of deals) {
+    if (!d.salesUser || !d.soldAt) continue;
+    rowFor(d.salesUser).deals.push({
+      id: d.id,
+      title: d.title,
+      company: d.company?.name ?? null,
+      soldAt: d.soldAt.toISOString().slice(0, 10),
+      intern: Number(d.commissionIntern ?? 0),
+      extern: Number(d.commissionExtern ?? 0),
+    });
+  }
+
+  if (closeRow) {
+    // Frozen: amounts and model come from the statements
+    for (const s of statements) {
+      const row = rowFor(s.user);
+      row.model = (s.modelSnapshot as CommissionModelSnapshot | null) ?? null;
+      const internSum = Number(s.internSum);
+      const externSum = Number(s.externSum);
+      row.result = row.model
+        ? { ...calculateCommission(row.model.params, internSum, externSum), amount: Number(s.amount) }
+        : { intern: internSum, extern: externSum, internRate: 0, base: 0, internPart: 0, externPart: 0, amount: Number(s.amount) };
+    }
+  } else {
+    for (const a of assignments) {
+      rowFor(a.user).model = { modelId: a.modelId, name: a.model.name, params: modelParams(a.model) };
+    }
+    for (const row of rowsByUser.values()) {
+      if (!row.model) continue;
+      const intern = row.deals.reduce((s, d) => s + d.intern, 0);
+      const extern = row.deals.reduce((s, d) => s + d.extern, 0);
+      row.result = calculateCommission(row.model.params, intern, extern);
+    }
+  }
+
+  const rows = [...rowsByUser.values()].sort((a, b) => a.user.name.localeCompare(b.user.name, "de"));
+  const closeBlockers: string[] = [];
+  if (!closeRow) {
+    if (todayIsoDate() <= to.toISOString().slice(0, 10)) {
+      closeBlockers.push("Die Periode läuft noch.");
+    }
+    for (const r of rows) {
+      if (!r.model) closeBlockers.push(`${r.user.name} hat Deals, aber kein Provisionsmodell.`);
+    }
+  }
+
+  return {
+    period,
+    closed: closeRow ? { closedAt: closeRow.closedAt.toISOString() } : null,
+    rows,
+    total: roundCents(rows.reduce((s, r) => s + (r.result?.amount ?? 0), 0)),
+    undecidedCount,
+    closeBlockers,
+  };
+}
+
+/** Freezes all statements of a period and locks its deals. */
+export async function closeCommissionPeriod(organizationId: string, period: MonthKey, closedById: string) {
+  const overview = await getCommissionPeriodOverview(organizationId, period);
+  if (overview.closed) throw new CommissionError("Die Periode ist bereits abgeschlossen.");
+  if (overview.closeBlockers.length) throw new CommissionError(overview.closeBlockers.join(" "));
+  const periodDate = monthKeyToDate(period);
+  await prisma.$transaction([
+    prisma.financeCommissionPeriodClose.create({ data: { organizationId, period: periodDate, closedById } }),
+    ...overview.rows.map((r) =>
+      prisma.financeCommissionStatement.create({
+        data: {
+          organizationId,
+          userId: r.user.id,
+          period: periodDate,
+          internSum: r.result?.intern ?? 0,
+          externSum: r.result?.extern ?? 0,
+          amount: r.result?.amount ?? 0,
+          dealCount: r.deals.length,
+          modelSnapshot: r.model ?? undefined,
+          closedById,
+        },
+      }),
+    ),
+  ]);
+}
+
+export async function reopenCommissionPeriod(organizationId: string, period: MonthKey) {
+  const periodDate = monthKeyToDate(period);
+  await prisma.$transaction([
+    prisma.financeCommissionStatement.deleteMany({ where: { organizationId, period: periodDate } }),
+    prisma.financeCommissionPeriodClose.deleteMany({ where: { organizationId, period: periodDate } }),
+  ]);
 }

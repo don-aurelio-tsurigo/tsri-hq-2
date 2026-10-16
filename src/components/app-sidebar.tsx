@@ -26,6 +26,7 @@ import {
   MessageCircle,
   Bell,
   Newspaper,
+  Percent,
   PiggyBank,
   Pin,
   Rss,
@@ -611,6 +612,14 @@ export function AppSidebar({
               onNavigate={onMobileClose}
             >
               Deals
+            </NavLink>
+            <NavLink
+              href="/finance/provisionen"
+              active={pathname.startsWith("/finance/provisionen")}
+              icon={Percent}
+              onNavigate={onMobileClose}
+            >
+              Provisionen
             </NavLink>
             <NavLink
               href="/finance/payrexx"

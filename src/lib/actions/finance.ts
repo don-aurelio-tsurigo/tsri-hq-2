@@ -17,7 +17,16 @@ import {
 } from "@/lib/finance/categories";
 import {
   CommissionError,
+  closeCommissionPeriod,
+  createCommissionModel,
+  deleteCommissionAssignment,
+  reopenCommissionPeriod,
+  saveCommissionAssignment,
   saveDealCommission,
+  setCommissionModelArchived,
+  updateCommissionModel,
+  type CommissionAssignmentInput,
+  type CommissionModelInput,
   type DealCommissionInput,
 } from "@/lib/finance/commission-store";
 import {
@@ -458,4 +467,73 @@ export async function mergeFinanceCompanies(input: {
 export async function deleteFinanceCompany(id: string): Promise<ActionResult> {
   const { membership } = await requireCapability("finance");
   return companyAction(() => deleteCompany(membership.organizationId, id));
+}
+
+// ─── Provisionen ─────────────────────────────────────────────
+
+function revalidateCommissions() {
+  revalidatePath("/finance/provisionen");
+  revalidatePath("/finance/provisionen/modelle");
+  revalidatePath("/finance/deals");
+}
+
+async function commissionAction(run: () => Promise<void>): Promise<ActionResult> {
+  try {
+    await run();
+  } catch (e) {
+    if (e instanceof CommissionError) return { error: e.message };
+    throw e;
+  }
+  revalidateCommissions();
+  return { ok: true };
+}
+
+export async function saveFinanceCommissionModel(input: {
+  id: string | null;
+  model: CommissionModelInput;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  const orgId = membership.organizationId;
+  return commissionAction(() =>
+    input.id ? updateCommissionModel(orgId, input.id, input.model) : createCommissionModel(orgId, input.model),
+  );
+}
+
+export async function setFinanceCommissionModelArchived(input: {
+  id: string;
+  archived: boolean;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  return commissionAction(() =>
+    setCommissionModelArchived(membership.organizationId, input.id, input.archived === true),
+  );
+}
+
+export async function saveFinanceCommissionAssignment(
+  input: CommissionAssignmentInput,
+): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  if (!isMonthKey(input.validFrom) || (input.validUntil !== null && !isMonthKey(input.validUntil))) {
+    return { error: "Ungültige Periode." };
+  }
+  return commissionAction(() => saveCommissionAssignment(membership.organizationId, input));
+}
+
+export async function deleteFinanceCommissionAssignment(id: string): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  return commissionAction(() => deleteCommissionAssignment(membership.organizationId, id));
+}
+
+export async function closeFinanceCommissionPeriod(period: MonthKey): Promise<ActionResult> {
+  const { membership, session } = await requireCapability("finance");
+  if (!isMonthKey(period)) return { error: "Ungültige Periode." };
+  return commissionAction(() =>
+    closeCommissionPeriod(membership.organizationId, period, session.user.id),
+  );
+}
+
+export async function reopenFinanceCommissionPeriod(period: MonthKey): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  if (!isMonthKey(period)) return { error: "Ungültige Periode." };
+  return commissionAction(() => reopenCommissionPeriod(membership.organizationId, period));
 }
