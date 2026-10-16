@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * Bump when schema changes that stale hot-reload clients would miss
  * (especially new enum values — Prisma 7 runtimeDataModel.enums is empty).
  */
-const PRISMA_CLIENT_SCHEMA_VERSION = 52; // v52: FinanceCompany (Organisationen als Liste)
+const PRISMA_CLIENT_SCHEMA_VERSION = 53; // v53: Finance-Provisionen (Deal-Provision, Modelle, Abrechnungen)
 
 /** Fields/relations that must exist after schema pushes — invalidates stale hot-reload clients. */
 const REQUIRED_FIELDS: Record<string, string[]> = {
@@ -72,7 +72,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   DamArchiveReview: ["reviewedUntil", "completedAt", "remainingCount"],
   ShiftQuota: ["minCount", "maxCount", "isFixed", "newsletterTypeId"],
   FinanceCategory: ["validFrom", "validUntil"],
-  FinanceDeal: ["companyId"],
+  FinanceDeal: ["companyId", "commissionStatus", "salesUserId", "soldAt"],
   FinanceBooking: ["companyId"],
   FeedbackResponse: [
     "newsletter",
@@ -116,6 +116,10 @@ const REQUIRED_MODELS = [
   "FinanceMonthClose",
   "FinanceYear",
   "FinanceCompany",
+  "FinanceCommissionModel",
+  "FinanceCommissionAssignment",
+  "FinanceCommissionPeriodClose",
+  "FinanceCommissionStatement",
   "MemberUsage",
   "UploadBatch",
   "Asset",

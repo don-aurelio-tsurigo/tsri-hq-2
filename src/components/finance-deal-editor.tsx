@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { FinanceCompanyCombobox } from "@/components/finance-company-combobox";
+import { FinanceDealCommission } from "@/components/finance-deal-commission";
 import { FinanceDealGrid } from "@/components/finance-deal-grid";
 import { FinanceDealStatusBadge } from "@/components/finance-deal-status-badge";
 import { useToast } from "@/components/toast";
@@ -14,6 +15,7 @@ import {
   setFinanceDealStatus,
   updateFinanceDealMeta,
 } from "@/lib/actions/finance";
+import type { SalesPerson } from "@/lib/finance/commission-store";
 import type { CompanyInput, CompanyOption } from "@/lib/finance/companies";
 import type { CategoryOption, DealDetail } from "@/lib/finance/deals";
 import { formatChfExact, parseAmountInput } from "@/lib/finance/shared";
@@ -28,10 +30,14 @@ export function FinanceDealEditor({
   deal,
   categories,
   companies,
+  salesPeople,
+  suggestedSalesUserId,
 }: {
   deal: DealDetail;
   categories: CategoryOption[];
   companies: CompanyOption[];
+  salesPeople: SalesPerson[];
+  suggestedSalesUserId: string | null;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -167,6 +173,12 @@ export function FinanceDealEditor({
           </div>
         )}
       </section>
+
+      <FinanceDealCommission
+        deal={deal}
+        salesPeople={salesPeople}
+        suggestedSalesUserId={suggestedSalesUserId}
+      />
 
       <FinanceDealGrid deal={deal} categories={categories} />
 

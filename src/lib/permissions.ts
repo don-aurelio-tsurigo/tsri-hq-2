@@ -46,6 +46,8 @@ export const ASSIGNABLE_CAPABILITIES: {
     kind: "group",
     pool: "civic_media",
   },
+  // Group tag: admins only get commissions when explicitly marked as sales
+  { key: "sales", label: "Sales", kind: "group", pool: null },
 ];
 
 export const TAG_POOL_KEYS: Record<TagPool, AppCapability[]> = {

@@ -16,6 +16,11 @@ import {
   updateCategory,
 } from "@/lib/finance/categories";
 import {
+  CommissionError,
+  saveDealCommission,
+  type DealCommissionInput,
+} from "@/lib/finance/commission-store";
+import {
   CompanyError,
   deleteCompany,
   mergeCompanies,
@@ -239,6 +244,30 @@ export async function updateFinanceDealMeta(input: {
     bexioUrl: cleanUrl(input.bexioUrl),
   });
   if (!ok) return { error: "Deal nicht gefunden." };
+  revalidateFinance(input.dealId);
+  return { ok: true };
+}
+
+export async function saveFinanceDealCommission(input: {
+  dealId: string;
+  commission: DealCommissionInput;
+}): Promise<ActionResult> {
+  const { membership } = await requireCapability("finance");
+  const c = input.commission;
+  if (!["undecided", "relevant", "not_relevant"].includes(c.status)) return { error: "Ungültiger Status." };
+  if ([c.intern, c.extern].some((n) => n !== null && !validAmount(n))) return { error: "Ungültiger Betrag." };
+  try {
+    await saveDealCommission(membership.organizationId, input.dealId, {
+      status: c.status,
+      salesUserId: cleanText(c.salesUserId, 100),
+      soldAt: cleanText(c.soldAt, 10),
+      intern: c.intern,
+      extern: c.extern,
+    });
+  } catch (e) {
+    if (e instanceof CommissionError) return { error: e.message };
+    throw e;
+  }
   revalidateFinance(input.dealId);
   return { ok: true };
 }

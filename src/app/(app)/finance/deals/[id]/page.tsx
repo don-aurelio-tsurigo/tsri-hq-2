@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FinanceDealEditor } from "@/components/finance-deal-editor";
+import { listSalesPeople, matchSalesPerson } from "@/lib/finance/commission-store";
 import { listCompanyOptions } from "@/lib/finance/companies";
 import { getDealDetail, listCategoryOptions } from "@/lib/finance/deals";
 import { pageTitle } from "@/lib/link-preview";
@@ -21,6 +22,8 @@ export default async function FinanceDealPage({
     listCompanyOptions(membership.organizationId),
   ]);
   if (!deal) notFound();
+  const salesPeople = await listSalesPeople(membership.organizationId, [deal.commission.salesUser]);
+  const suggested = matchSalesPerson(salesPeople, deal.responsibleName);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -46,6 +49,8 @@ export default async function FinanceDealPage({
         deal={deal}
         categories={categories}
         companies={companies}
+        salesPeople={salesPeople}
+        suggestedSalesUserId={suggested?.id ?? null}
       />
     </div>
   );

@@ -27,45 +27,48 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions              Session[]
-  accounts              Account[]
-  memberships           Membership[]
-  ownedSpaces           Space[]                  @relation("SpaceOwner")
-  spaceAccess           SpaceAccess[]
-  createdTasks          Task[]                   @relation("TaskCreator")
-  assignedTasks         Task[]                   @relation("TaskAssignee")
-  createdArticles       Article[]                @relation("ArticleCreator")
-  assignedArticles      Article[]                @relation("ArticleAssignee")
-  articleComments       ArticleComment[]         @relation("ArticleCommentAuthor")
-  taskComments          TaskComment[]            @relation("TaskCommentAuthor")
-  createdChores         Chore[]                  @relation("ChoreCreator")
-  choreAssignments      ChoreAssignment[]
-  cookingSlots          CookingSlot[]
-  cookingAssignments    CookingSlot[]            @relation("CookingSlotAssigner")
-  invitationsSent       Invitation[]             @relation("InvitationInviter")
-  passwordResets        PasswordResetToken[]     @relation("PasswordResetTarget")
-  passwordResetsCreated PasswordResetToken[]     @relation("PasswordResetCreator")
-  authoredNewsletters   NewsletterCampaign[]     @relation("NewsletterAuthor")
-  createdNewsletters    NewsletterCampaign[]     @relation("NewsletterCreator")
-  shiftQuotas           ShiftQuota[]
-  vacationRequests      VacationRequest[]        @relation("VacationRequester")
-  vacationReviews       VacationRequest[]        @relation("VacationReviewer")
-  timeEntries           TimeEntry[]
-  createdWikiPages      WikiPage[]               @relation("WikiPageCreator")
-  updatedWikiPages      WikiPage[]               @relation("WikiPageUpdater")
-  uploadedWikiImages    WikiImage[]              @relation("WikiImageUploader")
-  createdCarouselPosts  CarouselPost[]           @relation("CarouselPostCreator")
-  usageEvents           MemberUsage[]
-  uploadBatches         UploadBatch[]
-  assets                Asset[]
-  deletedAssets         Asset[]                  @relation("AssetDeletedBy")
-  collections           Collection[]
-  exportLogs            ExportLog[]
-  damArchiveReviews     DamArchiveReview[]
-  damPersons            DamPerson[]
-  taskInboxPins         TaskInboxPin[]
-  projectNavPins        ProjectNavPin[]
-  createdCalendarEvents EditorialCalendarEvent[] @relation("EditorialCalendarEventCreator")
+  sessions                     Session[]
+  accounts                     Account[]
+  memberships                  Membership[]
+  ownedSpaces                  Space[]                       @relation("SpaceOwner")
+  spaceAccess                  SpaceAccess[]
+  createdTasks                 Task[]                        @relation("TaskCreator")
+  assignedTasks                Task[]                        @relation("TaskAssignee")
+  createdArticles              Article[]                     @relation("ArticleCreator")
+  assignedArticles             Article[]                     @relation("ArticleAssignee")
+  articleComments              ArticleComment[]              @relation("ArticleCommentAuthor")
+  taskComments                 TaskComment[]                 @relation("TaskCommentAuthor")
+  createdChores                Chore[]                       @relation("ChoreCreator")
+  choreAssignments             ChoreAssignment[]
+  cookingSlots                 CookingSlot[]
+  cookingAssignments           CookingSlot[]                 @relation("CookingSlotAssigner")
+  invitationsSent              Invitation[]                  @relation("InvitationInviter")
+  passwordResets               PasswordResetToken[]          @relation("PasswordResetTarget")
+  passwordResetsCreated        PasswordResetToken[]          @relation("PasswordResetCreator")
+  authoredNewsletters          NewsletterCampaign[]          @relation("NewsletterAuthor")
+  createdNewsletters           NewsletterCampaign[]          @relation("NewsletterCreator")
+  shiftQuotas                  ShiftQuota[]
+  vacationRequests             VacationRequest[]             @relation("VacationRequester")
+  vacationReviews              VacationRequest[]             @relation("VacationReviewer")
+  timeEntries                  TimeEntry[]
+  createdWikiPages             WikiPage[]                    @relation("WikiPageCreator")
+  updatedWikiPages             WikiPage[]                    @relation("WikiPageUpdater")
+  uploadedWikiImages           WikiImage[]                   @relation("WikiImageUploader")
+  createdCarouselPosts         CarouselPost[]                @relation("CarouselPostCreator")
+  usageEvents                  MemberUsage[]
+  uploadBatches                UploadBatch[]
+  assets                       Asset[]
+  deletedAssets                Asset[]                       @relation("AssetDeletedBy")
+  collections                  Collection[]
+  exportLogs                   ExportLog[]
+  damArchiveReviews            DamArchiveReview[]
+  damPersons                   DamPerson[]
+  taskInboxPins                TaskInboxPin[]
+  projectNavPins               ProjectNavPin[]
+  createdCalendarEvents        EditorialCalendarEvent[]      @relation("EditorialCalendarEventCreator")
+  financeSalesDeals            FinanceDeal[]                 @relation("FinanceDealSalesUser")
+  financeCommissionAssignments FinanceCommissionAssignment[]
+  financeCommissionStatements  FinanceCommissionStatement[]
 
   @@map("user")
   @@schema("public")
@@ -138,6 +141,8 @@ enum AppCapability {
   editorial_lead
   civic_media
   civic_media_lead
+  /// Sales: erhält Provisionen und sieht das eigene Provisions-Dashboard
+  sales
 
   @@schema("public")
 }
@@ -171,30 +176,34 @@ model Organization {
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 
-  memberships                 Membership[]
-  invitations                 Invitation[]
-  spaces                      Space[]
-  newsletterTypes             NewsletterType[]
-  newsletterBlockedRanges     NewsletterBlockedRange[]
-  shiftQuotas                 ShiftQuota[]
-  vacationRequests            VacationRequest[]
-  timeEntries                 TimeEntry[]
-  eigenleistungRubriken       EigenleistungRubrik[]
-  articleCategories           ArticleCategory[]
-  wikiPages                   WikiPage[]
-  wikiImages                  WikiImage[]
-  newsItems                   NewsItem[]
-  payrexxPayouts              PayrexxPayout[]
-  payrexxChannelRules         PayrexxChannelRule[]
-  editorialCalendarCategories EditorialCalendarCategory[]
-  editorialCalendarEvents     EditorialCalendarEvent[]
-  financeCategories           FinanceCategory[]
-  financeBudgetEntries        FinanceBudgetEntry[]
-  financeBookings             FinanceBooking[]
-  financeDeals                FinanceDeal[]
-  financeMonthCloses          FinanceMonthClose[]
-  financeYears                FinanceYear[]
-  financeCompanies            FinanceCompany[]
+  memberships                   Membership[]
+  invitations                   Invitation[]
+  spaces                        Space[]
+  newsletterTypes               NewsletterType[]
+  newsletterBlockedRanges       NewsletterBlockedRange[]
+  shiftQuotas                   ShiftQuota[]
+  vacationRequests              VacationRequest[]
+  timeEntries                   TimeEntry[]
+  eigenleistungRubriken         EigenleistungRubrik[]
+  articleCategories             ArticleCategory[]
+  wikiPages                     WikiPage[]
+  wikiImages                    WikiImage[]
+  newsItems                     NewsItem[]
+  payrexxPayouts                PayrexxPayout[]
+  payrexxChannelRules           PayrexxChannelRule[]
+  editorialCalendarCategories   EditorialCalendarCategory[]
+  editorialCalendarEvents       EditorialCalendarEvent[]
+  financeCategories             FinanceCategory[]
+  financeBudgetEntries          FinanceBudgetEntry[]
+  financeBookings               FinanceBooking[]
+  financeDeals                  FinanceDeal[]
+  financeMonthCloses            FinanceMonthClose[]
+  financeYears                  FinanceYear[]
+  financeCompanies              FinanceCompany[]
+  financeCommissionModels       FinanceCommissionModel[]
+  financeCommissionAssignments  FinanceCommissionAssignment[]
+  financeCommissionStatements   FinanceCommissionStatement[]
+  financeCommissionPeriodCloses FinanceCommissionPeriodClose[]
 
   @@map("organization")
   @@schema("public")
@@ -447,12 +456,12 @@ model Task {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  space          Space      @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  recurrenceFrom Task?      @relation("TaskRecurrence", fields: [recurrenceFromId], references: [id], onDelete: SetNull)
-  recurrenceNext Task?      @relation("TaskRecurrence")
-  group          TaskGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  assignee       User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdBy      User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  space          Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  recurrenceFrom Task?         @relation("TaskRecurrence", fields: [recurrenceFromId], references: [id], onDelete: SetNull)
+  recurrenceNext Task?         @relation("TaskRecurrence")
+  group          TaskGroup?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  assignee       User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy      User          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
   comments       TaskComment[]
 
   @@index([spaceId, status])
@@ -1603,30 +1612,41 @@ model FinanceBudgetEntry {
 }
 
 model FinanceDeal {
-  id                String            @id @default(cuid())
+  id                String                  @id @default(cuid())
   organizationId    String
   /// crm | manual | airtable
   source            String
   externalId        String?
   title             String
   companyId         String?
-  totalAmount       Decimal           @db.Decimal(14, 2)
+  totalAmount       Decimal                 @db.Decimal(14, 2)
   responsibleName   String?
   bexioUrl          String?
-  status            FinanceDealStatus @default(open)
-  changedAfterSplit Boolean           @default(false)
+  status            FinanceDealStatus       @default(open)
+  changedAfterSplit Boolean                 @default(false)
   /// Rohdaten vom Webhook
   payload           Json?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  /// Provision: unabhängig vom Budget-Status (offen/aufgeteilt/ignoriert)
+  commissionStatus  FinanceCommissionStatus @default(undecided)
+  salesUserId       String?
+  /// Verkaufsdatum – bestimmt die Abrechnungsperiode (21.–20.)
+  soldAt            DateTime?               @db.Date
+  /// Provisionsbasis «Tsüri intern» bzw. «Extern»; Summe sollte totalAmount entsprechen
+  commissionIntern  Decimal?                @db.Decimal(14, 2)
+  commissionExtern  Decimal?                @db.Decimal(14, 2)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   company      FinanceCompany?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  salesUser    User?            @relation("FinanceDealSalesUser", fields: [salesUserId], references: [id], onDelete: SetNull)
   bookings     FinanceBooking[]
 
   @@unique([organizationId, source, externalId])
   @@index([companyId])
   @@index([organizationId, status])
+  @@index([organizationId, commissionStatus])
+  @@index([salesUserId, soldAt])
   @@map("finance_deal")
   @@schema("public")
 }
@@ -1711,6 +1731,110 @@ model FinanceMonthClose {
 
   @@unique([organizationId, month])
   @@map("finance_month_close")
+  @@schema("public")
+}
+
+// ─── Finance: Provisionen ──────────────────────────────────────
+// Perioden laufen vom 21. des Vormonats bis zum 20.; gespeichert als 1. des Periodenmonats.
+// Offene Perioden werden live berechnet, abgeschlossene als FinanceCommissionStatement eingefroren.
+
+enum FinanceCommissionStatus {
+  undecided
+  relevant
+  not_relevant
+
+  @@schema("public")
+}
+
+/// Grundlage der Progression des internen Satzes
+enum FinanceCommissionBasis {
+  intern
+  total
+
+  @@schema("public")
+}
+
+/// Provision = Grundbetrag + extern × Satz extern + intern × Satz intern.
+/// Satz intern steigt linear von min. bis max. (bei Schwelle); über der Schwelle (intern + extern) gilt max.
+model FinanceCommissionModel {
+  id               String                 @id @default(cuid())
+  organizationId   String
+  name             String
+  baseAmount       Decimal                @default(0) @db.Decimal(14, 2)
+  externRate       Decimal                @db.Decimal(6, 4)
+  internRateMin    Decimal                @db.Decimal(6, 4)
+  internRateMax    Decimal                @db.Decimal(6, 4)
+  threshold        Decimal                @db.Decimal(14, 2)
+  progressionBasis FinanceCommissionBasis @default(intern)
+  notes            String?                @db.Text
+  archivedAt       DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  organization Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments  FinanceCommissionAssignment[]
+
+  @@unique([organizationId, name])
+  @@map("finance_commission_model")
+  @@schema("public")
+}
+
+/// Modell einer Sales-Person ab einer Periode (bis validUntil inkl.; Zuweisungen überlappen nicht)
+model FinanceCommissionAssignment {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  modelId        String
+  validFrom      DateTime  @db.Date
+  validUntil     DateTime? @db.Date
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model        FinanceCommissionModel @relation(fields: [modelId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, userId, validFrom])
+  @@map("finance_commission_assignment")
+  @@schema("public")
+}
+
+/// Abgeschlossene Periode: Provisionsfelder der Deals darin sind gesperrt
+model FinanceCommissionPeriodClose {
+  id             String   @id @default(cuid())
+  organizationId String
+  period         DateTime @db.Date
+  closedById     String?
+  closedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, period])
+  @@map("finance_commission_period_close")
+  @@schema("public")
+}
+
+/// Eingefrorene Monatsabrechnung pro Person und abgeschlossener Periode
+model FinanceCommissionStatement {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  period         DateTime @db.Date
+  internSum      Decimal  @db.Decimal(14, 2)
+  externSum      Decimal  @db.Decimal(14, 2)
+  amount         Decimal  @db.Decimal(14, 2)
+  dealCount      Int
+  /// Modellname und Parameter zum Zeitpunkt des Abschlusses (null = kein Modell zugewiesen)
+  modelSnapshot  Json?
+  closedById     String?
+  closedAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, period])
+  @@index([organizationId, period])
+  @@map("finance_commission_statement")
   @@schema("public")
 }
 

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { getDealCommission, type CommissionStatus, type DealCommission } from "./commission-store";
 import { findOrCreateCompany } from "./companies";
 import { parseWebhookDeal, type WebhookDeal } from "./webhook";
 import {
@@ -111,16 +112,25 @@ export type DealListItem = {
   lastMonth: MonthKey | null;
   status: DealStatus;
   changedAfterSplit: boolean;
+  commissionStatus: CommissionStatus;
+  salesUserName: string | null;
   createdAt: string;
 };
 
+/** Deals without commission decision (ignored deals need none). */
+export const COMMISSION_OPEN_WHERE = {
+  commissionStatus: "undecided",
+  status: { not: "ignored" },
+} satisfies Prisma.FinanceDealWhereInput;
+
 export async function listDeals(
   organizationId: string,
-  filter: DealStatus | "review" | "all",
+  filter: DealStatus | "review" | "commission" | "all",
   query: string,
 ): Promise<DealListItem[]> {
   const where: Prisma.FinanceDealWhereInput = { organizationId };
   if (filter === "review") where.changedAfterSplit = true;
+  else if (filter === "commission") Object.assign(where, COMMISSION_OPEN_WHERE);
   else if (filter !== "all") where.status = filter;
   const q = query.trim();
   if (q) {
@@ -138,6 +148,7 @@ export async function listDeals(
     include: {
       bookings: { select: { amount: true, month: true } },
       company: { select: { id: true, name: true } },
+      salesUser: { select: { name: true } },
     },
   });
 
@@ -157,6 +168,8 @@ export async function listDeals(
       lastMonth: months[months.length - 1] ?? null,
       status: d.status,
       changedAfterSplit: d.changedAfterSplit,
+      commissionStatus: d.commissionStatus,
+      salesUserName: d.salesUser?.name ?? null,
       createdAt: d.createdAt.toISOString(),
     };
   });
@@ -194,6 +207,7 @@ export type DealDetail = {
   createdAt: string;
   updatedAt: string;
   payload: unknown;
+  commission: DealCommission;
   /** Hints from the webhook payload to prefill the split dialog */
   suggestion: { startMonth: MonthKey | null; months: number | null; categoryId: string | null };
   bookings: {
@@ -215,6 +229,7 @@ export async function getDealDetail(
     include: {
       bookings: { orderBy: [{ month: "asc" }, { createdAt: "asc" }] },
       company: { select: { id: true, name: true } },
+      salesUser: { select: { id: true, name: true } },
     },
   });
   if (!deal) return null;
@@ -247,6 +262,7 @@ export async function getDealDetail(
     createdAt: deal.createdAt.toISOString(),
     updatedAt: deal.updatedAt.toISOString(),
     payload: deal.payload,
+    commission: await getDealCommission(organizationId, deal),
     suggestion: {
       startMonth: parsed?.ok ? parsed.deal.startMonth : null,
       months: parsed?.ok ? parsed.deal.months : null,

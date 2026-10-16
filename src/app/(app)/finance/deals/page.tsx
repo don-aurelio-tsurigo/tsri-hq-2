@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { FinanceSectionTabs } from "@/components/finance-section-tabs";
 import { FinanceCompanyField } from "@/components/finance-company-combobox";
+import { FinanceCommissionBadge } from "@/components/finance-deal-commission";
 import { FinanceDealStatusBadge } from "@/components/finance-deal-status-badge";
 import { FinanceWebhookPanel } from "@/components/finance-webhook-panel";
 import { getPublicAppOrigin } from "@/lib/app-url";
 import { createFinanceDeal } from "@/lib/actions/finance";
 import { prisma } from "@/lib/db";
 import { listCompanyOptions } from "@/lib/finance/companies";
-import { getWebhookToken, listDeals, type DealListItem } from "@/lib/finance/deals";
+import {
+  COMMISSION_OPEN_WHERE,
+  getWebhookToken,
+  listDeals,
+  type DealListItem,
+} from "@/lib/finance/deals";
 import { formatChfExact, monthLabel } from "@/lib/finance/shared";
 import { pageTitle } from "@/lib/link-preview";
 import { requireCapability } from "@/lib/session";
@@ -17,6 +23,7 @@ export const metadata = pageTitle("Finance");
 const FILTERS = [
   { key: "open", label: "Offen" },
   { key: "review", label: "Zu prüfen" },
+  { key: "commission", label: "Provision offen" },
   { key: "split", label: "Aufgeteilt" },
   { key: "ignored", label: "Ignoriert" },
   { key: "all", label: "Alle" },
@@ -43,14 +50,19 @@ export default async function FinanceDealsPage({
   const q = (params.q ?? "").slice(0, 200);
   const organizationId = membership.organizationId;
 
-  const [deals, token, openCount, reviewCount, companies] = await Promise.all([
+  const [deals, token, openCount, reviewCount, commissionCount, companies] = await Promise.all([
     listDeals(organizationId, filter, q),
     getWebhookToken(organizationId),
     prisma.financeDeal.count({ where: { organizationId, status: "open" } }),
     prisma.financeDeal.count({ where: { organizationId, changedAfterSplit: true } }),
+    prisma.financeDeal.count({ where: { organizationId, ...COMMISSION_OPEN_WHERE } }),
     listCompanyOptions(organizationId),
   ]);
-  const counts: Partial<Record<FilterKey, number>> = { open: openCount, review: reviewCount };
+  const counts: Partial<Record<FilterKey, number>> = {
+    open: openCount,
+    review: reviewCount,
+    commission: commissionCount,
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -164,7 +176,9 @@ export default async function FinanceDealsPage({
             {deals.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-[var(--muted)]">
-                  {filter === "open" && !q ? "Keine offenen Deals. 🎉" : "Keine Deals gefunden."}
+                  {(filter === "open" || filter === "commission") && !q
+                    ? "Keine offenen Deals. 🎉"
+                    : "Keine Deals gefunden."}
                 </td>
               </tr>
             ) : (
@@ -226,8 +240,13 @@ function DealRow({ deal }: { deal: DealListItem }) {
           <p className="text-xs text-amber-700">Raten {diff > 0 ? "+" : ""}{formatChfExact(diff)}</p>
         ) : null}
       </td>
-      <td className="px-4 py-3">
+      <td className="space-y-1 px-4 py-3">
         <FinanceDealStatusBadge status={deal.status} changed={deal.changedAfterSplit} />
+        {deal.status !== "ignored" || deal.commissionStatus !== "undecided" ? (
+          <div>
+            <FinanceCommissionBadge status={deal.commissionStatus} salesUserName={deal.salesUserName} />
+          </div>
+        ) : null}
       </td>
     </tr>
   );
