@@ -208,6 +208,7 @@ export function AppSidebar({
   userName,
   isAdmin,
   canFinance,
+  canSales,
   canAds,
   canManageEditorial = false,
   spacesBySlug,
@@ -220,6 +221,7 @@ export function AppSidebar({
   userName: string;
   isAdmin: boolean;
   canFinance: boolean;
+  canSales: boolean;
   canAds: boolean;
   canManageEditorial?: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
@@ -700,6 +702,17 @@ export function AppSidebar({
         >
           Meine Arbeitszeit
         </NavTopLink>
+
+        {canSales && (
+          <NavTopLink
+            href="/provisionen"
+            active={pathname === "/provisionen"}
+            icon={Percent}
+            onNavigate={onMobileClose}
+          >
+            Meine Provisionen
+          </NavTopLink>
+        )}
 
         {isAdmin && (
           <NavSection

@@ -2,7 +2,7 @@ import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { listNavProjects } from "@/lib/projects";
 import { listNavTaskPins } from "@/lib/tasks";
-import { canAccessCivicMedia, canManageEditorial, hasCapability } from "@/lib/permissions";
+import { canAccessCivicMedia, canManageEditorial, hasCapability, hasExplicitTag } from "@/lib/permissions";
 import { requireMembership } from "@/lib/session";
 import { listVisibleSpaces } from "@/lib/spaces";
 import { listPinnedWikiPages } from "@/lib/wiki";
@@ -60,6 +60,7 @@ export default async function AppLayout({
         userName={session.user.name}
         isAdmin={membership.role === "admin"}
         canFinance={hasCapability(membership, "finance")}
+        canSales={hasExplicitTag(membership, "sales")}
         canAds={canAccessCivicMedia(membership)}
         canManageEditorial={canManageEditorial(membership)}
         spacesBySlug={spacesBySlug}

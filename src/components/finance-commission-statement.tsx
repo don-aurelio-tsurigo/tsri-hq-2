@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import type { CommissionPersonRow } from "@/lib/finance/commission-store";
 import { formatChfExact } from "@/lib/finance/shared";
@@ -11,18 +12,23 @@ export function FinanceCommissionStatement({
   row,
   linkDeals,
   defaultOpen = false,
+  title,
+  id,
 }: {
   row: CommissionPersonRow;
+  /** Replaces the person's name in the summary (e.g. period + status in the personal dashboard) */
+  title?: ReactNode;
+  id?: string;
   /** Link deal titles to the finance deal page (finance only) */
   linkDeals: boolean;
   defaultOpen?: boolean;
 }) {
   const r = row.result;
   return (
-    <details className="card group" open={defaultOpen}>
+    <details id={id} className="card group scroll-mt-4" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-6 gap-y-2 p-4">
         <div className="min-w-40 flex-1">
-          <p className="font-semibold">{row.user.name}</p>
+          <div className="font-semibold">{title ?? row.user.name}</div>
           <p className="text-xs text-[var(--muted)]">
             {row.model ? row.model.name : <span className="font-semibold text-[var(--danger)]">Kein Modell zugewiesen</span>}
             {" · "}

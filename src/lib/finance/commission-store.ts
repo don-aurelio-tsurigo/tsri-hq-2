@@ -2,10 +2,12 @@
 
 import { prisma } from "@/lib/db";
 import {
+  activeAssignment,
   assignmentRangeError,
   calculateCommission,
   commissionPeriodOf,
   commissionPeriodRange,
+  commissionPeriodsBetween,
   commissionSplitDiff,
   type CommissionBasis,
   type CommissionModelParams,
@@ -546,4 +548,123 @@ export async function reopenCommissionPeriod(organizationId: string, period: Mon
     prisma.financeCommissionStatement.deleteMany({ where: { organizationId, period: periodDate } }),
     prisma.financeCommissionPeriodClose.deleteMany({ where: { organizationId, period: periodDate } }),
   ]);
+}
+
+// ─── Jahresübersicht einer Person (Dashboard) ──────────────────
+
+export type CommissionYearPeriod = {
+  period: MonthKey;
+  /** closed = abgerechnet, running = laufende Periode, open = vorbei, aber noch nicht abgeschlossen */
+  state: "closed" | "running" | "open";
+  /** Statement with deals; result null = deals but no model assigned */
+  row: CommissionPersonRow;
+};
+
+/**
+ * Periods of a year for one person, up to the current period (later ones only if they have deals).
+ * Closed periods show the frozen amounts, open ones are calculated live.
+ */
+export async function getCommissionYearForUser(
+  organizationId: string,
+  user: SalesPerson,
+  year: number,
+): Promise<CommissionYearPeriod[]> {
+  const periods = commissionPeriodsBetween(`${year}-01`, `${year}-12`);
+  const first = monthKeyToDate(periods[0]);
+  const last = monthKeyToDate(periods[periods.length - 1]);
+  const current = commissionPeriodOf(new Date());
+
+  const [closes, statements, assignments, deals] = await Promise.all([
+    prisma.financeCommissionPeriodClose.findMany({
+      where: { organizationId, period: { gte: first, lte: last } },
+      select: { period: true },
+    }),
+    prisma.financeCommissionStatement.findMany({
+      where: { organizationId, userId: user.id, period: { gte: first, lte: last } },
+    }),
+    prisma.financeCommissionAssignment.findMany({
+      where: { organizationId, userId: user.id },
+      include: { model: true },
+    }),
+    prisma.financeDeal.findMany({
+      where: {
+        organizationId,
+        salesUserId: user.id,
+        commissionStatus: "relevant",
+        soldAt: {
+          gte: commissionPeriodRange(periods[0]).from,
+          lte: commissionPeriodRange(periods[periods.length - 1]).to,
+        },
+      },
+      orderBy: [{ soldAt: "asc" }, { createdAt: "asc" }],
+      include: { company: { select: { name: true } } },
+    }),
+  ]);
+
+  const closed = new Set(closes.map((c) => monthKeyFromDate(c.period)));
+  const statementBy = new Map(statements.map((s) => [monthKeyFromDate(s.period), s]));
+  const ranges = assignments.map((a) => ({
+    validFrom: monthKeyFromDate(a.validFrom),
+    validUntil: a.validUntil ? monthKeyFromDate(a.validUntil) : null,
+    model: a.model,
+  }));
+  const dealsBy = new Map<MonthKey, CommissionDealRow[]>();
+  for (const d of deals) {
+    if (!d.soldAt) continue;
+    const period = commissionPeriodOf(d.soldAt);
+    const list = dealsBy.get(period) ?? [];
+    list.push({
+      id: d.id,
+      title: d.title,
+      company: d.company?.name ?? null,
+      soldAt: d.soldAt.toISOString().slice(0, 10),
+      intern: Number(d.commissionIntern ?? 0),
+      extern: Number(d.commissionExtern ?? 0),
+    });
+    dealsBy.set(period, list);
+  }
+
+  const out: CommissionYearPeriod[] = [];
+  for (const period of periods) {
+    const periodDeals = dealsBy.get(period) ?? [];
+    if (closed.has(period)) {
+      const s = statementBy.get(period);
+      if (!s) continue;
+      const model = (s.modelSnapshot as CommissionModelSnapshot | null) ?? null;
+      const internSum = Number(s.internSum);
+      const externSum = Number(s.externSum);
+      out.push({
+        period,
+        state: "closed",
+        row: {
+          user,
+          model,
+          deals: periodDeals,
+          result: model
+            ? { ...calculateCommission(model.params, internSum, externSum), amount: Number(s.amount) }
+            : null,
+        },
+      });
+      continue;
+    }
+    if (period > current && periodDeals.length === 0) continue;
+    const assignment = activeAssignment(ranges, period);
+    if (!assignment && periodDeals.length === 0) continue;
+    const model = assignment
+      ? { modelId: assignment.model.id, name: assignment.model.name, params: modelParams(assignment.model) }
+      : null;
+    const intern = periodDeals.reduce((sum, d) => sum + d.intern, 0);
+    const extern = periodDeals.reduce((sum, d) => sum + d.extern, 0);
+    out.push({
+      period,
+      state: period >= current ? "running" : "open",
+      row: {
+        user,
+        model,
+        deals: periodDeals,
+        result: model ? calculateCommission(model.params, intern, extern) : null,
+      },
+    });
+  }
+  return out;
 }

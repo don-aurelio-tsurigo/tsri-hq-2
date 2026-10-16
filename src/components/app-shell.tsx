@@ -34,6 +34,7 @@ export function AppShell({
   userName,
   isAdmin,
   canFinance,
+  canSales,
   canAds,
   canManageEditorial,
   spacesBySlug,
@@ -45,6 +46,7 @@ export function AppShell({
   userName: string;
   isAdmin: boolean;
   canFinance: boolean;
+  canSales: boolean;
   canAds: boolean;
   canManageEditorial: boolean;
   spacesBySlug: Record<string, NavSpace | undefined>;
@@ -118,6 +120,7 @@ export function AppShell({
           userName={userName}
           isAdmin={isAdmin}
           canFinance={canFinance}
+          canSales={canSales}
           canAds={canAds}
           canManageEditorial={canManageEditorial}
           spacesBySlug={spacesBySlug}
