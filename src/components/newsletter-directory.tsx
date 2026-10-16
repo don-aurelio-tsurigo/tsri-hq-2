@@ -38,13 +38,24 @@ type CalendarMonth = {
   days: NewsletterCalendarDay[];
 };
 
-function monthHref(month: string, selectedTypeIds: string[] | null) {
+function hrefFor(monthKey: string, typeId: string | null, mine: boolean) {
   const params = new URLSearchParams();
-  params.set("month", month);
-  if (selectedTypeIds && selectedTypeIds.length > 0) {
-    for (const id of selectedTypeIds) params.append("type", id);
-  }
+  params.set("month", monthKey);
+  if (typeId) params.set("type", typeId);
+  if (mine) params.set("mine", "1");
   return `/newsletter?${params.toString()}`;
+}
+
+/** «2026-08-03» → «03.08.» */
+function shortDate(dateKey: string) {
+  return `${dateKey.slice(8, 10)}.${dateKey.slice(5, 7)}.`;
+}
+
+/** Montag der Woche als yyyy-MM-dd (für Wochentrenner) */
+function weekStartKey(dateKey: string) {
+  const d = new Date(`${dateKey}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
 }
 
 function isValidCampaignUrl(value: string): boolean {
@@ -172,9 +183,16 @@ function MoreMenu({
 function SlotRow({
   slot,
   members,
+  dateLabel = null,
+  showTypeName = true,
+  rowClassName,
 }: {
   slot: NewsletterCalendarSlot;
   members: Member[];
+  /** Kompaktansicht: Datum direkt in der Zeile statt Tageskopf */
+  dateLabel?: string | null;
+  showTypeName?: boolean;
+  rowClassName?: string;
 }) {
   const router = useRouter();
   const [authorId, setAuthorId] = useState(slot.campaign?.authorId ?? "");
@@ -329,6 +347,7 @@ function SlotRow({
         "border-l-[3px] px-3 py-1",
         skipped ? "opacity-55" : "",
         complete ? "bg-emerald-50/40" : "",
+        rowClassName ?? "",
       ].join(" ")}
       style={{
         borderLeftColor: color,
@@ -340,19 +359,33 @@ function SlotRow({
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-0 w-36 shrink-0 sm:w-40">
+        {dateLabel ? (
+          <span className="w-[5.5rem] shrink-0 text-sm font-semibold tabular-nums">
+            {dateLabel}
+          </span>
+        ) : null}
+        <div
+          className={[
+            "min-w-0 shrink-0",
+            showTypeName ? "w-36 sm:w-40" : "w-24",
+          ].join(" ")}
+        >
           <p
             className={[
               "truncate text-sm leading-tight",
               skipped ? "line-through text-[var(--muted)]" : "",
             ].join(" ")}
           >
-            <span
-              className="mr-1.5 inline-block size-2 rounded-full align-middle"
-              style={{ background: color }}
-              aria-hidden
-            />
-            {slot.typeName}
+            {showTypeName ? (
+              <>
+                <span
+                  className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                  style={{ background: color }}
+                  aria-hidden
+                />
+                {slot.typeName}
+              </>
+            ) : null}
             {skipped ? (
               <span className="ml-1.5 text-[10px] no-underline text-[var(--muted)]">
                 fällt aus
@@ -474,43 +507,45 @@ function SlotRow({
 
 export function NewsletterDirectory({
   types,
-  initialTypeIds,
+  initialTypeId,
+  initialMineOnly,
+  currentUserId,
   members,
   calendar,
 }: {
   types: NewsletterTypeOption[];
-  initialTypeIds: string[];
+  /** null = alle Newsletter */
+  initialTypeId: string | null;
+  initialMineOnly: boolean;
+  currentUserId: string;
   members: Member[];
   calendar: CalendarMonth;
 }) {
   const router = useRouter();
   const today = todayDateKey();
-  const allTypeIds = useMemo(() => types.map((t) => t.id), [types]);
-  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
-    initialTypeIds.length > 0 ? initialTypeIds : allTypeIds,
+  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(
+    initialTypeId,
   );
+  const [mineOnly, setMineOnly] = useState(initialMineOnly);
   const [fromTodayOnly, setFromTodayOnly] = useState(true);
 
-  useEffect(() => {
-    const typeIds = new Set(types.map((t) => t.id));
-    setSelectedIds((prev) => {
-      const next = prev.filter((id) => typeIds.has(id));
-      if (next.length === 0) return types.map((t) => t.id);
-      return next;
-    });
-  }, [types]);
-
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const filterActive =
-    selectedIds.length > 0 && selectedIds.length < types.length;
-  const typeFilterParam = filterActive ? selectedIds : null;
+  // Gelöschte/deaktivierte Typen fallen auf «Alle Newsletter» zurück
+  const activeTypeId =
+    selectedTypeId && types.some((t) => t.id === selectedTypeId)
+      ? selectedTypeId
+      : null;
+  const filterActive = !!activeTypeId || mineOnly;
   const viewingCurrentMonth = calendar.monthKey === calendar.currentMonth;
 
   const filteredDays = useMemo(() => {
     return calendar.days
       .map((day) => ({
         ...day,
-        slots: day.slots.filter((s) => selectedSet.has(s.typeId)),
+        slots: day.slots.filter(
+          (s) =>
+            (!activeTypeId || s.typeId === activeTypeId) &&
+            (!mineOnly || s.campaign?.authorId === currentUserId),
+        ),
       }))
       .filter((day) => day.slots.length > 0)
       .filter(
@@ -520,7 +555,9 @@ export function NewsletterDirectory({
   }, [
     calendar.days,
     viewingCurrentMonth,
-    selectedSet,
+    activeTypeId,
+    mineOnly,
+    currentUserId,
     fromTodayOnly,
     today,
   ]);
@@ -542,34 +579,23 @@ export function NewsletterDirectory({
     [filteredDays],
   );
 
-  function syncUrl(nextIds: string[]) {
-    const params = new URLSearchParams(window.location.search);
-    params.delete("type");
-    if (nextIds.length > 0 && nextIds.length < types.length) {
-      for (const id of nextIds) params.append("type", id);
-    }
-    if (calendar.monthKey) params.set("month", calendar.monthKey);
-    const qs = params.toString();
-    router.replace(qs ? `/newsletter?${qs}` : "/newsletter", {
+  /** Kompakt: jeder Tag hat höchstens eine Zeile → Datum direkt in der Zeile */
+  const compact = filteredDays.every((day) => day.slots.length <= 1);
+  // In der Einzelansicht steht der Newsletter-Name schon im Filter
+  const showTypeName = !(compact && activeTypeId);
+
+  function selectType(typeId: string | null) {
+    setSelectedTypeId(typeId);
+    router.replace(hrefFor(calendar.monthKey, typeId, mineOnly), {
       scroll: false,
     });
   }
 
-  function toggleType(typeId: string) {
-    setSelectedIds((prev) => {
-      const has = prev.includes(typeId);
-      const next = has
-        ? prev.filter((id) => id !== typeId)
-        : [...prev, typeId];
-      const resolved = next.length === 0 ? allTypeIds : next;
-      syncUrl(resolved);
-      return resolved;
+  function selectScope(mine: boolean) {
+    setMineOnly(mine);
+    router.replace(hrefFor(calendar.monthKey, activeTypeId, mine), {
+      scroll: false,
     });
-  }
-
-  function showAll() {
-    setSelectedIds(allTypeIds);
-    syncUrl(allTypeIds);
   }
 
   return (
@@ -577,7 +603,7 @@ export function NewsletterDirectory({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <Link
-            href={monthHref(calendar.prevMonth, typeFilterParam)}
+            href={hrefFor(calendar.prevMonth, activeTypeId, mineOnly)}
             className="btn btn-ghost px-2 py-1 text-sm"
           >
             ←
@@ -594,7 +620,7 @@ export function NewsletterDirectory({
             </p>
           </div>
           <Link
-            href={monthHref(calendar.nextMonth, typeFilterParam)}
+            href={hrefFor(calendar.nextMonth, activeTypeId, mineOnly)}
             className="btn btn-ghost px-2 py-1 text-sm"
           >
             →
@@ -612,15 +638,6 @@ export function NewsletterDirectory({
               Ab heute
             </label>
           ) : null}
-          {filterActive ? (
-            <button
-              type="button"
-              className="text-xs font-medium text-[var(--accent)] underline-offset-2 hover:underline"
-              onClick={showAll}
-            >
-              Alle anzeigen
-            </button>
-          ) : null}
           <Link
             href="/settings/newsletter"
             className="btn btn-ghost px-3 py-1.5 text-sm"
@@ -630,72 +647,131 @@ export function NewsletterDirectory({
         </div>
       </div>
 
-      {types.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {types.map((type) => {
-            const active = selectedSet.has(type.id);
-            const typeColor = type.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
-            return (
-              <button
-                key={type.id}
-                type="button"
-                aria-pressed={active}
-                className={
-                  active
-                    ? "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
-                    : "inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)]"
-                }
-                style={
-                  active
-                    ? {
-                        borderColor: typeColor,
-                        background: newsletterTypeSoftBackground(typeColor, 18),
-                      }
-                    : undefined
-                }
-                onClick={() => toggleType(type.id)}
-              >
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ background: typeColor }}
-                  aria-hidden
-                />
-                {type.name}
-              </button>
-            );
-          })}
+      <div className="-mx-4 flex items-center gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div
+          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full border border-[var(--border)] p-0.5"
+          role="radiogroup"
+          aria-label="Ansicht"
+        >
+          {(
+            [
+              [false, "Alle Newsletter"],
+              [true, "Meine Newsletter"],
+            ] as const
+          ).map(([mine, label]) => (
+            <button
+              key={label}
+              type="button"
+              role="radio"
+              aria-checked={mineOnly === mine}
+              className={mineOnly === mine ? "rounded-full bg-[var(--fg)] px-2.5 py-0.5 text-xs font-medium text-[var(--bg-elevated)]" : "rounded-full px-2.5 py-0.5 text-xs text-[var(--muted)] hover:text-[var(--fg)]"}
+              onClick={() => selectScope(mine)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+        <span
+          className="mx-1 h-4 w-px shrink-0 bg-[var(--border)]"
+          aria-hidden
+        />
+        {types.map((t) => {
+          const active = activeTypeId === t.id;
+          const color = t.color || NEWSLETTER_TYPE_COLOR_DEFAULT;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={active}
+              className={
+                active
+                  ? "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                  : "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--border)] px-2.5 py-0.5 text-xs text-[var(--muted)]"
+              }
+              style={
+                active
+                  ? {
+                      borderColor: color,
+                      background: newsletterTypeSoftBackground(color, 18),
+                    }
+                  : undefined
+              }
+              title={active ? "Klicken, um alle Newsletter zu zeigen" : undefined}
+              onClick={() => selectType(active ? null : t.id)}
+            >
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: color }}
+                aria-hidden
+              />
+              {t.name}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-        {filteredDays.map((day, dayIndex) => (
-          <section
-            key={day.dateKey}
-            className={
-              dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
-            }
-          >
-            <header className="bg-black/[0.03] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--muted)]">
-              {day.weekdayLabel} · {day.dateKey}
-              {day.holidayName ? (
-                <span className="ml-2 font-normal">· {day.holidayName}</span>
-              ) : null}
-            </header>
-            <ul className="divide-y divide-[var(--border)]">
-              {day.slots.map((slot) => (
+        {compact ? (
+          <ul>
+            {filteredDays.map((day, i) => {
+              const newWeek =
+                i > 0 &&
+                weekStartKey(day.dateKey) !==
+                  weekStartKey(filteredDays[i - 1].dateKey);
+              const slot = day.slots[0];
+              return (
                 <SlotRow
                   key={`${slot.typeId}-${slot.dateKey}`}
                   slot={slot}
                   members={members}
+                  dateLabel={`${day.weekdayLabel} ${shortDate(day.dateKey)}`}
+                  showTypeName={showTypeName}
+                  rowClassName={
+                    i === 0
+                      ? undefined
+                      : newWeek
+                        ? "border-t-2 border-t-black/30"
+                        : "border-t border-t-[var(--border)]"
+                  }
                 />
-              ))}
-            </ul>
-          </section>
-        ))}
+              );
+            })}
+          </ul>
+        ) : (
+          filteredDays.map((day, dayIndex) => (
+            <section
+              key={day.dateKey}
+              className={
+                dayIndex > 0 ? "border-t border-[var(--border)]" : undefined
+              }
+            >
+              <header className="bg-black/[0.03] px-3 py-1 text-xs font-semibold tracking-wide text-[var(--muted)]">
+                {day.weekdayLabel} · {day.dateKey}
+                {day.holidayName ? (
+                  <span className="ml-2 font-normal">· {day.holidayName}</span>
+                ) : null}
+              </header>
+              <ul className="divide-y divide-[var(--border)]">
+                {day.slots.map((slot) => (
+                  <SlotRow
+                    key={`${slot.typeId}-${slot.dateKey}`}
+                    slot={slot}
+                    members={members}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
         {filteredDays.length === 0 && (
           <p className="px-3 py-4 text-sm text-[var(--muted)]">
             Keine Erscheinungstage in diesem Monat
-            {filterActive ? " für die gewählten Typen" : ""}.
+            {mineOnly
+              ? " mit dir als Autor:in"
+              : activeTypeId
+                ? " für die gewählte Ausgabe"
+                : ""}
+            .
             {fromTodayOnly && viewingCurrentMonth
               ? " Oder «Ab heute» ausschalten."
               : ""}
